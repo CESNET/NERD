@@ -1,0 +1,80 @@
+body {
+  background: #f7f7f7;
+  color: #000;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+}
+
+h1 {
+  font-size: x-large;
+  font-weight: bold;
+  color: #102040;
+}
+
+/* redefine defaults for jquiery ui widgets */
+.ui-widget {
+	font-family: inherit;
+	font-size: 1.0em;
+}
+
+.ui-tooltip {
+  padding: 0.25em 0.4em;
+}
+
+/***** Main tables, such as IPs table (#entity_table) or Events table (#events_table) *****/
+.main_table {
+  margin-top: 1em;
+  background: #eeeeee;
+  border: solid black;
+  /* This is necessary to avoid firefox bug, in which borders have different 
+     widths when border-collapse:collapse is used and page is zoomed in (which
+     is default for high DPI screens)
+  */
+  border-collapse: separate;
+  border-spacing: 0px; 
+  border-width: 0px 0px 1px 1px;
+}
+
+.main_table td, .main_table th {
+  border: solid black;
+  border-width: 1px 1px 0px 0px;
+  padding: 0.2em 0.3em;
+}
+
+.main_table th {
+  background: #bbbbbb;
+}
+
+.main_table tr:hover {
+  background: #fbfbfb;
+}
+/**********/
+
+td.country a {
+  text-decoration: none;
+  color: inherit;
+}
+
+
+.tag {
+  display: inline-block;
+  background: #333;
+  color: white;
+  border-radius: 4px;
+  padding: 0.1em 0.3em;
+  margin: 0.1em;
+  font-size: 1em;
+}
+
+.tag.port {
+  background: #258;
+}
+
+.tag.amplifier {
+  background: #a62;
+}
+
+
+.blacklist_entry + .blacklist_entry::before {
+  content: "| ";
+}

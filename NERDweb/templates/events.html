@@ -1,0 +1,161 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<p>Hello World!!!</p>
+
+<p>Number of IP addresses in the databse: {{ num_ips }}</p>
+<p>Number of alerts in the databse: {{ num_alerts }}</p>
+
+<p>Recent alerts:</p>
+
+<form method="GET" action="{{ url_for('main') }}">
+  {# form.csrf_token #}
+  {{ form.limit.label }} {{ form.limit(size=5) }}
+  <input type="submit">
+</form>
+
+{#
+<ul>
+{% for alert in alerts %}
+  <li><tt>{{alert}}</tt></li>
+{% endfor %}
+</ul>
+#}
+
+<!---------- Table with results ---------->
+<table id="events_table" class="main_table">
+<!-- Header -->
+<tr><th></th>
+<th title="EventTime & CeaseTime or TimeWinStart & TimeWinEnd or DetectTime">Time</th>
+<th>Type</th>
+<th title="Source.IP4 or Source.IP6 (all items in arrays)">Source</th>
+<th title="Source.IP4 or Source.IP6 (all items in arrays)">Target</th>
+<th title="All fields not shown elsewhere">Other properties</th>
+<th>Reported by</th>
+</tr>
+
+{% for alert in alerts %}
+<tr>
+<td class="id" title="Event ID: {{ alert.ID }} (click to copy)" onclick="copy_to_clipboard('{{ alert.ID }}')"><span>ID</span></td>
+   
+{# Time range #}
+<td class="time">
+{#   // compute positions of time markers
+   $marker1_pos = null;
+   $marker2_pos = null;
+   if (isset($event['time_first']) && isset($event['time_last'])) {
+      $marker1_pos = sqrt_transform($current_time - $event['time_first'])*100; 
+      $marker2_pos = sqrt_transform($current_time - $event['time_last'])*100;
+   }
+   else if (isset($event['timeslot'])) {
+      $marker1_pos = sqrt_transform($current_time - $event['timeslot'])*100;
+      $marker2_pos = $marker1_pos;
+   }
+   // render markers
+   if ($marker1_pos && $marker2_pos) {
+      echo '<div class="container">';
+      echo '<div class="time_marker" style="right: '.$marker2_pos.'px; width: '.($marker1_pos-$marker2_pos+1.0).'px"></div>';
+      echo '<div class="time_ruler"></div>';
+      echo '</div>';
+   }
+#}
+{# TODO: put |e (escape html specials) to all strings #}
+<div class="time_content">
+   {% if alert.EventTime is defined %}
+      {{ alert.EventTime }}<br>{{ alert.CeaseTime }}
+   {% else %}
+      {% if alert.AggrWinStart is defined and alert.AggrWinEnd is defined %}
+         {{ alert.AggrWinStart }}<br>{{ alert.AggrWinEnd }}
+      {% else %}
+         {{ alert.DetectTime }}
+      {% endif %} 
+   {% endif %}
+</div>
+</td>
+{## Category ##}
+<td>{{ alert.Category|join("<br>"|safe) }}</td>
+{## Source ##}
+<td>
+{% set src_splitter = joiner("<hr>"|safe) %}
+{% for src in alert.Source %}
+   {{ src_splitter() }}
+   {% set ip_splitter = joiner("<br>"|safe) %}
+   {% for ip in src.IP4 %}
+      {{ ip_splitter() }}<span class="ip ip4">{{ ip }}</span>
+   {% endfor %}
+   {% for ip in src.IP6 %}
+      {{ ip_splitter() }}<span class="ip ip6">{{ ip }}</span>
+   {% endfor %}
+{% endfor %}
+</td>
+{## Target ##}
+<td>
+{% set tgt_splitter = joiner("<hr>"|safe) %}
+{% for tgt in alert.Target %}
+   {{ tgt_splitter() }}
+   {% set ip_splitter = joiner("<br>"|safe) %}
+   {% for ip in tgt.IP4 %}
+      {{ ip_splitter() }}<span class="ip ip4">{{ ip }}</span>
+   {% endfor %}
+   {% for ip in tgt.IP6 %}
+      {{ ip_splitter() }}<span class="ip ip6">{{ ip }}</span>
+   {% endfor %}
+{% endfor %}
+</td>
+
+<td>
+TODO
+{#
+
+   
+   if (isset($event['reported_by'])) {
+      $reported_by = $event['reported_by'];
+      unset($event['reported_by']);
+   }
+   else {
+      $reported_by = "";
+   }
+   
+   // *** Other properties (cell) ***
+   ksort($event);
+   echo '<td>';
+   // Get renderer according to event type
+   if (array_key_exists($event_bck['type'],$event_renderers)) {
+      $string = $event_renderers[$event_bck['type']]($event_bck);
+   }
+   // Default renderer
+   else {
+      $keyvals = array();
+      foreach ($event as $key=>$val) {
+         if ($key[0] != '_') { // Skip keys beginning with an underscore
+            array_push($keyvals, "$key = $val");
+         }
+      }
+      $string = join(' | ', $keyvals);
+   }
+   // Shorten resulting string if needed
+   if (strlen($string) > MAX_OTHERS_LEN-3)
+      $string = substr($string,0,MAX_OTHERS_LEN-3) . '...';
+   echo $string;
+   
+   // All propreties (popup)
+   echo '<div class="popup allprops"><table>';
+   foreach ($event as $key=>$val) {
+         echo "<tr><td>$key</td><td>$val</td></tr>";
+   }
+   echo '</table></div>';
+   echo '</td>';
+#}
+</td>
+{## Reported by ##}
+<td>
+  {%- if alert.Node is defined and alert.Node[-1].Name is defined -%}
+    {{ alert.Node[-1].Name }}
+  {%- endif -%}
+</td>
+
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}

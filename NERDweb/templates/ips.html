@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<script>
+$(function() {
+  $( document ).tooltip({
+    items: ".country [title]",
+    track: false,
+    show: false,
+    hide: false,
+    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
+  });
+});
+</script>
+
+<h1>Known IP addresses</h1>
+<p style="font-style: italic; color: #d11">Testing version - data are randomly generated</p>
+
+<form method="GET" action="{{ url_for('ips') }}">
+  {# form.csrf_token #}
+  {{ form.limit.label }} {{ form.limit(size=5) }}
+  <input type="submit">
+</form>
+
+
+
+<!---------- Table with results ---------->
+<table id="entity_table" class="main_table">
+<!-- Header -->
+<tr>
+<th>IP address</th>
+<th>Hostname</th>
+<th title="Autonomous system number and name">ASN</th>
+<th>Country</th>
+<th title="Number of alerts within last 30,7,1 days">Events vector</th>
+<th>Shodan info</th>
+<th>Device type</th>
+<th>Other properties</th>
+</tr>
+
+{% for ip in ipinfo %}
+<tr>
+<td class="id ip"><span>{{ip.ip}}</span></td>
+<td class="hostname">{{ip.hostname}}</td>
+<td class="asn"><span class="as_num">{{ip.as_num}}</span> <span class="as_name">{{ip.as_name}}</span></td>
+<td class="country">
+  <a href="http://country.io/{{ip.geo.ctry_code|lower}}/">
+  <span title="{{ctrydata.names.get(ip.geo.ctry_code, '?') + ', ' + 
+                 ctrydata.continent_names.get(ctrydata.continent.get(ip.geo.ctry_code, '?'), '?') +
+                 ' (' + ip.geo.ctry_code + '/' + ctrydata.iso3.get(ip.geo.ctry_code, '?') + ')' 
+               }}">
+    <span class="flag flag-{{ip.geo.ctry_code|lower}}"></span>{{ip.geo.ctry_code}}
+  </span>
+  </a>
+</td>
+<td class="event_vector">{{ip.events.last_30d}}, {{ip.events.last_7d}}, {{ip.events.last_1d}}</td>
+<td class="shodan">
+  {% if ip.shodan_os %}<span class="tag os">{{ip.shodan_os}}</span>{% endif %}
+  <span class="ports">
+    {% for port in ip.shodan_ports %}<span class="tag port">{{port}}</span>{% endfor %}
+  </span>
+</td>
+<td class="device_type">{% if ip.device_type %}<span class="tag">{{ip.device_type}}</span>{% endif %}</td>
+<td class="other">
+  {% if ip.open_dns %}<span class="tag amplifier dns">Open DNS resolver</span>{% endif %}
+  {% if ip.open_ntp %}<span class="tag amplifier ntp">Open NTP</span>{% endif %}
+  {% if ip.open_snmp %}<span class="tag amplifier snmp">Open SNMP</span>{% endif %}
+  
+  {% if ip.tor %}<span class="tag tor">TOR exit node</span>{% endif %}
+  
+  {% for bl in ip.blacklists %}
+    <span class="blacklist_entry">{{bl}}</span>
+  {% endfor %}
+</td>
+</tr>
+{% endfor %}
+</table>
+
+
+{% endblock %}

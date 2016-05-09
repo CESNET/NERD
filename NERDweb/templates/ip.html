@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{%block body %}
+
+{% if ipaddr %}
+Hello IP {{ ipaddr }}! 
+{% else %}
+Hello unknown IP!
+{% endif %}
+
+{% endblock %}
