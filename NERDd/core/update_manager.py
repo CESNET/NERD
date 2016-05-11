@@ -16,6 +16,7 @@ from collections import defaultdict, deque
 #      - ('set', key, value)        - set new value to given key (rec[key] = value)
 #      - ('append', key, value)     - append new value to array at key (rec[key].append(key))
 #      - ('add_to_set', key, value) - append new value to array at key if it isn't present in the array yet (if value not in rec[key]: rec[key].append(value))
+#      - ('extend_set', key, iterable) - append values from iterable to array at key if the value isn't present in the array yet (for value in iterable: if value not in rec[key]: rec[key].append(value))
 #      - ('add', key, value)        - add given numerical value to that stored at key (rec[key] += value)
 #      - ('sub', key, value)        - add given numerical value to that stored at key (rec[key] -= value)
 #      - ('event', !name, param)    - do nothing with record, only trigger functions hooked on the event name
@@ -26,6 +27,12 @@ from collections import defaultdict, deque
 #  Hooked function receives list if update specifiers (the three tuples) that
 #  triggered its call (if more than one update triggers the same function, it's
 #  called only once). 
+
+# TODO: (?)
+#  call handler function with parameters:
+#    attributes_changed (list of attr names)
+#    events (list of tuples (event_name, param))
+#  instead of update request specification (which is too complex and contains information irrelevant to hooked functions)
 
 def print_func(func_or_method):
     """Get name of function or method as pretty string."""
@@ -47,13 +54,16 @@ def perform_update(rec, updreq):
     value was already in the array, or unknown operation was requested)
     """
     op, key, value = updreq
+    
     if op == 'set':
         rec[key] = value
+    
     elif op == 'append':
         if key not in rec:
             rec[key] = [value]
         else:
             rec[key].append(value)
+    
     elif op == 'add_to_set':
         if key not in rec:
             rec[key] = [value]
@@ -61,13 +71,35 @@ def perform_update(rec, updreq):
             rec[key].append(value)
         else:
             return None
+    
+    elif op == 'extend_set':
+        if key not in rec:
+            rec[key] = list(value)
+        else:
+            changed = False
+            for val in value:
+                if val not in rec[key]:
+                    rec[key].append(value)
+                    changed = True
+            if not changed:
+                return None
+    
     elif op == 'add':
-        rec[key] += value
+        if key not in rec:
+            rec[key] = value
+        else:
+            rec[key] += value
+    
     elif op == 'sub':
-        rec[key] -= value
+        if key not in rec:
+            rec[key] = -value
+        else:
+            rec[key] -= value
+    
     else:
         print("perform_update: Unknown operation {}".fomrat(op), file=sys.stderr)
         return None
+    
     return updreq
 
 
@@ -308,7 +340,12 @@ class UpdateManager:
         
         print("call_queue loop end")
         assert(len(may_change) == 0)
-    
+        
+        # Set ts_last_update
+        rec.ts_last_update = datetime.now(tz=timezone.utc)
+        
+        print("RECORD: {}".format(rec))
+        
         # Put the record back to the DB and delete call_queue for this ekey
         self.db.update(ekey[0], ekey[1], rec)
         del self._records_being_processed[ekey]

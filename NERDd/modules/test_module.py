@@ -1,6 +1,6 @@
 """NERD module for testing UpdateManager"""
 
-from .module import NERDModule
+from .base import NERDModule
 import time
 
 class TestModule (NERDModule):
@@ -68,5 +68,9 @@ class TestModule (NERDModule):
     def sleep(self, ekey, rec, updates):
         for event in updates:
             assert(event[1] == '!sleep')
+            print()
+            print("Sleeping ...")
+            print("zZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZ")
+            print()
             time.sleep(event[2])
         return None

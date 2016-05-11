@@ -2,10 +2,10 @@
 
 from time import sleep
 
-import nerd.db
-import nerd.module
-import nerd.update_manager
-import nerd.test_module
+import nerd.core.db
+import nerd.core.update_manager
+import nerd.modules.base
+import nerd.modules.test_module
 
 ############
 
@@ -37,12 +37,15 @@ if __name__ == "__main__":
     
     # Simulate some update requests
     update_manager.update(('ip', '195.113.228.57'), [('set','X',123)])
-    update_manager.update(('ip', '195.113.144.230'), [('event','!sleep',2)])
+    update_manager.update(('ip', '195.113.144.230'), [('event','!sleep',1)])
     update_manager.update(('ip', '147.229.9.23'), [('set','B',1),('set','X',321)])
-    sleep(5)
+    sleep(2)
     update_manager.update(('ip', '195.113.228.57'), [('set','B',8),('set','X',5555)])
     
-    sleep(5)
+    sleep(2)
+    print()
+    print("*** Enter anything to quit ***")
+    input()
     
     print("Main: Stopping running components")
     for module in modules:
