@@ -6,6 +6,7 @@ import nerd.core.db
 import nerd.core.update_manager
 import nerd.modules.base
 import nerd.modules.test_module
+import nerd.modules.event_receiver
 
 ############
 
@@ -20,6 +21,7 @@ if __name__ == "__main__":
     # Instantiate modules
     modules = [
         nerd.test_module.TestModule(update_manager),
+        nerd.mod_event_receiver.EventReceiver(update_manager),
     ]
     
     # Run update manager thread/process
