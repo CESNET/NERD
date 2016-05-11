@@ -11,121 +11,64 @@ from datetime import datetime, timezone
 import time
 from collections import defaultdict, deque
 
-# 
-# # Processing function specification:
-# Watches: set of events / attribute changes this function should be triggered on
-# Changes: set of attributes this function may change
-# 
-# 
-# mapping event2func: Mapping of events/attrchanges to function that should be called
-# mapping func_watch: Mapping of functions to all events/attrchanges attributes it may be triggered by (= "Watches" param of the function definition)
-# 
-# # TODO cache results
-# def get_all_possbile_changes(event):
-#     """
-#     Returns all attributes (as a set) that may be changed by a "chain reaction"
-#     of changes triggered by given event.
-#     
-#     Warning: There must be no loops in the sequence of events and triggered 
-#     functions.
-#     """
-#     may_change = set() # Attributes that may be changed
-#     funcs_to_call = set(event2func[event])
-#     while funcs_to_call:
-#         func = funcs_to_call.pop()
-#         may_change.add(func.Changes)
-#         funcs_to_call.add(event2func[func.Changes])
-#     return may_change
-# 
-# 
-# # Temporary storage of records being updated.
-# # Mapping of "ekey" to following 3-tuple:
-# #     (record [JSON-like object], 
-# #      event handler call queue [queue.Queue containing tuples (func, event)],
-# #      attributes that may change due to planned handler calls [set],
-# #      thread processing the events [Thread] )
-# records_being_processed = {}
-# 
-# def update(ekey, updates=None):
-#     """
-#     Main event processing function.
-#     
-#     ...
-#     
-#     ekey -- Entity type and key (2-tuple)
-#     event -- specification of the event (either string or set of changed attributes)
-#     updates -- (optional) set of updates to perform on given entity record
-#     """
-#     # Load record (either from database, or from temporary storage of records 
-#     # currently being updated)
-#     # TODO locking
-#     if ekey not in records_being_processed:
-#         # Fetch record from database and store it temporarily together with
-#         # a new queue for event handler calls. 
-#         records_being_processed[ekey] = (db.get(ekey, create=True), queue.Queue(), set(), None)
-#     
-#     # rec - the record being processed
-#     # call_queue - queue of functions that should be called to update the record
-#     #     (queue.Queue of tuples (function,event), where event is description of
-#     #     the event which tirggered the function) TODO: what if there's more such events
-#     # may_change - set of attributes that may be changed by planned function calls
-#     # thread - Thread used to run the updating functions
-#     rec, call_queue, may_change, thread = records_being_processed[ekey]
-#     
-#     # Add to the queue all functions directly hooked to the given event 
-#     for func in event2funcs.get(event, [])
-#         call_queue.put((func,event))
-#     
-#     # Compute all attribute changes that may occur due to this event and add 
-#     # them to the set of attributes to change
-#     may_change |= get_all_possible_changes(event)
-#     
-#     # ???
-#     # processed), create and run it
-#     #if thread is None:
-#     
-#     # Process updates directly given as parameter,
-#     # add to call_queue the functions hooked to updated attributes,
-#     # and update may_change accordingly
-#     ...
-#     
-#     # Process planned calls in the queue until it's empty
-#     while call_queue:
-#         assert(not may_change.empty())
-#         
-#         func,event = call_queue.get()
-#         
-#         # If the function watches some attributes that may be updated later due 
-#         # to expected subsequent events, postpone its call.
-#         if may_change & func_watches[func]:  # nonempty intersection of two sets   # TODO may_change -> function creating events from attributes
-#             # Put the function call back to the end of the queue
-#             call_queue.put((func, event))
-#             continue
-#             
-#         # Call the event handler function.
-#         # Set of requested updates of the record should be returned
-#         updates = func(ekey, event)
-#         
-#         # TODO perform the updates
-#         print(updates)
-#         
-#         # Remove set of possible attribute changes of that function from 
-#         # may_change (they were either already changed or they won't be changed)
-#         may_change -= func_changes[func]
-#     
-#     assert(may_change.empty())
-# 
-#     # Put the record back to the DB and delete call_queue for this ekey
-#     db.update(ekey, rec)
-#     del records_being_processed[ekey]
-# 
+#  Update request specification = list of three-tuples:
+#    - [(op, key, value), ...]
+#      - ('set', key, value)        - set new value to given key (rec[key] = value)
+#      - ('append', key, value)     - append new value to array at key (rec[key].append(key))
+#      - ('add_to_set', key, value) - append new value to array at key if it isn't present in the array yet (if value not in rec[key]: rec[key].append(value))
+#      - ('add', key, value)        - add given numerical value to that stored at key (rec[key] += value)
+#      - ('sub', key, value)        - add given numerical value to that stored at key (rec[key] -= value)
+#      - ('event', !name, param)    - do nothing with record, only trigger functions hooked on the event name
+#  The tuple is passed to functions watching for updates of given keys / events
+#  with given name. Event names must begin with '!' (attribute keys mustn't).
+#  Update manager performs the requested update and calls functions hooked on 
+#  the attribute/event.
+#  Hooked function receives list if update specifiers (the three tuples) that
+#  triggered its call (if more than one update triggers the same function, it's
+#  called only once). 
 
 def print_func(func_or_method):
+    """Get name of function or method as pretty string."""
     try:
         fname = func_or_method.__func__.__qualname__
     except AttributeError:
         fname = func_or_method.__name__
     return func_or_method.__module__ + '.' + fname
+
+
+def perform_update(rec, updreq):
+    """
+    Update a record according to given update reqeust.
+    
+    updreq - 3-tuple (op, key, value)
+    
+    Return specification of performed updates - either updreq or None
+    (None is returned when nothing was changed, either because op=add_to_set and
+    value was already in the array, or unknown operation was requested)
+    """
+    op, key, value = updreq
+    if op == 'set':
+        rec[key] = value
+    elif op == 'append':
+        if key not in rec:
+            rec[key] = [value]
+        else:
+            rec[key].append(value)
+    elif op == 'add_to_set':
+        if key not in rec:
+            rec[key] = [value]
+        elif value not in rec[key]:
+            rec[key].append(value)
+        else:
+            return None
+    elif op == 'add':
+        rec[key] += value
+    elif op == 'sub':
+        rec[key] -= value
+    else:
+        print("perform_update: Unknown operation {}".fomrat(op), file=sys.stderr)
+        return None
+    return updreq
 
 
 class UpdateManager:
@@ -192,7 +135,7 @@ class UpdateManager:
             else:
                 self._attr2func[attr] = [func]
 
-    def update(self, ekey, attrib_updates):
+    def update(self, ekey, update_spec):
         """
         Request an update of one or more attributes of an entity record.
         
@@ -201,15 +144,11 @@ class UpdateManager:
         
         Arguments:
         ekey -- Entity type and key (2-tuple)
-        attrib_updates -- list of 2-tuples (attribute, value) specifying new
-            values of attributes that should be updated.
-            If an attribute strats with '!' (it's an "event") the value is 
-            ignored and the attribute is not stored, but it can still be used
-            to trigger some handler function(s).
+        update_spec -- list of 3-tuples ... (see above) TODO
         """
         # TODO change list of 2-tuples do dict?
         # TODO check data validity
-        self._request_queue.put((ekey, attrib_updates))
+        self._request_queue.put((ekey, update_spec))
         
     
     # TODO cache results (clear cache when register_handler is called)
@@ -232,7 +171,7 @@ class UpdateManager:
         return may_change
     
     
-    def _process_update_req(self, ekey, attrib_updates):
+    def _process_update_req(self, ekey, update_requests):
         """
         Main processing function - update attributes or trigger an event.
         
@@ -241,20 +180,16 @@ class UpdateManager:
         
         Arguments:
         ekey -- Entity type and key (2-tuple)
-        attrib_updates -- list of 2-tuples (attribute, value) specifying new
-            values of attributes that should be updated.
-            If an attribute strats with '!' (it's an "event") the value is 
-            ignored and the attribute is not stored, but it can still be used
-            to trigger some handler function(s).
+        update_requests -- update_spec as described above (3-tuples,... TODO)
         """
         
         # Load record corresponding to the key -- either from database, or from
         # temporary storage of records being currently updated)
         # If record doesn't exist, create new.
         # Also load/create associated auxiliary objects:
-        #   call_queue - queue of functions that should be called to update the record
-        #     (queue.Queue of tuples (function,event), where event is description of
-        #     the event which tirggered the function) TODO: what if there's more such events
+        #   call_queue - queue of functions that should be called to update the record.
+        #     queue.Queue of tuples (function, list_of_update_spec), where list_of_update_spec is a list of
+        #     updates (3-tuples op,key,value) which tirggered the function.
         #   may_change - set of attributes that may be changed by planned function calls
         # TODO locking (lock records_being_processed)
         if ekey in self._records_being_processed:
@@ -270,7 +205,7 @@ class UpdateManager:
                 }
                 # New record was created -> add "!NEW" event to attrib_updates
                 print("New record {} was created, injecting event '!NEW'".format(ekey))
-                attrib_updates.insert(0,('!NEW',None))
+                update_requests.insert(0,('event','!NEW',None))
             
             # Create auxiliary objects
             call_queue = deque()
@@ -280,23 +215,28 @@ class UpdateManager:
         
         
         # Perform requested updates.
-        for attr,val in attrib_updates:
-            if attr[0] == '!':
-                print("Initial update: Event ({}:{}).{}".format(ekey[0],ekey[1],attr))
+        for updreq in update_requests:
+            op, attr, val = updreq
+            assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
+            
+            if op == 'event':
+                print("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
             else:
-                print("Initial update: New attribute value: ({}:{}).{} = {}".format(ekey[0],ekey[1],attr,val))
-                rec[attr] = val
+                print("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
+                upd = perform_update(rec, updreq)
+                if upd is None:
+                    print("Attribute value wasn't changed.")
+                    continue
             
             # Add to the call_queue all functions directly hooked to the attribute/event 
             for func in self._attr2func.get(attr, []):
-                # If the function is already in the queue, just add attr to list of attrs that triggered it
-                for f2,attrs in call_queue:
-                    if f2 == func:
-                        if attr not in attrs: # don't duplicate attrs
-                            attrs.append(attr)
+                # If the function is already in the queue, just add updreq to list of updates that triggered it
+                for f,upds in call_queue:
+                    if f == func:
+                        upds.append(updreq)
                         break
                 else:
-                    call_queue.append((func, [attr]))
+                    call_queue.append((func, [updreq]))
         
             # Compute all attribute changes that may occur due to this event and add 
             # them to the set of attributes to change
@@ -315,46 +255,51 @@ class UpdateManager:
             )
             # safety check against infinite looping
             loop_counter += 1
-            if loop_counter > 100:
+            if loop_counter > 10:
                 print("WARNING: Too many iterations when updating {}, something went wrong! Update chain stopped.".format(ekey))
                 break
             
-            func, attrs = call_queue.popleft()
+            func, updates = call_queue.popleft()
             
             # If the function watches some attributes that may be updated later due 
             # to expected subsequent events, postpone its call.
             if may_change & self._func_triggers[func]:  # nonempty intersection of two sets
                 # Put the function call back to the end of the queue
-                print("call_queue: Postponing call of {}({})".format(print_func(func), attrs))
-                call_queue.append((func, attrs))
+                print("call_queue: Postponing call of {}({})".format(print_func(func), updates))
+                call_queue.append((func, updates))
                 continue
             
             # Call the event handler function.
             # Set of requested updates of the record should be returned
-            print("Calling: {}({}, ..., {})".format(print_func(func), ekey, attrs))
-            updates = func(ekey, rec, attrs)
-            if updates is None:
-                updates = {}
+            print("Calling: {}({}, ..., {})".format(print_func(func), ekey, updates))
+            update_reqs = func(ekey, rec, updates)
+            if update_reqs is None:
+                update_reqs = []
             
-            # TODO perform the updates instead of prints
-            for attr,val in updates.items():
-                if attr[0] == '!':
-                    print("Update chain: Event ({}:{}).{}".format(ekey[0],ekey[1],attr))
+            # Perform the updates
+            for updreq in update_reqs:
+                op, attr, val = updreq
+                assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
+                
+                if op == 'event':
+                    print("Update chain: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
                 else:
-                    print("Update chain: New attribute value: ({}:{}).{} = {}".format(ekey[0],ekey[1],attr,val))
-                    rec[attr] = val
+                    print("Update chain: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
+                    upd = perform_update(rec, updreq)
+                    if upd is None:
+                        print("Attribute value wasn't changed.")
+                        continue
             
-                # Add to the call_queue all functions directly hooked to the updated attributes 
-                for f in self._attr2func.get(attr, []):
-                    # If the function is already in the queue, just add attr to list of attrs that triggered it
-                    for f2,attrs in call_queue:
-                        if f2 == f:
-                            if attr not in attrs: # don't duplicate attrs
-                                attrs.append(attr)
+                # Add to the call_queue all functions directly hooked to the attribute/event 
+                for hooked_func in self._attr2func.get(attr, []):
+                    # If the function is already in the queue, just add updreq to list of updates that triggered it
+                    for f,upds in call_queue:
+                        if f == hooked_func:
+                            upds.append(updreq)
                             break
                     else:
-                        call_queue.append((f, [attr]))
-            
+                        call_queue.append((hooked_func, [updreq]))
+        
             # Remove set of possible attribute changes of that function from 
             # may_change (they were either already changed or they won't be changed)
             print("Removing {} from may_change.".format(self._func2attr[func]))
@@ -399,13 +344,13 @@ class UpdateManager:
             # to exit the program)
             req = self._request_queue.get()
             if req is None:
-                print("UpdateManager: None recevied - exitting")
+                print("UpdateManager: 'None' recevied from main queue - exitting")
                 self._request_queue.task_done()
                 break
             ekey, attrib_updates = req
             
             print()
-            print("UpdateManager: New request update: {},{}".format(
+            print("UpdateManager: New update request: {},{}".format(
                     ekey, attrib_updates
                   ))
             

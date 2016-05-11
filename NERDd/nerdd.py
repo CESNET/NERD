@@ -36,11 +36,11 @@ if __name__ == "__main__":
     sleep(1)
     
     # Simulate some update requests
-    update_manager.update(('ip', '195.113.228.57'), [('X',123)])
-    update_manager.update(('ip', '195.113.144.230'), [('!sleep',None)])
-    update_manager.update(('ip', '147.229.9.23'), [('B',1),('X',321)])
+    update_manager.update(('ip', '195.113.228.57'), [('set','X',123)])
+    update_manager.update(('ip', '195.113.144.230'), [('event','!sleep',2)])
+    update_manager.update(('ip', '147.229.9.23'), [('set','B',1),('set','X',321)])
     sleep(5)
-    update_manager.update(('ip', '195.113.228.57'), [('B',8),('X',5555)])
+    update_manager.update(('ip', '195.113.228.57'), [('set','B',8),('set','X',5555)])
     
     sleep(5)
     
