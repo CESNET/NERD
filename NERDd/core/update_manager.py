@@ -342,7 +342,7 @@ class UpdateManager:
         assert(len(may_change) == 0)
         
         # Set ts_last_update
-        rec.ts_last_update = datetime.now(tz=timezone.utc)
+        rec['ts_last_update'] = datetime.now(tz=timezone.utc)
         
         print("RECORD: {}".format(rec))
         
