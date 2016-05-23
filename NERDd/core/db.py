@@ -14,6 +14,9 @@ class EntityDatabase:
     """
     Abstract layer above the entity database. It provides an interface for 
     database operations independet on underlying database system.
+    
+    This is a trivial in-memory database based on Python dict - useful only for 
+    debugging/testing.
     """
     # List of known/supported entity types - currently only IP addresses (both IPv4 and IPv6 are treated the same)
     _supportedTypes = ['ip']
@@ -47,7 +50,7 @@ class EntityDatabase:
         etype   entity type (str), e.g. 'ip'
         key     entity identifier (str), e.g. '192.0.2.42'
         
-        Return the record as JSON document or None it is not present in the database.
+        Return the record as JSON document or None if it is not present in the database.
         
         Raise UnknownEntityType if there is not database collection for given etype.
         """
@@ -56,29 +59,15 @@ class EntityDatabase:
         
         return self._db[etype].get(key, None)
         
-    def add(self, etype, key, record):
+    def put(self, etype, key, record):
         """
-        Store new record into the database.
+        Store a record into the database or replace old with a new one.
         
         Arguments:
         etype   entity type (str), e.g. 'ip'
         key     entity identifier (str), e.g. '192.0.2.42'
         record  JSON document with properties of the entity to be stored in DB
         """
-        self.update(etype, key, record)
-    
-    def update(self, etype, key, record):
-        """
-        Replace record of given entity by the new one.
-        
-        Arguments:
-        etype   entity type (str), e.g. 'ip'
-        key     entity identifier (str), e.g. '192.0.2.42'
-        record  JSON document with properties of the entity to be stored in DB
-        """
-        if etype not in self._supportedTypes:
-            raise UnknownEntityType("There is no collection for entity type "+str(etype))
-        
         self._db[etype][key] = record  
 
 

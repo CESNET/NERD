@@ -30,9 +30,19 @@ from collections import defaultdict, deque
 
 # TODO: (?)
 #  call handler function with parameters:
-#    attributes_changed (list of attr names)
+#    attributes_changed (list of tuples (attr_name, new_value))
 #    events (list of tuples (event_name, param))
 #  instead of update request specification (which is too complex and contains information irrelevant to hooked functions)
+
+# TODO: Let each module (or rather hook function) tell, whether it needs the whole record.
+# Many of them probably won't so we can save the load from database
+# (we just need to block any other updates, which is now done by keeping the record in _records_being_processed).
+
+# TODO: Vyresit reakci na !NEW pri pridani noveho modulu.
+# Spousta modulu reaguje na !NEW, ale pri pridani takoveho modulu do systemu
+# se nepridaji nove polozky k existujicim zaznamum (protoze uz existuji),
+# ani kdyz jsou updatovatny.
+
 
 def print_func(func_or_method):
     """Get name of function or method as pretty string."""
@@ -54,6 +64,15 @@ def perform_update(rec, updreq):
     value was already in the array, or unknown operation was requested)
     """
     op, key, value = updreq
+    
+    # Process keys with hierarchy, i.e. containing dots (like "events.scan.count")
+    # rec will be the inner-most subobject ("events.scan"), key the last attribute ("count")
+    # If path doesn't exist in the hierarchy, it's created
+    while '.' in key:
+        first_key, key = key.split('.',1)
+        if first_key not in rec:
+            rec[first_key] = {}
+        rec = rec[first_key]
     
     if op == 'set':
         rec[key] = value
@@ -178,7 +197,6 @@ class UpdateManager:
         ekey -- Entity type and key (2-tuple)
         update_spec -- list of 3-tuples ... (see above) TODO
         """
-        # TODO change list of 2-tuples do dict?
         # TODO check data validity
         self._request_queue.put((ekey, update_spec))
         
@@ -344,10 +362,10 @@ class UpdateManager:
         # Set ts_last_update
         rec['ts_last_update'] = datetime.now(tz=timezone.utc)
         
-        print("RECORD: {}".format(rec))
+        print("RECORD: {}: {}".format(ekey, rec))
         
         # Put the record back to the DB and delete call_queue for this ekey
-        self.db.update(ekey[0], ekey[1], rec)
+        self.db.put(ekey[0], ekey[1], rec)
         del self._records_being_processed[ekey]
 
     

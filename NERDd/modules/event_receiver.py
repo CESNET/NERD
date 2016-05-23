@@ -15,6 +15,8 @@ import sys
 import socket
 import json
 
+WARDEN_DROP_PATH = "/data/warden_filer/warden_receiver"
+
 
 running_flag = True # read_dir function terminates when this is set to False
 
@@ -76,8 +78,8 @@ def read_dir(path):
         def __init__(self, p):
             self.path = self._ensure_path(p)
             self.incoming = self._ensure_path(os.path.join(self.path, "incoming"))
-            self.errors = self._ensure_path(os.path.join(self.path, "errors"))
-            self.temp = self._ensure_path(os.path.join(self.path, "temp"))
+            self.errors = self._ensure_path(os.path.join(self.path, "errors-worker"))
+            self.temp = self._ensure_path(os.path.join(self.path, "temp-worker"))
             self.hostname = socket.gethostname()
             self.pid = os.getpid()
     
@@ -221,7 +223,7 @@ class EventReceiver(NERDModule):
     """
     def __init__(self, update_manager):
         self._um = update_manager
-        self._drop_path = "./drop_events_here"
+        self._drop_path = WARDEN_DROP_PATH
     
     def start(self):
         """
@@ -252,12 +254,13 @@ class EventReceiver(NERDModule):
         # (termiated by setting running_flag to False)
         for event in read_dir(self._drop_path):
             print("------------------------------------------------------------")
-            print("Loaded event:")
+            print("EventReceiver: Loaded event:")
             print(json.dumps(event))
             
             for src in event.get("Source", []):
                 for ipv4 in src.get("IP4", []):
                     # TODO check IP address validity
+                    print("EventReceiver: Updating IPv4 record {}".format(ipv4))
                     self._um.update(
                         ('ip', ipv4),
                         [
@@ -268,5 +271,6 @@ class EventReceiver(NERDModule):
                     
                 for ipv6 in src.get("IP6", []):
                     print("NOTICE: IPv6 adddress as Source found - skipping since IPv6 is not implemented yet.", file=sys.stderr)
-    
-    
+            
+            #return # TODO z nejakeho duvodu, kdyz to tady po prvnim zaznamu ukoncim, tak dojde ke zpracovani update managerem, jinak ale ne
+            
