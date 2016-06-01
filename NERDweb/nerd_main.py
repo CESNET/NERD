@@ -1,15 +1,19 @@
 #!/usr/bin/env python
 import random
 import json
+import time
+import os
+import pytz
 
-from flask import Flask, request, render_template, g
+from flask import Flask, request, render_template, g, jsonify
 from flask.ext.pymongo import PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
-from wtforms import validators, StringField, IntegerField, BooleanField
+from wtforms import validators, TextField, IntegerField, BooleanField
 
-import db
+#import db
 import ctrydata
 
+WARDEN_DROP_PATH = "/data/warden_filer/warden_receiver/incoming"
 
 app = Flask(__name__)
 
@@ -56,8 +60,10 @@ class IPFilterForm(Form):
 def ips():
     limit = get_int_arg('limit', 20, min=1, max=1000)
     form = IPFilterForm(limit=limit)
-    ipinfo = [db.getIPInfo('.'.join(str(random.randint(0,255)) for _ in range(4))) for _ in range(limit)]
-    return render_template('ips.html', ctrydata=ctrydata, **locals())
+    ipinfo = mongo.db.ip.find().limit(limit)
+    timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
+    #ipinfo = [db.getIPInfo('.'.join(str(random.randint(0,255)) for _ in range(4))) for _ in range(limit)]
+    return render_template('ips.html', ctrydata=ctrydata, sorted=sorted, **locals())
 
 
 # ***** List of alerts *****
@@ -78,10 +84,32 @@ def events():
 
 # ***** Detailed info about individual IP *****
 
+class SingleIPForm(Form):
+    ip = TextField('IP address', [validators.IPAddress(message="Invalid IPv4 address")])
+
+
 @app.route('/ip/')
 @app.route('/ip/<ipaddr>')
 def ip(ipaddr=None):
-    return render_template('ip.html', ipaddr=ipaddr)
+    form = SingleIPForm(ip=ipaddr)
+    #if form.validate():
+    if ipaddr:
+        ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+    else:
+        ipinfo = {}
+    return render_template('ip.html', form=form, ip=form.ip.data, ipinfo=ipinfo, ctrydata=ctrydata)
+
+
+# ***** NERD status information *****
+
+@app.route('/status')
+def get_status():
+    ips = mongo.db.ip.count()
+    idea_queue_len = len(os.listdir(WARDEN_DROP_PATH))
+    return jsonify(
+        ips=ips,
+        idea_queue=idea_queue_len
+    )
 
 
 # **********

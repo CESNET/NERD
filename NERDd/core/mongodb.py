@@ -11,9 +11,10 @@ import pymongo
 # easily queried by ragnes (less-than/greater-than).
 # Hide this from the rest of the system (it should be dotted-decimal string in the rest of the system)
 
-MONGO_HOST = 'localhost'
-MONGO_PORT = 27017
-MONGO_DB_NAME = 'nerd'
+# Defaults (may be overridden by config values mongodb.host, mongodb.port, mongodb.dbname)
+DEFAULT_MONGO_HOST = 'localhost'
+DEFAULT_MONGO_PORT = 27017
+DEFAULT_MONGO_DBNAME = 'nerd'
 
 class UnknownEntityType(ValueError):
     pass
@@ -25,12 +26,16 @@ class MongoEntityDatabase():
     # List of known/supported entity types - currently only IP addresses (both IPv4 and IPv6 are treated the same)
     _supportedTypes = ['ip']
 
-    def __init__(self):
+    def __init__(self, config):
         """
         Connect to Mongo database.
         """
-        self._mongo_client = pymongo.MongoClient(MONGO_HOST, MONGO_PORT)
-        self._db = self._mongo_client[MONGO_DB_NAME]
+        host = config.get('mongodb.host', DEFAULT_MONGO_HOST)
+        port = config.get('mongodb.port', DEFAULT_MONGO_PORT)
+        dbname = config.get('mongodb.dbname', DEFAULT_MONGO_DBNAME)
+        print("MongoDB wrapper: Connecting to {}:{}/{}".format(host,port,dbname))
+        self._mongo_client = pymongo.MongoClient(host, port)
+        self._db = self._mongo_client[dbname]
 
     
     def __del__(self):

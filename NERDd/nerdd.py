@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
+import sys
 from time import sleep
 
+import core.config
 #import core.db
 import core.mongodb
 import core.update_manager
 import modules.base
+# TODO load everything automatically (or everything specified in config)
 #import modules.test_module
 import modules.event_receiver
 import modules.dns
@@ -13,21 +16,35 @@ import modules.geolocation
 
 ############
 
+DEFAULT_CONFIG_FILE = "./nerd.cfg"
+
+############
+
+
 if __name__ == "__main__":
 
     print("Main: Start")
     
+    # Load configuration
+    # TODO parse arguments using ArgParse
+    if len(sys.argv) >= 2:
+        cfg_file = sys.argv[1]
+    else:
+        cfg_file = DEFAULT_CONFIG_FILE
+    config = core.config.read_config(cfg_file)
+    
     # Create main NERDd components
     #db = core.db.EntityDatabase({})
-    db = core.mongodb.MongoEntityDatabase()
-    update_manager = core.update_manager.UpdateManager(db)
+    db = core.mongodb.MongoEntityDatabase(config)
+    update_manager = core.update_manager.UpdateManager(config, db)
     
     # Instantiate modules
+    # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
     module_list = [
-        modules.event_receiver.EventReceiver(update_manager),
-        #modules.test_module.TestModule(update_manager),
-        modules.dns.DNSResolver(update_manager),
-        modules.geolocation.Geolocation(update_manager),
+        modules.event_receiver.EventReceiver(config, update_manager),
+        #modules.test_module.TestModule(config, update_manager),
+        modules.dns.DNSResolver(config, update_manager),
+        modules.geolocation.Geolocation(config, update_manager),
     ]
     
     # Run update manager thread/process
@@ -52,7 +69,7 @@ if __name__ == "__main__":
     
     print()
     print("-------------------------------------------------------------------")
-    print("Reading events from "+modules.event_receiver.WARDEN_DROP_PATH+"/incoming")
+    print("Reading events from "+str(config.get('warden_filer_path'))+"/incoming")
     print()
     print("*** Enter anything to quit ***")
     try:

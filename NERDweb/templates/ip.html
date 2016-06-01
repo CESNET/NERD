@@ -1,10 +1,59 @@
 {% extends "layout.html" %}
-{%block body %}
+{% block body %}
 
-{% if ipaddr %}
-Hello IP {{ ipaddr }}! 
+<h1>{{ ip._id }}</h1>
+
+{# Note: The onsubmit script ovverrides funcionality of Submit button to put IP address to custom URL #}
+<form id="ip_form" onsubmit="window.location='{{ url_for('ip') }}'+$('#ip_form #ip').val(); return false;">
+  {# form.csrf_token #}
+  {{ form.ip.label }} {{ form.ip(size=30) }}
+  <input type="submit">
+</form>
+
+{% if not ip %}
+  {# Print nothing if no IP was passed #}
+{% elif not ipinfo %}
+  <hr>
+  <p>Not found</p>
 {% else %}
-Hello unknown IP!
-{% endif %}
+
+<hr>
+
+<div class="ip-info">
+<p class="header"><span class="ip">{{ ip }}</span><span class="hostname">{{ ipinfo.hostname }}</span></p>
+
+<dl class="attrs">
+{% for attr,val in ipinfo.items()|sort() %} {# TODO: sort #}
+ {% if attr == "_id" %}
+  {# pass #}
+ {% elif attr == "events" %}
+  <dt>events ({{val.total}})</dt>
+  <dd><dl>
+   {% for date,cats in val.items() %}
+    {% if date != 'total' %}
+     <dt>{{date}}</dt><dd><dl>
+      {% for cat,val in cats.items() %}
+       {% if cat != 'nodes' %}
+        {{cat}}: {{val}}<br>
+       {% endif %}
+      {% endfor %}
+      nodes: {{cats.nodes|join(', ')}}<br>
+     </dl></dd>
+    {% endif %}
+   {% endfor %}
+  </dl></dd>
+ {% elif attr == "geo" %}
+  <dt>geo</dt><dd><span class="country">
+    <a href="http://country.io/{{val.ctry|lower}}/">
+    <span class="flag flag-{{val.ctry|lower}}"></span>{{ ctrydata.names.get(val.ctry, '?') }}</a></span>,
+    {{ val.city|default('--') }}
+  </dd>
+ {% else %}
+  <dt>{{ attr }}</dt><dd>{{ val }}</dd>
+ {% endif %}
+{% endfor %}
+</dl>
+
+{% endif %}{# if not found #}
 
 {% endblock %}

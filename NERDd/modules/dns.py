@@ -22,10 +22,10 @@ class DNSResolver(NERDModule):
       !NEW -> get_hostname -> hostname
     """
     
-    def __init__(self, update_manager):
+    def __init__(self, config, update_manager):
         self._resolver = resolver.Resolver()
-        self._resolver.timeout = 2
-        self._resolver.lifetime = 2
+        self._resolver.timeout = config.get('dns.timeout', 2)
+        self._resolver.lifetime = 2 # TODO: Co to presne znamena?
 
         update_manager.register_handler(
             self.get_hostname, # function (or bound method) to call

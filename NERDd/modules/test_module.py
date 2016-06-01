@@ -15,7 +15,7 @@ class TestModule (NERDModule):
       !sleep -> sleep -> None
     """
     
-    def __init__(self, update_manager):
+    def __init__(self, config, update_manager):
         update_manager.register_handler(
             self.setB, # function (or bound method) to call
             ('A',), # tuple/list/set of attributes to watch (their update triggers call of the registered method)

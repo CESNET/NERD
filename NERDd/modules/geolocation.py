@@ -15,9 +15,6 @@ from .base import NERDModule
 import geoip2.database
 import geoip2.errors
 
-# Path to GeoLite2-City.mmdb
-#GEOLITE_DB_PATH = "f:/CESNET/GeoIP/GeoLite2-City.mmdb"
-GEOLITE_DB_PATH = "/data/geoip/GeoLite2-City.mmdb"
 
 class Geolocation(NERDModule):
     """
@@ -34,15 +31,20 @@ class Geolocation(NERDModule):
       !NEW -> geoloc -> geo.{ctry,city,tz}
     """
     
-    def __init__(self, update_manager):
+    def __init__(self, config, update_manager):
+        # Get DB path
+        db_path = config.get('geolocation.geolite2_db_path')
+        if not db_path:
+            raise RuntimeError('Geolocation: Missing configuration: "geolocation.geolite2_db_path" not specified.')
+        
         # Instantiate DB reader (i.e. open GeoLite database)
-        self._reader = geoip2.database.Reader(GEOLITE_DB_PATH)
+        self._reader = geoip2.database.Reader(db_path)
         # TODO: error handlig (can't open file)
         
         update_manager.register_handler(
             self.geoloc,
             ('!NEW',),
-            ('geo.ctry','geo.city','geo.tz')  # TODO allow to set 'geo.*'?
+            ('geo.ctry','geo.city','geo.tz')
         )
     
     def geoloc(self, ekey, rec, updates):
@@ -68,10 +70,9 @@ class Geolocation(NERDModule):
         except geoip2.errors.AddressNotFoundError:
             return None
         
-        
-        print(result.country)
-        print(result.city)
-        print(result.location)
+#         print(result.country)
+#         print(result.city)
+#         print(result.location)
         ctry = result.country.iso_code
         city = result.city.names.get('en', None)
         tz = result.location.time_zone

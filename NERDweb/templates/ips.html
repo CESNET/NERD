@@ -1,20 +1,7 @@
 {% extends "layout.html" %}
 {% block body %}
 
-<script>
-$(function() {
-  $( document ).tooltip({
-    items: ".country [title]",
-    track: false,
-    show: false,
-    hide: false,
-    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
-  });
-});
-</script>
-
 <h1>Known IP addresses</h1>
-<p style="font-style: italic; color: #d11">Testing version - data are randomly generated</p>
 
 <form method="GET" action="{{ url_for('ips') }}">
   {# form.csrf_token #}
@@ -32,28 +19,34 @@ $(function() {
 <th>Hostname</th>
 <th title="Autonomous system number and name">ASN</th>
 <th>Country</th>
-<th title="Number of alerts within last 30,7,1 days">Events vector</th>
-<th>Shodan info</th>
+<th title="Total number of alerts recevied">Events</th>
+<!--<th>Shodan info</th>
 <th>Device type</th>
-<th>Other properties</th>
+<th>Other properties</th>-->
+<th>Time added</th>
+<th>Last update</th>
 </tr>
 
 {% for ip in ipinfo %}
 <tr>
-<td class="id ip"><span>{{ip.ip}}</span></td>
-<td class="hostname">{{ip.hostname}}</td>
+<td class="id ip"><a href="{{ url_for('ip') + ip._id }}"><span>{{ip._id}}</span></a></td>
+<td class="hostname">{{ip.get('hostname', '?')}}</td>
 <td class="asn"><span class="as_num">{{ip.as_num}}</span> <span class="as_name">{{ip.as_name}}</span></td>
 <td class="country">
-  <a href="http://country.io/{{ip.geo.ctry_code|lower}}/">
-  <span title="{{ctrydata.names.get(ip.geo.ctry_code, '?') + ', ' + 
-                 ctrydata.continent_names.get(ctrydata.continent.get(ip.geo.ctry_code, '?'), '?') +
-                 ' (' + ip.geo.ctry_code + '/' + ctrydata.iso3.get(ip.geo.ctry_code, '?') + ')' 
+  {% if 'geo' in ip and 'ctry' in ip.geo %}
+  <a href="http://country.io/{{ip.geo.ctry|lower}}/">
+  <span title="{{ctrydata.names.get(ip.geo.ctry, '?') + ', ' + 
+                 ctrydata.continent_names.get(ctrydata.continent.get(ip.geo.ctry, '?'), '?') +
+                 ' (' + ip.geo.ctry + '/' + ctrydata.iso3.get(ip.geo.ctry, '?') + ')' 
                }}">
-    <span class="flag flag-{{ip.geo.ctry_code|lower}}"></span>{{ip.geo.ctry_code}}
+    <span class="flag flag-{{ip.geo.ctry|lower}}"></span>{{ip.geo.ctry}}
   </span>
   </a>
+  {% endif %}
 </td>
-<td class="event_vector">{{ip.events.last_30d}}, {{ip.events.last_7d}}, {{ip.events.last_1d}}</td>
+
+<td class="events" title="{{ip.events.keys()|join(', ')}}">{#<div class="events_graph" data-events="{{ip.events}}"></div>#}{{ip.events.total}}</td>
+{#
 <td class="shodan">
   {% if ip.shodan_os %}<span class="tag os">{{ip.shodan_os}}</span>{% endif %}
   <span class="ports">
@@ -72,6 +65,9 @@ $(function() {
     <span class="blacklist_entry">{{bl}}</span>
   {% endfor %}
 </td>
+#}
+<td class="time">{{ip.ts_added.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
+<td class="time">{{ip.ts_last_update.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
 </tr>
 {% endfor %}
 </table>

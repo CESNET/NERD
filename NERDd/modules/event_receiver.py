@@ -15,8 +15,6 @@ import sys
 import socket
 import json
 
-WARDEN_DROP_PATH = "/data/warden_filer/warden_receiver"
-
 
 running_flag = True # read_dir function terminates when this is set to False
 
@@ -219,11 +217,13 @@ if __name__ == "__main__":
 
 class EventReceiver(NERDModule):
     """
-    Testing receiver of security events.
+    Receiver of security events. Receives events as IDEA files in given directory.
     """
-    def __init__(self, update_manager):
+    def __init__(self, config, update_manager):
         self._um = update_manager
-        self._drop_path = WARDEN_DROP_PATH
+        self._drop_path = config.get('warden_filer_path')
+        if not self._drop_path:
+            raise RuntimeError("EventReceiver: Missing configuration: warden_filer_path not specified.")
     
     def start(self):
         """
@@ -245,32 +245,93 @@ class EventReceiver(NERDModule):
         """
         global running_flag
         running_flag = False
-        print("EventReceiver giong to exit, waiting for event-reading thread ...")
+        print("EventReceiver going to exit, waiting for event-reading thread ...")
         self._recv_thread.join()
         print("EventReceiver exitting.")
     
     def _receive_events(self):
         # Infinite loop reading events as files in given directory
         # (termiated by setting running_flag to False)
+        skipped = 0
+        enqueued = 0
         for event in read_dir(self._drop_path):
-            print("------------------------------------------------------------")
-            print("EventReceiver: Loaded event:")
-            print(json.dumps(event))
+            print_event = False
+            try:
+                for src in event.get("Source", []):
+                    for ipv4 in src.get("IP4", []):
+                        # *** SAMPLING ***
+                        if ipv4[-1] != '1':
+                            skipped += 1
+                            continue
+                        else:
+                            enqueued += 1
+                            print_event = True
+                        
+                        # TODO check IP address validity
+                        print("EventReceiver: Updating IPv4 record {}".format(ipv4))
+                        cat = '+'.join(event["Category"]).replace('.', '')
+                        # TODO parse and reformat time, solve timezones
+                        # (but IDEA defines dates to conform RFC3339 but there is no easy (i.e. built-in) way to parse it in Python, maybe in Py3.6,
+                        #  according to http://bugs.python.org/issue15873)
+                        date = event["DetectTime"][:10]
+                        node = event["Node"][-1]["Name"]
+                        key_cat = 'events.'+date+'.'+cat
+                        key_node = 'events.'+date+'.nodes'
+                        self._um.update(
+                            ('ip', ipv4),
+                            [
+                                ('add', key_cat, 1),
+                                ('add_to_set', key_node, node),
+                                ('add', 'events.total', 1),
+                            ]
+                        )
+                        
+                    for ipv6 in src.get("IP6", []):
+                        print("NOTICE: IPv6 adddress as Source found - skipping since IPv6 is not implemented yet.", file=sys.stderr)
+            except Exception as e:
+                print("ERROR in parsing event: {}".format(str(e)))
+                pass
             
-            for src in event.get("Source", []):
-                for ipv4 in src.get("IP4", []):
-                    # TODO check IP address validity
-                    print("EventReceiver: Updating IPv4 record {}".format(ipv4))
-                    self._um.update(
-                        ('ip', ipv4),
-                        [
-                            ('extend_set', 'events.categories', event['Category']),
-                            ('add', 'events.count', 1),
-                        ]
-                    )
-                    
-                for ipv6 in src.get("IP6", []):
-                    print("NOTICE: IPv6 adddress as Source found - skipping since IPv6 is not implemented yet.", file=sys.stderr)
+            if print_event:
+                print("------------------------------------------------------------")
+                print("EventReceiver: Loaded event:")
+                print(json.dumps(event))
+                print("** EventReceiver: skipped / enqueued sources: {:6d} / {:6d}".format(skipped, enqueued))
             
-            #return # TODO z nejakeho duvodu, kdyz to tady po prvnim zaznamu ukoncim, tak dojde ke zpracovani update managerem, jinak ale ne
+            # If there are already too much requests queued, wait a while
+            #print("***** QUEUE SIZE: {} *****".format(self._um.get_queue_size()))
+            while self._um.get_queue_size() > 10:
+                time.sleep(0.5)
             
+
+
+"""
+Struktura "events":
+
+events: {
+    <category>: {
+        <date (DetectTime)>: number
+    }
+}
+
+Například:
+
+events: {
+    "Recon_Scanning": {
+        "2016-05-27": 5,
+        "2016-05-26": 7,
+        "2016-05-25": 2,
+    },
+    "Attempt_Login": {
+        "2016-05-27": 1,
+        "2016-05-26": 2,
+    }
+}
+events_cnt: 17
+
+Jak efektivně odmazávat?
+
+
+
+"""
+

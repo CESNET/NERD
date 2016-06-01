@@ -4,14 +4,93 @@
   <meta charset="utf-8">
   <title>NERD web</title>
   <!-- jQuery and jQuery UI -->
-  <link rel="stylesheet" href="https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+  {#<link rel="stylesheet" href="https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
   <script src="https://code.jquery.com/jquery-2.2.0.js"></script>
-  <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+  <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>#}
+  <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
   <!-- local stylesheets -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='flags.css') }}">
+  
+<script>
+$(function() {
+  /* jQuery UI tooltip at:
+     - country flags (with name of the country)
+     - "events" table cells
+  */
+  $( document ).tooltip({
+    items: ".country [title], .events[title]",
+    track: false,
+    show: false,
+    hide: false,
+    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
+  });
+  /* jQuery UI tooltip at times with "timeago" */
+  $( document ).tooltip({
+    items: ".time",
+    track: false,
+    show: false,
+    hide: false,
+    content: function() (moment($(this).text()).fromNow()),
+    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
+  });
+});
+</script>
 </head>
 <body>
+{% block status %}
+<div id="status-block">
+<img class="refresh-spinner" src="{{ url_for('static', filename='spin.gif') }}">
+<p>Refreshing: <a id="status_refresh_toggle" href="#" onclick="toggle_status_refresh(); return false;">disabled</a></p>
+<p>IPs in DB: <span id="status-ips">??</span></p>
+<p>Event queue (IDEA files): <span id="status-idea-queue">??</span></p>
+<script>
+var refresh_status_enable = false; // Enable/disable refresh status
+var refreshing_status = false; // Whether refresh is in progress (to avoid multiple parallel calls it they are very slow and refresh interval is small)
+
+function toggle_status_refresh() {
+    if (refresh_status_enable) {
+        refresh_status_enable=false;
+        $("#status_refresh_toggle").text("disabled");
+    }
+    else {
+        refresh_status_enable=true;
+        $("#status_refresh_toggle").text("enabled");
+    }
+}
+
+// AJAX request to get NERD status information
+function refresh_status() {
+    if (!refresh_status_enable || refreshing_status) {
+        return;
+    }
+    refreshing_status = true;
+    $("#status-block .refresh-spinner").css('visibility', 'visible');
+    $.getJSON(
+        "{{ url_for('get_status') }}",
+        function(data) {
+            $("#status-ips").text(data.ips);
+            $("#status-idea-queue").text(data.idea_queue);
+        }
+    )
+    .always(function() {
+        refreshing_status = false;
+        $("#status-block .refresh-spinner").css('visibility', 'hidden');
+    });
+}
+
+// Set automatic refresh every 5s
+var status_refresh_timer = window.setInterval(refresh_status, 500);
+</script>
+</div>
+{% endblock %}
+
+<a href="{{ url_for('ips') }}">List of IPs</a> | <a href="{{ url_for('ip') }}">IP detail</a>
+<br> 
 {% block body %}{% endblock %}
+
 </body>
 </html>

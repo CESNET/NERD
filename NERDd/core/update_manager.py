@@ -116,7 +116,7 @@ def perform_update(rec, updreq):
             rec[key] -= value
     
     else:
-        print("perform_update: Unknown operation {}".fomrat(op), file=sys.stderr)
+        print("ERROR: perform_update: Unknown operation {}".fomrat(op), file=sys.stderr)
         return None
     
     return updreq
@@ -129,11 +129,12 @@ class UpdateManager:
     TODO: detailed description
     """
 
-    def __init__(self, db):
+    def __init__(self, config, db):
         """
         Initialize update manager.
         
         Arguments:
+        config -- global NERDd configuration (dict)
         db -- instance of EntityDatabase which should be used to load/store 
               entity records.
         """
@@ -185,6 +186,11 @@ class UpdateManager:
                 self._attr2func[attr].append(func)
             else:
                 self._attr2func[attr] = [func]
+
+    def get_queue_size(self):
+        """Return current number of requests in the queue."""
+        return self._request_queue.qsize()
+        
 
     def update(self, ekey, update_spec):
         """
@@ -270,12 +276,12 @@ class UpdateManager:
             assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
             
             if op == 'event':
-                print("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
+                pass#print("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
             else:
-                print("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
+                #print("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
                 upd = perform_update(rec, updreq)
                 if upd is None:
-                    print("Attribute value wasn't changed.")
+                    #print("Attribute value wasn't changed.")
                     continue
             
             # Add to the call_queue all functions directly hooked to the attribute/event 
@@ -290,22 +296,22 @@ class UpdateManager:
         
             # Compute all attribute changes that may occur due to this event and add 
             # them to the set of attributes to change
-            print("get_all_possible_changes: {} -> {}".format(str(attr), repr(self.get_all_possible_changes(attr))))
+            #print("get_all_possible_changes: {} -> {}".format(str(attr), repr(self.get_all_possible_changes(attr))))
             may_change |= self.get_all_possible_changes(attr)
-            print("may_change: {}".format(may_change))
+            #print("may_change: {}".format(may_change))
         
         
         # Process planned calls in the queue until it's empty
         loop_counter = 0 # counter used to stop when looping too long - probably some cycle in attribute dependencies
         while call_queue:
-            print("call_queue loop iteration {}:\n  call_queue: {}\n  may_change: {}".format(
-                loop_counter,
-                list(map(lambda x: (print_func(x[0]), x[1]), call_queue)),
-                may_change)
-            )
+            #print("call_queue loop iteration {}:\n  call_queue: {}\n  may_change: {}".format(
+            #    loop_counter,
+            #    list(map(lambda x: (print_func(x[0]), x[1]), call_queue)),
+            #    may_change)
+            #)
             # safety check against infinite looping
             loop_counter += 1
-            if loop_counter > 10:
+            if loop_counter > 50:
                 print("WARNING: Too many iterations when updating {}, something went wrong! Update chain stopped.".format(ekey))
                 break
             
@@ -315,13 +321,13 @@ class UpdateManager:
             # to expected subsequent events, postpone its call.
             if may_change & self._func_triggers[func]:  # nonempty intersection of two sets
                 # Put the function call back to the end of the queue
-                print("call_queue: Postponing call of {}({})".format(print_func(func), updates))
+                #print("call_queue: Postponing call of {}({})".format(print_func(func), updates))
                 call_queue.append((func, updates))
                 continue
             
             # Call the event handler function.
             # Set of requested updates of the record should be returned
-            print("Calling: {}({}, ..., {})".format(print_func(func), ekey, updates))
+            #print("Calling: {}({}, ..., {})".format(print_func(func), ekey, updates))
             update_reqs = func(ekey, rec, updates)
             if update_reqs is None:
                 update_reqs = []
@@ -332,12 +338,12 @@ class UpdateManager:
                 assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
                 
                 if op == 'event':
-                    print("Update chain: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
+                    pass#print("Update chain: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
                 else:
-                    print("Update chain: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
+                    #print("Update chain: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
                     upd = perform_update(rec, updreq)
                     if upd is None:
-                        print("Attribute value wasn't changed.")
+                        #print("Attribute value wasn't changed.")
                         continue
             
                 # Add to the call_queue all functions directly hooked to the attribute/event 
@@ -352,17 +358,17 @@ class UpdateManager:
         
             # Remove set of possible attribute changes of that function from 
             # may_change (they were either already changed or they won't be changed)
-            print("Removing {} from may_change.".format(self._func2attr[func]))
+            #print("Removing {} from may_change.".format(self._func2attr[func]))
             may_change -= set(self._func2attr[func])
-            print("New may_change: {}".format(may_change))
+            #print("New may_change: {}".format(may_change))
         
-        print("call_queue loop end")
+        #print("call_queue loop end")
         assert(len(may_change) == 0)
         
         # Set ts_last_update
         rec['ts_last_update'] = datetime.now(tz=timezone.utc)
         
-        print("RECORD: {}: {}".format(ekey, rec))
+        #print("RECORD: {}: {}".format(ekey, rec))
         
         # Put the record back to the DB and delete call_queue for this ekey
         self.db.put(ekey[0], ekey[1], rec)

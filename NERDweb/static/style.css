@@ -78,3 +78,54 @@ td.country a {
 .blacklist_entry + .blacklist_entry::before {
   content: "| ";
 }
+
+/***********************************************/
+/* Single IP listing */
+hr {
+  border: 0;
+  border-top: 2px solid #444;
+  margin: 1.5em 0 0.5em 0;
+}
+.ip-info {
+  /*margin: 1em 0 0 0;*/
+  background-color: #fff;
+  padding: 0.5em 1em 0.5em 1em;  
+}
+.ip-info .header {
+  margin: 0.5em 0;
+  padding: 0.3em 0.1em;
+  border-bottom: 1px dotted #444;
+}
+.header .ip {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+.header .hostname {
+  font-size: 1.2em;
+  color: #444;
+  margin-left: 1em;
+}
+
+dl.attrs dt {
+  font-weight: bold;
+  margin: 0.5em 0 0 0;
+}
+
+/***********************************************/
+/* NERD status block */
+#status-block {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  border: 1px solid #000;
+  padding: 0.5em 1em;
+  background-color: #ddd;
+}
+#status-block .refresh-spinner {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  visibility: hidden;
+  width: 14px;
+  height: 14px;
+}
