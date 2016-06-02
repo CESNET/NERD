@@ -14,7 +14,7 @@
   {# Print nothing if no IP was passed #}
 {% elif not ipinfo %}
   <hr>
-  <p>Not found</p>
+  <p class="msg info notfound">IP '{{ form.ip.data }}' not in database.</p>
 {% else %}
 
 <hr>
@@ -45,8 +45,8 @@
  {% elif attr == "geo" %}
   <dt>geo</dt><dd><span class="country">
     <a href="http://country.io/{{val.ctry|lower}}/">
-    <span class="flag flag-{{val.ctry|lower}}"></span>{{ ctrydata.names.get(val.ctry, '?') }}</a></span>,
-    {{ val.city|default('--') }}
+    <span class="flag flag-{{val.ctry|lower}}"></span>{{ ctrydata.names.get(val.ctry, '?') }}</a></span>
+    {{ ', '+val.city if val.city else '' }}
   </dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>

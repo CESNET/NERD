@@ -11,6 +11,12 @@ h1 {
   color: #102040;
 }
 
+hr {
+  border: 0;
+  border-top: 2px solid #444;
+  margin: 1.5em 0 0.5em 0;
+}
+
 /* redefine defaults for jquiery ui widgets */
 .ui-widget {
 	font-family: inherit;
@@ -19,6 +25,21 @@ h1 {
 
 .ui-tooltip {
   padding: 0.25em 0.4em;
+}
+
+
+.msg {
+  display: block;
+  padding: 0.5em 1em;
+}
+.msg.info {
+  background: #c0ecfc;
+  border: 1px solid #5e708c;
+}
+
+.error{
+  color: #c00;
+  font-weight: bold;
 }
 
 /***** Main tables, such as IPs table (#entity_table) or Events table (#events_table) *****/
@@ -81,10 +102,9 @@ td.country a {
 
 /***********************************************/
 /* Single IP listing */
-hr {
-  border: 0;
-  border-top: 2px solid #444;
-  margin: 1.5em 0 0.5em 0;
+
+.notfound {
+  font-size: 1.25em;
 }
 .ip-info {
   /*margin: 1em 0 0 0;*/

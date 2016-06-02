@@ -5,11 +5,18 @@
 
 <form method="GET" action="{{ url_for('ips') }}">
   {# form.csrf_token #}
-  {{ form.limit.label }} {{ form.limit(size=5) }}
+  {{ form.subnet.label }} {{ form.subnet() }} {% if form.subnet.errors %}<span class="error">{{ ' '.join(form.subnet.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+  {{ form.country.label }} {{ form.country(size=2) }} {% if form.country.errors %}<span class="error">{{ ' '.join(form.country.errors) }}</span>{% endif %}<br>
+  {{ form.sortby.label }} {{ form.sortby() }} {{ form.asc() }} {{ form.asc.label }}<br>
+  {{ form.limit.label }} {{ form.limit(size=5) }} {% if form.limit.errors %}<span class="error">{{ ' '.join(form.limit.errors) }}</span>{% endif %}<br>
   <input type="submit">
 </form>
 
-
+{% if form.errors %}
+{# {% for error in form.errors %}
+ <div class="error">{{error}}</div>
+ {% endfor %} #}
+{% else %}
 
 <!---------- Table with results ---------->
 <table id="entity_table" class="main_table">
@@ -30,7 +37,7 @@
 {% for ip in ipinfo %}
 <tr>
 <td class="id ip"><a href="{{ url_for('ip') + ip._id }}"><span>{{ip._id}}</span></a></td>
-<td class="hostname">{{ip.get('hostname', '?')}}</td>
+<td class="hostname">{{ip['hostname'] if ip['hostname'] else '--'}}</td>
 <td class="asn"><span class="as_num">{{ip.as_num}}</span> <span class="as_name">{{ip.as_name}}</span></td>
 <td class="country">
   {% if 'geo' in ip and 'ctry' in ip.geo %}
@@ -72,5 +79,6 @@
 {% endfor %}
 </table>
 
+{% endif %}{# if form.errors #}
 
 {% endblock %}

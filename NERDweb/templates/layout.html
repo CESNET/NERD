@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NERD web</title>
+  <title>{{ title }} - NERD web</title>
   <!-- jQuery and jQuery UI -->
   {#<link rel="stylesheet" href="https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
   <script src="https://code.jquery.com/jquery-2.2.0.js"></script>
@@ -29,7 +29,7 @@ $(function() {
     position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
   });
   /* jQuery UI tooltip at times with "timeago" */
-  $( document ).tooltip({
+  $( ".time" ).tooltip({
     items: ".time",
     track: false,
     show: false,
@@ -41,7 +41,7 @@ $(function() {
 </script>
 </head>
 <body>
-{% block status %}
+{% block status %} {# TODO make as "macro" #}
 <div id="status-block">
 <img class="refresh-spinner" src="{{ url_for('static', filename='spin.gif') }}">
 <p>Refreshing: <a id="status_refresh_toggle" href="#" onclick="toggle_status_refresh(); return false;">disabled</a></p>
