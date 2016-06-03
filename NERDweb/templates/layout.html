@@ -40,6 +40,7 @@ $(function() {
 });
 </script>
 </head>
+
 <body>
 {% block status %} {# TODO make as "macro" #}
 <div id="status-block">
@@ -63,8 +64,8 @@ function toggle_status_refresh() {
 }
 
 // AJAX request to get NERD status information
-function refresh_status() {
-    if (!refresh_status_enable || refreshing_status) {
+function refresh_status(force=false) {
+    if (!force && (!refresh_status_enable || refreshing_status)) {
         return;
     }
     refreshing_status = true;
@@ -84,6 +85,8 @@ function refresh_status() {
 
 // Set automatic refresh every 5s
 var status_refresh_timer = window.setInterval(refresh_status, 500);
+// Run refresh once on load
+$(function() { refresh_status(true) });
 </script>
 </div>
 {% endblock %}
