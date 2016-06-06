@@ -13,8 +13,11 @@ from wtforms import validators, TextField, IntegerField, BooleanField, SelectFie
 #import db
 import ctrydata
 
-#WARDEN_DROP_PATH = "/data/warden_filer/warden_receiver/incoming"
-WARDEN_DROP_PATH = "f:/CESNET/RepShield/NERD/NERDd/warden_filer/incoming"
+# TODO put this into some config file
+if os.name == 'posix':
+    WARDEN_DROP_PATH = "/data/warden_filer/warden_receiver/incoming"
+else:
+    WARDEN_DROP_PATH = "f:/CESNET/RepShield/NERD/NERDd/warden_filer/incoming"
 
 app = Flask(__name__)
 
