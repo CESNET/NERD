@@ -13,6 +13,7 @@ import modules.base
 import modules.event_receiver
 import modules.dns
 import modules.geolocation
+import core.eventdb
 
 ############
 
@@ -36,12 +37,13 @@ if __name__ == "__main__":
     # Create main NERDd components
     #db = core.db.EntityDatabase({})
     db = core.mongodb.MongoEntityDatabase(config)
+    eventdb = core.eventdb.FileEventDatabase(config)
     update_manager = core.update_manager.UpdateManager(config, db)
     
     # Instantiate modules
     # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
     module_list = [
-        modules.event_receiver.EventReceiver(config, update_manager),
+        modules.event_receiver.EventReceiver(config, update_manager, eventdb),
         #modules.test_module.TestModule(config, update_manager),
         modules.dns.DNSResolver(config, update_manager),
         modules.geolocation.Geolocation(config, update_manager),
@@ -85,9 +87,13 @@ if __name__ == "__main__":
     
     # Print records from DB
     print("Main: Finished.")
-    print(db.get('ip', '195.113.228.57'))
-    print(db.get('ip', '195.113.144.230'))
-    print(db.get('ip', '147.229.9.23'))
+#     print(db.get('ip', '195.113.228.57'))
+#     print(db.get('ip', '195.113.144.230'))
+#     print(db.get('ip', '147.229.9.23'))
+
+#     print(eventdb.get('ip','109.201.152.239'))
+#     print(eventdb.get('ip','109.92.248.130'))
+#     print(eventdb.get('ip','1.2.3.44'))
 
     
 #     while len(threads) > 0:

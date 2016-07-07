@@ -183,7 +183,7 @@ def read_dir(path):
                 with nf.open("r") as fd:
                     data = fd.read()
                     event = json.loads(data)
-                    yield event
+                    yield (data,event)
                     nf_sent.append(nf)
             except Exception as e:
                 print("Error loading event: file={}, exception={}".format(str(nf), sys.exc_info()), file=sys.stderr)
@@ -219,11 +219,12 @@ class EventReceiver(NERDModule):
     """
     Receiver of security events. Receives events as IDEA files in given directory.
     """
-    def __init__(self, config, update_manager):
+    def __init__(self, config, update_manager, eventdb):
         self._um = update_manager
         self._drop_path = config.get('warden_filer_path')
         if not self._drop_path:
             raise RuntimeError("EventReceiver: Missing configuration: warden_filer_path not specified.")
+        self._eventdb = eventdb
     
     def start(self):
         """
@@ -254,7 +255,7 @@ class EventReceiver(NERDModule):
         # (termiated by setting running_flag to False)
         skipped = 0
         enqueued = 0
-        for event in read_dir(self._drop_path):
+        for (rawdata, event) in read_dir(self._drop_path):
             print_event = False
             try:
                 for src in event.get("Source", []):
@@ -262,6 +263,7 @@ class EventReceiver(NERDModule):
                         # *** SAMPLING ***
                         if ipv4[-1] != '1':
                             skipped += 1
+                            print("Skipping event...")
                             continue
                         else:
                             enqueued += 1
@@ -295,8 +297,15 @@ class EventReceiver(NERDModule):
             if print_event:
                 print("------------------------------------------------------------")
                 print("EventReceiver: Loaded event:")
-                print(json.dumps(event))
+                #print(json.dumps(event))
+                print(rawdata)
                 print("** EventReceiver: skipped / enqueued sources: {:6d} / {:6d}".format(skipped, enqueued))
+                
+                # Also store the event to the event DB
+                try:
+                    self._eventdb.put(rawdata)
+                except Exception as e:
+                    print("ERROR storing event:", e)
             
             # If there are already too much requests queued, wait a while
             #print("***** QUEUE SIZE: {} *****".format(self._um.get_queue_size()))

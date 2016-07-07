@@ -42,6 +42,7 @@ from collections import defaultdict, deque
 # Spousta modulu reaguje na !NEW, ale pri pridani takoveho modulu do systemu
 # se nepridaji nove polozky k existujicim zaznamum (protoze uz existuji),
 # ani kdyz jsou updatovatny.
+# Bude ptoreba pridat nejakou udalost !NEW_MODULE, ktera se pouzije na vsechny existujici zaznamy v databazi
 
 
 def print_func(func_or_method):
@@ -155,7 +156,7 @@ class UpdateManager:
         self._request_queue = queue.Queue()#multiprocessing.JoinableQueue()
         
         # Temporary storage of records being updated.
-        # Mapping of "ekey" to the following 4-tuple:
+        # Mapping of "ekey" to the following 3-tuple:
         #     (record [JSON-like object], 
         #      event handler call queue [queue.Queue containing tuples (func, event)],
         #      attributes that may change due to planned handler calls [set]
