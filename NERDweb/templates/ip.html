@@ -54,6 +54,12 @@
 {% endfor %}
 </dl>
 
+<h2>Event details ({{ events|length }})</h2>
+{% for event in events %}
+ <p>{{ event }}</p>
+{% endfor %}
+
+</div>
 {% endif %}{# if not found #}
 
 {% endblock %}

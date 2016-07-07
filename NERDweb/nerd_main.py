@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys
 import random
 import json
 import time
@@ -13,11 +14,17 @@ from wtforms import validators, TextField, IntegerField, BooleanField, SelectFie
 #import db
 import ctrydata
 
+# import EventDB
+sys.path.insert(0,'../NERDd/core')
+import eventdb
+
 # TODO put this into some config file
 if os.name == 'posix':
     WARDEN_DROP_PATH = "/data/warden_filer/warden_receiver/incoming"
+    EVENTDB_PATH = "/data/eventdb"
 else:
     WARDEN_DROP_PATH = "f:/CESNET/RepShield/NERD/NERDd/warden_filer/incoming"
+    EVENTDB_PATH = "f:/CESNET/RepShield/NERD/NERDd/eventdb"
 
 app = Flask(__name__)
 
@@ -33,6 +40,7 @@ app.jinja_env.lstrip_blocks = True
 
 mongo = PyMongo(app)
 
+event_db = eventdb.FileEventDatabase({'eventdb_path': EVENTDB_PATH})
 
 # ***** Main page *****
 @app.route('/')
@@ -89,19 +97,19 @@ def ips():
 
 # ***** List of alerts *****
 
-class AlertFilterForm(Form):
-    limit = IntegerField('Max number of results', [])
-
-@app.route('/events')
-def events():
-    title = "Events"
-    limit = get_int_arg('limit', 10, min=1, max=1000)
-    skip = get_int_arg('skip', 0, min=0)
-    num_alerts = mongo.db.alerts.count()
-    num_ips = mongo.db.ips.count()
-    alerts = mongo.db.alerts.find().sort("$natural", DESCENDING).skip(skip).limit(limit)
-    form = AlertFilterForm(limit=limit)
-    return render_template('events.html', **locals())
+# class AlertFilterForm(Form):
+#     limit = IntegerField('Max number of results', [])
+# 
+# @app.route('/events')
+# def events():
+#     title = "Events"
+#     limit = get_int_arg('limit', 10, min=1, max=1000)
+#     skip = get_int_arg('skip', 0, min=0)
+#     num_alerts = mongo.db.alerts.count()
+#     num_ips = mongo.db.ips.count()
+#     alerts = mongo.db.alerts.find().sort("$natural", DESCENDING).skip(skip).limit(limit)
+#     form = AlertFilterForm(limit=limit)
+#     return render_template('events.html', **locals())
 
 
 # ***** Detailed info about individual IP *****
@@ -118,6 +126,7 @@ def ip(ipaddr=None):
     if ipaddr:
         title = ipaddr
         ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+        events = event_db.get('ip', form.ip.data)
     else:
         title = 'IP detail search'
         ipinfo = {}
