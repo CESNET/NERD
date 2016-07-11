@@ -116,7 +116,7 @@ class FileEventDatabase:
             # Ensure the directory exists (create if not)
             os.makedirs(dir, exist_ok=True)
             # Open file and append the IDEA message at the end (gzip = (de)compress automatically)
-            print("Writing IDEA message into {}".format(filename))
+            #print("EventDB: Writing IDEA message into {}".format(filename))
             with gzip.open(filename, 'ab') as f:
                 f.write(idea.encode('utf-8') + b'\n')
 

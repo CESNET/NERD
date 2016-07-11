@@ -15,6 +15,10 @@ import sys
 import socket
 import json
 
+MAX_QUEUE_SIZE = 100 # Maximal size of UpdateManager's request queue
+                     # (when number of pending requests exceeds this value,
+                     # reading of events is paused for a while)
+
 
 running_flag = True # read_dir function terminates when this is set to False
 
@@ -155,7 +159,7 @@ def read_dir(path):
     owait_poll_time = 1 #config.get("owait_poll_time", 1)
     owait_timeout = poll_time #config.get("owait_timeout", poll_time)
     done_dir = None #config.get("done_dir", None)
-    nfchunk = 100 # max number of files read at once by get_dir_list
+    nfchunk = 100 # min number of files read at once by get_dir_list
     oneshot = False
 
     while running_flag:
@@ -165,15 +169,11 @@ def read_dir(path):
             time.sleep(poll_time)
             nflist = get_dir_list(sdir, owait_poll_time, owait_timeout, nfchunk)
 
-        # Loop over all chunks. However:
-        # - omit the last loop, if there is less data than the optimal window;
-        #   next get_dir_list will still get it again, possibly together with
-        #   new files, which may have appeared meanwhile
-        # - unless it's the sole loop (so that at least _something_ gets sent)
-        nfindex = 0
-        nf_sent = []
+        #nfindex = 0
         #count_ok = count_err = count_local = 0
         for nf in nflist:
+            if not running_flag:
+                break
             # prepare event array from files
             try:
                 nf.moveto(sdir.temp)
@@ -181,24 +181,20 @@ def read_dir(path):
                 continue    # Silently go to next filename, somebody else might have interfered
             try:
                 with nf.open("r") as fd:
+                    # Read file and yield record
                     data = fd.read()
                     event = json.loads(data)
                     yield (data,event)
-                    nf_sent.append(nf)
+                    # Cleanup
+                    if done_dir:
+                        nf.moveto(done_dir)
+                    else:
+                        nf.remove()
             except Exception as e:
                 print("Error loading event: file={}, exception={}".format(str(nf), sys.exc_info()), file=sys.stderr)
                 nf.moveto(sdir.errors)
                 #count_local += 1
 
-        # Cleanup rest - the succesfully sent events
-        for name in nf_sent:
-            if name:
-                if done_dir:
-                    name.moveto(done_dir)
-                else:
-                    name.remove()
-                #count_ok += 1
-    
 
 ##############################################################################
 # Test of read_dir
@@ -261,16 +257,16 @@ class EventReceiver(NERDModule):
                 for src in event.get("Source", []):
                     for ipv4 in src.get("IP4", []):
                         # *** SAMPLING ***
-                        if ipv4[-1] != '1':
+                        if False and ipv4[-1] != '1':
                             skipped += 1
-                            print("Skipping event...")
+                            #print("Skipping event...")
                             continue
                         else:
                             enqueued += 1
                             print_event = True
                         
                         # TODO check IP address validity
-                        print("EventReceiver: Updating IPv4 record {}".format(ipv4))
+                        #print("EventReceiver: Updating IPv4 record {}".format(ipv4))
                         cat = '+'.join(event["Category"]).replace('.', '')
                         # TODO parse and reformat time, solve timezones
                         # (but IDEA defines dates to conform RFC3339 but there is no easy (i.e. built-in) way to parse it in Python, maybe in Py3.6,
@@ -289,17 +285,17 @@ class EventReceiver(NERDModule):
                         )
                         
                     for ipv6 in src.get("IP6", []):
-                        print("NOTICE: IPv6 adddress as Source found - skipping since IPv6 is not implemented yet.", file=sys.stderr)
+                        print("NOTICE: IPv6 address in Source found - skipping since IPv6 is not implemented yet. The record follows:\n{}".format(str(event)), file=sys.stderr)
             except Exception as e:
                 print("ERROR in parsing event: {}".format(str(e)))
                 pass
             
             if print_event:
-                print("------------------------------------------------------------")
-                print("EventReceiver: Loaded event:")
+                #print("------------------------------------------------------------")
+                #print("EventReceiver: Loaded event:")
                 #print(json.dumps(event))
-                print(rawdata)
-                print("** EventReceiver: skipped / enqueued sources: {:6d} / {:6d}".format(skipped, enqueued))
+                #print(rawdata)
+                #print("** EventReceiver: skipped / enqueued sources: {:6d} / {:6d}".format(skipped, enqueued))
                 
                 # Also store the event to the event DB
                 try:
@@ -309,7 +305,7 @@ class EventReceiver(NERDModule):
             
             # If there are already too much requests queued, wait a while
             #print("***** QUEUE SIZE: {} *****".format(self._um.get_queue_size()))
-            while self._um.get_queue_size() > 10:
+            while self._um.get_queue_size() > MAX_QUEUE_SIZE:
                 time.sleep(0.5)
             
 

@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 import time
 from collections import defaultdict, deque
 
+WORKER_THREADS = 10
+
 #  Update request specification = list of three-tuples:
 #    - [(op, key, value), ...]
 #      - ('set', key, value)        - set new value to given key (rec[key] = value)
@@ -24,7 +26,7 @@ from collections import defaultdict, deque
 #  with given name. Event names must begin with '!' (attribute keys mustn't).
 #  Update manager performs the requested update and calls functions hooked on 
 #  the attribute/event.
-#  Hooked function receives list if update specifiers (the three tuples) that
+#  Hooked function receives list of update specifiers (the three tuples) that
 #  triggered its call (if more than one update triggers the same function, it's
 #  called only once). 
 
@@ -33,6 +35,7 @@ from collections import defaultdict, deque
 #    attributes_changed (list of tuples (attr_name, new_value))
 #    events (list of tuples (event_name, param))
 #  instead of update request specification (which is too complex and contains information irrelevant to hooked functions)
+# -> zmena - bude se predavat jen "updates" (list of tuples (attr_name, new_value) / (event_name, param)), tj. nerozlisuji se atributy a eventy
 
 # TODO: Let each module (or rather hook function) tell, whether it needs the whole record.
 # Many of them probably won't so we can save the load from database
@@ -45,7 +48,7 @@ from collections import defaultdict, deque
 # Bude ptoreba pridat nejakou udalost !NEW_MODULE, ktera se pouzije na vsechny existujici zaznamy v databazi
 
 
-def print_func(func_or_method):
+def get_func_name(func_or_method):
     """Get name of function or method as pretty string."""
     try:
         fname = func_or_method.__func__.__qualname__
@@ -120,7 +123,8 @@ def perform_update(rec, updreq):
         print("ERROR: perform_update: Unknown operation {}".fomrat(op), file=sys.stderr)
         return None
     
-    return updreq
+    # Return tuple (updated attribute, new value)
+    return (updreq[1], rec[key]) 
 
 
 class UpdateManager:
@@ -155,6 +159,9 @@ class UpdateManager:
         # Initialize a queue for pending update requests
         self._request_queue = queue.Queue()#multiprocessing.JoinableQueue()
         
+        # List of worker threads for processing the update requests
+        self._workers = []
+        
         # Temporary storage of records being updated.
         # Mapping of "ekey" to the following 3-tuple:
         #     (record [JSON-like object], 
@@ -162,6 +169,8 @@ class UpdateManager:
         #      attributes that may change due to planned handler calls [set]
         #     )
         self._records_being_processed = {}
+        # Since _records_being_processed may be accessed by many thread, locking is necessary
+        self._records_being_processed_lock = threading.Lock()
     
     
     def register_handler(self, func, triggers, changes):
@@ -197,8 +206,9 @@ class UpdateManager:
         """
         Request an update of one or more attributes of an entity record.
         
-        Put given request into an internal queue to be processed by some of the
-        worker threads.
+        Put given requests into an internal queue to be processed by some of the
+        worker threads. Requests may request changes of some attribute or they
+        may issue events. 
         
         Arguments:
         ekey -- Entity type and key (2-tuple)
@@ -238,8 +248,9 @@ class UpdateManager:
         Arguments:
         ekey -- Entity type and key (2-tuple)
         update_requests -- update_spec as described above (3-tuples,... TODO)
-        """
+        """ 
         
+        # TODO update this comment!
         # Load record corresponding to the key -- either from database, or from
         # temporary storage of records being currently updated)
         # If record doesn't exist, create new.
@@ -248,73 +259,137 @@ class UpdateManager:
         #     queue.Queue of tuples (function, list_of_update_spec), where list_of_update_spec is a list of
         #     updates (3-tuples op,key,value) which tirggered the function.
         #   may_change - set of attributes that may be changed by planned function calls
-        # TODO locking (lock records_being_processed)
+
+        self._records_being_processed_lock.acquire()
         if ekey in self._records_being_processed:
-            rec, call_queue, may_change = self._records_being_processed[ekey]
-        else:
-            # Fetch record from database or create new one
-            rec = self.db.get(ekey[0], ekey[1])
-            if rec is None:
-                now = datetime.now(tz=timezone.utc)
-                rec = {
-                    'ts_added': now,
-                    'ts_last_update': now,
-                }
-                # New record was created -> add "!NEW" event to attrib_updates
-                print("New record {} was created, injecting event '!NEW'".format(ekey))
-                update_requests.insert(0,('event','!NEW',None))
+            # *** The record is already being processed by someone else. ***
+            # Just put our update requests to its list of requests to process.
             
-            # Create auxiliary objects
-            call_queue = deque()
-            may_change = set()
-            # Store it all in the temporary storage
-            self._records_being_processed[ekey] = (rec, call_queue, may_change)
-        
-        
-        # Perform requested updates.
-        for updreq in update_requests:
-            op, attr, val = updreq
-            assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
+            # Load the records and its list of requests to process
+            rec, requests_to_process, requests_to_process_lock = self._records_being_processed[ekey]
+            self._records_being_processed_lock.release()
             
-            if op == 'event':
-                pass#print("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
+            # Try to add new requests to process (so they will be processed by 
+            # the thread currently working with the record)
+            requests_to_process_lock.acquire()
+            # Check whether the record is still being processed by the other 
+            # thread (it might get finished in the meantime).
+            self._records_being_processed_lock.acquire()
+            if ekey in self._records_being_processed:
+                self._records_being_processed_lock.release()
+                # It's OK, put the new requests to the list and exit
+                requests_to_process.extend(update_requests)
+                requests_to_process_lock.release()
+                return
             else:
-                #print("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
-                upd = perform_update(rec, updreq)
-                if upd is None:
-                    #print("Attribute value wasn't changed.")
-                    continue
+                requests_to_process_lock.release()
+                # The processing by the other thread was finished while we were  
+                # waiting for requests_to_process_lock and the record was 
+                # written back to DB and removed from _records_being_processed.
+                # 
+                # Let's continue like it was never processed by anyone else
+                # (we have _records_being_processed locked, so noone else can 
+                # start processing the record now)
+        
+        
+        # *** The record is currently not being processed by anyone. ***
             
-            # Add to the call_queue all functions directly hooked to the attribute/event 
-            for func in self._attr2func.get(attr, []):
-                # If the function is already in the queue, just add updreq to list of updates that triggered it
-                for f,upds in call_queue:
-                    if f == func:
-                        upds.append(updreq)
-                        break
-                else:
-                    call_queue.append((func, [updreq]))
+        # Fetch the record from database or create a new one
+        rec = self.db.get(ekey[0], ekey[1])
+        if rec is None:
+            now = datetime.now(tz=timezone.utc)
+            rec = {
+                'ts_added': now,
+                'ts_last_update': now,
+            }
+            # New record was created -> add "!NEW" event to attrib_updates
+            #print("New record {} was created, injecting event '!NEW'".format(ekey))
+            update_requests.insert(0,('event','!NEW',None))
         
-            # Compute all attribute changes that may occur due to this event and add 
-            # them to the set of attributes to change
-            #print("get_all_possible_changes: {} -> {}".format(str(attr), repr(self.get_all_possible_changes(attr))))
-            may_change |= self.get_all_possible_changes(attr)
-            #print("may_change: {}".format(may_change))
+        # Store the record and a list of update requests to the storage of records being processed
+        requests_to_process = update_requests # may be accessed by other threads - locking necessary
+        requests_to_process_lock = threading.Lock()
+        self._records_being_processed[ekey] = (rec, requests_to_process, requests_to_process_lock)
+        
+        self._records_being_processed_lock.release()
         
         
-        # Process planned calls in the queue until it's empty
+        # *** Now we have the record, process the requested updates ***
+        
+        # auxiliary objects
+        call_queue = deque() # planned calls of handler functions due to their hooking to attribute updates  
+        may_change = set() # which attributes may change after performing all calls in call_queue
+        
+        # TODO vyresit loop counter, kdyz muzou prichazet asynchronne nove pozadavky
         loop_counter = 0 # counter used to stop when looping too long - probably some cycle in attribute dependencies
-        while call_queue:
-            #print("call_queue loop iteration {}:\n  call_queue: {}\n  may_change: {}".format(
-            #    loop_counter,
-            #    list(map(lambda x: (print_func(x[0]), x[1]), call_queue)),
-            #    may_change)
-            #)
+        
+        # *** call_queue loop ***
+        while True:
+            # *** If any update requests are pending, process them ***
+            # (i.e. perform requested changes, add calls to hooked functions to
+            # the call_queue and update the set of attributes that may change)
+            # (there will always be some requests in the first iteration and  
+            # they will be immediately processed, but some may be added later 
+            # asynchronously when some other worker thread fetches a request for 
+            # update of the same entity, that's why the processing is inside the
+            # loop)
+            requests_to_process_lock.acquire()
+            if requests_to_process:
+                # Process update requests (perform updates, put hooked functions to call_queue and update may_change set)
+                #print("UpdateManager: New update requests for {}: {}".format(ekey, requests_to_process))
+                for updreq in update_requests:
+                    op, attr, val = updreq
+                    assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
+                    
+                    if op == 'event':
+                        #print("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
+                        updated = (attr, val)
+                    else:
+                        #print("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
+                        updated = perform_update(rec, updreq)
+                        if updated is None:
+                            #print("Attribute value wasn't changed.")
+                            continue
+                    
+                    # Add to the call_queue all functions directly hooked to the attribute/event 
+                    for func in self._attr2func.get(attr, []):
+                        # If the function is already in the queue...
+                        for f,updates in call_queue:
+                            if f == func:
+                                # ... just add upd to list of updates that triggered it
+                                # TODO FIXME: what if one attribute is updated several times? It should be in the list only once, with the latest value.
+                                updates.append(updated)
+                                break
+                        # Otherwise put the function to the queue
+                        else:
+                            call_queue.append((func, [updated]))
+                
+                    # Compute all attribute changes that may occur due to this event and add 
+                    # them to the set of attributes to change
+                    #print("get_all_possible_changes: {} -> {}".format(str(attr), repr(self.get_all_possible_changes(attr))))
+                    may_change |= self.get_all_possible_changes(attr)
+                    #print("may_change: {}".format(may_change))
+                
+                # All reqests were processed, clear the list
+                update_requests.clear()
+            
+            if not call_queue:
+                break # No more work to do (but keep requests_to_process_lock locked so noone can assign us new requests)
+            
+            # *** Do all function calls planned in the call queue ***
+            
+#             print("call_queue loop iteration {}:\n  call_queue: {}\n  may_change: {}".format(
+#                 loop_counter,
+#                 list(map(lambda x: (get_func_name(x[0]), x[1]), call_queue)),
+#                 may_change)
+#             )
             # safety check against infinite looping
             loop_counter += 1
-            if loop_counter > 50:
+            if loop_counter > 5:
                 print("WARNING: Too many iterations when updating {}, something went wrong! Update chain stopped.".format(ekey))
                 break
+            
+            requests_to_process_lock.release()
             
             func, updates = call_queue.popleft()
             
@@ -322,43 +397,25 @@ class UpdateManager:
             # to expected subsequent events, postpone its call.
             if may_change & self._func_triggers[func]:  # nonempty intersection of two sets
                 # Put the function call back to the end of the queue
-                #print("call_queue: Postponing call of {}({})".format(print_func(func), updates))
+                #print("call_queue: Postponing call of {}({})".format(get_func_name(func), updates))
                 call_queue.append((func, updates))
                 continue
             
             # Call the event handler function.
             # Set of requested updates of the record should be returned
-            #print("Calling: {}({}, ..., {})".format(print_func(func), ekey, updates))
-            update_reqs = func(ekey, rec, updates)
-            if update_reqs is None:
-                update_reqs = []
+            #print("Calling: {}({}, ..., {})".format(get_func_name(func), ekey, updates))
+            reqs = func(ekey, rec, updates)
+
+            # Set requested updates to requests_to_process
+            if reqs:
+                requests_to_process_lock.acquire()
+                requests_to_process.extend(reqs)
+                requests_to_process_lock.release()
             
-            # Perform the updates
-            for updreq in update_reqs:
-                op, attr, val = updreq
-                assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
-                
-                if op == 'event':
-                    pass#print("Update chain: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
-                else:
-                    #print("Update chain: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
-                    upd = perform_update(rec, updreq)
-                    if upd is None:
-                        #print("Attribute value wasn't changed.")
-                        continue
-            
-                # Add to the call_queue all functions directly hooked to the attribute/event 
-                for hooked_func in self._attr2func.get(attr, []):
-                    # If the function is already in the queue, just add updreq to list of updates that triggered it
-                    for f,upds in call_queue:
-                        if f == hooked_func:
-                            upds.append(updreq)
-                            break
-                    else:
-                        call_queue.append((hooked_func, [updreq]))
-        
-            # Remove set of possible attribute changes of that function from 
-            # may_change (they were either already changed or they won't be changed)
+            # TODO FIXME - toto asi predpoklada, ze urcity atribut muze byt menen jen jednou handler funkci
+            # (coz jsem mozna nekde zadal jako nutnou podminku; kazdopadne jestli to tak je, musi to byt nekde velmi jasne uvedeno) 
+            # Remove set of possible attribute changes of that function from
+            # may_change (they were either already changed (or are in requests_to_process) or they won't be changed)
             #print("Removing {} from may_change.".format(self._func2attr[func]))
             may_change -= set(self._func2attr[func])
             #print("New may_change: {}".format(may_change))
@@ -371,34 +428,87 @@ class UpdateManager:
         
         #print("RECORD: {}: {}".format(ekey, rec))
         
-        # Put the record back to the DB and delete call_queue for this ekey
+        # Put the record back to the DB
         self.db.put(ekey[0], ekey[1], rec)
+        # and delete the entity record from list of records being processed
+        self._records_being_processed_lock.acquire()
         del self._records_being_processed[ekey]
+        self._records_being_processed_lock.release()
+        
+        # Release requests_to_process_lock - if there was some thread waiting 
+        # with a new bunch of requests (it may appear after our last check of
+        # requests_to_process), it will have to wait until now. It then must
+        # check again if the record is still being processed, it finds out that
+        # it's not and takes the processing itself.
+        requests_to_process_lock.release()
 
     
     def start(self):
-        """Run the main manager functions as a separate thread/process."""
+        """Run the worker threads."""
         #self._process = multiprocessing.Process(target=self._main_loop)
-        self._process = threading.Thread(target=self._main_loop)
-        self._process.start()
+        self._workers = [ threading.Thread(target=self._worker_func, args=(i,), name="UMWorker-"+str(i)) for i in range(WORKER_THREADS) ]
+        for worker in self._workers:
+            worker.start()
     
     def stop(self):
-        """Stop the manager."""
-        self._request_queue.put(None) # Send None to break the infinite loop
+        """
+        Stop the manager (signal all worker threads to finish and wait).
+        
+        All modules writing to the request queue should already be stopped.
+        If some request is written to the queue after a call of this function,
+        it probably won't be performed.
+        """
+        print("UpdateManager: Telling all workers to stop ...")
+        # Thread for printing debug messages about worker status
+        threading.Thread(target=self._dbg_worker_status_print, daemon=True).start()
+        
+        # Send None to request_queue to signal workers to stop (one for each worker)
+        for _ in self._workers:
+            self._request_queue.put(None) 
+        # Wait until all workers finishes
         self._request_queue.join()
-        self._process.join()
+        for worker in self._workers:
+            worker.join()
+        # Cleanup
+        self._workers = []
     
-    def _main_loop(self):
+    
+    def _dbg_worker_status_print(self):
+        """
+        Print status of workers and the request queue every 5 seconds.
+        
+        Should be run as a separate (deamon) thread.
+        Exits when all workers has finished.
+        """
+        while True:
+            alive_workers = filter(threading.Thread.is_alive, self._workers)
+            if not alive_workers:
+                break
+            print("UM: Queue size: {:3}, records in processing {:3}, workers alive: {}".format(
+                self.get_queue_size(),
+                len(self._records_being_processed),
+                ','.join(map(lambda s: s.name[9:], alive_workers))) # 9 = len("UMWorker-")
+            )
+#             for key,rec in self._records_being_processed.items():
+#                 locked = not rec[2].acquire(False)
+#                 if not locked:
+#                     rec[2].release()
+#                 print(key, rec[1], locked)
+            time.sleep(5)
+            
+    
+    def _worker_func(self, thread_index):
         """
         Main processing function.
         
-        Run as a separate process. Read update request queue. For each request
+        Run as a separate thread/process. Read request queue. For each request
         pull corresponding record from database, and call "_process_update_req"
         function.
         
-        [During the updating process, the record is "locked" and cannot be
-        updated by any other updating process.]
-        (TODO: allow asychronous updates even during running update process)
+        During the updating process, the record is "locked" and cannot be
+        no other worker can directly update it. Other workers can however
+        put new requests into the running updating process (see beginning of 
+        _process_update_req() for details).
         """
         while True:
             # Get update request from the queue
@@ -406,20 +516,20 @@ class UpdateManager:
             # to exit the program)
             req = self._request_queue.get()
             if req is None:
-                print("UpdateManager: 'None' recevied from main queue - exitting")
+                print("UMWorker-{}: 'None' recevied from main queue - exitting".format(thread_index))
                 self._request_queue.task_done()
                 break
-            ekey, attrib_updates = req
+            ekey, updreq = req
             
-            print()
-            print("UpdateManager: New update request: {},{}".format(
-                    ekey, attrib_updates
-                  ))
+#             print()
+#             print("UMWorker-{}: New update request: {},{}".format(
+#                     thread_index, ekey, updreq
+#                   ))
             
             # Call update method
-            self._process_update_req(ekey, attrib_updates)
+            self._process_update_req(ekey, updreq)
             
-            print("UpdateManager: Task done")
+#             print("UMWorker-{}: Task done".format(thread_index))
             self._request_queue.task_done()
     
         

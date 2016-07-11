@@ -55,11 +55,13 @@ class Geolocation(NERDModule):
         Arguments:
         ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
         rec -- record currently assigned to the key
-        updates -- specification of updates that triggerd this call
-          3-tuple (op, attr, val) or ('event', name, param)
+        updates -- list of all attributes whose update triggerd this call and  
+          their new values (or events and their parameters) as a list of 
+          2-tuples: [(attr, val), (!event, param), ...]
+
         
         Returns:
-        List of 3-tuples describing requested attribute updates or events.
+        List of update requests.
         """
         etype, key = ekey
         if etype != 'ip':

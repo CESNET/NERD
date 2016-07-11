@@ -79,7 +79,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     
-    print("Main: Stopping running components")
+    print("Main: Stopping running components ...")
     for module in module_list:
         module.stop()
     update_manager.stop()
