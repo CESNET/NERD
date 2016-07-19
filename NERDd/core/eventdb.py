@@ -115,9 +115,19 @@ class FileEventDatabase:
             
             # Ensure the directory exists (create if not)
             os.makedirs(dir, exist_ok=True)
-            # Open file and append the IDEA message at the end (gzip = (de)compress automatically)
+            # Open gzip file and append the IDEA message at the end.
+            # We need to read the whole file and recompress it, otherwise
+            # each event would be compressed individually and compression ratio
+            # would be very bad.
             #print("EventDB: Writing IDEA message into {}".format(filename))
-            with gzip.open(filename, 'ab') as f:
+            try:
+                with gzip.open(filename, 'rb') as f:
+                    data = f.read()
+            except FileNotFoundError as e:
+                data = None
+            with gzip.open(filename, 'wb') as f:
+                if data is not None:
+                    f.write(data)
                 f.write(idea.encode('utf-8') + b'\n')
 
 
