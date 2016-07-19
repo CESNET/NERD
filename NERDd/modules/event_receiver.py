@@ -5,7 +5,9 @@ Fetches IDEA messages dropped to a specified directory and updates entity
 records accordingly.
 """
 
-from .base import NERDModule
+if __name__ != "__main__":
+    # import only when not runnning standalone (i.e. testing)
+    from .base import NERDModule
 
 from threading import Thread
 import time
@@ -183,15 +185,17 @@ def read_dir(path):
                 with nf.open("r") as fd:
                     # Read file and yield record
                     data = fd.read()
-                    event = json.loads(data)
-                    yield (data,event)
-                    # Cleanup
-                    if done_dir:
-                        nf.moveto(done_dir)
-                    else:
-                        nf.remove()
+                event = json.loads(data)
+                yield (data,event)
+                # Cleanup
+                if done_dir:
+                    nf.moveto(done_dir)
+                else:
+                    nf.remove()
             except Exception as e:
-                print("Error loading event: file={}, exception={}".format(str(nf), sys.exc_info()), file=sys.stderr)
+                print("Error loading event: file={}, exception:".format(str(nf)), file=sys.stderr)
+                import traceback
+                traceback.print_exc()
                 nf.moveto(sdir.errors)
                 #count_local += 1
 
@@ -285,7 +289,7 @@ class EventReceiver(NERDModule):
                         )
                         
                     for ipv6 in src.get("IP6", []):
-                        print("NOTICE: IPv6 address in Source found - skipping since IPv6 is not implemented yet. The record follows:\n{}".format(str(event)), file=sys.stderr)
+                        print("NOTICE: IPv6 address in Source found - skipping since IPv6 is not implemented yet.", file=sys.stderr)# The record follows:\n{}".format(str(event)), file=sys.stderr)
             except Exception as e:
                 print("ERROR in parsing event: {}".format(str(e)))
                 pass
