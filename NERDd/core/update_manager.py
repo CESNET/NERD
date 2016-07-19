@@ -4,12 +4,14 @@ NERD update manager.
 Provides UpdateManager class - a NERD component which handles updates of entity
 records, including chain reaction of updates casued by other updates.
 """
+import sys
 import threading
 # import multiprocessing
 import queue
 from datetime import datetime, timezone
 import time
 from collections import defaultdict, deque
+import traceback
 
 WORKER_THREADS = 10
 
@@ -404,7 +406,14 @@ class UpdateManager:
             # Call the event handler function.
             # Set of requested updates of the record should be returned
             #print("Calling: {}({}, ..., {})".format(get_func_name(func), ekey, updates))
-            reqs = func(ekey, rec, updates)
+            try:
+                reqs = func(ekey, rec, updates)
+            except Exception as e:
+                print("ERROR: Unhandled exception during call of {}({}, rec, {}). Traceback follows:"
+                      .format(get_func_name(func), ekey, updates),
+                      file=sys.stderr)
+                traceback.print_exc(file=sys.stderr)
+                reqs = []
 
             # Set requested updates to requests_to_process
             if reqs:
