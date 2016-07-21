@@ -16,6 +16,7 @@ import os
 import sys
 import socket
 import json
+import logging
 
 MAX_QUEUE_SIZE = 100 # Maximal size of UpdateManager's request queue
                      # (when number of pending requests exceeds this value,
@@ -23,6 +24,8 @@ MAX_QUEUE_SIZE = 100 # Maximal size of UpdateManager's request queue
 
 
 running_flag = True # read_dir function terminates when this is set to False
+
+logger = logging.getLogger('EventReceiver')
 
 def read_dir(path):
     """
@@ -182,8 +185,8 @@ def read_dir(path):
             except Exception:
                 continue    # Silently go to next filename, somebody else might have interfered
             try:
+                # Read file and yield record
                 with nf.open("r") as fd:
-                    # Read file and yield record
                     data = fd.read()
                 event = json.loads(data)
                 yield (data,event)
@@ -193,9 +196,7 @@ def read_dir(path):
                 else:
                     nf.remove()
             except Exception as e:
-                print("Error loading event: file={}, exception:".format(str(nf)), file=sys.stderr)
-                import traceback
-                traceback.print_exc()
+                logger.exception("Exception during loading event, file={}".format(str(nf)))
                 nf.moveto(sdir.errors)
                 #count_local += 1
 
@@ -220,6 +221,7 @@ class EventReceiver(NERDModule):
     Receiver of security events. Receives events as IDEA files in given directory.
     """
     def __init__(self, config, update_manager, eventdb):
+        self.log = logging.getLogger("EventReceiver")
         self._um = update_manager
         self._drop_path = config.get('warden_filer_path')
         if not self._drop_path:
@@ -246,9 +248,9 @@ class EventReceiver(NERDModule):
         """
         global running_flag
         running_flag = False
-        print("EventReceiver going to exit, waiting for event-reading thread ...")
+        self.log.info("Going to exit, waiting for event-reading thread ...")
         self._recv_thread.join()
-        print("EventReceiver exitting.")
+        self.log.info("Exitting.")
     
     def _receive_events(self):
         # Infinite loop reading events as files in given directory
@@ -263,14 +265,14 @@ class EventReceiver(NERDModule):
                         # *** SAMPLING ***
                         if False and ipv4[-1] != '1':
                             skipped += 1
-                            #print("Skipping event...")
+                            #self.log.debug("(samplig) Skipping event...")
                             continue
                         else:
                             enqueued += 1
                             print_event = True
                         
                         # TODO check IP address validity
-                        #print("EventReceiver: Updating IPv4 record {}".format(ipv4))
+                        #self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
                         cat = '+'.join(event["Category"]).replace('.', '')
                         # TODO parse and reformat time, solve timezones
                         # (but IDEA defines dates to conform RFC3339 but there is no easy (i.e. built-in) way to parse it in Python, maybe in Py3.6,
@@ -289,9 +291,9 @@ class EventReceiver(NERDModule):
                         )
                         
                     for ipv6 in src.get("IP6", []):
-                        print("NOTICE: IPv6 address in Source found - skipping since IPv6 is not implemented yet.", file=sys.stderr)# The record follows:\n{}".format(str(event)), file=sys.stderr)
+                        self.log.info("IPv6 address in Source found - skipping since IPv6 is not implemented yet.", file=sys.stderr)# The record follows:\n{}".format(str(event)), file=sys.stderr)
             except Exception as e:
-                print("ERROR in parsing event: {}".format(str(e)))
+                self.log.error("ERROR in parsing event: {}".format(str(e)))
                 pass
             
             if print_event:
@@ -305,7 +307,7 @@ class EventReceiver(NERDModule):
                 try:
                     self._eventdb.put(rawdata)
                 except Exception as e:
-                    print("ERROR storing event:", e)
+                    self.log.error("ERROR storing event:", e)
             
             # If there are already too much requests queued, wait a while
             #print("***** QUEUE SIZE: {} *****".format(self._um.get_queue_size()))

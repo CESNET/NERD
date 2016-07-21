@@ -2,6 +2,7 @@
 
 import sys
 from time import sleep
+import logging
 
 import core.config
 #import core.db
@@ -19,12 +20,21 @@ import core.eventdb
 
 DEFAULT_CONFIG_FILE = "./nerd.cfg"
 
+LOGFORMAT = "%(asctime)-15s,%(threadName)s,%(name)s: %(levelname)s %(message)s"
+LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
+
 ############
 
 
 if __name__ == "__main__":
 
-    print("Main: Start")
+    # Initialize logging mechanism
+    
+    logging.basicConfig(level=logging.DEBUG, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
+    logger = logging.getLogger()
+    
+    
+    logger.info("NERDd start")
     
     # Load configuration
     # TODO parse arguments using ArgParse
@@ -50,7 +60,7 @@ if __name__ == "__main__":
     ]
     
     # Run update manager thread/process
-    print("Main: Starting UpdateManager")
+    logger.info("Starting UpdateManager")
     update_manager.start()
     
     # Run modules that have their own threads/processes
@@ -69,7 +79,6 @@ if __name__ == "__main__":
 #     sleep(2)
 #     update_manager.update(('ip', '195.113.228.57'), [('set','B',8),('set','X',5555)])
     
-    print()
     print("-------------------------------------------------------------------")
     print("Reading events from "+str(config.get('warden_filer_path'))+"/incoming")
     print()
@@ -79,14 +88,14 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     
-    print("Main: Stopping running components ...")
+    logger.info("Stopping running components ...")
     for module in module_list:
         module.stop()
     update_manager.stop()
     
     
     # Print records from DB
-    print("Main: Finished.")
+    logger.info("Finished.")
 #     print(db.get('ip', '195.113.228.57'))
 #     print(db.get('ip', '195.113.144.230'))
 #     print(db.get('ip', '147.229.9.23'))
@@ -114,8 +123,8 @@ if __name__ == "__main__":
 #                     m.stop()
 #             second_interrupt = True
 #     
-    print("Main thread exitting")
-
+    logger.info("Main thread exitting")
+    logging.shutdown()
 
 
 

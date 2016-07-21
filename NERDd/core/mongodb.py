@@ -5,6 +5,7 @@ Provides MongoEntityDatabase class -- an abstract layer above the MongoDB
 database system implementing entity database.
 """
 
+import logging
 import pymongo
 
 # TODO: Store IP addresses (keys) as Binary or as HEX strings, so they can be 
@@ -30,10 +31,11 @@ class MongoEntityDatabase():
         """
         Connect to Mongo database.
         """
+        self.log = logging.getLogger("MongoDB")
         host = config.get('mongodb.host', DEFAULT_MONGO_HOST)
         port = config.get('mongodb.port', DEFAULT_MONGO_PORT)
         dbname = config.get('mongodb.dbname', DEFAULT_MONGO_DBNAME)
-        print("MongoDB wrapper: Connecting to {}:{}/{}".format(host,port,dbname))
+        self.log.info("Connecting to {}:{}/{}".format(host,port,dbname))
         self._mongo_client = pymongo.MongoClient(host, port)
         self._db = self._mongo_client[dbname]
 

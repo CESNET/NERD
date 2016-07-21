@@ -11,7 +11,7 @@ import os
 import os.path
 import json
 import gzip
-
+import logging
 
 # TODO: better logging than just print to stderr
 # TODO: locking directories
@@ -28,6 +28,8 @@ class FileEventDatabase:
         """
         Initialize all internal structures as neccessary.
         """
+        self.log = logging.getLogger('EventDB')
+        
         self.dbpath = config.get('eventdb_path')
         if not self.dbpath:
             raise RuntimeError('EventDatabase: Missing configuration: "eventdb_path" not specified.')
@@ -76,13 +78,13 @@ class FileEventDatabase:
                         try:
                             json.loads(line)
                         except json.JSONDecodeError as e:
-                            print("ERROR: Loading events: Invalid JSON on line {} in file {}. The event is skipped.".format(i, filename), file=sys.stderr)
+                            self.log.error("Loading events: Invalid JSON on line {} in file {}. The event is skipped.".format(i, filename))
                             continue
                         # Store event as a string exactly as it is in the file
                         events.append(line)
             except Exception as e:
                 # In case of error with reading file, just log it and continue
-                print("ERROR: Loading events:", e, file=sys.stderr)
+                self.log.exception("Can't load file '{}'.".format(filename))
         
         return events
 

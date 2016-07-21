@@ -11,6 +11,7 @@ import queue
 from datetime import datetime, timezone
 import time
 from collections import defaultdict, deque
+import logging
 import traceback
 
 WORKER_THREADS = 10
@@ -145,6 +146,8 @@ class UpdateManager:
         db -- instance of EntityDatabase which should be used to load/store 
               entity records.
         """
+        self.log = logging.getLogger("UpdateManager")
+        
         self.db = db
         
         # Mapping of names of attributes to a list of functions that should be 
@@ -305,7 +308,7 @@ class UpdateManager:
                 'ts_last_update': now,
             }
             # New record was created -> add "!NEW" event to attrib_updates
-            #print("New record {} was created, injecting event '!NEW'".format(ekey))
+            #self.log.debug("New record {} was created, injecting event '!NEW'".format(ekey))
             update_requests.insert(0,('event','!NEW',None))
         
         # Store the record and a list of update requests to the storage of records being processed
@@ -338,19 +341,19 @@ class UpdateManager:
             requests_to_process_lock.acquire()
             if requests_to_process:
                 # Process update requests (perform updates, put hooked functions to call_queue and update may_change set)
-                #print("UpdateManager: New update requests for {}: {}".format(ekey, requests_to_process))
+                #self.log.debug("UpdateManager: New update requests for {}: {}".format(ekey, requests_to_process))
                 for updreq in update_requests:
                     op, attr, val = updreq
                     assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
                     
                     if op == 'event':
-                        #print("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
+                        #self.log.debug("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
                         updated = (attr, val)
                     else:
-                        #print("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
+                        #self.log.debug("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
                         updated = perform_update(rec, updreq)
                         if updated is None:
-                            #print("Attribute value wasn't changed.")
+                            #self.log.debug("Attribute value wasn't changed.")
                             continue
                     
                     # Add to the call_queue all functions directly hooked to the attribute/event 
@@ -368,9 +371,9 @@ class UpdateManager:
                 
                     # Compute all attribute changes that may occur due to this event and add 
                     # them to the set of attributes to change
-                    #print("get_all_possible_changes: {} -> {}".format(str(attr), repr(self.get_all_possible_changes(attr))))
+                    #self.log.debug("get_all_possible_changes: {} -> {}".format(str(attr), repr(self.get_all_possible_changes(attr))))
                     may_change |= self.get_all_possible_changes(attr)
-                    #print("may_change: {}".format(may_change))
+                    #self.log.debug("may_change: {}".format(may_change))
                 
                 # All reqests were processed, clear the list
                 update_requests.clear()
@@ -380,15 +383,15 @@ class UpdateManager:
             
             # *** Do all function calls planned in the call queue ***
             
-#             print("call_queue loop iteration {}:\n  call_queue: {}\n  may_change: {}".format(
+#             self.log.debug("call_queue loop iteration {}:\n  call_queue: {}\n  may_change: {}".format(
 #                 loop_counter,
 #                 list(map(lambda x: (get_func_name(x[0]), x[1]), call_queue)),
 #                 may_change)
 #             )
             # safety check against infinite looping
             loop_counter += 1
-            if loop_counter > 5:
-                print("WARNING: Too many iterations when updating {}, something went wrong! Update chain stopped.".format(ekey))
+            if loop_counter > 20:
+                self.log.warning("Too many iterations when updating {}, something went wrong! Update chain stopped.".format(ekey))
                 break
             
             requests_to_process_lock.release()
@@ -399,20 +402,18 @@ class UpdateManager:
             # to expected subsequent events, postpone its call.
             if may_change & self._func_triggers[func]:  # nonempty intersection of two sets
                 # Put the function call back to the end of the queue
-                #print("call_queue: Postponing call of {}({})".format(get_func_name(func), updates))
+                #self.log.debug("call_queue: Postponing call of {}({})".format(get_func_name(func), updates))
                 call_queue.append((func, updates))
                 continue
             
             # Call the event handler function.
             # Set of requested updates of the record should be returned
-            #print("Calling: {}({}, ..., {})".format(get_func_name(func), ekey, updates))
+            #self.log.debug("Calling: {}({}, ..., {})".format(get_func_name(func), ekey, updates))
             try:
                 reqs = func(ekey, rec, updates)
             except Exception as e:
-                print("ERROR: Unhandled exception during call of {}({}, rec, {}). Traceback follows:"
-                      .format(get_func_name(func), ekey, updates),
-                      file=sys.stderr)
-                traceback.print_exc(file=sys.stderr)
+                self.log.exception("Unhandled exception during call of {}({}, rec, {}). Traceback follows:"
+                    .format(get_func_name(func), ekey, updates) )
                 reqs = []
 
             # Set requested updates to requests_to_process
@@ -425,17 +426,17 @@ class UpdateManager:
             # (coz jsem mozna nekde zadal jako nutnou podminku; kazdopadne jestli to tak je, musi to byt nekde velmi jasne uvedeno) 
             # Remove set of possible attribute changes of that function from
             # may_change (they were either already changed (or are in requests_to_process) or they won't be changed)
-            #print("Removing {} from may_change.".format(self._func2attr[func]))
+            #self.log.debug("Removing {} from may_change.".format(self._func2attr[func]))
             may_change -= set(self._func2attr[func])
-            #print("New may_change: {}".format(may_change))
+            #self.log.debug("New may_change: {}".format(may_change))
         
-        #print("call_queue loop end")
+        #self.log.debug("call_queue loop end")
         assert(len(may_change) == 0)
         
         # Set ts_last_update
         rec['ts_last_update'] = datetime.now(tz=timezone.utc)
         
-        #print("RECORD: {}: {}".format(ekey, rec))
+        #self.log.debug("RECORD: {}: {}".format(ekey, rec))
         
         # Put the record back to the DB
         self.db.put(ekey[0], ekey[1], rec)
@@ -467,7 +468,7 @@ class UpdateManager:
         If some request is written to the queue after a call of this function,
         it probably won't be performed.
         """
-        print("UpdateManager: Telling all workers to stop ...")
+        self.log.info("Telling all workers to stop ...")
         # Thread for printing debug messages about worker status
         threading.Thread(target=self._dbg_worker_status_print, daemon=True).start()
         
@@ -493,16 +494,11 @@ class UpdateManager:
             alive_workers = filter(threading.Thread.is_alive, self._workers)
             if not alive_workers:
                 break
-            print("UM: Queue size: {:3}, records in processing {:3}, workers alive: {}".format(
+            self.log.debug("Queue size: {:3}, records in processing {:3}, workers alive: {}".format(
                 self.get_queue_size(),
                 len(self._records_being_processed),
                 ','.join(map(lambda s: s.name[9:], alive_workers))) # 9 = len("UMWorker-")
             )
-#             for key,rec in self._records_being_processed.items():
-#                 locked = not rec[2].acquire(False)
-#                 if not locked:
-#                     rec[2].release()
-#                 print(key, rec[1], locked)
             time.sleep(5)
             
     
@@ -525,20 +521,17 @@ class UpdateManager:
             # to exit the program)
             req = self._request_queue.get()
             if req is None:
-                print("UMWorker-{}: 'None' recevied from main queue - exitting".format(thread_index))
+                self.log.debug("'None' recevied from main queue - exitting".format(thread_index))
                 self._request_queue.task_done()
                 break
             ekey, updreq = req
             
-#             print()
-#             print("UMWorker-{}: New update request: {},{}".format(
-#                     thread_index, ekey, updreq
-#                   ))
+#             self.log.debug("New update request: {},{}".format(ekey, updreq))
             
             # Call update method
             self._process_update_req(ekey, updreq)
             
-#             print("UMWorker-{}: Task done".format(thread_index))
+#             self.log.debug("Task done")
             self._request_queue.task_done()
     
         
