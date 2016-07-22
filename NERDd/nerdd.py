@@ -29,10 +29,8 @@ LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
 if __name__ == "__main__":
 
     # Initialize logging mechanism
-    
     logging.basicConfig(level=logging.DEBUG, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
     logger = logging.getLogger()
-    
     
     logger.info("NERDd start")
     
@@ -52,6 +50,7 @@ if __name__ == "__main__":
     
     # Instantiate modules
     # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
+    #  or take if from configuration
     module_list = [
         modules.event_receiver.EventReceiver(config, update_manager, eventdb),
         #modules.test_module.TestModule(config, update_manager),
@@ -64,20 +63,9 @@ if __name__ == "__main__":
     update_manager.start()
     
     # Run modules that have their own threads/processes
-    # (if they don't have, start() should do nothing)
+    # (if they don't, the start() should do nothing)
     for module in module_list:
         module.start()
-    
-    ####
-    
-    #sleep(1)
-    
-    # Simulate some update requests
-#     update_manager.update(('ip', '195.113.228.57'), [('set','X',123)])
-#     update_manager.update(('ip', '195.113.144.230'), [('event','!sleep',1)])
-#     update_manager.update(('ip', '147.229.9.23'), [('set','B',1),('set','X',321)])
-#     sleep(2)
-#     update_manager.update(('ip', '195.113.228.57'), [('set','B',8),('set','X',5555)])
     
     print("-------------------------------------------------------------------")
     print("Reading events from "+str(config.get('warden_filer_path'))+"/incoming")
@@ -93,39 +81,6 @@ if __name__ == "__main__":
         module.stop()
     update_manager.stop()
     
-    
-    # Print records from DB
-    logger.info("Finished.")
-#     print(db.get('ip', '195.113.228.57'))
-#     print(db.get('ip', '195.113.144.230'))
-#     print(db.get('ip', '147.229.9.23'))
-
-#     print(eventdb.get('ip','109.201.152.239'))
-#     print(eventdb.get('ip','109.92.248.130'))
-#     print(eventdb.get('ip','1.2.3.44'))
-
-    
-#     while len(threads) > 0:
-#         try:
-#             # Join all threads using a timeout so it doesn't block
-#             # Filter out threads which have been joined or are None
-#             threads = filter(lambda (m,t): t.isAlive(), threads)
-#             for m,t in threads:
-#                 t.join(1)
-#         except KeyboardInterrupt:
-#             if second_interrupt:
-#                 print("Second interrupt caught, stopping immediately")
-#                 break
-#             # Tell to all live threads to stop
-#             print("KeyboardInterrupt, stopping running modules ...")
-#             for m,t in threads:
-#                 if t.isAlive() and hasattr(m, 'stop'):
-#                     m.stop()
-#             second_interrupt = True
-#     
-    logger.info("Main thread exitting")
+    logger.info("Finished, main thread exitting.")
     logging.shutdown()
-
-
-
 
