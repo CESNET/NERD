@@ -14,7 +14,7 @@ from .base import NERDModule
 import dns.resolver
 import requests
 from bs4 import BeautifulSoup
-import json
+import pickle
 import datetime
 import logging
 
@@ -29,8 +29,8 @@ class GetASN:
         ''' This module gets the latest AS Number to Desctiption from www.bgplookingglass.com'''
 
         try:
-            with open(self.cacheFile, "r") as f:
-                cache = json.load(f)
+            with open(self.cacheFile, "rb") as f:
+                cache = eval(pickle.load(f))
             f.close()
         except:
             cache = { '_create_date': 0 }
@@ -65,8 +65,9 @@ class GetASN:
                     self._asn_dct[as_number] = as_desc
                 except:
                     continue
-        with open(self.cacheFile, "w") as f:
-            json.dump({'_create_date': curTime, 'data': self._asn_dct}, f)
+        with open(self.cacheFile, "wb") as f:
+            data = str({'_create_date': curTime, 'data': self._asn_dct})
+            pickle.dump(data, f)
         f.close()
 
 
