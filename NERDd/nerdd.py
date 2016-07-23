@@ -14,6 +14,7 @@ import modules.base
 import modules.event_receiver
 import modules.dns
 import modules.geolocation
+import modules.asn
 import core.eventdb
 
 ############
@@ -56,6 +57,7 @@ if __name__ == "__main__":
         #modules.test_module.TestModule(config, update_manager),
         modules.dns.DNSResolver(config, update_manager),
         modules.geolocation.Geolocation(config, update_manager),
+        modules.asn.ASN(config, update_manager),
     ]
     
     # Run update manager thread/process

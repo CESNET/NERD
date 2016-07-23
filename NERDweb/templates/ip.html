@@ -48,6 +48,8 @@
     <span class="flag flag-{{val.ctry|lower}}"></span>{{ ctrydata.names.get(val.ctry, '?') }}</a></span>
     {{ ', '+val.city if val.city else '' }}
   </dd>
+ {% elif attr == "asn" %}
+  <dt>ASN</dt><dd>{{ val.id }} {{ val.decription }} {{ val.subnet }}</dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}
