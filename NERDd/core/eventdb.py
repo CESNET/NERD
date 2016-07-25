@@ -12,6 +12,7 @@ import os.path
 import json
 import gzip
 import logging
+import random
 
 # TODO: better logging than just print to stderr
 # TODO: locking directories
@@ -122,14 +123,28 @@ class FileEventDatabase:
             # each event would be compressed individually and compression ratio
             # would be very bad.
             #print("EventDB: Writing IDEA message into {}".format(filename))
-            try:
-                with gzip.open(filename, 'rb') as f:
-                    data = f.read()
-            except FileNotFoundError as e:
-                data = None
-            with gzip.open(filename, 'wb') as f:
-                if data is not None:
-                    f.write(data)
-                f.write(idea.encode('utf-8') + b'\n')
-
+            # NOTE:
+            # Reading and recompression of whole files on every update is too
+            # slow, especially for addresses with lots of events (i.e. large
+            # files AND frequent updates).
+            # Therefore (re)compression is done only sometimes, in most cases,
+            # data are only appedned, which is much faster.
+            # This is only a temporary hack, until I implement some better 
+            # solution. 
+            if random.random() < 0.05: # chance 1:20
+                # Read whole file, add the event and recompress 
+                try:
+                    with gzip.open(filename, 'rb') as f:
+                        data = f.read()
+                except FileNotFoundError as e:
+                    data = None
+                with gzip.open(filename, 'wb') as f:
+            
+                    if data is not None:
+                        f.write(data)
+                    f.write(idea.encode('utf-8') + b'\n')
+            else:
+                # Only append new event, without reading and recompressing
+                with gzip.open(filename, 'ab') as f:
+                    f.write(idea.encode('utf-8') + b'\n')
 
