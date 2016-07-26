@@ -26,7 +26,7 @@ class GetASN:
         self.cacheFile = cacheFile
         self.geoipasnFile = geoipasnFile
         self.maxValidity = maxValidity
-        self.logger = logging.getLogger("ASNmodule")
+        self.log = logging.getLogger("ASNmodule")
         self.update_asn_dictionary()
 
     def update_asn_dictionary(self):
@@ -42,7 +42,7 @@ class GetASN:
         curTime = int(datetime.datetime.now().strftime('%s'))
         if (curTime - cache['_create_date']) < self.maxValidity:
             # Get cached data
-            self.logger.info("Using ASN list from cache.")
+            self.log.info("Using ASN list from cache.")
             self._asn_dct = cache['data']
             self._pygeoip = pygeoip.GeoIP(self.geoipasnFile)
             return
@@ -103,13 +103,13 @@ class GetASN:
         asn = res.split()
 
         if len(asn) >= 2:
-            self.logger.debug("Looked up " + ip_address + ": " + res)
+            self.log.debug("Looked up " + ip_address + ": " + res)
             result = {
                 "asn_num": asn[0][2:],
                 "asn_desc": " ".join(asn[1:])
             }
         else:
-            self.logger.error("Looked up " + ip_address + " failed: " + res)
+            self.log.error("Looked up " + ip_address + " failed: " + res)
             result = None
         return result
 
