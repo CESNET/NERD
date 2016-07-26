@@ -14,13 +14,14 @@ import modules.base
 import modules.event_receiver
 import modules.dns
 import modules.geolocation
+import modules.dnsbl
 import core.eventdb
 
 ############
 
 DEFAULT_CONFIG_FILE = "./nerd.cfg"
 
-LOGFORMAT = "%(asctime)-15s,%(threadName)s,%(name)s: %(levelname)s %(message)s"
+LOGFORMAT = "%(asctime)-15s,%(threadName)s,%(name)s,[%(levelname)s],%(message)s"
 LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
 
 ############
@@ -29,7 +30,7 @@ LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
 if __name__ == "__main__":
 
     # Initialize logging mechanism
-    logging.basicConfig(level=logging.DEBUG, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
+    logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
     logger = logging.getLogger()
     
     logger.info("NERDd start")
@@ -56,6 +57,7 @@ if __name__ == "__main__":
         #modules.test_module.TestModule(config, update_manager),
         modules.dns.DNSResolver(config, update_manager),
         modules.geolocation.Geolocation(config, update_manager),
+        modules.dnsbl.DNSBLResolver(config, update_manager),
     ]
     
     # Run update manager thread/process
