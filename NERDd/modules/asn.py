@@ -2,8 +2,8 @@
 NERD module getting ASN.
 
 Requirements:
-- "dnspython" package
 - "BeautifulSoup4" package
+- "pygeoip" package
 
 Acknowledgment:
 Code of the GetASN class was inspired by https://github.com/oneryalcin/pyip2asn
@@ -17,16 +17,20 @@ from bs4 import BeautifulSoup
 import pickle
 import datetime
 import logging
+import pygeoip
+import gzip
+import os
 
 class GetASN:
-    def __init__(self, cacheFile = "/tmp/nerd-asn-cache.json", maxValidity = 24 * 60 * 60):
+    def __init__(self, geoipasnFile, cacheFile, maxValidity):
         self.cacheFile = cacheFile
+        self.geoipasnFile = geoipasnFile
         self.maxValidity = maxValidity
         self.logger = logging.getLogger("ASNmodule")
         self.update_asn_dictionary()
 
     def update_asn_dictionary(self):
-        ''' This module gets the latest AS Number to Desctiption from www.bgplookingglass.com'''
+        '''Update MaxMind database and list of ASN names.'''
 
         try:
             with open(self.cacheFile, "rb") as f:
@@ -40,6 +44,7 @@ class GetASN:
             # Get cached data
             self.logger.info("Using ASN list from cache.")
             self._asn_dct = cache['data']
+            self._pygeoip = pygeoip.GeoIP(self.geoipasnFile)
             return
 
         asn_pages = [
@@ -65,6 +70,26 @@ class GetASN:
                     self._asn_dct[as_number] = as_desc
                 except:
                     continue
+
+        try:
+            ctime =  os.stat(self.geoipasnFile).st_ctime
+        except:
+            ctime = 0
+        if curTime -  ctime >= self.maxValidity:
+            # Download latest MaxMind DB
+            r = requests.get("http://download.maxmind.com/download/geoip/database/asnum/GeoIPASNum.dat.gz")
+            # decompress it
+            rt = r.content
+            decompressed_data = gzip.decompress(rt)
+            # and save result for future
+            with open(self.geoipasnFile, "wb") as f:
+                f.write(decompressed_data)
+            f.close()
+            del(decompressed_data)
+            del(rt)
+        
+        self._pygeoip = pygeoip.GeoIP(self.geoipasnFile)
+
         with open(self.cacheFile, "wb") as f:
             data = str({'_create_date': curTime, 'data': self._asn_dct})
             pickle.dump(data, f)
@@ -74,16 +99,18 @@ class GetASN:
     def asnLookup(self, ip_address):
         # Check if ASN description dictionary is provided, if not populate it
         octs = ip_address.split(".")
-        query =  "%s.%s.%s.origin.asn.cymru.com" % (octs[2], octs[1], octs[0])
-        answers = dns.resolver.query(query, 'TXT')
-        record = str(answers[0]).split("|")
-        asn = int(record[0][1:].strip())
-        subnet = record[1].strip()
-        result = {
-            "asn_num": asn,
-            "asn_desc": self._asn_dct[asn],
-            "asn_subnet": subnet
-        }
+        res = self._pygeoip.asn_by_addr(ip_address)
+        asn = res.split()
+
+        if len(asn) >= 2:
+            self.logger.debug("Looked up " + ip_address + ": " + res)
+            result = {
+                "asn_num": asn[0][2:],
+                "asn_desc": " ".join(asn[1:])
+            }
+        else:
+            self.logger.error("Looked up " + ip_address + " failed: " + res)
+            result = None
         return result
 
 class ASN(NERDModule):
@@ -95,22 +122,22 @@ class ASN(NERDModule):
     Stores the following attributes:
       asn.id  # ASN
       asn.description # name of ASN
-      asn.subnet # subnet of ASN
 
     Event flow specification:
-      !NEW -> geoloc -> asn.{id,description,subnet}
+      !NEW -> geoloc -> asn.{id,description}
     """
 
     def __init__(self, config, update_manager):
         # Instantiate DB reader (i.e. open GeoLite database), raises IOError on error
+        geoipFile = config.get("asn.geoipasn_file", "/tmp/GeoIPASNum.dat")
         cacheFile = config.get("asn.cache_file", "/tmp/nerd-asn-cache.json")
         maxValidity = config.get("asn.cache_max_valitidy", 86400)
-        self.reader = GetASN(cacheFile, maxValidity)
+        self.reader = GetASN(geoipFile, cacheFile, maxValidity)
 
         update_manager.register_handler(
             self.handleRecord,
             ('!NEW',),
-            ('asn.id', 'asn.description', 'asn.subnet')
+            ('asn.id', 'asn.description')
         )
 
     def handleRecord(self, ekey, rec, updates):
@@ -134,10 +161,11 @@ class ASN(NERDModule):
             return None
 
         result = self.reader.asnLookup(key)
+        if not result:
+            return None
 
         return [
             ('set', 'asn.id', result["asn_num"]),
             ('set', 'asn.decription', result["asn_desc"]),
-            ('set', 'asn.subnet', result["asn_subnet"]),
         ]
 
