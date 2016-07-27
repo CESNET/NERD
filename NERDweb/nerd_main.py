@@ -15,7 +15,7 @@ from wtforms import validators, TextField, IntegerField, BooleanField, SelectFie
 import ctrydata
 
 # import EventDB
-sys.path.insert(0,'../NERDd/core')
+sys.path.insert(0,'/home/current/washek/NERDd/core')
 import eventdb
 
 # TODO put this into some config file
@@ -127,6 +127,10 @@ def ip(ipaddr=None):
         title = ipaddr
         ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
         events = event_db.get('ip', form.ip.data)
+        num_events = str(len(events))
+        if len(events) > 100:
+            events = events[:100]
+            num_events = "{}, only first 100 shown".format(num_events)
     else:
         title = 'IP detail search'
         ipinfo = {}
