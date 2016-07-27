@@ -20,13 +20,15 @@ $(function() {
   /* jQuery UI tooltip at:
      - country flags (with name of the country)
      - "events" table cells
+     - AS number
   */
   $( document ).tooltip({
-    items: ".country [title], .events[title]",
+    items: ".country [title], .events[title], .asn [title]",
     track: false,
     show: false,
     hide: false,
-    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
+    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"},
+    content: function() { return $(this).attr('title'); } /* This is needed to allow HTML in tooltip text */
   });
   /* jQuery UI tooltip at times with "timeago" */
   $( ".time" ).tooltip({

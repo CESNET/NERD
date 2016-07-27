@@ -38,14 +38,24 @@
 <tr>
 <td class="id ip"><a href="{{ url_for('ip') + ip._id }}"><span>{{ip._id}}</span></a></td>
 <td class="hostname">{{ip['hostname'] if ip['hostname'] else '--'}}</td>
-<td class="asn"><span class="as_num">{{ip.as_num}}</span> <span class="as_name">{{ip.as_name}}</span></td>
+<td class="asn">
+  <span title="MaxMind GeoLite:<br> &nbsp; {% if ip.as_maxmind %}AS{{ip.as_maxmind.num}} - {{ip.as_maxmind.description}}{% else %}--{% endif %}<br>
+Routeviews:<br> &nbsp; {% if ip.as_rw %}AS{{ip.as_rw.num}} - {{ip.as_rw.description}}{% else %}--{% endif %}">
+  {% if ip.as_maxmind and ip.as_rw %}
+    {% if ip.as_maxmind.num == ip.as_rw.num %}AS{{ip.as_maxmind.num}}{% else %}??{% endif %}
+  {% elif ip.as_maxmind %}
+    AS{{ip.as_maxmind.num}}
+  {% elif ip.as_rw %}
+    AS{{ip.as_rw.num}}
+  {% endif %}
+</span>
+</td>
 <td class="country">
   {% if 'geo' in ip and 'ctry' in ip.geo %}
   <a href="http://country.io/{{ip.geo.ctry|lower}}/">
-  <span title="{{ctrydata.names.get(ip.geo.ctry, '?') + ', ' + 
-                 ctrydata.continent_names.get(ctrydata.continent.get(ip.geo.ctry, '?'), '?') +
-                 ' (' + ip.geo.ctry + '/' + ctrydata.iso3.get(ip.geo.ctry, '?') + ')' 
-               }}">
+  <span title="{{ctrydata.names.get(ip.geo.ctry, '?')}}, 
+                 {{ctrydata.continent_names.get(ctrydata.continent.get(ip.geo.ctry, '?'), '?')}}
+                 ({{ip.geo.ctry}}/{{ctrydata.iso3.get(ip.geo.ctry, '?')}})">
     <span class="flag flag-{{ip.geo.ctry|lower}}"></span>{{ip.geo.ctry}}
   </span>
   </a>
