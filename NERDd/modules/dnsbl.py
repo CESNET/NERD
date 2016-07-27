@@ -132,7 +132,7 @@ class DNSBLResolver(NERDModule):
         if not self.req_cnt_file:
             return
         # Load counter of DNS requests made
-        datestr = datetime.now().strftime("%Y%d%m")
+        datestr = datetime.now().strftime("%Y%m%d")
         try:
             with open(self.req_cnt_file + datestr, "r") as f:
                 self.req_counter = int(f.read())
@@ -146,7 +146,7 @@ class DNSBLResolver(NERDModule):
         if not self.req_cnt_file:
             return
         # Store counter of DNS requests
-        datestr = datetime.now().strftime("%Y%d%m")
+        datestr = datetime.now().strftime("%Y%m%d")
         with open(self.req_cnt_file + datestr, "w") as f:
             f.write(str(self.req_counter))
     
