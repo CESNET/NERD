@@ -42,6 +42,36 @@ enabled=1
     cp -r contrib_3.0-beta2/warden_filer/ /data/
     chown -R vagrant:vagrant /data ~vagrant/
 
+    # Install local bind
+    yum install -y bind bind-utils
+
+    # configure asn.localhost. zone for ASN plugin
+    echo 'include "/etc/named/named.conf.local";' >> /etc/named.conf
+    echo 'zone "asn.localhost" {
+   type master;
+   file "/etc/named/zones/db.asn.localhost"; # zone file path
+};' > /etc/named/named.conf.local
+
+    mkdir -p /etc/named/zones
+    wget -O - 'http://archive.routeviews.org/dnszones/originas.bz2' |
+      bunzip2 > /etc/named/zones/originas
+    echo '
+$TTL    60480
+@       IN      SOA     asn.localhost. asn.localhost. (
+                              3         ; Serial
+             60480     ; Refresh
+              8640     ; Retry
+            241920     ; Expire
+             60480 )   ; Negative Cache TTL
+
+@       IN      NS      asn.localhost.
+@       IN      A       127.0.0.1
+
+$INCLUDE /etc/named/zones/originas
+' > /etc/named/zones/db.asn.localhost
+    service named start
+
+
     echo "Installation finished.
 
 Get into VM: vagrant ssh
