@@ -29,6 +29,10 @@ class GetASN:
         self.log = logging.getLogger("ASNmodule")
         self.update_asn_dictionary()
 
+        # Create DNS resolver that uses localhost
+        self.dnsresolver = dns.resolver.Resolver()
+        self.dnsresolver.nameservers = ['127.0.0.1']
+
     def update_asn_dictionary(self):
         '''Update MaxMind database and list of ASN names.'''
 
@@ -96,22 +100,53 @@ class GetASN:
         f.close()
 
 
-    def asnLookup(self, ip_address):
+    def geoipLookup(self, ip_address):
         # Check if ASN description dictionary is provided, if not populate it
-        octs = ip_address.split(".")
+        ret = {}
         res = self._pygeoip.asn_by_addr(ip_address)
         asn = res.split()
 
         if len(asn) >= 2:
             self.log.debug("Looked up " + ip_address + ": " + res)
-            result = {
-                "asn_num": asn[0][2:],
-                "asn_desc": " ".join(asn[1:])
-            }
+            ret["as_maxmind.num"] = int(asn[0][2:])
+            ret["as_maxmind.desc"] = " ".join(asn[1:])
         else:
             self.log.error("Looked up " + ip_address + " failed: " + res)
-            result = None
-        return result
+        return ret
+
+    def routerviewLookup(self, ip_address):
+        ret = {}
+        octs = ip_address.split(".")
+        query =  "{0}.{1}.{2}.{3}.asn.localhost.".format(octs[3], octs[2], octs[1], octs[0])
+        try:
+            answers = self.dnsresolver.query(query, 'TXT')
+            record = str(answers[0]).replace('"', '').split()
+            asnum = int(record[0])
+            ret["as_rw.num"] = asnum
+            ret["as_rw.desc"] = self._asn_dct[asnum]
+            self.log.debug("Looked up using routerview: " + ip_address + ": {0} {1} {2} {3}".format(ret["as_rw.num"],
+                    ret["as_rw.desc"], record[1], record[2]))
+        except:
+            self.log.error("Looked up using routerview failed: " + ip_address)
+        return ret
+
+    def asnLookup(self, ip_address):
+        ret1 = self.geoipLookup(ip_address)
+        ret2 = self.routerviewLookup(ip_address)
+
+        results = {}
+        if ret1:
+            if "as_maxmind.num" in ret1:
+                results['as_maxmind.num'] = ret1["as_maxmind.num"]
+            if "as_maxmind.desc" in ret1:
+                results['as_maxmind.description'] = ret1["as_maxmind.desc"]
+        if ret2:
+            if "as_rw.num" in ret2:
+                results['as_rw.num'] = ret2["as_rw.num"]
+            if "as_rw.desc" in ret2:
+                results['as_rw.description'] = ret2["as_rw.desc"]
+        self.log.debug("Results: " + str(results))
+        return results
 
 class ASN(NERDModule):
     """
@@ -137,7 +172,7 @@ class ASN(NERDModule):
         update_manager.register_handler(
             self.handleRecord,
             ('!NEW',),
-            ('asn.id', 'asn.description')
+            ('as_maxmind.num', 'as_maxmind.description', 'as_rw.num', 'as_rw.description')
         )
 
     def handleRecord(self, ekey, rec, updates):
@@ -164,8 +199,9 @@ class ASN(NERDModule):
         if not result:
             return None
 
-        return [
-            ('set', 'asn.id', result["asn_num"]),
-            ('set', 'asn.decription', result["asn_desc"]),
-        ]
+        actions = []
+        for key in result:
+            actions.append(('set', key, result[key]))
+
+        return actions
 

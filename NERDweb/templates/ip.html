@@ -48,8 +48,10 @@
     <span class="flag flag-{{val.ctry|lower}}"></span>{{ ctrydata.names.get(val.ctry, '?') }}</a></span>
     {{ ', '+val.city if val.city else '' }}
   </dd>
- {% elif attr == "asn" %}
-  <dt>ASN</dt><dd>{{ val.id }} {{ val.decription }} {{ val.subnet }}</dd>
+ {% elif attr == "as_maxmind" %}
+  <dt>ASN (MaxMind DB)</dt><dd>{{ val.num }} {{ val.description }}</dd>
+ {% elif attr == "as_rw" %}
+  <dt>ASN (routerviews.org)</dt><dd>{{ val.num }} {{ val.description }}</dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}
