@@ -2,6 +2,7 @@
 NERDd - config file reader
 """
 import json
+import re
 
 def hierarchical_get(self, key, default=None):
     """
@@ -31,14 +32,26 @@ def read_config(file):
     """
     Read configuration file and return config as a dict-like object.
     
-    The configuration file shoud contain a valid JSON document. Comments may be 
-    included as lines starting with # (optionally preceded by whitespaces).
+    The configuration file shoud contain a valid JSON document, with the 
+    following exceptions:
+    - Comments may be included as lines starting with '#' (optionally preceded 
+      by whitespaces).
+    - There may be a comma after the last item of an object or list.
+    - Top level object is added automatically (i.e. '{' and '}' are added at the
+      beginning and the end of the whole file before passing to JSON parser)
+
     This function reads the file and converts it to an dict-like object.
     The only difference from normal dict is its "get" method, which allows
     hierarchical keys (e.g. 'abc.x.y'). See doc of "hierarchical_get" function
     for more information.
     """
     with open(file, "r") as f:
-        stripcomments = "\n".join((l for l in f if not l.lstrip().startswith(("#"))))
-        conf_dict = json.loads(stripcomments)
+        # Read file without whole-line comments
+        configstr = "\n".join((l for l in f if not l.lstrip().startswith(("#"))))
+        # Add { and } around the string
+        configstr = '{' + configstr + '}'
+        # Remove commas before closing braces/brackets
+        configstr = re.sub(',(?=\s*[}\]])', '', configstr)
+        # Load as JSON
+        conf_dict = json.loads(configstr)
     return DictWithHierarchicalGet(conf_dict)
