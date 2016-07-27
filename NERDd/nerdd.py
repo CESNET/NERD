@@ -21,7 +21,7 @@ import core.eventdb
 
 DEFAULT_CONFIG_FILE = "./nerd.cfg"
 
-LOGFORMAT = "%(asctime)-15s,%(threadName)s,%(name)s,[%(levelname)s],%(message)s"
+LOGFORMAT = "%(asctime)-15s,%(threadName)s,%(name)s,[%(levelname)s] %(message)s"
 LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
 
 ############
