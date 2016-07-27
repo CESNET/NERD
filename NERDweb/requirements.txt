@@ -1,0 +1,6 @@
+pytz
+Flask
+Flask-WTF
+pymongo
+WTForms
+Flask-pymongo

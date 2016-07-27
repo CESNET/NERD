@@ -1,0 +1,5 @@
+geoip2
+pymongo
+dnspython
+BeautifulSoup4
+pygeoip
