@@ -102,7 +102,7 @@ class DNSBLResolver(NERDModule):
         if self.blacklists is None:
             self.log.critical("Blacklists not specified ('dnsbl.blacklists') missing in configuration. DNSBL module disabled.")
 
-        self.nameservers = config.get('dnsbl.nameservers')
+        self.nameservers = config.get('dnsbl.nameservers', [])
         if self.nameservers:
             self.log.info("Using nameserver(s) at {}.".format(', '.join(self.nameservers)))
         else:
@@ -209,7 +209,7 @@ class DNSBLResolver(NERDModule):
             self.write_req_count()
         self.req_counter_lock.release()
         
-        #print("DNSBL for "+ip+":", results)
+        self.log.debug("DNSBL for {}: {}".format(ip, results))
         
         update_requests = []
         for bl_id in results:
