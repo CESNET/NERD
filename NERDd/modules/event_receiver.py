@@ -272,7 +272,7 @@ class EventReceiver(NERDModule):
                             print_event = True
                         
                         # TODO check IP address validity
-                        #self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
+                        self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
                         cat = '+'.join(event["Category"]).replace('.', '')
                         # TODO parse and reformat time, solve timezones
                         # (but IDEA defines dates to conform RFC3339 but there is no easy (i.e. built-in) way to parse it in Python, maybe in Py3.6,
@@ -291,7 +291,7 @@ class EventReceiver(NERDModule):
                         )
                         
                     for ipv6 in src.get("IP6", []):
-                        self.log.info("IPv6 address in Source found - skipping since IPv6 is not implemented yet.", file=sys.stderr)# The record follows:\n{}".format(str(event)), file=sys.stderr)
+                        self.log.debug("IPv6 address in Source found - skipping since IPv6 is not implemented yet.")# The record follows:\n{}".format(str(event)), file=sys.stderr)
             except Exception as e:
                 self.log.error("ERROR in parsing event: {}".format(str(e)))
                 pass
