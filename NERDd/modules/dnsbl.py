@@ -12,7 +12,7 @@ import select
 import socket
 import logging
 import threading
-from datetime import datetime
+from datetime import datetime, date
 
 # TODO:
 # - counter of requests per day + limit and automatic stop of querying (to avoid blocking by blacklist providers)
@@ -132,7 +132,9 @@ class DNSBLResolver(NERDModule):
         if not self.req_cnt_file:
             return
         # Load counter of DNS requests made
-        datestr = datetime.now().strftime("%Y%m%d")
+        today = date.today()
+        self.req_counter_current_date = today
+        datestr = today.strftime("%Y%m%d")
         try:
             with open(self.req_cnt_file + datestr, "r") as f:
                 self.req_counter = int(f.read())
@@ -146,7 +148,7 @@ class DNSBLResolver(NERDModule):
         if not self.req_cnt_file:
             return
         # Store counter of DNS requests
-        datestr = datetime.now().strftime("%Y%m%d")
+        datestr = date.today().strftime("%Y%m%d")
         with open(self.req_cnt_file + datestr, "w") as f:
             f.write(str(self.req_counter))
     
@@ -174,15 +176,25 @@ class DNSBLResolver(NERDModule):
         if etype != 'ip':
             return None
         
+        req_time = datetime.now()
+        
         # Limit of the number of requests per day
-        self.req_counter_lock.acquire()
-        if self.req_counter >= self.max_req_count:
-            if self.req_counter == self.max_req_count:
-                self.log.warning("Maximal request count reached - no more DNSBL requests will be made today.")
+        with self.req_counter_lock:
+            # Increment request counter
             self.req_counter += 1
-            self.req_counter_lock.release()
-            return None
-        self.req_counter_lock.release()
+            # Reset counter when new day starts
+            if req_time.date() > self.req_counter_current_date:
+                self.write_req_count()
+                self.req_counter = 0
+                self.req_counter_current_date = req_time.date()
+            # Backup counter to file every 1000 requests
+            elif self.req_counter % 1000 == 0:
+                self.write_req_count()
+            # End processing if the limit was reached
+            if self.req_counter >= self.max_req_count:
+                if self.req_counter == self.max_req_count:
+                    self.log.warning("Maximal request count reached - no more DNSBL requests will be made today.")
+                return None
         
         ip = ekey[1]
         revip = reverse_ip(ip)
@@ -190,9 +202,7 @@ class DNSBLResolver(NERDModule):
         self.log.debug("Querying blacklists for {}".format(ekey))
         
         channel = pycares.Channel(servers=self.nameservers)
-        results = []
-        
-        req_time = datetime.now()
+        results = []        
         
         # Create queries to all blacklists
         for bl in self.blacklists:
@@ -202,12 +212,6 @@ class DNSBLResolver(NERDModule):
         # Send all queries and wait for results
         #(they are handled by self._process_result callback)
         _wait_channel(channel)
-        
-        self.req_counter_lock.acquire()
-        self.req_counter += 1
-        if self.req_counter % 1000:
-            self.write_req_count()
-        self.req_counter_lock.release()
         
         self.log.debug("DNSBL for {}: {}".format(ip, results))
         
