@@ -6,7 +6,8 @@
 <form method="GET" action="{{ url_for('ips') }}">
   {# form.csrf_token #}
   {{ form.subnet.label }} {{ form.subnet() }} {% if form.subnet.errors %}<span class="error">{{ ' '.join(form.subnet.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
-  {{ form.country.label }} {{ form.country(size=2) }} {% if form.country.errors %}<span class="error">{{ ' '.join(form.country.errors) }}</span>{% endif %}<br>
+  {{ form.country.label }} {{ form.country(size=2) }} {% if form.country.errors %}<span class="error">{{ ' '.join(form.country.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+  {{ form.asn.label }} {{ form.asn(size=7) }} {% if form.asn.errors %}<span class="error">{{ ' '.join(form.asn.errors) }}</span>{% endif %}<br>
   {{ form.sortby.label }} {{ form.sortby() }} {{ form.asc() }} {{ form.asc.label }}<br>
   {{ form.limit.label }} {{ form.limit(size=5) }} {% if form.limit.errors %}<span class="error">{{ ' '.join(form.limit.errors) }}</span>{% endif %}<br>
   <input type="submit">
