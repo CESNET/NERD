@@ -84,7 +84,7 @@ td.country a {
   color: white;
   border-radius: 4px;
   padding: 0.1em 0.3em;
-  margin: 0.1em;
+  margin: 0;
   font-size: 1em;
 }
 
@@ -96,10 +96,13 @@ td.country a {
   background: #a62;
 }
 
-
-.blacklist_entry + .blacklist_entry::before {
-  content: "| ";
+.tag.blacklist {
+  background: #533;
 }
+
+/*.blacklist_entry + .blacklist_entry::before {
+  content: "| ";
+}*/
 
 /***********************************************/
 /* Single IP listing */

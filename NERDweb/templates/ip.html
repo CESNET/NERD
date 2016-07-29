@@ -23,16 +23,16 @@
 <p class="header"><span class="ip">{{ ip }}</span><span class="hostname">{{ ipinfo.hostname }}</span></p>
 
 <dl class="attrs">
-{% for attr,val in ipinfo.items()|sort() %} {# TODO: sort #}
+{% for attr,val in ipinfo|dictsort %}
  {% if attr == "_id" %}
   {# pass #}
  {% elif attr == "events" %}
   <dt>events ({{val.total}})</dt>
   <dd><dl>
-   {% for date,cats in val.items()|sort() %}
+   {% for date,cats in val|dictsort %}
     {% if date != 'total' %}
      <dt>{{date}}</dt><dd><dl>
-      {% for cat,val in cats.items() %}
+      {% for cat,val in cats|dictsort %}
        {% if cat != 'nodes' %}
         {{cat}}: {{val}}<br>
        {% endif %}
@@ -48,6 +48,13 @@
     <span class="flag flag-{{val.ctry|lower}}"></span>{{ ctrydata.names.get(val.ctry, '?') }}</a></span>
     {{ ', '+val.city if val.city else '' }}
   </dd>
+ {% elif attr == "bl" %}
+  <dt>blacklists</dt>
+  <dd><dl>
+   {% for name,times in val|dictsort %}
+    <dt>{{name}}</dt><dd>{{times|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}</dd>
+   {% endfor %}
+  </dl></dd>
  {% elif attr == "as_maxmind" %}
   <dt>ASN (MaxMind DB)</dt><dd>{{ val.num }} {{ val.description }}</dd>
  {% elif attr == "as_rw" %}

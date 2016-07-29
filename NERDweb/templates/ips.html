@@ -29,8 +29,8 @@
 <th>Country</th>
 <th title="Total number of alerts recevied">Events</th>
 <!--<th>Shodan info</th>
-<th>Device type</th>
-<th>Other properties</th>-->
+<th>Device type</th>-->
+<th>Other properties</th>
 <th>Time added</th>
 <th>Last update</th>
 </tr>
@@ -72,18 +72,22 @@ Routeviews:<br> &nbsp; {% if ip.as_rw %}AS{{ip.as_rw.num}} - {{ip.as_rw.descript
   </span>
 </td>
 <td class="device_type">{% if ip.device_type %}<span class="tag">{{ip.device_type}}</span>{% endif %}</td>
+#}
 <td class="other">
+{#
   {% if ip.open_dns %}<span class="tag amplifier dns">Open DNS resolver</span>{% endif %}
   {% if ip.open_ntp %}<span class="tag amplifier ntp">Open NTP</span>{% endif %}
   {% if ip.open_snmp %}<span class="tag amplifier snmp">Open SNMP</span>{% endif %}
   
   {% if ip.tor %}<span class="tag tor">TOR exit node</span>{% endif %}
-  
-  {% for bl in ip.blacklists %}
-    <span class="blacklist_entry">{{bl}}</span>
-  {% endfor %}
-</td>
 #}
+  {% if ip.bl %}
+  {% for name,times in ip.bl.items() %}
+    <span class="tag blacklist" title="IP was present on blacklist '{{name}}' at the following times:<br>
+      {{-times|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">{{name}}</span>
+  {% endfor %}
+  {% endif %}
+</td>
 <td class="time">{{ip.ts_added.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
 <td class="time">{{ip.ts_last_update.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
 </tr>

@@ -44,6 +44,14 @@ mongo = PyMongo(app)
 
 event_db = eventdb.FileEventDatabase({'eventdb_path': EVENTDB_PATH})
 
+# ***** Jinja2 filters *****
+
+# Datetime filters
+def format_datetime(val, format="%Y-%m-%d %H:%M:%S"):
+    return val.strftime(format)
+
+app.jinja_env.filters['datetime'] = format_datetime
+
 # ***** Main page *****
 @app.route('/')
 def main():
@@ -105,7 +113,7 @@ def ips():
         ipinfo = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
     else:
         ipinfo = None
-    return render_template('ips.html', ctrydata=ctrydata, sorted=sorted, **locals())
+    return render_template('ips.html', ctrydata=ctrydata, **locals())
 
 
 # ***** List of alerts *****
@@ -146,7 +154,7 @@ def ip(ipaddr=None):
     else:
         title = 'IP detail search'
         ipinfo = {}
-    return render_template('ip.html', ctrydata=ctrydata, sorted=sorted, ip=form.ip.data, **locals())
+    return render_template('ip.html', ctrydata=ctrydata, ip=form.ip.data, **locals())
 
 
 # ***** NERD status information *****
