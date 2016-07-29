@@ -43,7 +43,7 @@ class GetASN:
         except:
             cache = { '_create_date': 0 }
 
-        curTime = int(datetime.datetime.now().strftime('%s'))
+        curTime = int(datetime.datetime.now().timestamp())
         if (curTime - cache['_create_date']) < self.maxValidity:
             # Get cached data
             self.log.info("Using ASN list from cache.")
