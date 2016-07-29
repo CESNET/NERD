@@ -129,11 +129,11 @@ class DNSBLResolver(NERDModule):
     
     
     def start(self):
+        today = date.today()
+        self.req_counter_current_date = today
         if not self.req_cnt_file:
             return
         # Load counter of DNS requests made
-        today = date.today()
-        self.req_counter_current_date = today
         datestr = today.strftime("%Y%m%d")
         try:
             with open(self.req_cnt_file + datestr, "r") as f:
