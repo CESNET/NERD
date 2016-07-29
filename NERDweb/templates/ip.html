@@ -29,7 +29,7 @@
  {% elif attr == "events" %}
   <dt>events ({{val.total}})</dt>
   <dd><dl>
-   {% for date,cats in val.items() %}
+   {% for date,cats in val.items()|sort() %}
     {% if date != 'total' %}
      <dt>{{date}}</dt><dd><dl>
       {% for cat,val in cats.items() %}
