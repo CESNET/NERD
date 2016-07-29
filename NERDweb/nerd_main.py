@@ -126,11 +126,10 @@ def ip(ipaddr=None):
     if ipaddr:
         title = ipaddr
         ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
-        events = event_db.get('ip', form.ip.data)
+        events = event_db.get('ip', form.ip.data, limit=100)
         num_events = str(len(events))
-        if len(events) > 100:
-            events = events[:100]
-            num_events = "{}, only first 100 shown".format(num_events)
+        if len(events) >= 100:
+            num_events = "&ge;100, only first 100 shown"
     else:
         title = 'IP detail search'
         ipinfo = {}
