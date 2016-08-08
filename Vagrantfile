@@ -53,7 +53,7 @@ enabled=1
 };' > /etc/named/named.conf.local
 
     mkdir -p /etc/named/zones
-    wget -O - 'http://archive.routeviews.org/dnszones/originas.bz2' |
+    wget -q -O - 'http://archive.routeviews.org/dnszones/originas.bz2' |
       bunzip2 > /etc/named/zones/originas
     echo '
 $TTL    60480
