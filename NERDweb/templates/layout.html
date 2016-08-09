@@ -47,9 +47,12 @@ $(function() {
 {% block status %} {# TODO make as "macro" #}
 <div id="status-block">
 <img class="refresh-spinner" src="{{ url_for('static', filename='spin.gif') }}">
-<p>Refreshing: <a id="status_refresh_toggle" href="#" onclick="toggle_status_refresh(); return false;">disabled</a></p>
-<p>IPs in DB: <span id="status-ips">??</span></p>
-<p>Event queue (IDEA files): <span id="status-idea-queue">??</span></p>
+<p><b>Status</b> (refreshing <a id="status_refresh_toggle" href="#" onclick="toggle_status_refresh(); return false;">disabled</a>)</p>
+<table><tr><td>IPs in DB:</td><td><span id="status-ips">??</span></td></tr></table>
+<table>
+<tr><td>Event queue (IDEA files):</td><td><span id="status-idea-queue">??</span></td></tr>
+<tr><td colspan="2"><div id="status-idea-queue-bar"><div></div></div></td></tr>
+</table>
 <script>
 var refresh_status_enable = false; // Enable/disable refresh status
 var refreshing_status = false; // Whether refresh is in progress (to avoid multiple parallel calls it they are very slow and refresh interval is small)
@@ -77,6 +80,18 @@ function refresh_status(force=false) {
         function(data) {
             $("#status-ips").text(data.ips);
             $("#status-idea-queue").text(data.idea_queue);
+            // Set width of bar and its color
+            bar_width = (data.idea_queue * 100 / 10000);
+            $("#status-idea-queue-bar div").css('width', bar_width + "%");
+            if (bar_width < 50) {
+                $("#status-idea-queue-bar div").css('background-color', '#0c0');
+            }
+            else if (bar_width < 75) {
+                $("#status-idea-queue-bar div").css('background-color', '#ea0');
+            }
+            else {
+                $("#status-idea-queue-bar div").css('background-color', '#c00');
+            }
         }
     )
     .always(function() {

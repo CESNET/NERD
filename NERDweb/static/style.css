@@ -154,3 +154,30 @@ dl.attrs dt {
   width: 14px;
   height: 14px;
 }
+/*#status-block p {
+  margin: 0.5em 0;
+}*/
+#status-block table {
+  width: 100%;
+  border: 0;
+  margin: 0.5em 0;
+}
+#status-block td {
+  padding: 0;
+  margin: 0;
+}
+#status-block td + td {
+  text-align: right;
+}
+#status-block #status-idea-queue-bar {
+  width: 100%;
+  height: 5px;
+  padding: 0;
+  margin: 0.2em 0 0 0;
+  background-color: #fff;
+}
+#status-block #status-idea-queue-bar div {
+  width: 0%;
+  height: 100%;
+  background-color: #00f;
+}
