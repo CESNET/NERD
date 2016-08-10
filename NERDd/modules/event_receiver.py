@@ -255,23 +255,15 @@ class EventReceiver(NERDModule):
     def _receive_events(self):
         # Infinite loop reading events as files in given directory
         # (termiated by setting running_flag to False)
-        skipped = 0
-        enqueued = 0
         for (rawdata, event) in read_dir(self._drop_path):
-            print_event = False
+            store_event = False
             try:
                 for src in event.get("Source", []):
                     for ipv4 in src.get("IP4", []):
-                        # *** SAMPLING ***
-                        if False and ipv4[-1] != '1':
-                            skipped += 1
-                            #self.log.debug("(samplig) Skipping event...")
-                            continue
-                        else:
-                            enqueued += 1
-                            print_event = True
-                        
+                        store_event = True
+
                         # TODO check IP address validity
+
                         self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
                         cat = '+'.join(event["Category"]).replace('.', '')
                         # TODO parse and reformat time, solve timezones
@@ -296,7 +288,7 @@ class EventReceiver(NERDModule):
                 self.log.error("ERROR in parsing event: {}".format(str(e)))
                 pass
             
-            if print_event:
+            if store_event:
                 #print("------------------------------------------------------------")
                 #print("EventReceiver: Loaded event:")
                 #print(json.dumps(event))
