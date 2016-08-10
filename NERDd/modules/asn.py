@@ -105,17 +105,14 @@ class GetASN:
         ret = {}
         res = self._pygeoip.asn_by_addr(ip_address)
         if res:
-            asn = res.split()
-
-            if len(asn) >= 2:
-                self.log.debug("Looked up " + ip_address + ": " + res)
-                ret["as_maxmind.num"] = int(asn[0][2:])
-                ret["as_maxmind.desc"] = " ".join(asn[1:])
-            else:
-                self.log.error("Looked up " + ip_address + " failed: " + res)
+            self.log.debug("Looked up " + ip_address + " in GeoIP: " + res)
+            
+            asn = res.split(maxsplit=1)
+            ret["as_maxmind.num"] = int(asn[0][2:])
+            ret["as_maxmind.desc"] = asn[1] if len(asn) >= 2 else ""
             return ret
         else:
-            self.log.error("Looked up " + ip_address + " failed.")
+            self.log.info("ASN for " + ip_address + " not found in GeoIP")
             return None
 
     def routeviewsLookup(self, ip_address):
@@ -128,10 +125,10 @@ class GetASN:
             asnum = int(record[0])
             ret["as_rw.num"] = asnum
             ret["as_rw.desc"] = self._asn_dct[asnum]
-            self.log.debug("Looked up using routeviews: " + ip_address + ": {0} {1} {2} {3}".format(ret["as_rw.num"],
+            self.log.debug("Looked up " + ip_address + " using routeviews: " + ip_address + ": {0} {1} ({2}/{3})".format(ret["as_rw.num"],
                     ret["as_rw.desc"], record[1], record[2]))
         except:
-            self.log.error("Looked up using routeviews failed: " + ip_address)
+            self.log.info("ASN for " + ip_address + " not found in routeviews data")
         return ret
 
     def asnLookup(self, ip_address):
