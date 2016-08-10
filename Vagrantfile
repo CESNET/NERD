@@ -23,7 +23,7 @@ enabled=1
 
     # install dependencies
     yum install -y https://centos7.iuscommunity.org/ius-release.rpm
-    yum -y install mongodb-org git wget python34 python34-devel httpd
+    yum -y install mongodb-org git wget python34 python34-devel httpd gcc
     wget -q https://bootstrap.pypa.io/get-pip.py
     python3.4 get-pip.py
     pip install -r sync/NERDd/requirements.txt
