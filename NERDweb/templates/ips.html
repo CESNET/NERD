@@ -41,7 +41,7 @@
 <td class="hostname">{{ip['hostname'] if ip['hostname'] else '--'}}</td>
 <td class="asn">
   <span title="MaxMind GeoLite:<br> &nbsp; {% if ip.as_maxmind %}AS{{ip.as_maxmind.num}} - {{ip.as_maxmind.description}}{% else %}--{% endif %}<br>
-Routeviews:<br> &nbsp; {% if ip.as_rw %}AS{{ip.as_rw.num}} - {{ip.as_rw.description}}{% else %}--{% endif %}">
+Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rw %}AS{{ip.as_rw.num}} - {{ip.as_rw.description}}{% else %}--{% endif %}">
   {% if ip.as_maxmind and ip.as_rw %}
     {% if ip.as_maxmind.num == ip.as_rw.num %}AS{{ip.as_maxmind.num}}{% else %}??{% endif %}
   {% elif ip.as_maxmind %}
