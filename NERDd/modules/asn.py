@@ -118,7 +118,7 @@ class GetASN:
             self.log.error("Looked up " + ip_address + " failed.")
             return None
 
-    def routerviewLookup(self, ip_address):
+    def routeviewsLookup(self, ip_address):
         ret = {}
         octs = ip_address.split(".")
         query =  "{0}.{1}.{2}.{3}.asn.localhost.".format(octs[3], octs[2], octs[1], octs[0])
@@ -128,15 +128,15 @@ class GetASN:
             asnum = int(record[0])
             ret["as_rw.num"] = asnum
             ret["as_rw.desc"] = self._asn_dct[asnum]
-            self.log.debug("Looked up using routerview: " + ip_address + ": {0} {1} {2} {3}".format(ret["as_rw.num"],
+            self.log.debug("Looked up using routeviews: " + ip_address + ": {0} {1} {2} {3}".format(ret["as_rw.num"],
                     ret["as_rw.desc"], record[1], record[2]))
         except:
-            self.log.error("Looked up using routerview failed: " + ip_address)
+            self.log.error("Looked up using routeviews failed: " + ip_address)
         return ret
 
     def asnLookup(self, ip_address):
         ret1 = self.geoipLookup(ip_address)
-        ret2 = self.routerviewLookup(ip_address)
+        ret2 = self.routeviewsLookup(ip_address)
 
         results = {}
         if ret1:
