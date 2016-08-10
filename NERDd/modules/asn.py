@@ -104,15 +104,19 @@ class GetASN:
         # Check if ASN description dictionary is provided, if not populate it
         ret = {}
         res = self._pygeoip.asn_by_addr(ip_address)
-        asn = res.split()
+        if res:
+            asn = res.split()
 
-        if len(asn) >= 2:
-            self.log.debug("Looked up " + ip_address + ": " + res)
-            ret["as_maxmind.num"] = int(asn[0][2:])
-            ret["as_maxmind.desc"] = " ".join(asn[1:])
+            if len(asn) >= 2:
+                self.log.debug("Looked up " + ip_address + ": " + res)
+                ret["as_maxmind.num"] = int(asn[0][2:])
+                ret["as_maxmind.desc"] = " ".join(asn[1:])
+            else:
+                self.log.error("Looked up " + ip_address + " failed: " + res)
+            return ret
         else:
-            self.log.error("Looked up " + ip_address + " failed: " + res)
-        return ret
+            self.log.error("Looked up " + ip_address + " failed.")
+            return None
 
     def routerviewLookup(self, ip_address):
         ret = {}
