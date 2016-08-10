@@ -14,7 +14,6 @@ import gzip
 import logging
 import random
 
-# TODO: better logging than just print to stderr
 # TODO: locking directories
 
 class BadEntityType(ValueError):
@@ -42,13 +41,14 @@ class FileEventDatabase:
 #         pass
 
 
-    def get(self, etype, key):
+    def get(self, etype, key, limit=None):
         """
         Return all events where given IP is amoung Sources.
         
         Arguments:
         etype   entity type (str), must be 'ip'
         key     entity identifier (str), e.g. '192.0.2.42'
+        limit   max number of returned events
         
         Return a list of IDEA messages (strings).
         
@@ -83,6 +83,8 @@ class FileEventDatabase:
                             continue
                         # Store event as a string exactly as it is in the file
                         events.append(line)
+                        if limit and len(events) >= limit:
+                            return events
             except Exception as e:
                 # In case of error with reading file, just log it and continue
                 self.log.exception("Can't load file '{}'.".format(filename))

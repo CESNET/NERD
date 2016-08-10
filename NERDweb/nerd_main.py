@@ -4,6 +4,7 @@ import random
 import json
 import time
 import os
+import re
 import pytz
 
 from flask import Flask, request, render_template, g, jsonify
@@ -14,17 +15,18 @@ from wtforms import validators, TextField, IntegerField, BooleanField, SelectFie
 #import db
 import ctrydata
 
-# import EventDB
-sys.path.insert(0,'../NERDd/core')
-import eventdb
-
 # TODO put this into some config file
 if os.name == 'posix':
     WARDEN_DROP_PATH = "/data/warden_filer/warden_receiver/incoming"
     EVENTDB_PATH = "/data/eventdb"
+    sys.path.insert(0,'/home/current/washek/NERDd/core')
+    import eventdb
 else:
     WARDEN_DROP_PATH = "f:/CESNET/RepShield/NERD/NERDd/warden_filer/incoming"
     EVENTDB_PATH = "f:/CESNET/RepShield/NERD/NERDd/eventdb"
+    sys.path.insert(0,'f:/CESNET/RepShield/NERD/NERDd/core')
+    import eventdb
+
 
 app = Flask(__name__)
 
@@ -42,6 +44,14 @@ mongo = PyMongo(app)
 
 event_db = eventdb.FileEventDatabase({'eventdb_path': EVENTDB_PATH})
 
+# ***** Jinja2 filters *****
+
+# Datetime filters
+def format_datetime(val, format="%Y-%m-%d %H:%M:%S"):
+    return val.strftime(format)
+
+app.jinja_env.filters['datetime'] = format_datetime
+
 # ***** Main page *****
 @app.route('/')
 def main():
@@ -52,6 +62,9 @@ def main():
 class IPFilterForm(Form):
     subnet = TextField('IP prefix', [validators.Optional()])
     country = TextField('Country code', [validators.Optional(), validators.length(2, 2)])
+    asn = TextField('ASN', [validators.Optional(),
+        validators.Regexp('^((AS)?\d+|\?)+$', re.IGNORECASE,
+        message='Must be a number, optionally preceded by "AS", or "?".')])
     sortby = SelectField('Sort by', choices=[
                 ('events','Events'),
                 ('ts_update','Last update'),
@@ -74,8 +87,6 @@ def ips():
     title = "IP search"
     form = IPFilterForm(request.args, csrf_enabled=False)
     if form.validate():
-        print("Validation OK")
-        print(form.asc.data)
         timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
         sortby = sort_mapping[form.sortby.data]
         # Prepare 'find' part of the query
@@ -86,13 +97,23 @@ def ips():
             queries.append( {'$and': [{'_id': {'$gte': subnet}}, {'_id': {'$lt': subnet_end}}]} )
         if form.country.data:
             queries.append( {'geo.ctry': form.country.data.upper() } )
+        if form.asn.data:
+            if form.asn.data[0] == '?':
+                queries.append( {'$and': [{'as_maxmind.num': {'$exists': True}},
+                                          {'as_rw.num': {'$exists': True}},
+                                          {'$where': 'this.as_maxmind.num != this.as_rw.num'} # This will be probably very slow
+                                         ]} )
+            else:
+                asn = int(form.asn.data.lstrip("ASas"))
+                queries.append( {'$or': [{'as_maxmind.num': asn}, {'as_rw.num': asn}]} )
+        
         query = {'$and': queries} if queries else None
         # Perform DB query
         print("Query: "+str(query))
         ipinfo = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
     else:
         ipinfo = None
-    return render_template('ips.html', ctrydata=ctrydata, sorted=sorted, **locals())
+    return render_template('ips.html', ctrydata=ctrydata, **locals())
 
 
 # ***** List of alerts *****
@@ -126,11 +147,14 @@ def ip(ipaddr=None):
     if ipaddr:
         title = ipaddr
         ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
-        events = event_db.get('ip', form.ip.data)
+        events = event_db.get('ip', form.ip.data, limit=100)
+        num_events = str(len(events))
+        if len(events) >= 100:
+            num_events = "&ge;100, only first 100 shown"
     else:
         title = 'IP detail search'
         ipinfo = {}
-    return render_template('ip.html', ctrydata=ctrydata, sorted=sorted, ip=form.ip.data, **locals())
+    return render_template('ip.html', ctrydata=ctrydata, ip=form.ip.data, **locals())
 
 
 # ***** NERD status information *****

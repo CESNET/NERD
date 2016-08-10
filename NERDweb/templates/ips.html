@@ -6,7 +6,8 @@
 <form method="GET" action="{{ url_for('ips') }}">
   {# form.csrf_token #}
   {{ form.subnet.label }} {{ form.subnet() }} {% if form.subnet.errors %}<span class="error">{{ ' '.join(form.subnet.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
-  {{ form.country.label }} {{ form.country(size=2) }} {% if form.country.errors %}<span class="error">{{ ' '.join(form.country.errors) }}</span>{% endif %}<br>
+  {{ form.country.label }} {{ form.country(size=2) }} {% if form.country.errors %}<span class="error">{{ ' '.join(form.country.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+  {{ form.asn.label }} {{ form.asn(size=7) }} {% if form.asn.errors %}<span class="error">{{ ' '.join(form.asn.errors) }}</span>{% endif %}<br>
   {{ form.sortby.label }} {{ form.sortby() }} {{ form.asc() }} {{ form.asc.label }}<br>
   {{ form.limit.label }} {{ form.limit(size=5) }} {% if form.limit.errors %}<span class="error">{{ ' '.join(form.limit.errors) }}</span>{% endif %}<br>
   <input type="submit">
@@ -28,8 +29,8 @@
 <th>Country</th>
 <th title="Total number of alerts recevied">Events</th>
 <!--<th>Shodan info</th>
-<th>Device type</th>
-<th>Other properties</th>-->
+<th>Device type</th>-->
+<th>Other properties</th>
 <th>Time added</th>
 <th>Last update</th>
 </tr>
@@ -38,14 +39,24 @@
 <tr>
 <td class="id ip"><a href="{{ url_for('ip') + ip._id }}"><span>{{ip._id}}</span></a></td>
 <td class="hostname">{{ip['hostname'] if ip['hostname'] else '--'}}</td>
-<td class="asn"><span class="as_num">{{ip.as_num}}</span> <span class="as_name">{{ip.as_name}}</span></td>
+<td class="asn">
+  <span title="MaxMind GeoLite:<br> &nbsp; {% if ip.as_maxmind %}AS{{ip.as_maxmind.num}} - {{ip.as_maxmind.description}}{% else %}--{% endif %}<br>
+Routeviews:<br> &nbsp; {% if ip.as_rw %}AS{{ip.as_rw.num}} - {{ip.as_rw.description}}{% else %}--{% endif %}">
+  {% if ip.as_maxmind and ip.as_rw %}
+    {% if ip.as_maxmind.num == ip.as_rw.num %}AS{{ip.as_maxmind.num}}{% else %}??{% endif %}
+  {% elif ip.as_maxmind %}
+    AS{{ip.as_maxmind.num}}
+  {% elif ip.as_rw %}
+    AS{{ip.as_rw.num}}
+  {% endif %}
+</span>
+</td>
 <td class="country">
   {% if 'geo' in ip and 'ctry' in ip.geo %}
   <a href="http://country.io/{{ip.geo.ctry|lower}}/">
-  <span title="{{ctrydata.names.get(ip.geo.ctry, '?') + ', ' + 
-                 ctrydata.continent_names.get(ctrydata.continent.get(ip.geo.ctry, '?'), '?') +
-                 ' (' + ip.geo.ctry + '/' + ctrydata.iso3.get(ip.geo.ctry, '?') + ')' 
-               }}">
+  <span title="{{ctrydata.names.get(ip.geo.ctry, '?')}}, 
+                 {{ctrydata.continent_names.get(ctrydata.continent.get(ip.geo.ctry, '?'), '?')}}
+                 ({{ip.geo.ctry}}/{{ctrydata.iso3.get(ip.geo.ctry, '?')}})">
     <span class="flag flag-{{ip.geo.ctry|lower}}"></span>{{ip.geo.ctry}}
   </span>
   </a>
@@ -61,18 +72,22 @@
   </span>
 </td>
 <td class="device_type">{% if ip.device_type %}<span class="tag">{{ip.device_type}}</span>{% endif %}</td>
+#}
 <td class="other">
+{#
   {% if ip.open_dns %}<span class="tag amplifier dns">Open DNS resolver</span>{% endif %}
   {% if ip.open_ntp %}<span class="tag amplifier ntp">Open NTP</span>{% endif %}
   {% if ip.open_snmp %}<span class="tag amplifier snmp">Open SNMP</span>{% endif %}
   
   {% if ip.tor %}<span class="tag tor">TOR exit node</span>{% endif %}
-  
-  {% for bl in ip.blacklists %}
-    <span class="blacklist_entry">{{bl}}</span>
-  {% endfor %}
-</td>
 #}
+  {% if ip.bl %}
+  {% for name,times in ip.bl.items() %}
+    <span class="tag blacklist" title="IP was present on blacklist '{{name}}' at the following times:<br>
+      {{-times|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">{{name}}</span>
+  {% endfor %}
+  {% endif %}
+</td>
 <td class="time">{{ip.ts_added.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
 <td class="time">{{ip.ts_last_update.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
 </tr>
