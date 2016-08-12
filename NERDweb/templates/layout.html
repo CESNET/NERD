@@ -36,7 +36,7 @@ $(function() {
     track: false,
     show: false,
     hide: false,
-    content: function() (moment($(this).text()).fromNow()),
+    content: function() { return moment($(this).text()).fromNow() },
     position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
   });
 });
