@@ -45,7 +45,7 @@ hr {
 
 /***** Main tables, such as IPs table (#entity_table) or Events table (#events_table) *****/
 .main_table {
-  margin-top: 1em;
+  margin-top: 0.5em;
   background: #eeeeee;
   border: solid black;
   /* This is necessary to avoid firefox bug, in which borders have different 
@@ -71,6 +71,20 @@ hr {
   background: #fbfbfb;
 }
 /**********/
+
+#results_label {
+  font-weight: bold;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding-top: 0.5em;
+  border-top: 1px solid #bbb;
+}
+#results_label a {
+  text-decoration: none;
+}
+#results_label a:hover {
+  text-decoration: underline;
+}
 
 td.country a {
   text-decoration: none;

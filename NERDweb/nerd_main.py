@@ -7,7 +7,7 @@ import os
 import re
 import pytz
 
-from flask import Flask, request, render_template, g, jsonify
+from flask import Flask, request, render_template, make_response, g, jsonify, json
 from flask.ext.pymongo import PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from wtforms import validators, TextField, IntegerField, BooleanField, SelectField
@@ -81,6 +81,28 @@ sort_mapping = {
     'ip': '_id',
 }
 
+def create_query(form):
+    # Prepare 'find' part of the query
+    queries = []
+    if form.subnet.data:
+        subnet = form.subnet.data
+        subnet_end = subnet[:-1] + chr(ord(subnet[-1])+1)
+        queries.append( {'$and': [{'_id': {'$gte': subnet}}, {'_id': {'$lt': subnet_end}}]} )
+    if form.country.data:
+        queries.append( {'geo.ctry': form.country.data.upper() } )
+    if form.asn.data:
+        if form.asn.data[0] == '?':
+            queries.append( {'$and': [{'as_maxmind.num': {'$exists': True}},
+                                      {'as_rw.num': {'$exists': True}},
+                                      {'$where': 'this.as_maxmind.num != this.as_rw.num'} # This will be probably very slow
+                                     ]} )
+        else:
+            asn = int(form.asn.data.lstrip("ASas"))
+            queries.append( {'$or': [{'as_maxmind.num': asn}, {'as_rw.num': asn}]} )
+    
+    query = {'$and': queries} if queries else None
+    return query
+
 @app.route('/ips')
 @app.route('/ips/')
 def ips():
@@ -89,31 +111,31 @@ def ips():
     if form.validate():
         timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
         sortby = sort_mapping[form.sortby.data]
-        # Prepare 'find' part of the query
-        queries = []
-        if form.subnet.data:
-            subnet = form.subnet.data
-            subnet_end = subnet[:-1] + chr(ord(subnet[-1])+1)
-            queries.append( {'$and': [{'_id': {'$gte': subnet}}, {'_id': {'$lt': subnet_end}}]} )
-        if form.country.data:
-            queries.append( {'geo.ctry': form.country.data.upper() } )
-        if form.asn.data:
-            if form.asn.data[0] == '?':
-                queries.append( {'$and': [{'as_maxmind.num': {'$exists': True}},
-                                          {'as_rw.num': {'$exists': True}},
-                                          {'$where': 'this.as_maxmind.num != this.as_rw.num'} # This will be probably very slow
-                                         ]} )
-            else:
-                asn = int(form.asn.data.lstrip("ASas"))
-                queries.append( {'$or': [{'as_maxmind.num': asn}, {'as_rw.num': asn}]} )
         
-        query = {'$and': queries} if queries else None
+        query = create_query(form)
+        
+        # Query parameters to be used in AJAX requests
+        query_params = json.dumps(form.data)
+        
         # Perform DB query
-        print("Query: "+str(query))
+        #print("Query: "+str(query))
         ipinfo = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
+        ipinfo = list(ipinfo) # Load all data now, so we are able to get number of results in template
     else:
         ipinfo = None
+
     return render_template('ips.html', ctrydata=ctrydata, **locals())
+
+@app.route('/_ips_count', methods=['GET', 'POST'])
+def ips_count():
+    form = IPFilterForm(request.values, csrf_enabled=False)
+    print("Count requested")
+    print(form.data)
+    if form.validate():
+        query = create_query(form)
+        return make_response(str(mongo.db.ip.find(query).count()))
+    else:
+        return make_response("ERROR")
 
 
 # ***** List of alerts *****

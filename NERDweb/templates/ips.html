@@ -19,6 +19,13 @@
  {% endfor %} #}
 {% else %}
 
+<p id="results_label">Results (
+{%- if ipinfo|length >= form.limit.data -%}
+ <a href="#" title="Click to get total count" onclick="$(this).hide(); $('#results_label span').show(); $('#results_label span').load('{{url_for('ips_count')}}', {{query_params}}); return false;">&ge;{{form.limit.data}}</a><span style="display: none">&ge;{{form.limit.data}}<img src="{{url_for('static', filename='spin.gif')}}" style="height: 0.8em; width: 0.8em;"></span>
+{%- else -%}
+ {{ ipinfo|length }}
+{%- endif -%})</p>
+
 <!---------- Table with results ---------->
 <table id="entity_table" class="main_table">
 <!-- Header -->
