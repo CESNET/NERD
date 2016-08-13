@@ -91,6 +91,23 @@ td.country a {
   color: inherit;
 }
 
+.events_tooltip table {
+  border: solid #000;
+  border-width: 0px 0px 1px 1px;
+  border-collapse: separate;
+  border-spacing: 0px;
+  margin: 0.4em 0; 
+}
+.events_tooltip table td,
+.events_tooltip table th {
+  border: solid #000;
+  border-width: 1px 1px 0px 0px;
+  padding: 0.1em 0.4em;
+}
+.events_tooltip table td {
+  text-align: right;
+}
+
 
 .tag {
   display: inline-block;

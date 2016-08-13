@@ -20,10 +20,10 @@
 {% else %}
 
 <p id="results_label">Results (
-{%- if ipinfo|length >= form.limit.data -%}
+{%- if results|length >= form.limit.data -%}
  <a href="#" title="Click to get total count" onclick="$(this).hide(); $('#results_label span').show(); $('#results_label span').load('{{url_for('ips_count')}}', {{query_params}}); return false;">&ge;{{form.limit.data}}</a><span style="display: none">&ge;{{form.limit.data}}<img src="{{url_for('static', filename='spin.gif')}}" style="height: 0.8em; width: 0.8em;"></span>
 {%- else -%}
- {{ ipinfo|length }}
+ {{ results|length }}
 {%- endif -%})</p>
 
 <!---------- Table with results ---------->
@@ -42,7 +42,7 @@
 <th>Last update</th>
 </tr>
 
-{% for ip in ipinfo %}
+{% for ip in results %}
 <tr>
 <td class="id ip"><a href="{{ url_for('ip') + ip._id }}"><span>{{ip._id}}</span></a></td>
 <td class="hostname">{{ip['hostname'] if ip['hostname'] else '--'}}</td>
@@ -70,7 +70,10 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rw %}AS{{ip.as_rw.num}} -
   {% endif %}
 </td>
 
-<td class="events" title="{{ip.events.keys()|join(', ')}}">{#<div class="events_graph" data-events="{{ip.events}}"></div>#}{{ip.events.total}}</td>
+<td class="events" data-cats="{{ip.events._cats}}" data-dates="{{ip.events._dates}}"
+  data-nodes="{{ip.events._nodes}}" data-table="{{ip.events._date_cat_table}}">
+  {{ip.events.total}}
+</td>
 {#
 <td class="shodan">
   {% if ip.shodan_os %}<span class="tag os">{{ip.shodan_os}}</span>{% endif %}

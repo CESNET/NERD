@@ -119,10 +119,42 @@ def ips():
         
         # Perform DB query
         #print("Query: "+str(query))
-        ipinfo = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
-        ipinfo = list(ipinfo) # Load all data now, so we are able to get number of results in template
+        results = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
+        results = list(results) # Load all data now, so we are able to get number of results in template
+        
+        # Add metainfo about evetns for easier creation of event table in the template
+        date_regex = re.compile('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        for ip in results:
+            events = ip.get('events', {})
+            dates = set()
+            cats = set()
+            nodes = set()
+            for key,val in events.items():
+                if date_regex.match(key):
+                    dates.add(key)
+                    for cat,val in val.items():
+                        if cat == 'nodes':
+                            nodes.update(val)
+                        else:
+                            cats.add(cat)
+            dates = sorted(dates)
+            cats = sorted(cats)
+            nodes = sorted(nodes)
+            date_cat_table = [ [ events.get(d, {}).get(c, 0) for c in cats ] for d in dates ]
+            
+            MAX_DAYS = 5
+            if len(dates) > MAX_DAYS:
+                dates = dates[-MAX_DAYS:]
+                dates.insert(0, '...')
+                date_cat_table = date_cat_table[-MAX_DAYS:]
+                date_cat_table.insert(0, ['...' for c in cats])
+            
+            events['_dates'] = ','.join(dates)
+            events['_cats'] = ','.join(cats)
+            events['_nodes'] = ','.join(nodes)
+            events['_date_cat_table'] = ';'.join( [','.join(map(str,c)) for c in date_cat_table] )
     else:
-        ipinfo = None
+        results = None
 
     return render_template('ips.html', ctrydata=ctrydata, **locals())
 
