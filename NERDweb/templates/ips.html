@@ -20,6 +20,40 @@
  {% endfor %} #}
 {% else %}
 
+<script>
+// Set-up possibility to click on a part of hostname to set it as a filer
+function set_hostname_filter(hostname) {
+  document.location = ROOT + "ips/?hostname=" + hostname;
+};
+
+$(function () {
+  $("td.hostname").each( function () {
+    hostname = $(this).text();
+    if (hostname == "--")
+      return;
+    parts = hostname.split(".");
+    $(this).html("<span>" + parts.join("</span><span>.") + "</span>");
+  });
+  $("td.hostname span")
+    .css("cursor", "pointer")
+    .click( function () {
+      set_hostname_filter( $(this).text() + $(this).nextAll().text() );
+    })
+    .hover(
+      function () { // mouseenter
+        $(this).css("text-decoration", "underline");
+        $(this).nextAll().css("text-decoration", "underline");
+        $(this).attr("title", "Set as filter");
+      },
+      function () { // mouseleave
+        $(this).css("text-decoration", "");
+        $(this).nextAll().css("text-decoration", "");
+        $(this).attr("title", "");
+      }
+    )
+});
+</script>
+
 <p id="results_label">Results (
 {%- if results|length >= form.limit.data -%}
  <a href="#" title="Click to get total count" onclick="$(this).hide(); $('#results_label span').show(); $('#results_label span').load('{{url_for('ips_count')}}', {{query_params}}); return false;">&ge;{{form.limit.data}}</a><span style="display: none">&ge;{{form.limit.data}}<img src="{{url_for('static', filename='spin.gif')}}" style="height: 0.8em; width: 0.8em;"></span>

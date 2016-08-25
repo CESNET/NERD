@@ -16,6 +16,8 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='flags.css') }}">
   
 <script>
+var ROOT = "{{ url_for('main') }}";
+
 function create_event_table(data) { /* data are "dataset" field of a DOM node with "data-" attributes set */
   var cats = data.cats.split(",");
   var dates = data.dates.split(",");
