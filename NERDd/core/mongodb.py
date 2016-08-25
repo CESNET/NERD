@@ -71,7 +71,15 @@ class MongoEntityDatabase():
         if etype not in self._supportedTypes:
             raise UnknownEntityType("There is no collection for entity type "+str(etype))
         
-        return self._db[etype].find_one({'_id': key})
+        record = self._db[etype].find_one({'_id': key})
+        if not record:
+            return None
+        
+        # Hostnames are reversed in DB, reverse it before returning to NERD
+        if 'hostname' in record and record['hostname'] is not None:
+            record['hostname'] = record['hostname'][::-1]
+        
+        return record
     
     
     def put(self, etype, key, record):
@@ -85,6 +93,10 @@ class MongoEntityDatabase():
         """
         if etype not in self._supportedTypes:
             raise UnknownEntityType("There is no collection for entity type "+str(etype))
+        
+        # Store hostname reversed
+        if record and 'hostname' in record and record['hostname'] is not None:
+            record['hostname'] = record['hostname'][::-1]
         
         self._db[etype].replace_one({'_id': key}, record, upsert=True)
 
