@@ -22,9 +22,9 @@ if os.name == 'posix':
     sys.path.insert(0,'/home/current/washek/NERDd/core')
     import eventdb
 else:
-    WARDEN_DROP_PATH = "f:/CESNET/RepShield/NERD/NERDd/warden_filer/incoming"
-    EVENTDB_PATH = "f:/CESNET/RepShield/NERD/NERDd/eventdb"
-    sys.path.insert(0,'f:/CESNET/RepShield/NERD/NERDd/core')
+    WARDEN_DROP_PATH = "f:/CESNET/NERD/NERDd/warden_filer/incoming"
+    EVENTDB_PATH = "f:/CESNET/NERD/NERDd/eventdb"
+    sys.path.insert(0,'f:/CESNET/NERD/NERDd/core')
     import eventdb
 
 
@@ -61,6 +61,7 @@ def main():
 
 class IPFilterForm(Form):
     subnet = TextField('IP prefix', [validators.Optional()])
+    hostname = TextField('Hostname suffix', [validators.Optional()])
     country = TextField('Country code', [validators.Optional(), validators.length(2, 2)])
     asn = TextField('ASN', [validators.Optional(),
         validators.Regexp('^((AS)?\d+|\?)+$', re.IGNORECASE,
@@ -88,6 +89,10 @@ def create_query(form):
         subnet = form.subnet.data
         subnet_end = subnet[:-1] + chr(ord(subnet[-1])+1)
         queries.append( {'$and': [{'_id': {'$gte': subnet}}, {'_id': {'$lt': subnet_end}}]} )
+    if form.hostname.data:
+        hn = form.hostname.data[::-1] # Hostnames are stored reversed in DB to allow search by suffix as a range search
+        hn_end = hn[:-1] + chr(ord(hn[-1])+1)
+        queries.append( {'$and': [{'hostname': {'$gte': hn}}, {'hostname': {'$lt': hn_end}}]} )
     if form.country.data:
         queries.append( {'geo.ctry': form.country.data.upper() } )
     if form.asn.data:
@@ -119,8 +124,12 @@ def ips():
         
         # Perform DB query
         #print("Query: "+str(query))
-        results = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
-        results = list(results) # Load all data now, so we are able to get number of results in template
+        try:
+            results = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
+            results = list(results) # Load all data now, so we are able to get number of results in template
+        except pymongo.errors.ServerSelectionTimeoutError:
+            results = []
+            error = 'mongo_error'
         
         # Add metainfo about evetns for easier creation of event table in the template
         date_regex = re.compile('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')

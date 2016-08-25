@@ -6,6 +6,7 @@
 <form method="GET" action="{{ url_for('ips') }}">
   {# form.csrf_token #}
   {{ form.subnet.label }} {{ form.subnet() }} {% if form.subnet.errors %}<span class="error">{{ ' '.join(form.subnet.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+  {{ form.hostname.label }} {{ form.hostname() }} {% if form.hostname.errors %}<span class="error">{{ ' '.join(form.hostname.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
   {{ form.country.label }} {{ form.country(size=2) }} {% if form.country.errors %}<span class="error">{{ ' '.join(form.country.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
   {{ form.asn.label }} {{ form.asn(size=7) }} {% if form.asn.errors %}<span class="error">{{ ' '.join(form.asn.errors) }}</span>{% endif %}<br>
   {{ form.sortby.label }} {{ form.sortby() }} {{ form.asc() }} {{ form.asc.label }}<br>
@@ -45,7 +46,7 @@
 {% for ip in results %}
 <tr>
 <td class="id ip"><a href="{{ url_for('ip') + ip._id }}"><span>{{ip._id}}</span></a></td>
-<td class="hostname">{{ip['hostname'] if ip['hostname'] else '--'}}</td>
+<td class="hostname">{{ip['hostname']|reverse if ip['hostname'] else '--'}}</td>
 <td class="asn">
   <span title="MaxMind GeoLite:<br> &nbsp; {% if ip.as_maxmind %}AS{{ip.as_maxmind.num}} - {{ip.as_maxmind.description}}{% else %}--{% endif %}<br>
 Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rw %}AS{{ip.as_rw.num}} - {{ip.as_rw.description}}{% else %}--{% endif %}">
