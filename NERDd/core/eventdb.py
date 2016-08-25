@@ -43,7 +43,7 @@ class FileEventDatabase:
 
     def get(self, etype, key, limit=None):
         """
-        Return all events where given IP is amoung Sources.
+        Return all events where given IP is among Sources.
         
         Arguments:
         etype   entity type (str), must be 'ip'
@@ -64,14 +64,18 @@ class FileEventDatabase:
         
         # Read all files with event data in the directory a.b/c.d/
         try:
-            date_files = [f for f in os.listdir(dir) if f.endswith('.gz') and os.path.isfile(os.path.join(dir, f))]
+            files = [f for f in sorted(os.listdir(dir)) if os.path.isfile(os.path.join(dir, f))]
         except Exception as e:
             # Directory doesn't exist
             return []
         
-        for filename in date_files:
+        for filename in files:
+            if filename.endswith('.gz'):
+                open_func = gzip.open
+            else:
+                open_func = open
             try:
-                with gzip.open(os.path.join(dir, filename), 'rb') as f:
+                with open_func(os.path.join(dir, filename), 'rb') as f:
                     # Each line in the file should be one IDEA message
                     for i,line in enumerate(f):
                         line = line.decode('utf8').strip()
@@ -110,43 +114,43 @@ class FileEventDatabase:
             return
         
         date = idea_decoded['DetectTime'][:10]
-        
+
+        # Store the record for each address...
         for srcip in sources:
-            # Store the record for each address...
             a,b,c,d = srcip.split('.')
-            # Get directory and full filename ('/a.b/c.d/date.gz')
+            # Get directory and full filename ('/a.b/c.d/date.idea')
             dir = os.path.join(self.dbpath, a+'.'+b, c+'.'+d)
-            filename = os.path.join(dir, date) + '.gz'
+            filename = os.path.join(dir, date) + '.idea' # Add .idea prefix, so when files are sorted alphabetically, it goes after .gz
             
             # Ensure the directory exists (create if not)
             os.makedirs(dir, exist_ok=True)
-            # Open gzip file and append the IDEA message at the end.
-            # We need to read the whole file and recompress it, otherwise
-            # each event would be compressed individually and compression ratio
-            # would be very bad.
-            #print("EventDB: Writing IDEA message into {}".format(filename))
-            # NOTE:
-            # Reading and recompression of whole files on every update is too
-            # slow, especially for addresses with lots of events (i.e. large
-            # files AND frequent updates).
-            # Therefore (re)compression is done only sometimes, in most cases,
-            # data are only appedned, which is much faster.
-            # This is only a temporary hack, until I implement some better 
-            # solution. 
-            if random.random() < 0.05: # chance 1:20
-                # Read whole file, add the event and recompress 
-                try:
-                    with gzip.open(filename, 'rb') as f:
-                        data = f.read()
-                except FileNotFoundError as e:
-                    data = None
-                with gzip.open(filename, 'wb') as f:
             
-                    if data is not None:
+            # Append event to the end of the file (or create new file)
+            # (Uncompressed. Although appending to gzip files is possible, 
+            # compression algorithm starts over every time, so if each message 
+            # is compressed individually, it may result in files even larger
+            # than uncompressed ones.)
+            with open(filename, 'ab') as f:
+                f.write(idea.encode('utf-8') + b'\n')
+            
+            # If the file is larger than 64kB, compress it into
+            # /a.b/c.d/date.gz
+            # (the file is written by 64kB blocks, each block compressed as a 
+            #  whole, so the compression is effective)
+            try:
+                statinfo = os.stat(filename)
+                if statinfo.st_size > 64*1024:
+                    filename2 = os.path.join(dir, date) + '.gz'
+                    self.log.info("Compressing 64k block of data to the end of {}.".format(filename2))
+                    # Read whole file and delete it
+                    with open(filename, 'rb') as f:
+                        data = f.read()
+                    os.remove(filename)
+                    # Write&compress all data to the end of gzip file
+                    with gzip.open(filename2, 'ab') as f:
                         f.write(data)
-                    f.write(idea.encode('utf-8') + b'\n')
-            else:
-                # Only append new event, without reading and recompressing
-                with gzip.open(filename, 'ab') as f:
-                    f.write(idea.encode('utf-8') + b'\n')
+            except FileNotFoundError:
+                # Theoretically someone might delete the base file just after
+                # its creation, do nothing in such case
+                pass
 
