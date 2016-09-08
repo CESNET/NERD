@@ -4,7 +4,13 @@ NERDd - config file reader
 import json
 import re
 
-def hierarchical_get(self, key, default=None):
+class NoDefault:
+    pass
+
+class MissingConfigError(Exception):
+    pass
+
+def hierarchical_get(self, key, default=NoDefault):
     """
     Return self[key] or "default" if key is not found. Allow hierarchical keys.
     
@@ -22,7 +28,10 @@ def hierarchical_get(self, key, default=None):
             d = d[first_key]
         return d[key]
     except KeyError:
-        return default
+        if default is NoDefault:
+            raise MissingConfigError("Mandatory configuration element is missing: " + key)
+        else:
+            return default
     
 class DictWithHierarchicalGet(dict):
     get = hierarchical_get
@@ -46,8 +55,9 @@ def read_config(file):
     for more information.
     """
     with open(file, "r") as f:
-        # Read file without whole-line comments
-        configstr = "\n".join((l for l in f if not l.lstrip().startswith(("#"))))
+        # Read file and replace whole-line comments with empty line
+        # (lines are not completely removed to keep correct line numbers in error messages)
+        configstr = "".join((line if not line.lstrip().startswith("#") else "\n") for line in f)
         # Add { and } around the string
         configstr = '{' + configstr + '}'
         # Remove commas before closing braces/brackets

@@ -98,9 +98,7 @@ class DNSBLResolver(NERDModule):
         # of python3-adns
         # (https://github.com/trolldbois/python3-adns/blob/master/DNSBL.py)
         # TODO: add possibility to add description to each blacklist to frontend
-        self.blacklists = config.get('dnsbl.blacklists')
-        if self.blacklists is None:
-            self.log.critical("Blacklists not specified ('dnsbl.blacklists') missing in configuration. DNSBL module disabled.")
+        self.blacklists = config.get('dnsbl.blacklists', [])
 
         self.nameservers = config.get('dnsbl.nameservers', [])
         if self.nameservers:
@@ -110,7 +108,7 @@ class DNSBLResolver(NERDModule):
 
         # Limit number of requests per day to avoid getting blocked by blacklist
         # providers
-        if config.get('dnsbl.max_requests') and config.get('dnsbl.req_cnt_file'):
+        if config.get('dnsbl.max_requests', None) and config.get('dnsbl.req_cnt_file', None):
             self.max_req_count = int(config.get('dnsbl.max_requests'))
             self.req_cnt_file = config.get('dnsbl.req_cnt_file')
             self.log.info("Maximal number of DNSBL requests per day set to {}.".format(self.max_req_count))

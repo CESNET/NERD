@@ -1,0 +1,6 @@
+# Format:
+# resource_id	allow_group[, allow_group, ...] [; deny_group[, deny_group, ...]]
+
+statusbox	admin
+ipsearch	registered
+notregistered	notregistered ; registered

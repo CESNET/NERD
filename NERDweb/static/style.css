@@ -3,17 +3,20 @@ body {
   color: #000;
   font-family: Arial, sans-serif;
   font-size: 12px;
+  margin: 0em;
 }
 
 h1 {
-  font-size: x-large;
+  font-size: large;
   font-weight: bold;
-  color: #102040;
+  color: #0061a2; //#102040;
+  margin-top: 0.5em;
+  margin-bottom: 0.25em;
 }
 
 hr {
   border: 0;
-  border-top: 2px solid #444;
+  border-top: 2px solid #0061a2;
   margin: 1.5em 0 0.5em 0;
 }
 
@@ -28,20 +31,122 @@ hr {
   max-width: 100em;
 }
 
-
+/* Flash messages */
 .msg {
   display: block;
+  margin: 0.5em 0;
   padding: 0.5em 1em;
+  position: relative;
+  z-index: 1;
 }
 .msg.info {
   background: #c0ecfc;
+  color: #000;
   border: 1px solid #5e708c;
 }
+.msg.success {
+  background: #c0fcbc;
+  color: #000;
+  border: 1px solid #5e8c70;
+}
 
-.error{
+.msg.error {
+  background: #fdd;
   color: #c00;
+  border: 1px solid #c00;
   font-weight: bold;
 }
+.msg a {
+  display: block;
+  float: right;
+  width: 1em;
+  height: 1em;
+  size: 0.5em;
+  vertical-align: middle;
+  text-decoration: none;
+  font-weight: normal;
+  color: inherit;
+}
+
+/********/
+
+#header {
+  background: #444;
+  color: #ddd;
+  padding: 0;
+  font-size: 1.0em;
+  height: 2em;
+  border-bottom: 1px solid #fff;
+}
+#header a {
+  color: #94c7e7;//#ccf;
+}
+#header #corner-logo {
+  float: left;
+  margin: 0;
+  background: #fff;
+  height: 100%;
+  /*position: absolute;*/
+}
+#header #corner-logo img {
+  /*width: 43px;
+  height: 15px;*/
+  height: 1.6em;
+  width: 4.587em;
+  margin: 0.25em 0.8em;
+}
+#header #navigation {
+  padding: 0.4em 1em;
+  float: left;
+}
+#header #login {
+  float: right;
+  text-align: right;
+  padding: 0.4em 1em;
+}
+#header #login span {
+  font-weight: bold;
+  color: #eee;
+}
+
+#content {
+  padding: 0 0.75em;
+  border-top: 2px solid #0061a2;
+}
+
+/* Login prompt page */
+#login-prompt-outer {
+  text-align: center;
+}
+#login-logo {
+  margin: 3em 0 2em 0;
+}
+#login-box {
+  margin: auto;
+  padding: 1em;
+  width: 90%;
+  /*height: 12em;*/
+  margin-top: 2em;
+  text-align: center;
+  background-color: #fdd;
+  color: #800;
+}
+#login-box h1 {
+  /*margin: 1em 0;*/
+  font-size: 2.5em;
+  color: #800;
+}
+#login-box p {
+  font-size: 1.3em;
+}
+#login-arrow {
+  position: absolute;
+  top: 2rem;
+  right: 4rem;
+  font-size: 6em;
+  color: #800;
+}
+
 
 /***** Main tables, such as IPs table (#entity_table) or Events table (#events_table) *****/
 .main_table {
@@ -70,6 +175,7 @@ hr {
 .main_table tr:hover {
   background: #fbfbfb;
 }
+
 /**********/
 
 #results_label {
@@ -89,6 +195,11 @@ hr {
 td.country a {
   text-decoration: none;
   color: inherit;
+}
+
+td.shodanlink img {
+  width: 1em;
+  height: 1em;
 }
 
 .events_tooltip table {
@@ -170,7 +281,7 @@ dl.attrs dt {
 /* NERD status block */
 #status-block {
   position: absolute;
-  top: 0.5em;
+  top: 2.7em;
   right: 0.5em;
   width: 15em;
   border: 1px solid #000;

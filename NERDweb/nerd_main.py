@@ -4,45 +4,93 @@ import random
 import json
 import time
 import os
+import subprocess
 import re
 import pytz
 
-from flask import Flask, request, render_template, make_response, g, jsonify, json
+from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session
 from flask.ext.pymongo import PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from wtforms import validators, TextField, IntegerField, BooleanField, SelectField
 
+# Add to path the "one directory above the current file location"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+import common.eventdb
+import common.config
+
 #import db
 import ctrydata
 
-# TODO put this into some config file
-if os.name == 'posix':
-    WARDEN_DROP_PATH = "/data/warden_filer/warden_receiver/incoming"
-    EVENTDB_PATH = "/data/eventdb"
-    sys.path.insert(0,'/home/current/washek/NERDd/core')
-    import eventdb
-else:
-    WARDEN_DROP_PATH = "f:/CESNET/NERD/NERDd/warden_filer/incoming"
-    EVENTDB_PATH = "f:/CESNET/NERD/NERDd/eventdb"
-    sys.path.insert(0,'f:/CESNET/NERD/NERDd/core')
-    import eventdb
+# ***** Load configuration *****
 
+DEFAULT_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../etc/nerdweb.cfg"))
+
+# TODO parse arguments using ArgParse
+if len(sys.argv) >= 2:
+    cfg_file = sys.argv[1]
+else:
+    cfg_file = DEFAULT_CONFIG_FILE
+
+# Read web-specific config (nerdweb.cfg)
+config = common.config.read_config(cfg_file)
+# Read common config (nerd.cfg) and combine them together
+common_cfg_file = os.path.join(os.path.dirname(os.path.abspath(cfg_file)), config.get('common_config'))
+config.update(common.config.read_config(common_cfg_file))
+
+WARDEN_DROP_PATH = os.path.join(config.get("warden_filer_path", "/data/warden_filer/warden_receiver"), "incoming")
+
+# Load list of users and ACL
+users_cfg_file = os.path.join(os.path.dirname(os.path.abspath(cfg_file)), config.get('users_config'))
+acl_cfg_file = os.path.join(os.path.dirname(os.path.abspath(cfg_file)), config.get('acl_config'))
+
+# "users" file
+# Contains a list of valid users and their mapping to groups
+# Format (one user per line):
+# <full_user_id> <comma_separated_list_of_groups>
+users = {}
+with open(users_cfg_file, 'r') as f:
+    for line in f:
+        if line.strip() == "" or line.startswith("#"):
+            continue
+        id, rest = line.split(None, 1)
+        groups = set(map(str.strip, rest.split(',')))
+        users[id] = groups
+
+# "acl" file
+# Mapping of "resource_id" to two sets of groups: "groups_allow", "groups_deny".
+# To access a resource, a user must be in at least one group of "groups_allow"
+# and must not be in any of "groups_deny".
+# Format (one resource per line):
+# <resource_id> <comma_separated_list_of_groups_allow>[;<comma_separated_list_of_groups_deny>]
+acl = {}
+with open(acl_cfg_file, 'r') as f:
+    for line in f:
+        if line.strip() == "" or line.startswith("#"):
+            continue
+        id, rest = line.split(None, 1)
+        allow, deny = rest.split(';') if ';' in rest else (rest, '')
+        allow = set(filter(None, map(str.strip, allow.split(','))))
+        deny = set(filter(None, map(str.strip, deny.split(','))))
+        acl[id] = (allow, deny)
+
+# **** Create and initialize Flask application *****
 
 app = Flask(__name__)
 
 # Configuration (variables prefixed with MONGO_ are automatically used by PyMongo)
-app.config['MONGO_HOST'] = 'localhost'
-app.config['MONGO_PORT'] = 27017
-app.config['MONGO_DBNAME'] = 'nerd'
+app.config['MONGO_HOST'] = config.get('mongodb.host', 'localhost')
+app.config['MONGO_PORT'] = config.get('mongodb.port', 27017)
+app.config['MONGO_DBNAME'] = config.get('mongodb.dbname', 'nerd')
 
-app.secret_key = '\xc3\x05pt[Tn\xe3\xed\x97\xe4l\xf3\x1fB\xe2 Nz\xacc\xca\xad\x06'
+app.secret_key = config.get('secret_key')
 
 app.jinja_env.trim_blocks = True
 app.jinja_env.lstrip_blocks = True
 
 mongo = PyMongo(app)
 
-event_db = eventdb.FileEventDatabase({'eventdb_path': EVENTDB_PATH})
+eventdb = common.eventdb.FileEventDatabase({'eventdb_path': config.get("eventdb_path")})
+
 
 # ***** Jinja2 filters *****
 
@@ -52,11 +100,97 @@ def format_datetime(val, format="%Y-%m-%d %H:%M:%S"):
 
 app.jinja_env.filters['datetime'] = format_datetime
 
+
+# ***** Access control functions *****
+
+def get_user_groups(full_id):
+    if full_id not in users:
+        return set(['notregistered']) # Unknown user
+    return users[full_id]
+
+
+def get_ac_func(user_groups):
+    """Return a function for testing access permissions of a specific user."""
+    def ac(resource):
+        """"
+        Access control test - check if current user has access to given resource.
+        """
+        if resource in acl and acl[resource][0] & user_groups and not acl[resource][1] & user_groups:
+            return True
+        else:
+            return False
+    return ac
+
+def get_user_info(session):
+    """
+    Extract user information from current session.
+     
+    To be called by all page handlers as:
+      user, ac = get_user_info(session)
+    """
+    if 'user' in session:
+        user = session['user'].copy() # should contain 'id', 'login_type' and optionally 'name'
+        user['fullid'] = user['login_type'] + ':' + user['id']
+        user['groups'] = get_user_groups(user['fullid'])
+    elif testing:
+        user = {
+            'login_type': 'test',
+            'id': 'test_user',
+            'fullid': 'test:test_user',
+            'groups': set(['admin']),
+        }
+    else:
+        user = None
+    if user:
+        ac = get_ac_func(user['groups'])
+    else:
+        ac = lambda x: False
+    return user, ac
+    
+
+# ***** Login handlers *****
+# Each of these paths should have a login mechanism configured in Apache.
+# There we expect valid user information in environent variables.
+
+# Shibboleth
+@app.route('/login/shibboleth')
+def login_shibboleth():
+    try:
+        session['user'] = {
+            'login_type': 'shibboleth',
+            'id': request.environ['eppn'].decode('utf-8'),
+            'name': request.environ['cn'].decode('utf-8'),
+        }
+        flash("Login successful", "success")
+    except KeyError:
+        flash("ERROR: Login unsuccessful, IdP didn't return the expected keys.", "error")
+    return redirect(config['login']['return-path'])
+
+# HTTP basic auth with accounts in local file
+@app.route('/login/basic')
+def login_basic():
+    session['user'] = {
+        'login_type': 'local',
+        'id': request.environ['REMOTE_USER'].decode('utf-8'),
+    }
+    flash("Login successful", "success")
+    return redirect(config['login']['return-path'])
+
+@app.route('/logout')
+def logout():
+    if 'user' in session:
+        del session['user']
+        flash("You have been logged out", "info")
+    return redirect(config['login']['return-path'])
+
+
+
 # ***** Main page *****
 @app.route('/')
 def main():
-    return ""
+    return redirect('/nerd/ips')
     
+
 # ***** List of IP addresses *****
 
 class IPFilterForm(Form):
@@ -112,8 +246,10 @@ def create_query(form):
 @app.route('/ips/')
 def ips():
     title = "IP search"
+    user, ac = get_user_info(session)
+
     form = IPFilterForm(request.args, csrf_enabled=False)
-    if form.validate():
+    if ac('ipsearch') and form.validate():
         timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
         sortby = sort_mapping[form.sortby.data]
         
@@ -127,7 +263,7 @@ def ips():
         try:
             results = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
             results = list(results) # Load all data now, so we are able to get number of results in template
-        except pymongo.errors.ServerSelectionTimeoutError:
+        except PyMongo.errors.ServerSelectionTimeoutError:
             results = []
             error = 'mongo_error'
         
@@ -164,15 +300,16 @@ def ips():
             events['_date_cat_table'] = ';'.join( [','.join(map(str,c)) for c in date_cat_table] )
     else:
         results = None
+        if user and not ac('ipsearch'):
+            flash('Only registered users may search IPs.', 'error')
 
     return render_template('ips.html', ctrydata=ctrydata, **locals())
 
 @app.route('/_ips_count', methods=['GET', 'POST'])
 def ips_count():
+    user, ac = get_user_info(session)
     form = IPFilterForm(request.values, csrf_enabled=False)
-    print("Count requested")
-    print(form.data)
-    if form.validate():
+    if ac('ipsearch') and form.validate():
         query = create_query(form)
         return make_response(str(mongo.db.ip.find(query).count()))
     else:
@@ -205,15 +342,20 @@ class SingleIPForm(Form):
 @app.route('/ip/')
 @app.route('/ip/<ipaddr>')
 def ip(ipaddr=None):
+    user, ac = get_user_info(session)
+    
     form = SingleIPForm(ip=ipaddr)
     #if form.validate():
     if ipaddr:
-        title = ipaddr
-        ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
-        events = event_db.get('ip', form.ip.data, limit=100)
-        num_events = str(len(events))
-        if len(events) >= 100:
-            num_events = "&ge;100, only first 100 shown"
+        if ac('ipsearch'):
+            title = ipaddr
+            ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+            events = eventdb.get('ip', form.ip.data, limit=100)
+            num_events = str(len(events))
+            if len(events) >= 100:
+                num_events = "&ge;100, only first 100 shown"
+        else:
+            flash('Only registered users may search IPs.', 'error')
     else:
         title = 'IP detail search'
         ipinfo = {}
@@ -226,14 +368,25 @@ def ip(ipaddr=None):
 def get_status():
     ips = mongo.db.ip.count()
     idea_queue_len = len(os.listdir(WARDEN_DROP_PATH))
+    try:
+        if "data_disk_path" in config:
+            disk_usage = subprocess.check_output(["df", config.get("data_disk_path"), "-P"]).decode('ascii').splitlines()[1].split()[4]
+        else:
+            disk_usage = "(N/A)"
+    except Exception as e:
+        disk_usage = "(error) " + str(e);
     return jsonify(
         ips=ips,
-        idea_queue=idea_queue_len
+        idea_queue=idea_queue_len,
+        disk_usage=disk_usage
     )
 
 
 # **********
 
+testing = False
+
 if __name__ == "__main__":
+    testing = True
     app.run(host="0.0.0.0", debug=True)
 

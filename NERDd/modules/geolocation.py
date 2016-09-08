@@ -34,8 +34,6 @@ class Geolocation(NERDModule):
     def __init__(self, config, update_manager):
         # Get DB path
         db_path = config.get('geolocation.geolite2_db_path')
-        if not db_path:
-            raise RuntimeError('Geolocation: Missing configuration: "geolocation.geolite2_db_path" not specified.')
         
         # Instantiate DB reader (i.e. open GeoLite database)
         self._reader = geoip2.database.Reader(db_path)

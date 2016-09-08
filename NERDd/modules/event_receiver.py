@@ -224,8 +224,6 @@ class EventReceiver(NERDModule):
         self.log = logging.getLogger("EventReceiver")
         self._um = update_manager
         self._drop_path = config.get('warden_filer_path')
-        if not self._drop_path:
-            raise RuntimeError("EventReceiver: Missing configuration: warden_filer_path not specified.")
         self._eventdb = eventdb
     
     def start(self):

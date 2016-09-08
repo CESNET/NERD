@@ -79,6 +79,7 @@ $(function() {
 </head>
 
 <body>
+{% if ac("statusbox") %}
 {% block status %} {# TODO make as "macro" #}
 <div id="status-block">
 <img class="refresh-spinner" src="{{ url_for('static', filename='spin.gif') }}">
@@ -88,6 +89,7 @@ $(function() {
 <tr><td>Event queue (IDEA files):</td><td><span id="status-idea-queue">??</span></td></tr>
 <tr><td colspan="2"><div id="status-idea-queue-bar"><div></div></div></td></tr>
 </table>
+<table><tr><td>Data disk usage:</td><td><span id="status-disk-usage">??</span></td></tr></table>
 <script>
 var refresh_status_enable = false; // Enable/disable refresh status
 var refreshing_status = false; // Whether refresh is in progress (to avoid multiple parallel calls it they are very slow and refresh interval is small)
@@ -114,6 +116,7 @@ function refresh_status(force=false) {
         "{{ url_for('get_status') }}",
         function(data) {
             $("#status-ips").text(data.ips);
+            $("#status-disk-usage").text(data.disk_usage);
             $("#status-idea-queue").text(data.idea_queue);
             // Set width of bar and its color
             bar_width = (data.idea_queue * 100 / 10000);
@@ -142,10 +145,49 @@ $(function() { refresh_status(true) });
 </script>
 </div>
 {% endblock %}
+{% endif %}
 
-<a href="{{ url_for('ips') }}">List of IPs</a> | <a href="{{ url_for('ip') }}">IP detail</a>
-<br> 
+{% block header %}
+<div id="header">
+ <div id="corner-logo">
+  <img src="{{ url_for('static', filename='nerd_logo_simple_86.png') }}" width="86" height="30">
+ </div>
+ <div id="navigation">
+  <a href="{{ url_for('ips') }}">List of IPs</a> | <a href="{{ url_for('ip') }}">IP detail</a>
+ </div> 
+ <div id="login">
+  {% if not user %}
+  Log in using: <a href="{{ url_for('login_shibboleth') }}">Shibboleth</a>, <a href="{{ url_for('login_basic') }}">Local account</a>
+  {% else %}
+  Logged in: <span title="Groups: {{ user.groups|join(', ') }}">{{ user.id }} {% if user.name %}({{ user.name }}){% endif %}</span>
+  &nbsp; &bull; &nbsp; <a href="{{ url_for('logout') }}">Log out</a>
+  {% endif %}
+ </div>
+</div>
+{% endblock %}
+
+<div id="content">
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="msg {{ category }}">{{ message }}<a href="#" onclick="$(this).parent().hide(); return false;">&#x274C;</a></div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{% if not user %}
+<div id="login-prompt-outer">
+<img id="login-logo" src="{{ url_for('static', filename='nerd_logo_350.png') }}" width="350" height="179" alt="NERD logo">
+<div id="login-box">
+<h1>You are not logged in.</h1>
+<p>Please, log in using the links in the top-right corner.</p>
+</div>
+</div>
+<div id="login-arrow">&#x2191;</div>
+{% else %}
 {% block body %}{% endblock %}
+{% endif %}
+</div>
 
 </body>
 </html>

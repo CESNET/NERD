@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 from time import sleep
 import logging
 
-import core.config
+# Add to path the "one directory above the current file location"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+import common.config
 #import core.db
 import core.mongodb
 import core.update_manager
@@ -16,11 +19,11 @@ import modules.dns
 import modules.geolocation
 import modules.asn
 import modules.dnsbl
-import core.eventdb
+import common.eventdb
 
 ############
 
-DEFAULT_CONFIG_FILE = "./nerd.cfg"
+DEFAULT_CONFIG_FILE = "../etc/nerdd.cfg"
 
 LOGFORMAT = "%(asctime)-15s,%(threadName)s,%(name)s,[%(levelname)s] %(message)s"
 LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
@@ -32,9 +35,9 @@ if __name__ == "__main__":
 
     # Initialize logging mechanism
     logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
-    logger = logging.getLogger()
+    log = logging.getLogger()
     
-    logger.info("NERDd start")
+    log.info("NERDd start")
     
     # Load configuration
     # TODO parse arguments using ArgParse
@@ -42,12 +45,18 @@ if __name__ == "__main__":
         cfg_file = sys.argv[1]
     else:
         cfg_file = DEFAULT_CONFIG_FILE
-    config = core.config.read_config(cfg_file)
+    # Read NERDd-specific config (nerdd.cfg)
+    log.info("Loading config file {}".format(cfg_file))
+    config = common.config.read_config(cfg_file)
+    # Read common config (nerd.cfg) and combine them together
+    common_cfg_file = os.path.join(os.path.dirname(os.path.abspath(cfg_file)), config.get('common_config'))
+    log.info("Loading config file {}".format(common_cfg_file))
+    config.update(common.config.read_config(common_cfg_file))
     
     # Create main NERDd components
     #db = core.db.EntityDatabase({})
     db = core.mongodb.MongoEntityDatabase(config)
-    eventdb = core.eventdb.FileEventDatabase(config)
+    eventdb = common.eventdb.FileEventDatabase(config)
     update_manager = core.update_manager.UpdateManager(config, db)
     
     # Instantiate modules
@@ -63,7 +72,7 @@ if __name__ == "__main__":
     ]
     
     # Run update manager thread/process
-    logger.info("Starting UpdateManager")
+    log.info("Starting UpdateManager")
     update_manager.start()
     
     # Run modules that have their own threads/processes
@@ -80,11 +89,11 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     
-    logger.info("Stopping running components ...")
+    log.info("Stopping running components ...")
     for module in module_list:
         module.stop()
     update_manager.stop()
     
-    logger.info("Finished, main thread exitting.")
+    log.info("Finished, main thread exitting.")
     logging.shutdown()
 

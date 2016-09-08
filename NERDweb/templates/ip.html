@@ -10,7 +10,7 @@
   <input type="submit">
 </form>
 
-{% if not ip %}
+{% if not ip or not ac('ipsearch') %}
   {# Print nothing if no IP was passed #}
 {% elif not ipinfo %}
   <hr>

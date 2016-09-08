@@ -31,8 +31,6 @@ class FileEventDatabase:
         self.log = logging.getLogger('EventDB')
         
         self.dbpath = config.get('eventdb_path')
-        if not self.dbpath:
-            raise RuntimeError('EventDatabase: Missing configuration: "eventdb_path" not specified.')
 
 #     def __del__(self):
 #         """
