@@ -3,14 +3,22 @@
 
 <h1>Known IP addresses</h1>
 
+{% macro formfield(field) -%}
+  {%- if field.type != 'BooleanField' %}{{ field.label }} {% endif -%}
+  {{ field(class = kwargs.pop('class', '') + ' error', **kwargs) if field.errors else field(**kwargs) }}
+  {%- if field.type == 'BooleanField' %} {{ field.label }}{% endif -%}
+  {%- if field.errors %} <span class="error">{{ ', '.join(field.errors) }}</span>{% endif %}
+{%- endmacro %}
+
 <form method="GET" action="{{ url_for('ips') }}">
   {# form.csrf_token #}
-  {{ form.subnet.label }} {{ form.subnet() }} {% if form.subnet.errors %}<span class="error">{{ ' '.join(form.subnet.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
-  {{ form.hostname.label }} {{ form.hostname() }} {% if form.hostname.errors %}<span class="error">{{ ' '.join(form.hostname.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
-  {{ form.country.label }} {{ form.country(size=2) }} {% if form.country.errors %}<span class="error">{{ ' '.join(form.country.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
-  {{ form.asn.label }} {{ form.asn(size=7) }} {% if form.asn.errors %}<span class="error">{{ ' '.join(form.asn.errors) }}</span>{% endif %}<br>
-  {{ form.sortby.label }} {{ form.sortby() }} {{ form.asc() }} {{ form.asc.label }}<br>
-  {{ form.limit.label }} {{ form.limit(size=5) }} {% if form.limit.errors %}<span class="error">{{ ' '.join(form.limit.errors) }}</span>{% endif %}<br>
+  {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
+  {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
+  {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
+  {{ formfield(form.asn, size=7) }}<br>
+  {{ formfield(form.sortby) }}
+  {{ formfield(form.asc) }}<br>
+  {{ formfield(form.limit, size=10) }}<br>
   <input type="submit">
 </form>
 
@@ -131,7 +139,7 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rw %}AS{{ip.as_rw.num}} -
 </td>
 <td class="time">{{ip.ts_added.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
 <td class="time">{{ip.ts_last_update.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
-<td class="shodanlink"><a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan"><img src="{{ url_for('static', filename='shodan_icon.png') }}" width=16 heaght=16></a></td>
+<td class="shodanlink"><a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan"><img src="{{ url_for('static', filename='shodan_icon.png') }}" width=16 height=16></a></td>
 </tr>
 {% endfor %}
 </table>

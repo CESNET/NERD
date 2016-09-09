@@ -180,6 +180,18 @@ hr {
 }
 
 /**********/
+/* Form */
+
+form span.error {
+  color: #a00;
+}
+form input.error {
+  background-color: #fcc;
+}
+
+
+/**********/
+
 
 #results_label {
   font-weight: bold;
