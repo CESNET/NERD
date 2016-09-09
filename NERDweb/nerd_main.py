@@ -149,32 +149,44 @@ def get_user_info(session):
     
 
 # ***** Login handlers *****
-# Each of these paths should have a login mechanism configured in Apache.
-# There we expect valid user information in environent variables.
+# A handler function is created for each configured login method
+# (config.login.<method>) with URL path set to config.login.<method>.loc.
+# 
+# Each of these paths should have a login mechanism configured in web server.
+# (e.g. HTTP basic authentication or Shibboleth).
+# The handler expect a valid user information in environent variables set by 
+# the server.
+# The user info (id and optionally name) is taken from environment variables
+# specified in config.login.<method>.{id_field,user_field}. 
 
-# Shibboleth
-@app.route('/login/shibboleth')
-def login_shibboleth():
-    try:
+def create_login_handler(method_id, id_field, name_field, return_path):
+    def login_handler():
+        if id_field not in request.environ:
+            flash("ERROR: Login failed ("+id_field+" not defined; this is probably a problem in server configuration).", "error")
+            return redirect(return_path)
         session['user'] = {
-            'login_type': 'shibboleth',
-            'id': request.environ['eppn'].decode('utf-8'),
-            'name': request.environ['cn'].decode('utf-8'),
+            'login_type': method_id,
+            'id': request.environ[id_field].decode('utf-8'),
         }
+        if name_field and name_field in request.environ:
+            session['user']['name'] = request.environ[name_field].decode('utf-8')
         flash("Login successful", "success")
-    except KeyError:
-        flash("ERROR: Login unsuccessful, IdP didn't return the expected keys.", "error")
-    return redirect(config['login']['return-path'])
+        flash(str(session['user']), 'info')
+        return redirect(return_path)
+    return login_handler
 
-# HTTP basic auth with accounts in local file
-@app.route('/login/basic')
-def login_basic():
-    session['user'] = {
-        'login_type': 'local',
-        'id': request.environ['REMOTE_USER'].decode('utf-8'),
-    }
-    flash("Login successful", "success")
-    return redirect(config['login']['return-path'])
+# Register the login handlers
+for method_id, method_cfg in config.get('login.methods', {}).items():
+    app.add_url_rule(
+        method_cfg['loc'],
+        'login_'+method_id,
+        create_login_handler(method_id,
+                             method_cfg.get('id_field', 'REMOTE_USER'),
+                             method_cfg.get('name_field', None),
+                             config['login']['return-path']
+        )
+    )
+
 
 @app.route('/logout')
 def logout():
@@ -303,7 +315,7 @@ def ips():
         if user and not ac('ipsearch'):
             flash('Only registered users may search IPs.', 'error')
 
-    return render_template('ips.html', ctrydata=ctrydata, **locals())
+    return render_template('ips.html', config=config, ctrydata=ctrydata, **locals())
 
 @app.route('/_ips_count', methods=['GET', 'POST'])
 def ips_count():
@@ -359,7 +371,7 @@ def ip(ipaddr=None):
     else:
         title = 'IP detail search'
         ipinfo = {}
-    return render_template('ip.html', ctrydata=ctrydata, ip=form.ip.data, **locals())
+    return render_template('ip.html', config=config, ctrydata=ctrydata, ip=form.ip.data, **locals())
 
 
 # ***** NERD status information *****

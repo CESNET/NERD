@@ -108,6 +108,9 @@ hr {
   font-weight: bold;
   color: #eee;
 }
+#header #login a {
+  margin-left: 0.5em;
+}
 
 #content {
   padding: 0 0.75em;

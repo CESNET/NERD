@@ -157,7 +157,10 @@ $(function() { refresh_status(true) });
  </div> 
  <div id="login">
   {% if not user %}
-  Log in using: <a href="{{ url_for('login_shibboleth') }}">Shibboleth</a>, <a href="{{ url_for('login_basic') }}">Local account</a>
+  Log in using:
+  {%- for method_name, params in config.login.methods.items() -%}
+    <a href="{{ url_for('login_'+method_name) }}">{{ params.display }}</a>
+  {%- endfor -%}
   {% else %}
   Logged in: <span title="Groups: {{ user.groups|join(', ') }}">{{ user.id }} {% if user.name %}({{ user.name }}){% endif %}</span>
   &nbsp; &bull; &nbsp; <a href="{{ url_for('logout') }}">Log out</a>
