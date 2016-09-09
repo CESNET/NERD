@@ -280,6 +280,28 @@ dl.attrs dt {
   margin: 0.5em 0 0 0;
 }
 
+#event-details {
+  margin: 1em 0 0.5em 0;
+}
+#event-details .caption {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+#event-details .counts {
+  font-size: 1.0em;
+  font-weight: bold;
+}
+#event-details .mentat-link {
+  font-size: 1.0em;
+  /*margin-left: 0.8em;*/
+}
+#event-details .mentat-link::before {
+  content: '\2022';
+  margin-right: 0.5em;
+  margin-left: 0.5em;
+}
+
+
 /***********************************************/
 /* NERD status block */
 #status-block {

@@ -68,7 +68,9 @@
 {% endfor %}
 </dl>
 
-<h2>Event details ({{ num_events|safe }})</h2>
+<p id="event-details"><span class="caption">Event details</span> <span class="counts">({{ num_events|safe }})</span>
+{%- if config.mentat_url and ac('mentat') %}<span class="mentat-link">Search in <a href="{{config.mentat_url.replace('$IP', ip)}}">Mentat</a></span>{% endif %}
+</p>
 {% for event in events %}
  <p>{{ event }}</p>
 {% endfor %}

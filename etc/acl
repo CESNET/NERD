@@ -1,6 +1,7 @@
 # Format:
 # resource_id	allow_group[, allow_group, ...] [; deny_group[, deny_group, ...]]
 
-statusbox	admin
-ipsearch	registered
-notregistered	notregistered ; registered
+statusbox   admin
+ipsearch    registered
+mentat      mentat
+notregistered   notregistered ; registered
