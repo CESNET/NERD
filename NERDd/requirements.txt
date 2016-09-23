@@ -4,3 +4,4 @@ dnspython
 BeautifulSoup4
 pygeoip
 pycares
+shodan
