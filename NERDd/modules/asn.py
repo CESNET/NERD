@@ -160,7 +160,7 @@ class ASN(NERDModule):
       asn.description # name of ASN
 
     Event flow specification:
-      !NEW -> geoloc -> asn.{id,description}
+      !NEW -> handleRecord() -> asn.{id,description}
     """
 
     def __init__(self, config, update_manager):
