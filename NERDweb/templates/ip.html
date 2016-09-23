@@ -20,7 +20,7 @@
 <hr>
 
 <div class="ip-info">
-<p class="header"><span class="ip">{{ ip }}</span><span class="hostname">{{ ipinfo.hostname|reverse }}</span></p>
+<p class="header"><span class="ip">{{ ip }}</span><span class="hostname">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
 
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
@@ -50,7 +50,7 @@
   </dd>
  {% elif attr == "hostname" %}
   <dt>hostname</dt>
-  <dd>{{ val|reverse }}</dd>
+  <dd>{{ val|reverse if val else '(null)'}}</dd>
  {% elif attr == "bl" %}
   <dt>blacklists</dt>
   <dd><dl>
