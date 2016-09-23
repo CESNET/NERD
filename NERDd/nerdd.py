@@ -53,6 +53,10 @@ if __name__ == "__main__":
     log.info("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
     
+    # Disable INFO and DEBUG messages from requests.urllib3 library, wihch is used by some modules
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+
     # Create main NERDd components
     #db = core.db.EntityDatabase({})
     db = core.mongodb.MongoEntityDatabase(config)
