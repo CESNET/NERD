@@ -11,6 +11,7 @@ import pytz
 from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session
 from flask.ext.pymongo import PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
+from flask_mail import Mail, Message
 from wtforms import validators, TextField, IntegerField, BooleanField, SelectField
 
 # Add to path the "one directory above the current file location"
@@ -77,17 +78,29 @@ with open(acl_cfg_file, 'r') as f:
 
 app = Flask(__name__)
 
-# Configuration (variables prefixed with MONGO_ are automatically used by PyMongo)
-app.config['MONGO_HOST'] = config.get('mongodb.host', 'localhost')
-app.config['MONGO_PORT'] = config.get('mongodb.port', 27017)
-app.config['MONGO_DBNAME'] = config.get('mongodb.dbname', 'nerd')
-
 app.secret_key = config.get('secret_key')
 
 app.jinja_env.trim_blocks = True
 app.jinja_env.lstrip_blocks = True
 
+# Configuration of PyMongo
+app.config['MONGO_HOST'] = config.get('mongodb.host', 'localhost')
+app.config['MONGO_PORT'] = config.get('mongodb.port', 27017)
+app.config['MONGO_DBNAME'] = config.get('mongodb.dbname', 'nerd')
+
 mongo = PyMongo(app)
+
+# Configuration of MAIL extension
+app.config['MAIL_SERVER'] = config.get('mail.server', 'localhost')
+app.config['MAIL_PORT'] = config.get('mail.port', '25')
+app.config['MAIL_USE_TLS'] = config.get('mail.tls', False)
+app.config['MAIL_USE_SSL'] = config.get('mail.ssl', False)
+app.config['MAIL_USERNAME'] = config.get('mail.username', None)
+app.config['MAIL_PASSWORD'] = config.get('mail.password', None)
+app.config['MAIL_DEFAULT_SENDER'] = config.get('mail.sender', 'NERD <noreply@nerd.example.com>')
+
+mailer = Mail(app)
+
 
 eventdb = common.eventdb.FileEventDatabase({'eventdb_path': config.get("eventdb_path")})
 
@@ -156,13 +169,13 @@ def get_user_info(session):
 # (e.g. HTTP basic authentication or Shibboleth).
 # The handler expect a valid user information in environent variables set by 
 # the server.
-# The user info (id and optionally name) is taken from environment variables
-# specified in config.login.<method>.{id_field,user_field}. 
+# The user info (id and optionally name and email) is taken from environment 
+# variables specified in config.login.<method>.{id_field,user_field,email_field}. 
 
-def create_login_handler(method_id, id_field, name_field, return_path):
+def create_login_handler(method_id, id_field, name_field, email_field, return_path):
     def login_handler():
         if id_field not in request.environ:
-            flash("ERROR: Login failed ("+id_field+" not defined; this is probably a problem in server configuration).", "error")
+            flash("ERROR: Login failed - '"+id_field+"' not defined (this is probably a problem in server configuration).", "error")
             return redirect(return_path)
         session['user'] = {
             'login_type': method_id,
@@ -170,8 +183,9 @@ def create_login_handler(method_id, id_field, name_field, return_path):
         }
         if name_field and name_field in request.environ:
             session['user']['name'] = request.environ[name_field].decode('utf-8')
+        if email_field and email_field in request.environ:
+            session['user']['email'] = request.environ[email_field]
         flash("Login successful", "success")
-        flash(str(session['user']), 'info')
         return redirect(return_path)
     return login_handler
 
@@ -183,6 +197,7 @@ for method_id, method_cfg in config.get('login.methods', {}).items():
         create_login_handler(method_id,
                              method_cfg.get('id_field', 'REMOTE_USER'),
                              method_cfg.get('name_field', None),
+                             method_cfg.get('email_field', None),
                              config['login']['return-path']
         )
     )
@@ -200,8 +215,51 @@ def logout():
 # ***** Main page *****
 @app.route('/')
 def main():
-    return redirect('/nerd/ips')
+    user, ac = get_user_info(session)
     
+    # User is authenticated but has no account
+    if user and ac('notregistered'):
+        return redirect('/nerd/noaccount')
+    
+    return redirect('/nerd/ips')
+
+
+# ***** Request for new account *****
+class AccountRequestForm(Form):
+    email = TextField('Contact email', [validators.Required()], description='Used to send information about your request and in case admins need to contact you.')
+
+@app.route('/noaccount', methods=['GET','POST'])
+def noaccount():
+    user, ac = get_user_info(session)
+    if not user:
+        return make_response("ERROR: no user is authenticated")
+    if not ac('notregistered'):
+        return make_response("ERROR: user already registered")
+    
+    form = AccountRequestForm(request.values)
+    # Prefill user's default email from his/her account info (we expect a list of emails separated by ';')
+    if not form.email.data and 'email' in user:
+        form.email.data = user['email'].split(';')[0]
+    
+    request_sent = False
+    if form.validate():
+        # TODO check presence of config login.request-email
+        # if not config.get()
+        # Send email
+        name = user.get('name', '[name not available]').encode('ascii', 'replace')
+        id = user['id']
+        email = form.email.data.decode('utf-8')
+        msg = Message(subject="[NERD] New account request from {} ({})".format(name,id),
+                      #recipients=[email],
+                      recipients=[config.get('login.request-email')],
+                      reply_to=email,
+                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemail: {}".format(id,name,email),
+                     )
+        mailer.send(msg)
+        request_sent = True
+        
+    return render_template('noaccount.html', config=config, **locals())
+
 
 # ***** List of IP addresses *****
 

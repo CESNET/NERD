@@ -39,6 +39,7 @@ hr {
   position: relative;
   z-index: 1;
 }
+.msg,
 .msg.info {
   background: #c0ecfc;
   color: #000;
@@ -137,7 +138,7 @@ hr {
 #login-box h1 {
   /*margin: 1em 0;*/
   font-size: 2.5em;
-  color: #800;
+  color: inherit;
 }
 #login-box p {
   font-size: 1.3em;
@@ -148,6 +149,15 @@ hr {
   right: 4rem;
   font-size: 6em;
   color: #800;
+}
+#login-box.account-request {
+  background-color: #fff0d0;
+  color: #620;
+}
+#login-box div.confirmation {
+  padding: 0.3em 1em;
+  background-color: #dfd;
+  color: #040;
 }
 
 
@@ -180,6 +190,18 @@ hr {
 }
 
 /**********/
+/* Form */
+
+form span.error {
+  color: #a00;
+}
+form input.error {
+  background-color: #fcc;
+}
+
+
+/**********/
+
 
 #results_label {
   font-weight: bold;
