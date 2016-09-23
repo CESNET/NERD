@@ -19,6 +19,7 @@ import modules.dns
 import modules.geolocation
 import modules.asn
 import modules.dnsbl
+import modules.shodan
 import common.eventdb
 
 ############
@@ -73,6 +74,7 @@ if __name__ == "__main__":
         modules.geolocation.Geolocation(config, update_manager),
         modules.asn.ASN(config, update_manager),
         modules.dnsbl.DNSBLResolver(config, update_manager),
+        modules.shodan.Shodan(config, update_manager),
     ]
     
     # Run update manager thread/process
