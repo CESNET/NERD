@@ -13,11 +13,14 @@ import logging
 import os
 
 class IPBlacklist():
-    def __init__(self, name, url, re):
+    def __init__(self, name, url, re, tmpdir = ""):
         self.name = name
         self.url = url
         self.re = re
+        self.tmpdir = tmpdir
         self.iplist = set()
+        self.log = logging.getLogger("local_bl")
+
     def update(self):
         r = requests.get(self.url)
         rc = r.content
@@ -26,8 +29,11 @@ class IPBlacklist():
             ips = re.search(self.re, line)
             if ips:
                 self.iplist.add(ips.group())
-        with open("/data/local_bl/{0}".format(self.name), "w") as f:
-            f.write(repr(self.iplist))
+        self.log.info("Downloaded blacklist {0} with {1} entries.".format(self.name, len(self.iplist)))
+        if self.tmpdir:
+            with open("{0}/{1}".format(self.tmpdir, self.name), "w") as f:
+                f.write(repr(self.iplist))
+
     def __contains__(self, item):
         """Is IP address in this blacklist?
 
@@ -53,6 +59,7 @@ class LocalBlacklist(NERDModule):
     def __init__(self, config, update_manager):
         # Instantiate DB reader (i.e. open GeoLite database), raises IOError on error
         blacklists = config.get("local_bl.lists", [])
+        tmpdir = config.get("local_bl.tmp_dir", "")
         self._update = config.get("local_bl.update", 3600)
         self._blacklists = {}
         self.log = logging.getLogger("local_bl")
@@ -60,6 +67,7 @@ class LocalBlacklist(NERDModule):
         if blacklists:
             for bl in blacklists:
                 if bl[0] not in self._blacklists:
+                    self._blacklists[bl[0]] = IPBlacklist(bl[0], bl[2], bl[3], tmpdir)
                     self._blacklists[bl[0]].update()
 
         itemlist = ['bl.' + i for i in self._blacklists]
