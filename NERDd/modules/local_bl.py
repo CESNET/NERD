@@ -60,14 +60,16 @@ class LocalBlacklist(NERDModule):
         if blacklists:
             for bl in blacklists:
                 if bl[0] not in self._blacklists:
-                    self._blacklists[bl[0]] = IPBlacklist(bl[0], bl[2], bl[3])
                     self._blacklists[bl[0]].update()
 
+        itemlist = ['bl.' + i for i in self._blacklists]
+        self.log.info("Registering {0}".format(itemlist))
         update_manager.register_handler(
             self.handleRecord,
-            ('!NEW'),
-            ('bl')
+            ('!NEW',),
+            itemlist
         )
+
         # TODO DNS blacklists:
         #update_manager.register_handler(
         #    self.handleRecord,
