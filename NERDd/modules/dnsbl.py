@@ -118,10 +118,12 @@ class DNSBLResolver(NERDModule):
         self.req_counter = 0
         self.req_counter_lock = threading.Lock() # query_blacklists() must be thread safe, therefore access to req_counter must use locking
         
+        bl_ids = (id for bl in self.blacklists for id in bl[2].values() )
+
         update_manager.register_handler(
             self.query_blacklists, # function (or bound method) to call
             ('!NEW',), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
-            ('bl',) # tuple/list/set of attributes the method may change # TODO maybe there should be all particular fields enumerated (but it would be beterr if I coiuld write 'bl.*')
+            ('bl.'+id for id in bl_ids) # tuple/list/set of attributes the method may change
         )
         self.log.debug("DNSBLResolver initialized")
     
