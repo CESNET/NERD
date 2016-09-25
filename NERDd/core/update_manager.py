@@ -10,7 +10,7 @@ import threading
 import queue
 from datetime import datetime, timezone
 import time
-from collections import defaultdict, deque
+from collections import defaultdict, deque, Iterable
 import logging
 import traceback
 
@@ -184,7 +184,7 @@ class UpdateManager:
 
         Arguments:
         func -- function or bound method
-        triggers -- attributes whose update trigger the call of the method (update of any one of the attributes will do)
+        triggers -- set/list/tuple of attributes whose update trigger the call of the method (update of any one of the attributes will do)
         changes -- set/list/tuple of attributes the method call may update
         
         Notes:
@@ -193,6 +193,12 @@ class UpdateManager:
         # _func2attr: function -> list of attrs it may change
         # _attr2func: attribute -> list of functions its change triggers
         # _func_triggers: function -> list of attrs that trigger it
+        
+        # Check types (because common error is to pass string instead of 1-tuple)
+        if not isinstance(triggers, Iterable) or isinstance(triggers, str):
+            raise TypeError('Argument "triggers" must be iterable and must not be str.')
+        if not isinstance(changes, Iterable) or isinstance(changes, str):
+            raise TypeError('Argument "changes" must be iterable and must not be str.')
         
         self._func2attr[func] = tuple(changes) if changes is not None else ()
         self._func_triggers[func] = set(triggers)
