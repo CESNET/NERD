@@ -41,7 +41,7 @@ class Geolocation(NERDModule):
         
         update_manager.register_handler(
             self.geoloc,
-            ('!NEW',),
+            ('!NEW','!refresh_geo'),
             ('geo.ctry','geo.city','geo.tz')
         )
     

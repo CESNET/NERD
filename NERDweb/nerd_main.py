@@ -420,7 +420,8 @@ def ip(ipaddr=None):
         if ac('ipsearch'):
             title = ipaddr
             ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
-            events = eventdb.get('ip', form.ip.data, limit=100)
+            events = eventdb.get('ip', form.ip.data, limit=100) # Load events (IDEA messages as strings)
+            events = list(map(json.loads, events)) # Decode IDEA messages
             num_events = str(len(events))
             if len(events) >= 100:
                 num_events = "&ge;100, only first 100 shown"

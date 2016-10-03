@@ -74,7 +74,7 @@ class LocalBlacklist(NERDModule):
         self.log.info("Registering {0}".format(itemlist))
         update_manager.register_handler(
             self.handleRecord,
-            ('!NEW',),
+            ('!NEW','!refresh_localbl'),
             itemlist
         )
 

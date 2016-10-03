@@ -172,7 +172,7 @@ class ASN(NERDModule):
 
         update_manager.register_handler(
             self.handleRecord,
-            ('!NEW',),
+            ('!NEW','!refresh_asn'),
             ('as_maxmind.num', 'as_maxmind.description', 'as_rv.num', 'as_rv.description')
         )
 

@@ -21,6 +21,7 @@ import modules.asn
 import modules.dnsbl
 import modules.local_bl
 import modules.shodan
+import modules.refresher
 import common.eventdb
 
 ############
@@ -70,6 +71,7 @@ if __name__ == "__main__":
     #  or take if from configuration
     module_list = [
         modules.event_receiver.EventReceiver(config, update_manager, eventdb),
+        #modules.refresher.Refresher(config, update_manager, db),
         #modules.test_module.TestModule(config, update_manager),
         modules.dns.DNSResolver(config, update_manager),
         modules.geolocation.Geolocation(config, update_manager),

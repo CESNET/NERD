@@ -7,6 +7,7 @@ database system implementing entity database.
 
 import logging
 import pymongo
+from operator import itemgetter
 
 # TODO: Store IP addresses (keys) as Binary or as HEX strings, so they can be 
 # easily queried by ragnes (less-than/greater-than).
@@ -100,5 +101,13 @@ class MongoEntityDatabase():
         
         self._db[etype].replace_one({'_id': key}, record, upsert=True)
 
+
+    def find(self, etype, mongo_query):
+        """
+        Search entities matching given query (in pymongo format).
+        
+        Return list of keys of matching entities.
+        """
+        return list(map(itemgetter('_id'), self._db[etype].find(mongo_query, {'_id': 1})))
 
 

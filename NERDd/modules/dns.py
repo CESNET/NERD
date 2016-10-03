@@ -29,7 +29,7 @@ class DNSResolver(NERDModule):
 
         update_manager.register_handler(
             self.get_hostname, # function (or bound method) to call
-            ('!NEW',), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
+            ('!NEW','!refresh_hostname'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
             ('hostname',) # tuple/list/set of attributes the method may change
         )
         
