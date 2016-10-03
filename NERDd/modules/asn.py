@@ -123,10 +123,10 @@ class GetASN:
             answers = self.dnsresolver.query(query, 'TXT')
             record = str(answers[0]).replace('"', '').split()
             asnum = int(record[0])
-            ret["as_rw.num"] = asnum
-            ret["as_rw.desc"] = self._asn_dct[asnum]
-            self.log.debug("Looked up " + ip_address + " using routeviews: " + ip_address + ": {0} {1} ({2}/{3})".format(ret["as_rw.num"],
-                    ret["as_rw.desc"], record[1], record[2]))
+            ret["as_rv.num"] = asnum
+            ret["as_rv.desc"] = self._asn_dct[asnum]
+            self.log.debug("Looked up " + ip_address + " using routeviews: " + ip_address + ": {0} {1} ({2}/{3})".format(ret["as_rv.num"],
+                    ret["as_rv.desc"], record[1], record[2]))
         except:
             self.log.info("ASN for " + ip_address + " not found in routeviews data")
         return ret
@@ -142,10 +142,10 @@ class GetASN:
             if "as_maxmind.desc" in ret1:
                 results['as_maxmind.description'] = ret1["as_maxmind.desc"]
         if ret2:
-            if "as_rw.num" in ret2:
-                results['as_rw.num'] = ret2["as_rw.num"]
-            if "as_rw.desc" in ret2:
-                results['as_rw.description'] = ret2["as_rw.desc"]
+            if "as_rv.num" in ret2:
+                results['as_rv.num'] = ret2["as_rv.num"]
+            if "as_rv.desc" in ret2:
+                results['as_rv.description'] = ret2["as_rv.desc"]
         self.log.debug("Results: " + str(results))
         return results
 
@@ -173,7 +173,7 @@ class ASN(NERDModule):
         update_manager.register_handler(
             self.handleRecord,
             ('!NEW',),
-            ('as_maxmind.num', 'as_maxmind.description', 'as_rw.num', 'as_rw.description')
+            ('as_maxmind.num', 'as_maxmind.description', 'as_rv.num', 'as_rv.description')
         )
 
     def handleRecord(self, ekey, rec, updates):
