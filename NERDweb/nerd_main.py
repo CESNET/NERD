@@ -147,10 +147,10 @@ def get_user_info(session):
         user['groups'] = get_user_groups(user['fullid'])
     elif testing:
         user = {
-            'login_type': 'test',
+            'login_type': '',
             'id': 'test_user',
-            'fullid': 'test:test_user',
-            'groups': set(['admin']),
+            'fullid': 'test_user',
+            'groups': get_user_groups('test_user'),
         }
     else:
         user = None

@@ -1,4 +1,8 @@
 # Format:
 # logintype:id	group[, group, ...]
+
 local:admin	registered,trusted,admin
 local:test	registered,test
+
+# Special user for testing on localhost
+test_user	registered,trusted,test,admin
