@@ -302,12 +302,12 @@ def create_query(form):
     if form.asn.data:
         if form.asn.data[0] == '?':
             queries.append( {'$and': [{'as_maxmind.num': {'$exists': True}},
-                                      {'as_rw.num': {'$exists': True}},
-                                      {'$where': 'this.as_maxmind.num != this.as_rw.num'} # This will be probably very slow
+                                      {'as_rv.num': {'$exists': True}},
+                                      {'$where': 'this.as_maxmind.num != this.as_rv.num'} # This will be probably very slow
                                      ]} )
         else:
             asn = int(form.asn.data.lstrip("ASas"))
-            queries.append( {'$or': [{'as_maxmind.num': asn}, {'as_rw.num': asn}]} )
+            queries.append( {'$or': [{'as_maxmind.num': asn}, {'as_rv.num': asn}]} )
     
     query = {'$and': queries} if queries else None
     return query
