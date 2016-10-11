@@ -1,4 +1,41 @@
 {% extends "layout.html" %}
+{% macro printlist(array, pre='', post='') -%}{# Print an array as comma-separated list, with pre/post put before/after the list; print nothing if array is not defined #}
+  {{- pre + array|join(', ') + post if array else '' }}
+{%- endmacro %}
+{% macro printstr(string, pre='', post='') -%}{# Print given string, with pre/post put before/after the list; print nothing if string is not defined #}
+  {{- pre + string + post if string else '' }}
+{%- endmacro %}
+
+{% macro display_idea(idea) -%}
+{% set x = idea.pop('Format') -%}
+{% set x = idea.pop('ID') -%}
+<div class="idea">
+<div class="cat_and_time">
+ <span class="category" title="Category">{{ idea.pop('Category',['N/A'])|join('+') }}</span><br>
+ <span class="time" title="DetectTime">{{ idea.pop('DetectTime','N/A') }}</span>
+</div>
+
+{%- set nodes = idea.pop('Node',['N/A']) %}
+
+<div class="nodes"><ul>
+{% for node in nodes -%}
+  <li title="Node information:{{'\n'}}
+             {{- printstr(node.Name, 'Name: ', '\n') -}}
+             {{- printlist(node.SW, 'SW: ', '\n') -}}
+             {{- printlist(node.Type, 'Type: ', '\n') -}}
+             {{- printstr(node.AggrWin, 'AggrWin: ', '\n') -}}
+             {{- printstr(node.Note, 'Note: ', '\n') -}}">
+    {{- node.Name }}
+    {%- if node.SW %}/{{ node.SW[0] if node.SW|length == 1 else '[' + node.SW|join(', ') + ']' }}{% endif -%}
+  </li>
+{%- endfor %}
+</ul></div>
+<div class="others">
+{{ idea }}
+</div>
+</div>
+{%- endmacro %}
+
 {% block body %}
 
 <h1>{{ ip._id }}</h1>
@@ -28,17 +65,17 @@
   {# pass #}
  {% elif attr == "events" %}
   <dt>events ({{val.total}})</dt>
-  <dd><dl>
+  <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
    {% for date,cats in val|dictsort %}
     {% if date != 'total' %}
-     <dt>{{date}}</dt><dd><dl>
+     <dt>{{date}}</dt><dd>
       {% for cat,val in cats|dictsort %}
        {% if cat != 'nodes' %}
         {{cat}}: {{val}}<br>
        {% endif %}
       {% endfor %}
       nodes: {{cats.nodes|join(', ')}}<br>
-     </dl></dd>
+     </dd>
     {% endif %}
    {% endfor %}
   </dl></dd>
@@ -72,7 +109,7 @@
 {%- if config.mentat_url and ac('mentat') %}<span class="mentat-link">Search in <a href="{{config.mentat_url.replace('$IP', ip)}}">Mentat</a></span>{% endif %}
 </p>
 {% for event in events %}
- <p>{{ event }}</p>
+{{ display_idea(event) }}
 {% endfor %}
 
 </div>

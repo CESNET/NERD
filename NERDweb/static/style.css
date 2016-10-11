@@ -274,6 +274,13 @@ td.shodanlink img {
 /***********************************************/
 /* Single IP listing */
 
+.scrollable {
+  border: 1px #777 solid;
+  padding: 0.5em;
+  max-height: 25em;
+  overflow-y: auto;
+}
+
 .notfound {
   font-size: 1.25em;
 }
@@ -301,6 +308,9 @@ dl.attrs dt {
   font-weight: bold;
   margin: 0.5em 0 0 0;
 }
+dd dl dt:first-child {
+  margin-top: 0;
+}
 
 #event-details {
   margin: 1em 0 0.5em 0;
@@ -323,6 +333,69 @@ dl.attrs dt {
   margin-left: 0.5em;
 }
 
+/****************************************/
+/* IDEA */
+
+/* Main layout */
+div.idea {
+  /*display: flex;
+  flex-direction: row;*/
+  background: #def;
+  border: 2px solid #bdf;
+  margin: 0.3em 0;
+  padding: 0.2em;
+}
+div.idea .cat_and_time {
+  float: left;
+  min-width: 10em;
+  height: 100%;
+  background: #bdf;
+  padding: 0.2em;
+}
+div.idea .others {
+  padding: 0.2em 0.5em;
+}
+div.idea .nodes {
+  float: right;
+  border-left: 2px solid #bdf;
+  padding-left: 0.3em;
+}
+
+/* misc */
+div.idea .category {
+  font-weight: bold;
+}
+
+/* Nodes */
+div.idea .nodes ul {
+  margin: 0;
+  padding: 0;
+  /*padding-left: 1em;*/
+  min-width: 15em;
+}
+div.idea .nodes li {
+  list-style-type: none;
+}
+div.idea .nodes li::before {
+  content: '\2191';
+  padding: 0 0.4em;
+}
+div.idea .nodes li:last-child {
+  font-weight: bold;
+}
+div.idea .nodes li:last-child::before {
+  content: '\21a5';
+  font-weight: normal;
+}
+div.idea .nodes li:first-child::before {
+  /*content: '\21ab';*/
+  content: '\21b0';
+  position: relative;
+  left: -0.15em;
+}
+div.idea .nodes li:first-child:last-child::before {
+  content: '\2022';
+}
 
 /***********************************************/
 /* NERD status block */
