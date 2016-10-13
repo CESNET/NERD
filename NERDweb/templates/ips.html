@@ -144,6 +144,12 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
 {% endfor %}
 </table>
 
-{% endif %}{# if form.errors #}
+{% elif error %}
+<p class="error">{{
+{
+  "mongo_error": "ERROR: Can't connect to database.",
+}.get(error, error)
+}}</p>
+{% endif %}{# end if results #}
 
 {% endblock %}

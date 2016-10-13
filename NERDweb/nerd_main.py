@@ -9,7 +9,7 @@ import re
 import pytz
 
 from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session
-from flask.ext.pymongo import PyMongo, ASCENDING, DESCENDING
+from flask.ext.pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from flask_mail import Mail, Message
 from wtforms import validators, TextField, IntegerField, BooleanField, SelectField
@@ -333,7 +333,7 @@ def ips():
         try:
             results = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
             results = list(results) # Load all data now, so we are able to get number of results in template
-        except PyMongo.errors.ServerSelectionTimeoutError:
+        except pymongo.errors.ServerSelectionTimeoutError:
             results = []
             error = 'mongo_error'
         
