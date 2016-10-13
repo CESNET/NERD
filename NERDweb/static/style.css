@@ -345,28 +345,49 @@ dd dl dt:first-child {
 
 /* Main layout */
 div.idea {
-  /*display: flex;
-  flex-direction: row;*/
+  display: flex;
+  flex-direction: row;
+  align-content: stretch;
   background: #def;
   border: 2px solid #bdf;
   margin: 0.3em 0;
   padding: 0.2em;
 }
 div.idea .cat_and_time {
-  float: left;
-  min-width: 10em;
+  /*float: left;*/
+  flex-basis: 10em;
+  flex-grow: 0;
+  flex-shrink: 0;
+  /*min-width: 10em;*/
   height: 100%;
   background: #bdf;
   padding: 0.2em;
-}
-div.idea .others {
-  padding: 0.2em 0.5em;
+  
 }
 div.idea .nodes {
-  float: right;
+  /*float: right;*/
+  flex-grow: 0;
+  flex-shrink: 0;
+  /*height: 100%;*/
   border-left: 2px solid #bdf;
   padding-left: 0.3em;
 }
+div.idea .others {
+  flex-grow: 5;
+  padding: 0 0.5em;
+}
+div.idea .others .descr {
+  padding: 0.2em 0.5em;
+  margin-bottom: 0.2em;
+  background: #bdf;
+}
+div.idea .others .source,
+div.idea .others .target {
+  border-right: 2px solid #bdf;
+  padding-right: 0.5em;
+  margin-right: 0.25em;
+}
+
 
 /* misc */
 div.idea .category {

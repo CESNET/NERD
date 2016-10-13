@@ -7,6 +7,7 @@
 {%- endmacro %}
 
 {% macro display_idea(idea) -%}
+{%- set nodes = idea.pop('Node',['N/A']) %}
 {% set x = idea.pop('Format') -%}
 {% set x = idea.pop('ID') -%}
 <div class="idea">
@@ -15,7 +16,18 @@
  <span class="time" title="DetectTime">{{ idea.pop('DetectTime','N/A') }}</span>
 </div>
 
-{%- set nodes = idea.pop('Node',['N/A']) %}
+<div class="others">
+{% if idea.Description %}
+  <div class="descr">{{ idea.pop('Description') }}</div>
+{% endif %}
+{% if idea.Source %}
+  <span class="source">Source: {{ idea.pop('Source') }}</span>
+{% endif %}
+{% if idea.Target %}
+  <span class="target">Target: {{ idea.pop('Target') }}</span>
+{% endif %}
+{{ idea }}
+</div>
 
 <div class="nodes"><ul>
 {% for node in nodes -%}
@@ -30,9 +42,6 @@
   </li>
 {%- endfor %}
 </ul></div>
-<div class="others">
-{{ idea }}
-</div>
 </div>
 {%- endmacro %}
 
