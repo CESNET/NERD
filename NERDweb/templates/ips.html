@@ -72,7 +72,7 @@ $(function () {
 <th>Hostname</th>
 <th title="Autonomous system number and name">ASN</th>
 <th>Country</th>
-<th title="Total number of alerts recevied">Events</th>
+<th title="Total number of alerts / nodes / categories">Events</th>
 <!--<th>Shodan info</th>
 <th>Device type</th>-->
 <th>Other properties</th>
@@ -111,7 +111,7 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
 
 <td class="events" data-cats="{{ip.events._cats}}" data-dates="{{ip.events._dates}}"
   data-nodes="{{ip.events._nodes}}" data-table="{{ip.events._date_cat_table}}">
-  {{ip.events.total}}
+  <span>{{ip.events.total}}</span><span>{{ip.events._n_nodes}}</span><span>{{ ip.events._n_cats}}</span>
 </td>
 {#
 <td class="shodan">

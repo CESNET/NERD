@@ -368,6 +368,8 @@ def ips():
             events['_cats'] = ','.join(cats)
             events['_nodes'] = ','.join(nodes)
             events['_date_cat_table'] = ';'.join( [','.join(map(str,c)) for c in date_cat_table] )
+            events['_n_cats'] = len(cats)
+            events['_n_nodes'] = len(nodes)
     else:
         results = None
         if user and not ac('ipsearch'):

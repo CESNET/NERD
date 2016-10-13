@@ -37,7 +37,7 @@ function create_event_table(data) { /* data are "dataset" field of a DOM node wi
     content += "</td></tr>";
   }
   content += "</table>";
-  content += "<b>Nodes:</b> " + nodes.join(", ");
+  content += "<b>Nodes (" + nodes.length + "):</b> " + nodes.join(", ");
   return content;
 }
 
