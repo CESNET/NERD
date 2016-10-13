@@ -175,7 +175,7 @@ def get_user_info(session):
 def create_login_handler(method_id, id_field, name_field, email_field, return_path):
     def login_handler():
         if id_field not in request.environ:
-            flash("ERROR: Login failed - '"+id_field+"' not defined (this is probably a problem in server configuration).", "error")
+            flash("ERROR: Login failed - '"+id_field+"' not defined (either your IdP is not providing this field or there is a problem with server configuration).", "error")
             return redirect(return_path)
         session['user'] = {
             'login_type': method_id,
