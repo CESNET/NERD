@@ -214,10 +214,16 @@ for method_id, method_cfg in config.get('login.methods', {}).items():
 
 @app.route('/logout')
 def logout():
+    redir_path = config['login']['return-path']
     if 'user' in session:
+        # If there is logout-path defined for the login_type, redirect to this instead of the default
+        login_type = session['user']['login_type']
+        if 'logout_path' in config['login']['methods'][login_type]:
+            redir_path = config['login']['methods'][login_type]['logout_path']
+        # Cancel local NERD session
         del session['user']
         flash("You have been logged out", "info")
-    return redirect(config['login']['return-path'])
+    return redirect(redir_path)
 
 
 
