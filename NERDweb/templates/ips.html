@@ -57,6 +57,12 @@ $(function () {
 });
 </script>
 
+<!-- hidden form to allow links to blacklist check at whatismyipaddress.com -->
+<form id="bl-check-form" action="http://whatismyipaddress.com/blacklist-check" method="POST" target="_blank">
+<input type="hidden" id="bl-check-form-ip" name="LOOKUPADDRESS" value="">
+<input type="hidden" name="Lookup+Hostname" value="Check+Blacklists">
+</form>
+
 <p id="results_label">Results (
 {%- if results|length >= form.limit.data -%}
  <a href="#" title="Click to get total count" onclick="$(this).hide(); $('#results_label span').show(); $('#results_label span').load('{{url_for('ips_count')}}', {{query_params}}); return false;">&ge;{{form.limit.data}}</a><span style="display: none">&ge;{{form.limit.data}}<img src="{{url_for('static', filename='spin.gif')}}" style="height: 0.8em; width: 0.8em;"></span>
@@ -78,7 +84,7 @@ $(function () {
 <th>Other properties</th>
 <th>Time added</th>
 <th>Last update</th>
-<th title="Shodan link"></th>
+<th title="Links to external services"></th>
 </tr>
 
 {% for ip in results %}
@@ -139,7 +145,10 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
 </td>
 <td class="time">{{ip.ts_added.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
 <td class="time">{{ip.ts_last_update.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
-<td class="shodanlink"><a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan"><img src="{{ url_for('static', filename='shodan_icon.png') }}" width=16 height=16></a></td>
+<td class="links">
+<a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan"><img src="{{ url_for('static', filename='shodan_icon.png') }}" width=16 height=16></a>
+<a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}" width=16 height=16></a>
+</td>
 </tr>
 {% endfor %}
 </table>
