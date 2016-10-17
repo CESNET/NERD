@@ -12,7 +12,7 @@ import select
 import socket
 import logging
 import threading
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
 # TODO:
 # - counter of requests per day + limit and automatic stop of querying (to avoid blocking by blacklist providers)
@@ -176,7 +176,7 @@ class DNSBLResolver(NERDModule):
         if etype != 'ip':
             return None
         
-        req_time = datetime.now()
+        req_time = datetime.now(tz=timezone.utc)
         
         # Limit of the number of requests per day
         with self.req_counter_lock:
