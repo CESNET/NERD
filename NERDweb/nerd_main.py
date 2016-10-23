@@ -12,7 +12,7 @@ from flask import Flask, request, render_template, make_response, g, jsonify, js
 from flask.ext.pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from flask_mail import Mail, Message
-from wtforms import validators, TextField, IntegerField, BooleanField, SelectField
+from wtforms import validators, TextField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -278,6 +278,15 @@ def noaccount():
 
 # ***** List of IP addresses *****
 
+def get_blacklists():
+    # Get the list of all configured blacklists
+    # DNSBL
+    blacklists = [bl_name for bl_group in config.get('dnsbl.blacklists', []) for bl_name in bl_group[2].values()]
+    # Locally downloaded blacklists
+    blacklists += [bl[0] for bl in config.get('local_bl.lists', [])]
+    blacklists.sort()
+    return blacklists
+
 class IPFilterForm(Form):
     subnet = TextField('IP prefix', [validators.Optional()])
     hostname = TextField('Hostname suffix', [validators.Optional()])
@@ -285,6 +294,9 @@ class IPFilterForm(Form):
     asn = TextField('ASN', [validators.Optional(),
         validators.Regexp('^((AS)?\d+|\?)+$', re.IGNORECASE,
         message='Must be a number, optionally preceded by "AS", or "?".')])
+    blacklist = SelectMultipleField('Blacklist', [validators.Optional()],
+        choices=[(bl,bl) for bl in get_blacklists()])
+    bl_op = HiddenField('', default="or")
     sortby = SelectField('Sort by', choices=[
                 ('events','Events'),
                 ('ts_update','Last update'),
@@ -323,6 +335,9 @@ def create_query(form):
         else:
             asn = int(form.asn.data.lstrip("ASas"))
             queries.append( {'$or': [{'as_maxmind.num': asn}, {'as_rv.num': asn}]} )
+    if form.blacklist.data:
+        op = '$and' if (form.bl_op.data == "and") else '$or'
+        queries.append( {op: [{'bl.'+blname: {'$exists': True}} for blname in form.blacklist.data]} )
     
     query = {'$and': queries} if queries else None
     return query
@@ -334,6 +349,7 @@ def ips():
     user, ac = get_user_info(session)
 
     form = IPFilterForm(request.args, csrf_enabled=False)
+
     if ac('ipsearch') and form.validate():
         timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
         sortby = sort_mapping[form.sortby.data]
@@ -392,12 +408,16 @@ def ips():
 
     return render_template('ips.html', config=config, ctrydata=ctrydata, **locals())
 
-@app.route('/_ips_count', methods=['GET', 'POST'])
+
+@app.route('/_ips_count', methods=['POST'])
 def ips_count():
     user, ac = get_user_info(session)
-    form = IPFilterForm(request.values, csrf_enabled=False)
+    #Excepts query as JSON encoded POST data.
+    form_values = request.get_json()
+    form = IPFilterForm(obj=form_values, csrf_enabled=False)
     if ac('ipsearch') and form.validate():
         query = create_query(form)
+        print("query: " + str(query))
         return make_response(str(mongo.db.ip.find(query).count()))
     else:
         return make_response("ERROR")

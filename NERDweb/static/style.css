@@ -199,6 +199,21 @@ p.error {
 /**********/
 /* Form */
 
+.ms-options-wrap {
+  display: inline-block;
+  width: 16em;
+}
+
+#bl_op_button {
+  display: inline-block;
+  width: 1.5em;
+  /*height: 100%;*/
+  text-align: center;
+  background: #fff;
+  border: 1px solid #aaa;
+  cursor: default;
+}
+
 form span.error {
   color: #a00;
 }

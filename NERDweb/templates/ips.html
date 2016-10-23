@@ -15,15 +15,38 @@
   {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
   {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
   {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
-  {{ formfield(form.asn, size=7) }}<br>
+  {{ formfield(form.asn, size=7) }} &nbsp; &amp; &nbsp;
+  {{ form.blacklist.label }} <span id="bl_op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %}<br>
   {{ formfield(form.sortby) }}
   {{ formfield(form.asc) }}<br>
   {{ formfield(form.limit, size=10) }}<br>
   <input type="submit">
 </form>
 
+<script>
+// Improve blacklist select using "multiselect" library/plugin
+$("select#blacklist").multiselect({texts: {placeholder: "\xa0"}, search: true});
+// Set up the blacklist operation (and/or) button
+$("#bl_op_button").on("click", function() {
+  if ($("#bl_op").val() == 'and') {
+    $("#bl_op").val("or");
+    $(this).text("\u22c1").attr("title", "OR: At least one of the selected blacklists"); // \u22c1 = Logical OR
+  } else {
+    $("#bl_op").val("and");
+    $(this).text("\u22c0").attr("title", "AND: All selected blacklists"); // \u22c0 = Logical AND
+  }
+  return false;
+});
+if ($("#bl_op").val() == "or") {
+    $("#bl_op_button").text("\u22c1").attr("title", "OR: At least one of the selected blacklists");
+} else {
+    $("#bl_op_button").text("\u22c0").attr("title", "AND: All selected blacklists");
+}
+</script>
+
 {% if results %}
 <script>
+
 // Set-up possibility to click on a part of hostname to set it as a filer
 function set_hostname_filter(hostname) {
   document.location = ROOT + "ips/?hostname=" + hostname;
@@ -65,7 +88,7 @@ $(function () {
 
 <p id="results_label">Results (
 {%- if results|length >= form.limit.data -%}
- <a href="#" title="Click to get total count" onclick="$(this).hide(); $('#results_label span').show(); $('#results_label span').load('{{url_for('ips_count')}}', {{query_params}}); return false;">&ge;{{form.limit.data}}</a><span style="display: none">&ge;{{form.limit.data}}<img src="{{url_for('static', filename='spin.gif')}}" style="height: 0.8em; width: 0.8em;"></span>
+ <a href="#" title="Click to get total count" onclick="$(this).hide(); $('#results_label span').show(); $.ajax('{{url_for('ips_count')}}', {data: '{{query_params}}', method: 'POST', contentType: 'application/json'}).done(function (data) {$('#results_label span').html(data);}).fail(function (data) {$('#results_label span').text('ERROR');}); return false;">&ge;{{form.limit.data}}</a><span style="display: none">&ge;{{form.limit.data}}<img src="{{url_for('static', filename='spin.gif')}}" style="height: 0.8em; width: 0.8em;"></span>
 {%- else -%}
  {{ results|length }}
 {%- endif -%})</p>
@@ -159,6 +182,8 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
   "mongo_error": "ERROR: Can't connect to database.",
 }.get(error, error)
 }}</p>
+{% else %}
+<p id="results_label">No results</p>
 {% endif %}{# end if results #}
 
 {% endblock %}
