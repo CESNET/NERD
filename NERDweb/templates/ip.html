@@ -115,6 +115,7 @@
 </dl>
 
 <p id="event-details"><span class="caption">Event details</span> <span class="counts">({{ num_events|safe }})</span>
+&nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>
 {%- if config.mentat_url and ac('mentat') %}<span class="mentat-link">Search in <a href="{{config.mentat_url.replace('$IP', ip)}}">Mentat</a></span>{% endif %}
 </p>
 {% for event in events %}

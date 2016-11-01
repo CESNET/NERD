@@ -38,6 +38,13 @@ p.error {
   padding: 0.4em 0.6em;
 }
 
+.note {
+  color: #aaa;
+}
+.note:hover {
+  color: #000;
+}
+
 /* Flash messages */
 .msg {
   display: block;
