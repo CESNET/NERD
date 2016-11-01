@@ -92,8 +92,8 @@
   <dt>geo</dt><dd><span class="country">
     <a href="http://country.io/{{val.ctry|lower}}/">
     <span class="flag flag-{{val.ctry|lower}}"></span>{{ ctrydata.names.get(val.ctry, '?') }}</a></span>
-    {{ ', '+val.city if val.city else '' }}
-  </dd>
+    {%- if val.city %}, {{ val.city }}{% endif %}</dd>
+    {%- if val.tz %}<dd><span title="timezone">&#x1f551;</span> {{ val.tz }}</dd>{% endif %}
  {% elif attr == "hostname" %}
   <dt>hostname</dt>
   <dd>{{ val|reverse if val else '(null)'}}</dd>
