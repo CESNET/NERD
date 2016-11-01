@@ -166,8 +166,7 @@ $(function() { refresh_status(true) });
     <a href="{{ url_for('login_'+method_name) }}">{{ params.display }}</a>
   {%- endfor -%}
   {% else %}
-  Logged in: <span title="Groups: {{ user.groups|join(', ') }}">{{ user.id }} {% if user.name %}({{ user.name }}){% endif %}</span>
-  &nbsp; &bull; &nbsp; <a href="{{ url_for('logout') }}">Log out</a>
+  Logged in:<a href="{{ url_for('account_info') }}" class="username">{{ user.id }}{% if user.name %} ({{ user.name }}){% endif %}</a>&bull;<a href="{{ url_for('logout') }}">Log out</a>
   {% endif %}
  </div>
 </div>
@@ -177,7 +176,12 @@ $(function() { refresh_status(true) });
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     {% for category, message in messages %}
-      <div class="msg {{ category }}">{{ message }}<a href="#" onclick="$(this).parent().hide(); return false;">&#x274C;</a></div>
+      {# if category starts with "safe ", mark message as safe and skip html escaping #}
+      {% if category[:5] == "safe " %}
+        {% set message = message|safe %}
+        {% set category = category[5:] %}
+      {% endif %}
+      <div class="msg {{ category }}">{{ message }}<a class="close" href="#" onclick="$(this).parent().hide(); return false;">&#x274C;</a></div>
     {% endfor %}
   {% endif %}
 {% endwith %}

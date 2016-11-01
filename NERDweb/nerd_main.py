@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import sys
 import random
 import json
@@ -12,7 +13,7 @@ from flask import Flask, request, render_template, make_response, g, jsonify, js
 from flask.ext.pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from flask_mail import Mail, Message
-from wtforms import validators, TextField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField
+from wtforms import validators, TextField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -31,18 +32,19 @@ if len(sys.argv) >= 2:
     cfg_file = sys.argv[1]
 else:
     cfg_file = DEFAULT_CONFIG_FILE
+cfg_dir = os.path.dirname(os.path.abspath(cfg_file))
 
 # Read web-specific config (nerdweb.cfg)
 config = common.config.read_config(cfg_file)
 # Read common config (nerd.cfg) and combine them together
-common_cfg_file = os.path.join(os.path.dirname(os.path.abspath(cfg_file)), config.get('common_config'))
+common_cfg_file = os.path.join(cfg_dir, config.get('common_config'))
 config.update(common.config.read_config(common_cfg_file))
 
 WARDEN_DROP_PATH = os.path.join(config.get("warden_filer_path", "/data/warden_filer/warden_receiver"), "incoming")
 
 # Load list of users and ACL
-users_cfg_file = os.path.join(os.path.dirname(os.path.abspath(cfg_file)), config.get('users_config'))
-acl_cfg_file = os.path.join(os.path.dirname(os.path.abspath(cfg_file)), config.get('acl_config'))
+users_cfg_file = os.path.join(cfg_dir, config.get('users_config'))
+acl_cfg_file = os.path.join(cfg_dir, config.get('acl_config'))
 
 # "users" file
 # Contains a list of valid users and their mapping to groups
@@ -236,7 +238,7 @@ def main():
     if user and ac('notregistered'):
         return redirect('/nerd/noaccount')
     
-    return redirect('/nerd/ips')
+    return redirect('/nerd/ips/')
 
 
 # ***** Request for new account *****
@@ -249,7 +251,9 @@ def noaccount():
     if not user:
         return make_response("ERROR: no user is authenticated")
     if not ac('notregistered'):
-        return make_response("ERROR: user already registered")
+        return redirect('/nerd/ips/')
+    if user['login_type'] != 'shibboleth':
+        return make_response("ERROR: You've successfully authenticated to web server but there is no matching user account. This is probably a configuration error. Contact NERD administrator.")
     
     form = AccountRequestForm(request.values)
     # Prefill user's default email from his/her account info (we expect a list of emails separated by ';')
@@ -274,6 +278,77 @@ def noaccount():
         request_sent = True
         
     return render_template('noaccount.html', config=config, **locals())
+
+
+# ***** Account info & password change *****
+
+class PasswordChangeForm(Form):
+    old_passwd = PasswordField('Old password', [validators.InputRequired()])
+    new_passwd = PasswordField('New password', [validators.InputRequired(), validators.length(8, -1, 'Password must have at least 8 characters')])
+    new_passwd2 = PasswordField('Repeat password', [validators.InputRequired(), validators.EqualTo('new_passwd', message='Passwords must match')])
+
+
+@app.route('/account')
+@app.route('/account/set_password', endpoint='set_password', methods=['POST'])
+def account_info():
+    user, ac = get_user_info(session)
+    if not user:
+        return make_response("ERROR: no user is authenticated")
+    if user and ac('notregistered'):
+        return redirect('/nerd/noaccount')
+    
+    # Handler for /account/set_password
+    if request.endpoint == 'set_password':
+        if user['login_type'] != 'local':
+            return make_response("ERROR: Password can be changed for local accounts only")
+        passwd_form = PasswordChangeForm(request.form)
+        if passwd_form.validate():
+            htpasswd_file = os.path.join(cfg_dir, config.get('login.methods.local.htpasswd_file', '.htpasswd'))
+            try:
+                # Verify old password
+                cmd = ['htpasswd', '-v', '-i', htpasswd_file, user['id']]
+                p = subprocess.Popen(cmd, stdin=subprocess.PIPE)#, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                p.communicate(passwd_form.old_passwd.data.encode('utf-8'))
+                if p.returncode != 0:
+                    if p.returncode == 3: # Bad password
+                        flash('ERROR: Bad password', 'error')
+                        return render_template('account_info.html', config=config, **locals())
+                    else:
+                        print("ERROR: htpasswd check error '{}': retcode: {}".format(' '.join(cmd), p.returncode), file=sys.stderr)
+                        return make_response('ERROR: Cannot change password: error '+str(p.returncode),  'error')
+                
+                # Set new password
+                # (-i: read password from stdin, -B: use bcrypt, -C: bcrypt cost factor (12 should be quite secure and takes approx. 0.3s on my server)
+                cmd = ['htpasswd', '-i', '-B', '-C', '12', htpasswd_file, user['id']]
+                p = subprocess.Popen(cmd, stdin=subprocess.PIPE)#, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                p.communicate(passwd_form.new_passwd.data.encode('utf-8'))
+                if p.returncode != 0:
+                    print("ERROR: htpasswd set error '{}': retcode: {}".format(' '.join(cmd), p.returncode), file=sys.stderr)
+                    return make_response('ERROR: Cannot change password: error '+str(p.returncode),  'error')
+            except OSError as e:
+                p.kill()
+                print("ERROR: htpasswd OSError '{}': {}".format(' '.join(cmd), str(e)), file=sys.stderr)
+                return make_response('ERROR: Cannot change password: OSError.', 'error')
+            
+            # If we got there, passward was successfully changed
+            flash('Password changed. Please, <b><a href="/nerd/logout">log out</a></b> and then log back in using the new password.', 'safe success')
+            return redirect('/nerd/account')
+        else:
+            flash('ERROR: Password not changed.', 'error')
+
+    # Handler for /account
+    else:
+        if user['login_type'] == 'local':
+            passwd_form = PasswordChangeForm()
+    
+    return render_template('account_info.html', config=config, **locals())
+
+
+# def set_password():
+#     form = PasswordChangeForm(request.form)
+#     if form.validate():
+#         
+#     return redirect('/nerd/account')
 
 
 # ***** List of IP addresses *****

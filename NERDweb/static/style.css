@@ -71,7 +71,7 @@ p.error {
   border: 1px solid #c00;
   font-weight: bold;
 }
-.msg a {
+.msg a.close {
   display: block;
   float: right;
   width: 1em;
@@ -119,12 +119,19 @@ p.error {
   text-align: right;
   padding: 0.4em 1em;
 }
-#header #login span {
+#header #login a {
+  margin-left: 0.7em;
+}
+#header #login a.username {
+  margin-left: 0.5em;
+  margin-right: 0.5em;
   font-weight: bold;
   color: #eee;
+  text-decoration: none;
 }
-#header #login a {
-  margin-left: 0.5em;
+#header #login a.username:hover {
+  /*text-decoration: underline;*/
+  border-bottom: 1px solid #eee;
 }
 
 #content {
