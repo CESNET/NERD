@@ -138,7 +138,7 @@ class DNSBLResolver(NERDModule):
         try:
             with open(self.req_cnt_file + datestr, "r") as f:
                 self.req_counter = int(f.read())
-        except IOError:
+        except (IOError, ValueError):
             self.req_counter = 0
             self.write_req_count()
         if self.req_counter >= self.max_req_count:
