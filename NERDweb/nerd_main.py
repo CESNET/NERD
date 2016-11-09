@@ -10,7 +10,7 @@ import re
 import pytz
 
 from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session
-from flask.ext.pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
+from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from flask_mail import Mail, Message
 from wtforms import validators, TextField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
