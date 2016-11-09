@@ -25,6 +25,9 @@ import ctrydata
 
 # ***** Load configuration *****
 
+BASE_URL = '/nerd' # without trailing slash   TODO: get automatically (or from config)
+#BASE_URL = ''
+
 DEFAULT_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../etc/nerdweb.cfg"))
 
 # TODO parse arguments using ArgParse
@@ -236,9 +239,9 @@ def main():
     
     # User is authenticated but has no account
     if user and ac('notregistered'):
-        return redirect('/nerd/noaccount')
+        return redirect(BASE_URL+'/noaccount')
     
-    return redirect('/nerd/ips/')
+    return redirect(BASE_URL+'/ips/')
 
 
 # ***** Request for new account *****
@@ -251,7 +254,7 @@ def noaccount():
     if not user:
         return make_response("ERROR: no user is authenticated")
     if not ac('notregistered'):
-        return redirect('/nerd/ips/')
+        return redirect(BASE_URL+'/ips/')
     if user['login_type'] != 'shibboleth':
         return make_response("ERROR: You've successfully authenticated to web server but there is no matching user account. This is probably a configuration error. Contact NERD administrator.")
     
@@ -295,7 +298,7 @@ def account_info():
     if not user:
         return make_response("ERROR: no user is authenticated")
     if user and ac('notregistered'):
-        return redirect('/nerd/noaccount')
+        return redirect(BASE_URL+'/noaccount')
     
     # Handler for /account/set_password
     if request.endpoint == 'set_password':
@@ -331,8 +334,8 @@ def account_info():
                 return make_response('ERROR: Cannot change password: OSError.', 'error')
             
             # If we got there, passward was successfully changed
-            flash('Password changed. Please, <b><a href="/nerd/logout">log out</a></b> and then log back in using the new password.', 'safe success')
-            return redirect('/nerd/account')
+            flash('Password changed. Please, <b><a href="'+BASE_URL+'/logout">log out</a></b> and then log back in using the new password.', 'safe success')
+            return redirect(BASE_URL+'/account')
         else:
             flash('ERROR: Password not changed.', 'error')
 
@@ -348,7 +351,7 @@ def account_info():
 #     form = PasswordChangeForm(request.form)
 #     if form.validate():
 #         
-#     return redirect('/nerd/account')
+#     return redirect(BASE_URL+'/account')
 
 
 # ***** List of IP addresses *****
