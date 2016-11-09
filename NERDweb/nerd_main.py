@@ -22,6 +22,8 @@ import common.config
 
 #import db
 import ctrydata
+import userdb
+from userdb import get_user_info
 
 # ***** Load configuration *****
 
@@ -45,39 +47,9 @@ config.update(common.config.read_config(common_cfg_file))
 
 WARDEN_DROP_PATH = os.path.join(config.get("warden_filer_path", "/data/warden_filer/warden_receiver"), "incoming")
 
-# Load list of users and ACL
-users_cfg_file = os.path.join(cfg_dir, config.get('users_config'))
-acl_cfg_file = os.path.join(cfg_dir, config.get('acl_config'))
+config.testing = False
 
-# "users" file
-# Contains a list of valid users and their mapping to groups
-# Format (one user per line):
-# <full_user_id> <comma_separated_list_of_groups>
-users = {}
-with open(users_cfg_file, 'r') as f:
-    for line in f:
-        if line.strip() == "" or line.startswith("#"):
-            continue
-        id, rest = line.split(None, 1)
-        groups = set(map(str.strip, rest.split(',')))
-        users[id] = groups
-
-# "acl" file
-# Mapping of "resource_id" to two sets of groups: "groups_allow", "groups_deny".
-# To access a resource, a user must be in at least one group of "groups_allow"
-# and must not be in any of "groups_deny".
-# Format (one resource per line):
-# <resource_id> <comma_separated_list_of_groups_allow>[;<comma_separated_list_of_groups_deny>]
-acl = {}
-with open(acl_cfg_file, 'r') as f:
-    for line in f:
-        if line.strip() == "" or line.startswith("#"):
-            continue
-        id, rest = line.split(None, 1)
-        allow, deny = rest.split(';') if ';' in rest else (rest, '')
-        allow = set(filter(None, map(str.strip, allow.split(','))))
-        deny = set(filter(None, map(str.strip, deny.split(','))))
-        acl[id] = (allow, deny)
+userdb.init(config, cfg_dir)
 
 # **** Create and initialize Flask application *****
 
@@ -118,52 +90,6 @@ def format_datetime(val, format="%Y-%m-%d %H:%M:%S"):
 
 app.jinja_env.filters['datetime'] = format_datetime
 
-
-# ***** Access control functions *****
-
-def get_user_groups(full_id):
-    if full_id not in users:
-        return set(['notregistered']) # Unknown user
-    return users[full_id]
-
-
-def get_ac_func(user_groups):
-    """Return a function for testing access permissions of a specific user."""
-    def ac(resource):
-        """"
-        Access control test - check if current user has access to given resource.
-        """
-        if resource in acl and acl[resource][0] & user_groups and not acl[resource][1] & user_groups:
-            return True
-        else:
-            return False
-    return ac
-
-def get_user_info(session):
-    """
-    Extract user information from current session.
-     
-    To be called by all page handlers as:
-      user, ac = get_user_info(session)
-    """
-    if 'user' in session:
-        user = session['user'].copy() # should contain 'id', 'login_type' and optionally 'name'
-        user['fullid'] = user['login_type'] + ':' + user['id']
-        user['groups'] = get_user_groups(user['fullid'])
-    elif testing:
-        user = {
-            'login_type': '',
-            'id': 'test_user',
-            'fullid': 'test_user',
-            'groups': get_user_groups('test_user'),
-        }
-    else:
-        user = None
-    if user:
-        ac = get_ac_func(user['groups'])
-    else:
-        ac = lambda x: False
-    return user, ac
     
 
 # ***** Login handlers *****
@@ -570,9 +496,7 @@ def get_status():
 
 # **********
 
-testing = False
-
 if __name__ == "__main__":
-    testing = True
+    config.testing = True
     app.run(host="0.0.0.0", debug=True)
 
