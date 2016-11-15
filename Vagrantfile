@@ -23,7 +23,10 @@ enabled=1
 
     # install dependencies
     yum install -y https://centos7.iuscommunity.org/ius-release.rpm
-    yum -y install mongodb-org git wget python34 python34-devel httpd gcc
+    yum install -y https://download.postgresql.org/pub/repos/yum/9.6/redhat/rhel-7-x86_64/pgdg-centos96-9.6-3.noarch.rpm
+    yum -y install mongodb-org git wget python34 python34-devel httpd gcc postgresql96-server postgresql96-devel
+    PATH=$PATH:/usr/pgsql-9.6/bin
+    export PATH
     wget -q https://bootstrap.pypa.io/get-pip.py
     python3.4 get-pip.py
     pip install -r sync/NERDd/requirements.txt
@@ -34,12 +37,30 @@ enabled=1
     #service httpd start
     service mongod start
 
+    # Configure and start PostgreSQL
+    adduser postgres
+    mkdir -p /data/pgsql
+    chown postgres /data/pgsql
+    sudo -u postgres /usr/pgsql-9.6/bin/initdb -D /data/pgsql
+    sed -i "s,PGDATA=.*$,PGDATA=/data/pgsql," /lib/systemd/system/postgresql-9.6.service
+    systemctl enable postgresql-9.6.service
+    systemctl start postgresql-9.6.service
+    # create database and user "nerd"
+    /usr/pgsql-9.6/bin/createuser -U postgres nerd
+    /usr/pgsql-9.6/bin/createdb -U postgres --owner nerd nerd
+    # initialize database (create tables etc.)
+    /usr/pgsql-9.6/bin/psql -d nerd -U nerd -f ~sync/create_db.sql
+
+    # Download GeoIP database
     mkdir -p /data/geoip
     wget -q http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz -O /data/geoip/GeoLite2-City.mmdb.gz
     gunzip /data/geoip/GeoLite2-City.mmdb.gz
+
+    # Warden_filer
     wget -q https://homeproj.cesnet.cz/tar/warden/contrib_3.0-beta2.tar.bz2
     tar -xf contrib_3.0-beta2.tar.bz2
     cp -r contrib_3.0-beta2/warden_filer/ /data/
+
     chown -R vagrant:vagrant /data ~vagrant/
 
     # Install local bind
