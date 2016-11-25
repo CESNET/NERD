@@ -142,16 +142,16 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
   data-nodes="{{ip.events._nodes}}" data-table="{{ip.events._date_cat_table}}">
   <span>{{ip.events.total}}</span><span>{{ip.events._n_nodes}}</span><span>{{ ip.events._n_cats}}</span>
 </td>
-{#
-<td class="shodan">
-  {% if ip.shodan_os %}<span class="tag os">{{ip.shodan_os}}</span>{% endif %}
-  <span class="ports">
-    {% for port in ip.shodan_ports %}<span class="tag port">{{port}}</span>{% endfor %}
-  </span>
-</td>
-<td class="device_type">{% if ip.device_type %}<span class="tag">{{ip.device_type}}</span>{% endif %}</td>
-#}
 <td class="other">
+  {% if ip.shodan %}
+    {% if ip.shodan.os %}<span class="tag os">{{ip.shodan.os}}</span>{% endif %}
+    {% if ip.shodan.devicetype %}<span class="tag os">{{ip.shodan.devicetype}}</span>{% endif %}
+    {% if ip.shodan.linktype %}<span class="tag os">{{ip.shodan.linktype}}</span>{% endif %}
+    {% if ip.shodan.tags %}<span class="tag os">{{ip.shodan.tags}}</span>{% endif %}
+    <span class="ports">
+      {% for port in ip.shodan.ports %}<span class="tag port" title="Port {{port}} is opened according to Shodan">{{port}}</span>{% endfor %}
+    </span>
+  {% endif %}
 {#
   {% if ip.open_dns %}<span class="tag amplifier dns">Open DNS resolver</span>{% endif %}
   {% if ip.open_ntp %}<span class="tag amplifier ntp">Open NTP</span>{% endif %}
@@ -160,10 +160,11 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
   {% if ip.tor %}<span class="tag tor">TOR exit node</span>{% endif %}
 #}
   {% if ip.bl %}
-  {% for name,times in ip.bl.items() %}
+  {% for name,times in ip.bl.items() -%}
     <span class="tag blacklist" title="IP was present on blacklist '{{name}}' at the following times:<br>
-      {{-times|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">{{name}}</span>
-  {% endfor %}
+      {{-times|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">
+      {{-name-}}</span>
+  {%- endfor %}
   {% endif %}
 </td>
 <td class="time">{{ip.ts_added.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
