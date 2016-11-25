@@ -36,6 +36,10 @@ enabled=1
     systemctl enable mongod
     #service httpd start
     service mongod start
+    
+    # Apply Shodan client patch
+    PYTHON_LIB_PATH="$(pip3 show shodan &2>/dev/null | grep Location: | cut -c 11-)"
+    patch -u -i ~/sync/shodan_client.patch "$PYTHON_LIB_PATH/shodan/client.py"
 
     # Configure and start PostgreSQL
     adduser postgres
@@ -49,7 +53,7 @@ enabled=1
     /usr/pgsql-9.6/bin/createuser -U postgres nerd
     /usr/pgsql-9.6/bin/createdb -U postgres --owner nerd nerd
     # initialize database (create tables etc.)
-    /usr/pgsql-9.6/bin/psql -d nerd -U nerd -f ~sync/create_db.sql
+    /usr/pgsql-9.6/bin/psql -d nerd -U nerd -f ~/sync/create_db.sql
 
     # Download GeoIP database
     mkdir -p /data/geoip
