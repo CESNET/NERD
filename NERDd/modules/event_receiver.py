@@ -258,6 +258,8 @@ class EventReceiver(NERDModule):
         for (rawdata, event) in read_dir(self._drop_path):
             store_event = False
             try:
+                if "Test" in event["Category"]:
+                    continue # Ignore testing messages
                 for src in event.get("Source", []):
                     for ipv4 in src.get("IP4", []):
                         store_event = True
