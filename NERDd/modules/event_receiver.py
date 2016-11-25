@@ -17,6 +17,8 @@ import sys
 import socket
 import json
 import logging
+import dateutil.parser
+import datetime
 
 MAX_QUEUE_SIZE = 100 # Maximal size of UpdateManager's request queue
                      # (when number of pending requests exceeds this value,
@@ -264,10 +266,11 @@ class EventReceiver(NERDModule):
 
                         self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
                         cat = '+'.join(event["Category"]).replace('.', '')
-                        # TODO parse and reformat time, solve timezones
-                        # (but IDEA defines dates to conform RFC3339 but there is no easy (i.e. built-in) way to parse it in Python, maybe in Py3.6,
-                        #  according to http://bugs.python.org/issue15873)
-                        date = event["DetectTime"][:10]
+                        # Parse and reformat time
+                        date = dateutil.parser.parse(event["DetectTime"]) # Parse DetectTime
+                        date = date.astimezone(datetime.timezone.utc).replace(tzinfo=None) # Convert to UTC
+                        date = date.strftime("%Y-%m-%d") # Get date as a string
+
                         node = event["Node"][-1]["Name"]
                         key_cat = 'events.'+date+'.'+cat
                         key_node = 'events.'+date+'.nodes'
