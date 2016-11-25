@@ -24,6 +24,9 @@ class Shodan(NERDModule):
     def __init__(self, config, update_manager):
         self.log = logging.getLogger('Shodan')
         #self.log.setLevel("DEBUG")
+        self.errors = 0 # Number of API errors that has occured
+        self.enabled = True
+        
         self.apikey = config.get('shodan.apikey', None)
         if not self.apikey:
             self.log.warning("No API key set, Shodan module disabled.")
@@ -65,6 +68,9 @@ class Shodan(NERDModule):
           ('set', 'shodan.linktype', 'link_type')
           ('set', 'shodan.tags', 'tags')  # e.g. "vpn" or "tor"
         """
+        if not self.enabled:
+            return None
+        
         etype, key = ekey
         if etype != 'ip':
             return None
@@ -74,13 +80,19 @@ class Shodan(NERDModule):
         self.log.debug("Querying Shodan for {}".format(ip))
         
         try:
-            data = self.client.host(ip, minify=True) # Uncomment if my patch is accepted
+            data = self.client.host(ip, minify=True)
         except shodan.exception.APIError as e:
             if str(e) == "No information available for that IP.":
                 self.log.debug("Shodan info for {}: Not found".format(ip))
-                return None
+                # Store empty dict into "shodan" key to mark that the info was queried but the IP is not in Shodan DB
+                return [('set', 'shodan', dict())]
             else:
                 self.log.error("Error when querying '{}': {}".format(ip, str(e)))
+                self.errors += 1
+                if self.errors > 10:
+                    self.log.critical("More than 10 API errors -> stopping module".format(ip, str(e)))
+                    self.enabled = False
+            return None
         
         self.log.debug("Shodan info for {}: {}".format(ip, data))
         
