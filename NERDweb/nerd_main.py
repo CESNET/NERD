@@ -17,7 +17,7 @@ from wtforms import validators, TextField, IntegerField, BooleanField, HiddenFie
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
-import common.eventdb
+import common.eventdb_psql
 import common.config
 
 #import db
@@ -79,7 +79,7 @@ app.config['MAIL_DEFAULT_SENDER'] = config.get('mail.sender', 'NERD <noreply@ner
 mailer = Mail(app)
 
 
-eventdb = common.eventdb.FileEventDatabase({'eventdb_path': config.get("eventdb_path")})
+eventdb = common.eventdb_psql.PSQLEventDatabase(config)
 
 
 # ***** Jinja2 filters *****
@@ -462,7 +462,6 @@ def ip(ipaddr=None):
             title = ipaddr
             ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
             events = eventdb.get('ip', form.ip.data, limit=100) # Load events (IDEA messages as strings)
-            events = list(map(json.loads, events)) # Decode IDEA messages
             num_events = str(len(events))
             if len(events) >= 100:
                 num_events = "&ge;100, only first 100 shown"

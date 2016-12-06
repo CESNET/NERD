@@ -256,14 +256,13 @@ class EventReceiver(NERDModule):
         # Infinite loop reading events as files in given directory
         # (termiated by setting running_flag to False)
         for (rawdata, event) in read_dir(self._drop_path):
-            store_event = False
+            # Store the event to Event DB
+            self._eventdb.put(rawdata)
             try:
                 if "Test" in event["Category"]:
                     continue # Ignore testing messages
                 for src in event.get("Source", []):
                     for ipv4 in src.get("IP4", []):
-                        store_event = True
-
                         # TODO check IP address validity
 
                         self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
@@ -290,19 +289,6 @@ class EventReceiver(NERDModule):
             except Exception as e:
                 self.log.error("ERROR in parsing event: {}".format(str(e)))
                 pass
-            
-            if store_event:
-                #print("------------------------------------------------------------")
-                #print("EventReceiver: Loaded event:")
-                #print(json.dumps(event))
-                #print(rawdata)
-                #print("** EventReceiver: skipped / enqueued sources: {:6d} / {:6d}".format(skipped, enqueued))
-                
-                # Also store the event to the event DB
-                try:
-                    self._eventdb.put(rawdata)
-                except Exception as e:
-                    self.log.error("ERROR storing event:", e)
             
             # If there are already too much requests queued, wait a while
             #print("***** QUEUE SIZE: {} *****".format(self._um.get_queue_size()))
