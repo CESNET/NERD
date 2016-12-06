@@ -10,7 +10,7 @@
 {%- set nodes = idea.pop('Node',['N/A']) %}
 {% set x = idea.pop('Format') -%}
 {% set x = idea.pop('ID') -%}
-<div class="idea">
+<div class="idea{{ ' test' if 'Test' in idea['Category'] else ''}}">
 <div class="cat_and_time">
  <span class="category" title="Category">{{ idea.pop('Category',['N/A'])|join('+') }}</span><br>
  <span class="time" title="DetectTime">{{ idea.pop('DetectTime','N/A') }}</span>
@@ -80,7 +80,11 @@
      <dt>{{date}}</dt><dd>
       {% for cat,val in cats|dictsort %}
        {% if cat != 'nodes' %}
-        {{cat}}: {{val}}<br>
+        {%if "Test" in cat %}
+         <span class="test-cat">{{cat}}: {{val}}</span><br>
+        {% else %}
+         {{cat}}: {{val}}<br>
+        {% endif %}
        {% endif %}
       {% endfor %}
       nodes: {{cats.nodes|join(', ')}}<br>

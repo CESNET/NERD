@@ -373,6 +373,10 @@ dd dl dt:first-child {
   margin-top: 0;
 }
 
+.test-cat {
+  color: #aaa;
+}
+
 #event-details {
   margin: 1em 0 0.5em 0;
 }
@@ -440,6 +444,22 @@ div.idea .others .target {
   border-right: 2px solid #bdf;
   padding-right: 0.5em;
   margin-right: 0.25em;
+}
+div.idea.test {
+  background: #eee;
+  border-color: #ccc;
+  color: #666;
+}
+div.idea.test .nodes {
+  border-left-color: #ccc;
+}
+div.idea.test .descr,
+div.idea.test .cat_and_time {
+  background-color: #ccc;
+}
+div.idea.test .others .source,
+div.idea.test .others .target {
+  border-right-color: #ccc;
 }
 
 

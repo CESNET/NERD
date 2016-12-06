@@ -385,7 +385,7 @@ def ips():
                     for cat,val in val.items():
                         if cat == 'nodes':
                             nodes.update(val)
-                        else:
+                        elif "Test" not in cat: # Ignore categories containing "Test"
                             cats.add(cat)
             dates = sorted(dates)
             cats = sorted(cats)
