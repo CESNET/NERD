@@ -22,6 +22,7 @@ import modules.dnsbl
 import modules.local_bl
 import modules.shodan
 import modules.refresher
+import modules.event_counter
 import common.eventdb_psql
 
 ############
@@ -73,6 +74,7 @@ if __name__ == "__main__":
     module_list = [
         modules.event_receiver.EventReceiver(config, update_manager, eventdb),
         #modules.refresher.Refresher(config, update_manager, db),
+        modules.event_counter.EventCounter(config, update_manager),
         #modules.test_module.TestModule(config, update_manager),
         modules.dns.DNSResolver(config, update_manager),
         modules.geolocation.Geolocation(config, update_manager),
