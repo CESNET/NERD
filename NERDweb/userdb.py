@@ -17,7 +17,8 @@ def init(config, cfg_dir):
 
     # Create database connection
     db = psycopg2.connect(database=config.get('userdb.dbname', 'nerd'),
-                          user=config.get('userdb.dbuser', 'nerd'))
+                          user=config.get('userdb.dbuser', 'nerd'),
+                          password=config.get('userdb.dbpassword', None))
     db.autocommit = True # don't use transactions, every action have immediate effect
     
     # Load "acl" file
@@ -107,7 +108,8 @@ def get_user_info(session):
     user['groups'] = set(user['groups'])
     
     # Convert user.name from utf8 (TODO: this can be probably removed when we start using python3)
-    user['name'] = user['name'].decode('utf-8') if user['name'] else None
+    if isinstance(user['name'], bytes):
+        user['name'] = user['name'].decode('utf-8') if user['name'] else None
     
     print("user info: "+str(user))
     
