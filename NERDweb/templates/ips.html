@@ -104,6 +104,7 @@ $(function () {
 <th title="Total number of alerts / nodes / categories">Events</th>
 <!--<th>Shodan info</th>
 <th>Device type</th>-->
+{% if ac('rep_exp') %}<th title="Reputation (experimental)">Rep.</th>{% endif %}
 <th>Other properties</th>
 <th>Time added</th>
 <th>Last update</th>
@@ -142,6 +143,11 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
   data-nodes="{{ip.events._nodes}}" data-table="{{ip.events._date_cat_table}}">
   <span>{{ip.events.total}}</span><span>{{ip.events._n_nodes}}</span><span>{{ ip.events._n_cats}}</span>
 </td>
+{% if ac('rep_exp') %}
+<td class="reputation" style="background-color: hsl({{100 - 100*ip.rep}}, 100%, 90%)">
+  {{ "%.3f"|format(ip.rep) }}
+</td>
+{% endif %}
 <td class="other">
   {% if ip.shodan %}
     {% if ip.shodan.os %}<span class="tag os">{{ip.shodan.os}}</span>{% endif %}
