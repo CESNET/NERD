@@ -91,7 +91,6 @@ def get_user_info(session):
     
     # Get user info from DB
     cur = db.cursor()
-    print("SELECT * FROM users WHERE id = %s" % (user['fullid'],))
     cur.execute("SELECT * FROM users WHERE id = %s", (user['fullid'],))
     col_names = [col.name for col in cur.description]
     row = cur.fetchone()
@@ -110,8 +109,6 @@ def get_user_info(session):
     # Convert user.name from utf8 (TODO: this can be probably removed when we start using python3)
     if isinstance(user['name'], bytes):
         user['name'] = user['name'].decode('utf-8') if user['name'] else None
-    
-    print("user info: "+str(user))
     
     ac = get_ac_func(user['groups'])
     return user, ac

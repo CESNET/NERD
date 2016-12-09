@@ -64,7 +64,6 @@ class PSQLEventDatabase:
         result = cur.fetchall()
         result = [row[0] for row in result]
         
-        print(result)
         return result
 
 
