@@ -492,16 +492,29 @@ def ip(ipaddr=None):
         if ac('ipsearch'):
             title = ipaddr
             ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
-            events = eventdb.get('ip', form.ip.data, limit=100) # Load events (IDEA messages as strings)
-            num_events = str(len(events))
-            if len(events) >= 100:
-                num_events = "&ge;100, only first 100 shown"
         else:
             flash('Only registered users may search IPs.', 'error')
     else:
         title = 'IP detail search'
         ipinfo = {}
     return render_template('ip.html', config=config, ctrydata=ctrydata, ip=form.ip.data, **locals())
+
+
+@app.route('/ajax/ip_events/<ipaddr>')
+def ajax_ip_events(ipaddr):
+    """Return events related to given IP (as HTML snippet to be loaded via AJAX)"""
+    user, ac = get_user_info(session)
+
+    if not ipaddr:
+        return make_response('ERROR')
+    if not ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions')
+
+    events = eventdb.get('ip', ipaddr, limit=100)
+    num_events = str(len(events))
+    if len(events) >= 100:
+        num_events = "&ge;100, only first 100 shown"
+    return render_template('ip_events.html', config=config, **locals())
 
 
 # ***** NERD status information *****
