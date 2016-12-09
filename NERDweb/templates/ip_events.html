@@ -1,0 +1,55 @@
+{% macro printlist(array, pre='', post='') -%}{# Print an array as comma-separated list, with pre/post put before/after the list; print nothing if array is not defined #}
+  {{- pre + array|join(', ') + post if array else '' }}
+{%- endmacro %}
+{%- macro printstr(string, pre='', post='') -%}{# Print given string, with pre/post put before/after the list; print nothing if string is not defined #}
+  {{- pre + string + post if string else '' }}
+{%- endmacro %}
+
+{%- macro display_idea(idea) -%}
+{%- set nodes = idea.pop('Node',['N/A']) %}
+{% set x = idea.pop('Format') -%}
+{% set x = idea.pop('ID') -%}
+<div class="idea{{ ' test' if 'Test' in idea['Category'] else ''}}">
+<div class="cat_and_time">
+ <span class="category" title="Category">{{ idea.pop('Category',['N/A'])|join('+') }}</span><br>
+ <span class="time" title="DetectTime">{{ idea.pop('DetectTime','N/A') }}</span>
+</div>
+
+<div class="others">
+{% if idea.Description %}
+  <div class="descr">{{ idea.pop('Description') }}</div>
+{% endif %}
+{% if idea.Source %}
+  <span class="source">Source: {{ idea.pop('Source') }}</span>
+{% endif %}
+{% if idea.Target %}
+  <span class="target">Target: {{ idea.pop('Target') }}</span>
+{% endif %}
+{{ idea }}
+</div>
+
+<div class="nodes"><ul>
+{% for node in nodes -%}
+  <li title="Node information:{{'\n'}}
+             {{- printstr(node.Name, 'Name: ', '\n') -}}
+             {{- printlist(node.SW, 'SW: ', '\n') -}}
+             {{- printlist(node.Type, 'Type: ', '\n') -}}
+             {{- printstr(node.AggrWin, 'AggrWin: ', '\n') -}}
+             {{- printstr(node.Note, 'Note: ', '\n') -}}">
+    {{- node.Name }}
+    {%- if node.SW %}/{{ node.SW[0] if node.SW|length == 1 else '[' + node.SW|join(', ') + ']' }}{% endif -%}
+  </li>
+{%- endfor %}
+</ul></div>
+</div>
+{%- endmacro -%}
+
+<div id="events">
+<p id="event-details"><span class="caption">Event details</span> <span class="counts">({{ num_events|safe }})</span>
+&nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>
+{%- if config.mentat_url and ac('mentat') %}<span class="mentat-link">Search in <a href="{{config.mentat_url.replace('$IP', ipaddr)}}">Mentat</a></span>{% endif %}
+</p>
+{% for event in events %}
+{{ display_idea(event) }}
+{% endfor %}
+</div>
