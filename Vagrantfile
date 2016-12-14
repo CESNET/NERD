@@ -40,7 +40,7 @@ enabled=1
     # Configure and start PostgreSQL
     adduser postgres
     mkdir -p /data/pgsql
-    chown postgres /data/pgsql
+    chown -R postgres /data/pgsql
     sudo -u postgres /usr/pgsql-9.6/bin/initdb -D /data/pgsql
     sed -i "s,PGDATA=.*$,PGDATA=/data/pgsql," /lib/systemd/system/postgresql-9.6.service
     systemctl enable postgresql-9.6.service
@@ -92,6 +92,8 @@ $INCLUDE /etc/named/zones/originas
 ' > /etc/named/zones/db.asn.localhost
     service named start
 
+# local_bl plugin stores data into /data/local_bl:
+mkdir -p /data/local_bl
 
     echo "Installation finished.
 
