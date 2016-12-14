@@ -17,7 +17,9 @@ def init(config, cfg_dir):
 
     # Create database connection
     db = psycopg2.connect(database=config.get('userdb.dbname', 'nerd'),
-                          user=config.get('userdb.dbuser', 'nerd'))
+                          user=config.get('userdb.dbuser', 'nerd'),
+                          password=config.get('userdb.dbpassword', None))
+    db.autocommit = True # don't use transactions, every action have immediate effect
     
     # Load "acl" file
     # Mapping of "resource_id" to two sets of groups: "groups_allow", "groups_deny".
@@ -89,7 +91,6 @@ def get_user_info(session):
     
     # Get user info from DB
     cur = db.cursor()
-    print("SELECT * FROM users WHERE id = %s" % (user['fullid'],))
     cur.execute("SELECT * FROM users WHERE id = %s", (user['fullid'],))
     col_names = [col.name for col in cur.description]
     row = cur.fetchone()
@@ -106,9 +107,8 @@ def get_user_info(session):
     user['groups'] = set(user['groups'])
     
     # Convert user.name from utf8 (TODO: this can be probably removed when we start using python3)
-    user['name'] = user['name'].decode('utf-8')
-    
-    print("user info: "+str(user))
+    if isinstance(user['name'], bytes):
+        user['name'] = user['name'].decode('utf-8') if user['name'] else None
     
     ac = get_ac_func(user['groups'])
     return user, ac

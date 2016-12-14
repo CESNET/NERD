@@ -45,6 +45,16 @@ p.error {
   color: #000;
 }
 
+div.loading {
+  text-align: center;
+  /*background-color: rgba(0, 0, 0, 0.01);*/
+}
+img.load-spinner {
+  width: 2em;
+  height: 2em;
+  margin: 1em;
+}
+
 /* Flash messages */
 .msg {
   display: block;
@@ -312,7 +322,7 @@ td.links img {
   color: white;
   border-radius: 4px;
   padding: 0.1em 0.3em;
-  margin: 0;
+  margin: 0 0.1em;
   font-size: 1em;
 }
 
@@ -371,6 +381,10 @@ dl.attrs dt {
 }
 dd dl dt:first-child {
   margin-top: 0;
+}
+
+.test-cat {
+  color: #aaa;
 }
 
 #event-details {
@@ -440,6 +454,22 @@ div.idea .others .target {
   border-right: 2px solid #bdf;
   padding-right: 0.5em;
   margin-right: 0.25em;
+}
+div.idea.test {
+  background: #eee;
+  border-color: #ccc;
+  color: #666;
+}
+div.idea.test .nodes {
+  border-left-color: #ccc;
+}
+div.idea.test .descr,
+div.idea.test .cat_and_time {
+  background-color: #ccc;
+}
+div.idea.test .others .source,
+div.idea.test .others .target {
+  border-right-color: #ccc;
 }
 
 

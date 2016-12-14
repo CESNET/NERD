@@ -4,6 +4,7 @@ import sys
 import random
 import json
 import time
+from datetime import datetime, timedelta
 import os
 import subprocess
 import re
@@ -17,7 +18,7 @@ from wtforms import validators, TextField, IntegerField, BooleanField, HiddenFie
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
-import common.eventdb
+import common.eventdb_psql
 import common.config
 
 #import db
@@ -79,7 +80,7 @@ app.config['MAIL_DEFAULT_SENDER'] = config.get('mail.sender', 'NERD <noreply@ner
 mailer = Mail(app)
 
 
-eventdb = common.eventdb.FileEventDatabase({'eventdb_path': config.get("eventdb_path")})
+eventdb = common.eventdb_psql.PSQLEventDatabase(config)
 
 
 # ***** Jinja2 filters *****
@@ -385,7 +386,7 @@ def ips():
                     for cat,val in val.items():
                         if cat == 'nodes':
                             nodes.update(val)
-                        else:
+                        elif "Test" not in cat: # Ignore categories containing "Test"
                             cats.add(cat)
             dates = sorted(dates)
             cats = sorted(cats)
@@ -405,6 +406,36 @@ def ips():
             events['_date_cat_table'] = ';'.join( [','.join(map(str,c)) for c in date_cat_table] )
             events['_n_cats'] = len(cats)
             events['_n_nodes'] = len(nodes)
+            
+            # Experimental reputation computation
+            def nonlin(val, coef=0.5, max=20):
+                if val > max:
+                    return 1.0
+                else:
+                    return (1 - coef**val)
+            today = datetime.utcnow().date()
+            DATE_RANGE = 14
+            sum_weight = 0
+            rep = 0
+            for n in range(0,DATE_RANGE): # n - iterating dates from now back to history
+                d = today - timedelta(days=n)
+                dstr = d.strftime("%Y-%m-%d")
+                # reputation at day 'd'
+                if dstr in events:
+                    d_events = events[dstr]
+                    d_n_nodes = len(d_events['nodes'])
+                    d_n_events = sum(val for cat,val in d_events.items() if cat != 'nodes')
+                    daily_rep = nonlin(d_n_events) * nonlin(d_n_nodes)
+                    #print(ip['_id'], dstr, d_n_nodes, d_n_events, nonlin(d_n_events), nonlin(d_n_nodes), daily_rep)
+                else:
+                    daily_rep = 0.0
+                # total reputation as weighted avergae with linearly decreasing weight
+                weight = float(DATE_RANGE - n) / DATE_RANGE
+                sum_weight += weight
+                rep += daily_rep * weight
+                #print(daily_rep, weight, sum_weight, rep)
+            rep /= sum_weight
+            ip['rep'] = rep
     else:
         results = None
         if user and not ac('ipsearch'):
@@ -461,17 +492,29 @@ def ip(ipaddr=None):
         if ac('ipsearch'):
             title = ipaddr
             ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
-            events = eventdb.get('ip', form.ip.data, limit=100) # Load events (IDEA messages as strings)
-            events = list(map(json.loads, events)) # Decode IDEA messages
-            num_events = str(len(events))
-            if len(events) >= 100:
-                num_events = "&ge;100, only first 100 shown"
         else:
             flash('Only registered users may search IPs.', 'error')
     else:
         title = 'IP detail search'
         ipinfo = {}
     return render_template('ip.html', config=config, ctrydata=ctrydata, ip=form.ip.data, **locals())
+
+
+@app.route('/ajax/ip_events/<ipaddr>')
+def ajax_ip_events(ipaddr):
+    """Return events related to given IP (as HTML snippet to be loaded via AJAX)"""
+    user, ac = get_user_info(session)
+
+    if not ipaddr:
+        return make_response('ERROR')
+    if not ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions')
+
+    events = eventdb.get('ip', ipaddr, limit=100)
+    num_events = str(len(events))
+    if len(events) >= 100:
+        num_events = "&ge;100, only first 100 shown"
+    return render_template('ip_events.html', config=config, **locals())
 
 
 # ***** NERD status information *****

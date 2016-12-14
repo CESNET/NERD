@@ -22,7 +22,8 @@ import modules.dnsbl
 import modules.local_bl
 import modules.shodan
 import modules.refresher
-import common.eventdb
+import modules.event_counter
+import common.eventdb_psql
 
 ############
 
@@ -63,7 +64,8 @@ if __name__ == "__main__":
     # Create main NERDd components
     #db = core.db.EntityDatabase({})
     db = core.mongodb.MongoEntityDatabase(config)
-    eventdb = common.eventdb.FileEventDatabase(config)
+    #eventdb = common.eventdb.FileEventDatabase(config)
+    eventdb = common.eventdb_psql.PSQLEventDatabase(config)
     update_manager = core.update_manager.UpdateManager(config, db)
     
     # Instantiate modules
@@ -72,6 +74,7 @@ if __name__ == "__main__":
     module_list = [
         modules.event_receiver.EventReceiver(config, update_manager, eventdb),
         #modules.refresher.Refresher(config, update_manager, db),
+        modules.event_counter.EventCounter(config, update_manager),
         #modules.test_module.TestModule(config, update_manager),
         modules.dns.DNSResolver(config, update_manager),
         modules.geolocation.Geolocation(config, update_manager),

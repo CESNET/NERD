@@ -22,7 +22,12 @@ class IPBlacklist():
         self.log = logging.getLogger("local_bl")
 
     def update(self):
-        r = requests.get(self.url)
+        try:
+            r = requests.get(self.url)
+        except requests.exceptions.ConnectionError as e:
+            self.log.error("Error getting list '{0}' from '{1}': {2}".format(self.name, self.url, str(e)))
+            self.iplist = set()
+            return
         rc = r.content
         self.iplist = set()
         for line in rc.decode('utf-8').split('\n'):

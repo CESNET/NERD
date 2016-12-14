@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% block body %}
+
+{% if user %}
+<div id="login-prompt-outer">
+<img id="login-logo" src="{{ url_for('static', filename='nerd_logo_350.png') }}" width="350" height="179" alt="NERD logo">
+<div id="login-box" class="account-request">
+<h1>No account</h1>
+<p>You have authenticated as "{{ user.id }}" ({{ user.name }}), but there is no account registered for this name (yet).</p>
+{% if request_sent %}
+<div class="confirmation">
+<p>Account creation request was sent to NERD admins.</p>
+<p>You will be notified to {{ form.email.data }} when the account is created.</p>
+</div>
+{% else %}
+<p>You can request creation of a new account below:</p>
+<form action="{{ url_for('noaccount') }}" method="POST">
+{{ form.csrf_token }}
+{{ form.email.label() }} {{ form.email(type="email", title=form.email.description) }}
+&nbsp; <input type="submit" value="Request account">
+</form>
+{% endif %}
+<p style="font-size: 1.0em;">Note that accounts are created for trusted people only and requests must be manually approved.
+It is expected that you have already talked to NERD admins before requesting an account.</p>
+</div>
+</div>
+
+{% else %}
+<p class="error">ERROR: This should be page for authenticated but not registered users, but no user info was found in session.</p>
+{% endif %}
+
+{% endblock %}

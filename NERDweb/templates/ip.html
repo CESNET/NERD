@@ -10,7 +10,7 @@
 {%- set nodes = idea.pop('Node',['N/A']) %}
 {% set x = idea.pop('Format') -%}
 {% set x = idea.pop('ID') -%}
-<div class="idea">
+<div class="idea{{ ' test' if 'Test' in idea['Category'] else ''}}">
 <div class="cat_and_time">
  <span class="category" title="Category">{{ idea.pop('Category',['N/A'])|join('+') }}</span><br>
  <span class="time" title="DetectTime">{{ idea.pop('DetectTime','N/A') }}</span>
@@ -76,11 +76,15 @@
   <dt>events ({{val.total}})</dt>
   <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
    {% for date,cats in val|dictsort %}
-    {% if date != 'total' %}
+    {% if date[:5] != 'total' %}
      <dt>{{date}}</dt><dd>
       {% for cat,val in cats|dictsort %}
        {% if cat != 'nodes' %}
-        {{cat}}: {{val}}<br>
+        {%if "Test" in cat %}
+         <span class="test-cat">{{cat}}: {{val}}</span><br>
+        {% else %}
+         {{cat}}: {{val}}<br>
+        {% endif %}
        {% endif %}
       {% endfor %}
       nodes: {{cats.nodes|join(', ')}}<br>
@@ -114,13 +118,16 @@
 {% endfor %}
 </dl>
 
-<p id="event-details"><span class="caption">Event details</span> <span class="counts">({{ num_events|safe }})</span>
+<div id="events">
+<p id="event-details"><span class="caption">Event details</span> <span class="counts">(...)</span>
 &nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>
 {%- if config.mentat_url and ac('mentat') %}<span class="mentat-link">Search in <a href="{{config.mentat_url.replace('$IP', ip)}}">Mentat</a></span>{% endif %}
 </p>
-{% for event in events %}
-{{ display_idea(event) }}
-{% endfor %}
+<div class="loading"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}"></div>
+<script>
+$("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}");
+</script>
+</div>
 
 </div>
 {% endif %}{# if not found #}

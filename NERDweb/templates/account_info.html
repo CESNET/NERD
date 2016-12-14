@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<h1>Account information</h1>
+
+
+<p>Name: {{ user.get('name', '[unknown]') }}</p>
+<p>User ID: {{ user.id }}</p>
+<p>Login type: {{ user.login_type }}</p>
+<p>Groups: {{ user.groups|join(', ') }}</p>
+<p>API key: TBD</p>
+
+{% if passwd_form %}
+<hr>
+<p>Change password:</p>
+<form action="{{ url_for('set_password') }}" method="POST">
+{{ passwd_form.csrf_token }}
+{{ passwd_form.old_passwd.label }} {{ passwd_form.old_passwd(size=20) }}{% if passwd_form.old_passwd.errors %} <span class="error">{{ '; '.join(passwd_form.old_passwd.errors) }}</span>{% endif %}<br>
+{{ passwd_form.new_passwd.label }} {{ passwd_form.new_passwd(size=20) }}{% if passwd_form.new_passwd.errors %} <span class="error">{{ '; '.join(passwd_form.new_passwd.errors) }}</span>{% endif %}<br>
+{{ passwd_form.new_passwd2.label }} {{ passwd_form.new_passwd2(size=20) }}{% if passwd_form.new_passwd2.errors %} <span class="error">{{ '; '.join(passwd_form.new_passwd2.errors) }}</span>{% endif %}<br>
+<input type="submit" value="Change password"> <span style="color: #999">(Passwords are stored securely, hashed using bcrypt method.)</span>
+</form>
+{% endif %}
+{% endblock %}

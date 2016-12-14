@@ -17,6 +17,8 @@ import sys
 import socket
 import json
 import logging
+import dateutil.parser
+import datetime
 
 MAX_QUEUE_SIZE = 100 # Maximal size of UpdateManager's request queue
                      # (when number of pending requests exceeds this value,
@@ -254,20 +256,22 @@ class EventReceiver(NERDModule):
         # Infinite loop reading events as files in given directory
         # (termiated by setting running_flag to False)
         for (rawdata, event) in read_dir(self._drop_path):
-            store_event = False
+            # Store the event to Event DB
+            self._eventdb.put(rawdata)
             try:
+                if "Test" in event["Category"]:
+                    continue # Ignore testing messages
                 for src in event.get("Source", []):
                     for ipv4 in src.get("IP4", []):
-                        store_event = True
-
                         # TODO check IP address validity
 
                         self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
                         cat = '+'.join(event["Category"]).replace('.', '')
-                        # TODO parse and reformat time, solve timezones
-                        # (but IDEA defines dates to conform RFC3339 but there is no easy (i.e. built-in) way to parse it in Python, maybe in Py3.6,
-                        #  according to http://bugs.python.org/issue15873)
-                        date = event["DetectTime"][:10]
+                        # Parse and reformat time
+                        date = dateutil.parser.parse(event["DetectTime"]) # Parse DetectTime
+                        date = date.astimezone(datetime.timezone.utc).replace(tzinfo=None) # Convert to UTC
+                        date = date.strftime("%Y-%m-%d") # Get date as a string
+
                         node = event["Node"][-1]["Name"]
                         key_cat = 'events.'+date+'.'+cat
                         key_node = 'events.'+date+'.nodes'
@@ -285,19 +289,6 @@ class EventReceiver(NERDModule):
             except Exception as e:
                 self.log.error("ERROR in parsing event: {}".format(str(e)))
                 pass
-            
-            if store_event:
-                #print("------------------------------------------------------------")
-                #print("EventReceiver: Loaded event:")
-                #print(json.dumps(event))
-                #print(rawdata)
-                #print("** EventReceiver: skipped / enqueued sources: {:6d} / {:6d}".format(skipped, enqueued))
-                
-                # Also store the event to the event DB
-                try:
-                    self._eventdb.put(rawdata)
-                except Exception as e:
-                    self.log.error("ERROR storing event:", e)
             
             # If there are already too much requests queued, wait a while
             #print("***** QUEUE SIZE: {} *****".format(self._um.get_queue_size()))
