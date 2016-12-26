@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS events_sources (
     message_id VARCHAR NOT NULL REFERENCES events (id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS events_sources_idx ON events_sources (source_ip);
+CREATE INDEX IF NOT EXISTS events_sources_message_id_idx ON events_sources (message_id);
 
 CREATE TABLE IF NOT EXISTS events_targets (
     target_ip inet NOT NULL,
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS events_targets (
     message_id VARCHAR NOT NULL REFERENCES events (id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS events_targets_idx ON events_targets (target_ip);
+CREATE INDEX IF NOT EXISTS events_targets_message_id_idx ON events_target (message_id);
 
 -- Query:
 -- SELECT idea FROM events_sources INNER JOIN events ON events_sources.message_id = events.id WHERE source_ip = $s;
