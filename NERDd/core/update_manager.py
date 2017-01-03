@@ -16,6 +16,8 @@ import traceback
 
 WORKER_THREADS = 10
 
+ENTITY_TYPES = ['ip', 'asn']
+
 #  Update request specification = list of three-tuples:
 #    - [(op, key, value), ...]
 #      - ('set', key, value)        - set new value to given key (rec[key] = value)
@@ -29,16 +31,9 @@ WORKER_THREADS = 10
 #  with given name. Event names must begin with '!' (attribute keys mustn't).
 #  Update manager performs the requested update and calls functions hooked on 
 #  the attribute/event.
-#  Hooked function receives list of update specifiers (the three tuples) that
-#  triggered its call (if more than one update triggers the same function, it's
-#  called only once). 
-
-# TODO: (?)
-#  call handler function with parameters:
-#    attributes_changed (list of tuples (attr_name, new_value))
-#    events (list of tuples (event_name, param))
-#  instead of update request specification (which is too complex and contains information irrelevant to hooked functions)
-# -> zmena - bude se predavat jen "updates" (list of tuples (attr_name, new_value) / (event_name, param)), tj. nerozlisuji se atributy a eventy
+#  A hooked function receives a list of updates that triggered its call, 
+#  i.e. a list of 2-tuples (attr_name, new_value) or (event_name, param)
+#  (if more than one update triggers the same function, it's called only once). 
 
 # TODO: Let each module (or rather hook function) tell, whether it needs the whole record.
 # Many of them probably won't so we can save the load from database
@@ -49,6 +44,13 @@ WORKER_THREADS = 10
 # se nepridaji nove polozky k existujicim zaznamum (protoze uz existuji),
 # ani kdyz jsou updatovatny.
 # Bude ptoreba pridat nejakou udalost !NEW_MODULE, ktera se pouzije na vsechny existujici zaznamy v databazi
+
+# TODO:
+# Handling of non-IP entities: Modules must call .update() when thay want to make some change in another entity (even of the same type)
+# Hooked functions must be registered not only on a specific attribute/event, but also entity type
+# Stav:
+#  - predelan UpdateManager (mapovani funkce<->atributy je zvlast pro kazdy typ entity)
+#  - zmenila se registracni funkce (pridan param etype) -> nutno zmenit vsechny moduly
 
 
 def get_func_name(func_or_method):
@@ -147,19 +149,21 @@ class UpdateManager:
               entity records.
         """
         self.log = logging.getLogger("UpdateManager")
+        #self.log.setLevel('DEBUG')
         
         self.db = db
         
         # Mapping of names of attributes to a list of functions that should be 
         # called when the attrbibute is updated
-        self._attr2func = {}
+        # (One such mapping for each entity type)
+        self._attr2func = {etype: {} for etype in ENTITY_TYPES}
         
         # Set of attributes thet may be updated by a function
-        self._func2attr = {}
+        self._func2attr = {etype: {} for etype in ENTITY_TYPES}
 
         # Mapping of functions to set of attributes the function watches, i.e.
         # is called when the attribute is changed
-        self._func_triggers = {}
+        self._func_triggers = {etype: {} for etype in ENTITY_TYPES}
         
         # Initialize a queue for pending update requests
         self._request_queue = queue.Queue()#multiprocessing.JoinableQueue()
@@ -178,21 +182,26 @@ class UpdateManager:
         self._records_being_processed_lock = threading.Lock()
     
     
-    def register_handler(self, func, triggers, changes):
+    def register_handler(self, func, etype, triggers, changes):
         """
         Hook a function (or bound method) to specified attribute changes/events.
 
         Arguments:
         func -- function or bound method
+        etype -- entity type (only changes of attributes of this etype trigger the func)
         triggers -- set/list/tuple of attributes whose update trigger the call of the method (update of any one of the attributes will do)
         changes -- set/list/tuple of attributes the method call may update
         
         Notes:
         Each function must be registered only once. 
         """
-        # _func2attr: function -> list of attrs it may change
-        # _attr2func: attribute -> list of functions its change triggers
-        # _func_triggers: function -> list of attrs that trigger it
+        if etype not in ENTITY_TYPES:
+            raise ValueError("Unknown entity type '{}'".format(etype))
+        
+        # _func2attr[etype]: function -> list of attrs it may change
+        # _attr2func[etype]: attribute -> list of functions its change triggers
+        # _func_triggers[etype]: function -> list of attrs that trigger it
+        # There are separate mappings for each entity type.
         
         # Check types (because common error is to pass string instead of 1-tuple)
         if not isinstance(triggers, Iterable) or isinstance(triggers, str):
@@ -200,13 +209,13 @@ class UpdateManager:
         if not isinstance(changes, Iterable) or isinstance(changes, str):
             raise TypeError('Argument "changes" must be iterable and must not be str.')
         
-        self._func2attr[func] = tuple(changes) if changes is not None else ()
-        self._func_triggers[func] = set(triggers)
+        self._func2attr[etype][func] = tuple(changes) if changes is not None else ()
+        self._func_triggers[etype][func] = set(triggers)
         for attr in triggers:
-            if attr in self._attr2func:
-                self._attr2func[attr].append(func)
+            if attr in self._attr2func[etype]:
+                self._attr2func[etype][attr].append(func)
             else:
-                self._attr2func[attr] = [func]
+                self._attr2func[etype][attr] = [func]
 
     def get_queue_size(self):
         """Return current number of requests in the queue."""
@@ -230,7 +239,7 @@ class UpdateManager:
         
     
     # TODO cache results (clear cache when register_handler is called)
-    def get_all_possible_changes(self, attr):
+    def get_all_possible_changes(self, etype, attr):
         """
         Returns all attributes (as a set) that may be changed by a "chain reaction"
         of changes triggered by update of given attrbiute (or event).
@@ -239,13 +248,15 @@ class UpdateManager:
         triggered functions.
         """
         may_change = set() # Attributes that may be changed
-        funcs_to_call = set(self._attr2func.get(attr, ()))
+        funcs_to_call = set(self._attr2func[etype].get(attr, ()))
+        f2a = self._func2attr[etype]
+        a2f = self._attr2func[etype]
         while funcs_to_call:
             func = funcs_to_call.pop()
-            attrs_to_change = self._func2attr[func]
+            attrs_to_change = f2a[func]
             may_change.update(attrs_to_change)
             for attr in attrs_to_change:
-                funcs_to_call |= set(self._attr2func.get(attr, ()))
+                funcs_to_call |= set(a2f.get(attr, ()))
         return may_change
     
     
@@ -258,17 +269,17 @@ class UpdateManager:
         
         Arguments:
         ekey -- Entity type and key (2-tuple)
-        update_requests -- update_spec as described above (3-tuples,... TODO)
+        update_requests -- list of 3-tuples as described above
         """ 
+        etype = ekey[0]
         
-        # TODO update this comment!
         # Load record corresponding to the key -- either from database, or from
-        # temporary storage of records being currently updated)
+        # temporary storage of records being currently updated.
         # If record doesn't exist, create new.
         # Also load/create associated auxiliary objects:
         #   call_queue - queue of functions that should be called to update the record.
         #     queue.Queue of tuples (function, list_of_update_spec), where list_of_update_spec is a list of
-        #     updates (3-tuples op,key,value) which tirggered the function.
+        #     updates (2-tuples (key, new_value) or (event, param) which tirggered the function.
         #   may_change - set of attributes that may be changed by planned function calls
 
         self._records_being_processed_lock.acquire()
@@ -317,6 +328,11 @@ class UpdateManager:
             #self.log.debug("New record {} was created, injecting event '!NEW'".format(ekey))
             update_requests.insert(0,('event','!NEW',None))
         
+        # Short-circuit if update_requests is empty (used to only create a record if it doesn't exist)
+        if not update_requests:
+            self._records_being_processed_lock.release()
+            return
+        
         # Store the record and a list of update requests to the storage of records being processed
         requests_to_process = update_requests # may be accessed by other threads - locking necessary
         requests_to_process_lock = threading.Lock()
@@ -347,7 +363,7 @@ class UpdateManager:
             requests_to_process_lock.acquire()
             if requests_to_process:
                 # Process update requests (perform updates, put hooked functions to call_queue and update may_change set)
-                #self.log.debug("UpdateManager: New update requests for {}: {}".format(ekey, requests_to_process))
+                self.log.debug("UpdateManager: New update requests for {}: {}".format(ekey, requests_to_process))
                 for updreq in update_requests:
                     op, attr, val = updreq
                     assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
@@ -363,7 +379,7 @@ class UpdateManager:
                             continue
                     
                     # Add to the call_queue all functions directly hooked to the attribute/event 
-                    for func in self._attr2func.get(attr, []):
+                    for func in self._attr2func[etype].get(attr, []):
                         # If the function is already in the queue...
                         for f,updates in call_queue:
                             if f == func:
@@ -377,8 +393,8 @@ class UpdateManager:
                 
                     # Compute all attribute changes that may occur due to this event and add 
                     # them to the set of attributes to change
-                    #self.log.debug("get_all_possible_changes: {} -> {}".format(str(attr), repr(self.get_all_possible_changes(attr))))
-                    may_change |= self.get_all_possible_changes(attr)
+                    #self.log.debug("get_all_possible_changes: {} -> {}".format(str(attr), repr(self.get_all_possible_changes(etype, attr))))
+                    may_change |= self.get_all_possible_changes(etype, attr)
                     #self.log.debug("may_change: {}".format(may_change))
                 
                 # All reqests were processed, clear the list
@@ -406,15 +422,15 @@ class UpdateManager:
             
             # If the function watches some attributes that may be updated later due 
             # to expected subsequent events, postpone its call.
-            if may_change & self._func_triggers[func]:  # nonempty intersection of two sets
+            if may_change & self._func_triggers[etype][func]:  # nonempty intersection of two sets
                 # Put the function call back to the end of the queue
-                #self.log.debug("call_queue: Postponing call of {}({})".format(get_func_name(func), updates))
+                self.log.debug("call_queue: Postponing call of {}({})".format(get_func_name(func), updates))
                 call_queue.append((func, updates))
                 continue
             
             # Call the event handler function.
             # Set of requested updates of the record should be returned
-            #self.log.debug("Calling: {}({}, ..., {})".format(get_func_name(func), ekey, updates))
+            self.log.debug("Calling: {}({}, ..., {})".format(get_func_name(func), ekey, updates))
             try:
                 reqs = func(ekey, rec, updates)
             except Exception as e:
@@ -432,8 +448,8 @@ class UpdateManager:
             # (coz jsem mozna nekde zadal jako nutnou podminku; kazdopadne jestli to tak je, musi to byt nekde velmi jasne uvedeno) 
             # Remove set of possible attribute changes of that function from
             # may_change (they were either already changed (or are in requests_to_process) or they won't be changed)
-            #self.log.debug("Removing {} from may_change.".format(self._func2attr[func]))
-            may_change -= set(self._func2attr[func])
+            #self.log.debug("Removing {} from may_change.".format(self._func2attr[etype][func]))
+            may_change -= set(self._func2attr[etype][func])
             #self.log.debug("New may_change: {}".format(may_change))
         
         #self.log.debug("call_queue loop end")

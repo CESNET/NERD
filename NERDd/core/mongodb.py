@@ -26,7 +26,7 @@ class MongoEntityDatabase():
     EntityDatabase implemented over MongoDB.
     """
     # List of known/supported entity types - currently only IP addresses (both IPv4 and IPv6 are treated the same)
-    _supportedTypes = ['ip']
+    _supportedTypes = ['ip', 'asn']
 
     def __init__(self, config):
         """
@@ -51,8 +51,6 @@ class MongoEntityDatabase():
     def getEntityTypes(self):
         """
         Return list of known entity types.
-        
-        Currently only 'ip' type is supported.
         """
         return self._supportedTypes
 

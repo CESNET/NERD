@@ -42,6 +42,7 @@ class Shodan(NERDModule):
 
         update_manager.register_handler(
             self.getShodanInfo, # function (or bound method) to call
+            'ip', # entity type
             ('!NEW',), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
             ('shodan',) # tuple/list/set of attributes the method may change # TODO maybe there should be all particular fields enumerated (but it would be beterr if I coiuld write 'bl.*')
         )

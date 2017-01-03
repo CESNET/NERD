@@ -13,10 +13,11 @@ from .base import NERDModule
 
 import dns.resolver
 import requests
-from bs4 import BeautifulSoup
+#from bs4 import BeautifulSoup
 import pickle
 import datetime
 import logging
+import re
 import pygeoip
 import gzip
 import os
@@ -27,6 +28,7 @@ class GetASN:
         self.geoipasnFile = geoipasnFile
         self.maxValidity = maxValidity
         self.log = logging.getLogger("ASNmodule")
+        #self.log.setLevel("DEBUG")
         self.update_asn_dictionary()
 
         # Create DNS resolver that uses localhost
@@ -36,11 +38,11 @@ class GetASN:
     def update_asn_dictionary(self):
         '''Update MaxMind database and list of ASN names.'''
 
+        # *** Try to load cached data ***
         try:
             with open(self.cacheFile, "rb") as f:
                 cache = eval(pickle.load(f))
-            f.close()
-        except:
+        except Exception:
             cache = { '_create_date': 0 }
 
         curTime = int(datetime.datetime.now().timestamp())
@@ -51,30 +53,39 @@ class GetASN:
             self._pygeoip = pygeoip.GeoIP(self.geoipasnFile)
             return
 
-        asn_pages = [
-            "http://www.bgplookingglass.com/list-of-autonomous-system-numbers",
-            "http://www.bgplookingglass.com/list-of-autonomous-system-numbers-2",
-            "http://www.bgplookingglass.com/4-byte-asn-names-list"
-        ]
-
+        # *** Download list of AS names ***
         self._asn_dct = {}
-        for asn_page in asn_pages:
-            r = requests.get(asn_page)
-            soup = BeautifulSoup(r.text, "html.parser")
-            table = soup.find("pre")
-            lst = table.find_all(text=True)
-            for asn in lst:
-                if asn[9:13] == "    ":
-                    marker = 13
-                else:
-                    marker = 8
-                try:
-                    as_number = int(asn[2:marker].strip())
-                    as_desc = asn[marker:].strip()
-                    self._asn_dct[as_number] = as_desc
-                except:
-                    continue
+        self.log.info("Downloading AS info from http://www.cidr-report.org/as2.0/autnums.html")
+        r = requests.get("http://www.cidr-report.org/as2.0/autnums.html")
+        data = r.text
+        #data = open("autnums.html", encoding="latin-1").read()
+        
+        # Extract content of <pre>
+        i1 = data.find("<pre>")
+        i2 = data.find("</pre>",i1+5)
+        data = data[i1+5 : i2]
+        
+        # Extract needed information
+        # (expected format of one line: '<a href="http://www.cidr-report.org/cgi-bin/as-report?as=AS12&amp;view=2.0">AS12   </a> NYU-DOMAIN - New York University, US')
+        for n,line in enumerate(data.splitlines()):
+            try:
+                i1 = line.find(">AS")
+                i2 = line.find("</a>")
+                asn = int(line[i1+3:i2])
+                name = line[i2+5:]
+            except Exception:
+                self.log.debug('Parsing of line {} in "autnums.html" failed, skipping'.format(n))
+                continue
 
+            # Parse country from the end of the name
+            if len(name) >= 4 and name[-4] == "," and name[-3] == " ":
+                ctry = name[-2:]
+                name = name[:-4].strip()
+            else:
+                ctry = ""
+            self._asn_dct[asn] = (name, ctry)
+        
+        # *** Download MaxMind GeoIP DB ***
         try:
             ctime =  os.stat(self.geoipasnFile).st_ctime
         except:
@@ -94,6 +105,7 @@ class GetASN:
         
         self._pygeoip = pygeoip.GeoIP(self.geoipasnFile)
 
+        # *** Store data to cache file ***
         with open(self.cacheFile, "wb") as f:
             data = str({'_create_date': curTime, 'data': self._asn_dct})
             pickle.dump(data, f)
@@ -124,7 +136,7 @@ class GetASN:
             record = str(answers[0]).replace('"', '').split()
             asnum = int(record[0])
             ret["as_rv.num"] = asnum
-            ret["as_rv.desc"] = self._asn_dct[asnum]
+            ret["as_rv.desc"] = self._asn_dct[asnum][0]
             self.log.debug("Looked up " + ip_address + " using routeviews: " + ip_address + ": {0} {1} ({2}/{3})".format(ret["as_rv.num"],
                     ret["as_rv.desc"], record[1], record[2]))
         except:
@@ -149,9 +161,10 @@ class GetASN:
         self.log.debug("Results: " + str(results))
         return results
 
+
 class ASN(NERDModule):
     """
-    Geolocation module.
+    ASN module.
 
     Queries newly added IP addresses in MaxMind's GeoLite legacy database to get its
     autonomous system information.
@@ -170,15 +183,23 @@ class ASN(NERDModule):
         maxValidity = config.get("asn.cache_max_valitidy", 86400)
         self.reader = GetASN(geoipFile, cacheFile, maxValidity)
 
+        self.um = update_manager
         update_manager.register_handler(
-            self.handleRecord,
+            self.ip2asn,
+            'ip',
             ('!NEW','!refresh_asn'),
             ('as_maxmind.num', 'as_maxmind.description', 'as_rv.num', 'as_rv.description')
         )
+        update_manager.register_handler(
+            self.asn_info,
+            'asn',
+            ('!NEW','!refresh_asn_info'),
+            ('name', 'descr', 'rir')
+        )
 
-    def handleRecord(self, ekey, rec, updates):
+    def ip2asn(self, ekey, rec, updates):
         """
-        Query GeoLite2 DB to get country, city and timezone of the IP address.
+        Query GeoLite2 DB to get ASN of the IP address.
         If address isn't found, don't set anything.
 
         Arguments:
@@ -201,8 +222,28 @@ class ASN(NERDModule):
             return None
 
         actions = []
-        for key in result:
-            actions.append(('set', key, result[key]))
+        for k,v in result.items():
+            actions.append(('set', k, v))
+            # Add or update a record for the ASN
+            if k.endswith('.num'):
+                self.um.update(('asn', v), []) # empty list of update_requests - just create the record if not exist
 
         return actions
+
+
+    def asn_info(self, ekey, rec, updates):
+        """
+        Set ASN name and description for each newly added ASN.
+        """
+        etype, key = ekey
+        if etype != 'asn':
+            return None
+        
+        requests = [
+            ('set', 'name', self.reader._asn_dct[key][0]),
+            ('set', 'ctry', self.reader._asn_dct[key][1]),
+            ('set', 'rir', 'xyz'),
+        ]
+        
+        return requests
 

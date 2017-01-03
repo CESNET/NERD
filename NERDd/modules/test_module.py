@@ -22,16 +22,16 @@ class TestModule (NERDModule):
             ('B',) # tuple/list/set of attributes the method may change
         )
         update_manager.register_handler(
-            self.setA, ('!NEW',), ('A',) 
+            self.setA, 'ip', ('!NEW',), ('A',) 
         )
         update_manager.register_handler(
-            self.setType, ('!NEW',), ('type','type_desc') 
+            self.setType, 'ip', ('!NEW',), ('type','type_desc') 
         )
         update_manager.register_handler(
-            self.setC, ('A','B'), ('C') 
+            self.setC, 'ip', ('A','B'), ('C') 
         )
         update_manager.register_handler(
-            self.sleep, ('!sleep',), None 
+            self.sleep, 'ip', ('!sleep',), None 
         )
     
     def setB(self, ekey, rec, updates):
