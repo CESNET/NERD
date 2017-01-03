@@ -355,21 +355,25 @@ td.links img {
 .notfound {
   font-size: 1.25em;
 }
-.ip-info {
+.ip-info,
+.as-info {
   /*margin: 1em 0 0 0;*/
   background-color: #fff;
   padding: 0.5em 1em 0.5em 1em;  
 }
-.ip-info .header {
+.ip-info .header,
+.as-info .header {
   margin: 0.5em 0;
   padding: 0.3em 0.1em;
   border-bottom: 1px dotted #444;
 }
-.header .ip {
+.header .ip,
+.header .asn {
   font-size: 1.5em;
   font-weight: bold;
 }
-.header .hostname {
+.header .hostname,
+.header .asname {
   font-size: 1.2em;
   color: #444;
   margin-left: 1em;

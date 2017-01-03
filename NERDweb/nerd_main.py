@@ -517,6 +517,41 @@ def ajax_ip_events(ipaddr):
     return render_template('ip_events.html', config=config, **locals())
 
 
+
+# ***** Detailed info about individual AS *****
+
+class SingleASForm(Form):
+    asn = TextField('AS number', [validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
+            message='Must be a number, optionally preceded by "AS".')])
+
+
+@app.route('/as/')
+@app.route('/as/<asn>')
+def asn(asn=None): # Can't be named "as" since it's a Python keyword
+    user, ac = get_user_info(session)
+    
+    form = SingleASForm(asn=asn, csrf_enabled=False)
+    print(asn,form.data)
+    title = 'ASN detail search'
+    if asn is None:
+        # No ASN passed
+        asinfo = {}
+    elif form.validate():
+        # Passed correct ASN
+        asn = int(asn.lstrip("ASas")) # strip AS at the beginning
+        if ac('assearch'):
+            title = 'AS'+str(asn)
+            asinfo = mongo.db.asn.find_one({'_id':asn})
+        else:
+            flash('Only registered users may search ASNs.', 'error')
+    else:
+        # Wrong format of passed ASN
+        asn = None
+        asinfo = {}
+    return render_template('as.html', config=config, ctrydata=ctrydata, **locals())
+
+
+
 # ***** NERD status information *****
 
 @app.route('/status')

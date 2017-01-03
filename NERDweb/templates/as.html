@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<h1>AS{{ asn or " search" }}</h1>
+
+{# Note: The onsubmit script ovverrides funcionality of Submit button to put IP address to custom URL #}
+<form id="as_form" onsubmit="window.location='{{ url_for('asn') }}'+$('#as_form #asn').val(); return false;">
+  {{ form.asn.label }} {{ form.asn(size=10) }}
+  {{ form.asn.errors|join(';') }}
+  <input type="submit">
+</form>
+
+{% if not asn or not ac('assearch') %}
+  {# Print nothing if no ASN was passed #}
+{% elif not asinfo %}
+  <hr>
+  <p class="msg info notfound">AS{{asn}} not in database.</p>
+{% else %}
+
+<hr>
+
+<div class="as-info">
+<p class="header"><span class="asn">AS{{ asn }}</span> <span class="asname">{{ asinfo.name }}</span></p>
+
+<dl class="attrs">
+{% for attr,val in asinfo|dictsort %}
+ {% if attr == "_id" %}
+  {# pass #}
+ {% elif attr == "ctry" %}
+  <dt>Country</dt><dd><span class="country">
+    <a href="http://country.io/{{val|lower}}/">
+    <span class="flag flag-{{val|lower}}"></span>{{ ctrydata.names.get(val, '?') }}</a></span></dd>
+ {% elif attr == "rir" %}
+  <dt>RIR</dt><dd>{{ val }}</dd> 
+ {% else %}
+  <dt>{{ attr }}</dt><dd>{{ val }}</dd>
+ {% endif %}
+{% endfor %}
+</dl>
+
+</div>
+{% endif %}{# if not found #}
+
+{% endblock %}

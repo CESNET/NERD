@@ -3,6 +3,7 @@
 
 statusbox   admin
 ipsearch    registered
+assearch    registered
 mentat      mentat
 notregistered   notregistered ; registered
 rep_exp     test,admin
