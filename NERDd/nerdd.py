@@ -21,6 +21,7 @@ import modules.asn
 import modules.dnsbl
 import modules.local_bl
 import modules.shodan
+import modules.eml_asn_rank
 import modules.refresher
 import modules.event_counter
 import common.eventdb_psql
@@ -82,6 +83,7 @@ if __name__ == "__main__":
         modules.dnsbl.DNSBLResolver(config, update_manager),
         modules.local_bl.LocalBlacklist(config, update_manager),
         modules.shodan.Shodan(config, update_manager),
+        modules.eml_asn_rank.EML_ASN_rank(config, update_manager),
     ]
     
     # Run update manager thread/process
