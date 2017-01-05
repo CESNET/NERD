@@ -182,6 +182,7 @@ class ASN(NERDModule):
         cacheFile = config.get("asn.cache_file", "/tmp/nerd-asn-cache.json")
         maxValidity = config.get("asn.cache_max_valitidy", 86400)
         self.reader = GetASN(geoipFile, cacheFile, maxValidity)
+        self.log = logging.getLogger("ASNmodule")
 
         self.um = update_manager
         update_manager.register_handler(
@@ -238,10 +239,16 @@ class ASN(NERDModule):
         etype, key = ekey
         if etype != 'asn':
             return None
-        
+
+        try:        
+            info = self.reader._asn_dct[key]
+        except KeyError:
+            self.log.info("Name of AS{} not found.".format(key))
+            info = ("","")
+
         requests = [
-            ('set', 'name', self.reader._asn_dct[key][0]),
-            ('set', 'ctry', self.reader._asn_dct[key][1]),
+            ('set', 'name', info[0]),
+            ('set', 'ctry', info[1]),
             ('set', 'rir', 'xyz'),
         ]
         
