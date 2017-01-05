@@ -106,46 +106,6 @@ def read_dir(path):
             return p
     
     
-    #     def _get_new_name(self, device=0, inode=0):
-    #         return "%s.%d.%f.%d.%d.idea" % (
-    #             self.hostname, self.pid, time.time(), device, inode)
-    # 
-    # 
-    #     def newfile(self):
-    #         """ Creates file with unique filename within this SafeDir.
-    #             - hostname takes care of network filesystems
-    #             - pid distinguishes two daemons on one machine
-    #               (we are not multithreaded, so this is enough)
-    #             - time in best precision supported narrows window within process
-    #             - device/inode makes file unique on particular filesystem
-    #             In fact, device/inode is itself enough for uniqueness, however
-    #             if we mandate wider format, users can use simpler form with
-    #             random numbers instead of device/inode, if they choose to,
-    #             and it will still ensure reasonable uniqueness.
-    #         """
-    # 
-    #         # Note: this simpler device/inode algorithm replaces original,
-    #         #       which checked uniqueness among all directories by atomic
-    #         #       links.
-    # 
-    #         # First find and open name unique within temp
-    #         tmpname = None
-    #         while not tmpname:
-    #             tmpname = self._get_new_name()
-    #             try:
-    #                 fd = os.open(os.path.join(self.temp, tmpname), os.O_CREAT | os.O_RDWR | os.O_EXCL)
-    #             except OSError as e:
-    #                 if e.errno != errno.EEXIST:
-    #                     raise   # other errors than duplicates should get noticed
-    #                 tmpname = None
-    #         # Now we know device/inode, rename to make unique within system
-    #         stat = os.fstat(fd)
-    #         newname = self._get_new_name(stat.st_dev, stat.st_ino)
-    #         nf = NamedFile(self.temp, tmpname, fd)
-    #         nf.rename(newname)
-    #         return nf
-    
-    
         def get_incoming(self):
             return [NamedFile(self.incoming, n) for n in os.listdir(self.incoming)]
     
@@ -295,35 +255,3 @@ class EventReceiver(NERDModule):
             while self._um.get_queue_size() > MAX_QUEUE_SIZE:
                 time.sleep(0.5)
             
-
-
-"""
-Struktura "events":
-
-events: {
-    <category>: {
-        <date (DetectTime)>: number
-    }
-}
-
-Například:
-
-events: {
-    "Recon_Scanning": {
-        "2016-05-27": 5,
-        "2016-05-26": 7,
-        "2016-05-25": 2,
-    },
-    "Attempt_Login": {
-        "2016-05-27": 1,
-        "2016-05-26": 2,
-    }
-}
-events_cnt: 17
-
-Jak efektivně odmazávat?
-
-
-
-"""
-
