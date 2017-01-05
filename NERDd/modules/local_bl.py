@@ -1,6 +1,5 @@
 """
-NERD module getting ASN.
-
+NERD module that downloads configured blacklists and queries them locally.
 """
 
 from .base import NERDModule
@@ -40,10 +39,12 @@ class IPBlacklist():
                 f.write(repr(self.iplist))
 
     def __contains__(self, item):
-        """Is IP address in this blacklist?
+        """
+        Is IP address in this blacklist?
 
-item(str) IP Address
-Returns: True if blacklisted"""
+        item(str) IP Address
+        Returns: True if blacklisted
+        """
         return (item in self.iplist)
 
 
@@ -53,12 +54,9 @@ class LocalBlacklist(NERDModule):
     LocalBlacklist module.
 
     Downloads and parses publicly available blacklists and allows for querying IP addresses.
-    Stores the following attributes:
-      asn.id  # ASN
-      asn.description # name of ASN
 
     Event flow specification:
-      !NEW -> handleRecord() -> bl.id
+      [ip] !NEW -> search_ip() -> bl.id
     """
 
     def __init__(self, config, update_manager):
@@ -78,7 +76,7 @@ class LocalBlacklist(NERDModule):
         itemlist = ['bl.' + i for i in self._blacklists]
         self.log.info("Registering {0}".format(itemlist))
         update_manager.register_handler(
-            self.handleRecord,
+            self.search_ip,
             'ip',
             ('!NEW','!refresh_localbl'),
             itemlist
@@ -91,10 +89,10 @@ class LocalBlacklist(NERDModule):
         #    ('bl')
         #)
 
-    def handleRecord(self, ekey, rec, updates):
+    def search_ip(self, ekey, rec, updates):
         """
-        Query GeoLite2 DB to get country, city and timezone of the IP address.
-        If address isn't found, don't set anything.
+        Query all loaded blacklists for the given IP address. Store blacklist
+        ID to the IP's record for each blacklist the IP is present on.
 
         Arguments:
         ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
