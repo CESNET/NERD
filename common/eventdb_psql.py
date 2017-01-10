@@ -59,13 +59,15 @@ class PSQLEventDatabase:
         
         cur = self.db.cursor()
         #cur.execute("SELECT idea FROM events WHERE %s = ANY(sources) ORDER BY detecttime DESC LIMIT %s", (key, limit))
-        cur.execute("SELECT idea FROM events_sources INNER JOIN events ON events_sources.message_id = events.id WHERE source_ip = %s ORDER BY detecttime DESC LIMIT %s", (Inet(key), limit))
+        cur.execute("SELECT e.idea FROM events_sources as es INNER JOIN events as e ON es.message_id = e.id WHERE es.source_ip = %s ORDER BY es.detecttime DESC LIMIT %s", (Inet(key), limit))
         self.db.commit() # Every query automatically opens a transaction, close it.
         
         result = cur.fetchall()
         result = [row[0] for row in result]
         
         return result
+        
+        # Note, get count (index only): SELECT COUNT(*) FROM events_sources WHERE source_ip = '70.169.27.221';
 
 
     def put(self, idea):
@@ -130,13 +132,13 @@ class PSQLEventDatabase:
             )
             for source in sources:
                 cur.execute(
-                    "INSERT INTO events_sources (source_ip, message_id) VALUES (%s, %s)",
-                    (Inet(source), id)
+                    "INSERT INTO events_sources (source_ip, message_id, detecttime) VALUES (%s, %s, %s)",
+                    (Inet(source), id, detecttime)
                 )
             for target in targets:
                 cur.execute(
-                    "INSERT INTO events_targets (target_ip, message_id) VALUES (%s, %s)",
-                    (Inet(target), id)
+                    "INSERT INTO events_targets (target_ip, message_id, detecttime) VALUES (%s, %s, %s)",
+                    (Inet(target), id, detecttime)
                 )
             self.db.commit() # Close transaction (the first command opens it automatically)
         except Exception as e:

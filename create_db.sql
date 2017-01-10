@@ -32,19 +32,23 @@ CREATE INDEX IF NOT EXISTS category_idx ON events USING GIN ((idea -> 'Category'
 CREATE TABLE IF NOT EXISTS events_sources (
     source_ip inet NOT NULL,
     -- source_tags VARCHAR[] DEFAULT NULL,
-    message_id VARCHAR NOT NULL REFERENCES events (id) ON DELETE CASCADE
+    message_id VARCHAR NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+    detecttime timestamp
 );
-CREATE INDEX IF NOT EXISTS events_sources_idx ON events_sources (source_ip);
 CREATE INDEX IF NOT EXISTS events_sources_message_id_idx ON events_sources (message_id);
+CREATE INDEX IF NOT EXISTS events_sources_ip_time_idx ON events_sources (source_ip,detecttime DESC);
+CREATE INDEX IF NOT EXISTS events_sources_time_idx ON events_sources (detecttime DESC);
 
 CREATE TABLE IF NOT EXISTS events_targets (
     target_ip inet NOT NULL,
     -- target_tags VARCHAR[] DEFAULT NULL,
-    message_id VARCHAR NOT NULL REFERENCES events (id) ON DELETE CASCADE
+    message_id VARCHAR NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+    detecttime timestamp
 );
-CREATE INDEX IF NOT EXISTS events_targets_idx ON events_targets (target_ip);
 CREATE INDEX IF NOT EXISTS events_targets_message_id_idx ON events_target (message_id);
+CREATE INDEX IF NOT EXISTS events_targets_ip_time_idx ON events_targets (target_ip,detecttime DESC);
+CREATE INDEX IF NOT EXISTS events_targets_ip_time_idx ON events_targets (detecttime DESC);
 
 -- Query:
--- SELECT idea FROM events_sources INNER JOIN events ON events_sources.message_id = events.id WHERE source_ip = $s;
+-- SELECT e.idea FROM events_sources as es INNER JOIN events as e ON es.message_id = e.id WHERE es.source_ip = %s ORDER BY es.detecttime DESC LIMIT %s
 
