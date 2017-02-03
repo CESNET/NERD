@@ -9,7 +9,7 @@ Vagrant.configure(2) do |config|
   config.vm.box = "centos/7"
   config.vm.network "forwarded_port", guest: 5000, host: 5000
   config.vm.provider "virtualbox" do |v|
-    v.memory = 4096
+    v.memory = 2048
     v.cpus = 2
   end
 
@@ -21,6 +21,8 @@ gpgcheck=0
 enabled=1
 ' > /etc/yum.repos.d/mongodb-org-3.2.repo
 
+    ln -s /vagrant sync
+
     # install dependencies
     yum install -y https://centos7.iuscommunity.org/ius-release.rpm
     yum install -y https://download.postgresql.org/pub/repos/yum/9.6/redhat/rhel-7-x86_64/pgdg-centos96-9.6-3.noarch.rpm
@@ -29,18 +31,18 @@ enabled=1
     export PATH
     wget -q https://bootstrap.pypa.io/get-pip.py
     python3.4 get-pip.py
-    pip install -r sync/NERDd/requirements.txt
-    pip install -r sync/NERDweb/requirements.txt
+    rm get-pip.py
+    pip3 install -r sync/NERDd/requirements.txt
+    pip3 install -r sync/NERDweb/requirements.txt
     # start services
     #systemctl enable httpd
     systemctl enable mongod
     #service httpd start
     service mongod start
     
-    # Apply Shodan client patch
-    PYTHON_LIB_PATH="$(pip3 show shodan &2>/dev/null | grep Location: | cut -c 11-)"
-    patch -u -i ~/sync/shodan_client.patch "$PYTHON_LIB_PATH/shodan/client.py"
-
+    # install some other useful tools
+    yum -y install vim 
+    
     # Configure and start PostgreSQL
     adduser postgres
     mkdir -p /data/pgsql
@@ -53,7 +55,7 @@ enabled=1
     /usr/pgsql-9.6/bin/createuser -U postgres nerd
     /usr/pgsql-9.6/bin/createdb -U postgres --owner nerd nerd
     # initialize database (create tables etc.)
-    /usr/pgsql-9.6/bin/psql -d nerd -U nerd -f ~/sync/create_db.sql
+    /usr/pgsql-9.6/bin/psql -d nerd -U nerd -f sync/create_db.sql
 
     # Download GeoIP database
     mkdir -p /data/geoip
@@ -64,8 +66,7 @@ enabled=1
     wget -q https://homeproj.cesnet.cz/tar/warden/contrib_3.0-beta2.tar.bz2
     tar -xf contrib_3.0-beta2.tar.bz2
     cp -r contrib_3.0-beta2/warden_filer/ /data/
-
-    chown -R vagrant:vagrant /data ~vagrant/
+    rm -rf contrib_3.0-beta2.tar.bz2 contrib_3.0-beta2
 
     # Install local bind
     yum install -y bind bind-utils
@@ -96,10 +97,17 @@ $INCLUDE /etc/named/zones/originas
 ' > /etc/named/zones/db.asn.localhost
     service named start
 
-# local_bl plugin stores data into /data/local_bl:
-mkdir -p /data/local_bl
+    # local_bl plugin stores data into /data/local_bl:
+    mkdir -p /data/local_bl
+    chown -R vagrant:vagrant /data/local_bl
+    
+    # Set up permissions of some directories
+    chown -R vagrant:vagrant ~vagrant/ /data/warden_filer
+    chown vagrant:vagrant /data
 
-    echo "Installation finished.
+    echo "
+------------------------------------------------------------
+Installation finished.
 
 Get into VM: vagrant ssh
 Run NERDd: cd sync/NERDd; python3 nerdd.py

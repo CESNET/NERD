@@ -45,9 +45,9 @@ CREATE TABLE IF NOT EXISTS events_targets (
     message_id VARCHAR NOT NULL REFERENCES events (id) ON DELETE CASCADE,
     detecttime timestamp
 );
-CREATE INDEX IF NOT EXISTS events_targets_message_id_idx ON events_target (message_id);
+CREATE INDEX IF NOT EXISTS events_targets_message_id_idx ON events_targets (message_id);
 CREATE INDEX IF NOT EXISTS events_targets_ip_time_idx ON events_targets (target_ip,detecttime DESC);
-CREATE INDEX IF NOT EXISTS events_targets_ip_time_idx ON events_targets (detecttime DESC);
+CREATE INDEX IF NOT EXISTS events_targets_time_idx ON events_targets (detecttime DESC);
 
 -- Query:
 -- SELECT e.idea FROM events_sources as es INNER JOIN events as e ON es.message_id = e.id WHERE es.source_ip = %s ORDER BY es.detecttime DESC LIMIT %s
