@@ -28,9 +28,6 @@ from userdb import get_user_info
 
 # ***** Load configuration *****
 
-BASE_URL = '/nerd' # without trailing slash   TODO: get automatically (or from config)
-#BASE_URL = ''
-
 DEFAULT_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../etc/nerdweb.cfg"))
 
 # TODO parse arguments using ArgParse
@@ -45,6 +42,8 @@ config = common.config.read_config(cfg_file)
 # Read common config (nerd.cfg) and combine them together
 common_cfg_file = os.path.join(cfg_dir, config.get('common_config'))
 config.update(common.config.read_config(common_cfg_file))
+
+BASE_URL = config.get('base_url', '')
 
 WARDEN_DROP_PATH = os.path.join(config.get("warden_filer_path", "/data/warden_filer/warden_receiver"), "incoming")
 
