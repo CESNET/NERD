@@ -28,7 +28,8 @@ commands = [
     #( "self._db.find('ip', {'geo': {'$exists': False}})", 'ip', [('event', '!refresh_geo', None)] ),
     #( "self._db.find('ip', {'bl': {'$exists': False}})", 'ip', [('event', '!refresh_localbl', None)] ),
     #( "list(self._db._db.ip.aggregate([{'$group': {'_id': '$as_rv.num'}}, {'$group': {'_id': 0, 'asns': {'$addToSet': '$_id'}}}]))[0]['asns']", 'asn', [] ), # empty request to just create the record if it doesn't exist
-    ( "list(self._db._db.ip.aggregate([{'$group': {'_id': '$as_maxmind.num'}}, {'$group': {'_id': 0, 'asns': {'$addToSet': '$_id'}}}]))[0]['asns']", 'asn', [] ), # empty request to just create the record if it doesn't exist
+    #( "list(self._db._db.ip.aggregate([{'$group': {'_id': '$as_maxmind.num'}}, {'$group': {'_id': 0, 'asns': {'$addToSet': '$_id'}}}]))[0]['asns']", 'asn', [] ), # empty request to just create the record if it doesn't exist
+    #( "self._db.find('ip', {}, sort=[('events.total', pymongo.DESCENDING)], skip=0, limit=1000)", 'ip', [('event', '!refresh_dnsbl', None)] ),
 ]
 def get_commands():
     if not commands:

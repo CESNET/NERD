@@ -100,12 +100,12 @@ class MongoEntityDatabase():
         self._db[etype].replace_one({'_id': key}, record, upsert=True)
 
 
-    def find(self, etype, mongo_query):
+    def find(self, etype, mongo_query, **kwargs):
         """
         Search entities matching given query (in pymongo format).
         
         Return list of keys of matching entities.
         """
-        return list(map(itemgetter('_id'), self._db[etype].find(mongo_query, {'_id': 1})))
+        return list(map(itemgetter('_id'), self._db[etype].find(filter=mongo_query, projection={'_id': 1}, **kwargs)))
 
 
