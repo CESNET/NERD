@@ -201,7 +201,7 @@ def noaccount():
                       #recipients=[email],
                       recipients=[config.get('login.request-email')],
                       reply_to=email,
-                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemail: {}".format(id,name,email),
+                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}".format(id,name,user.get('email',''),email),
                      )
         mailer.send(msg)
         request_sent = True
