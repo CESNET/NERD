@@ -2,7 +2,8 @@
 NERD module that downloads configured blacklists and queries them locally.
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 import requests
 import re
@@ -59,11 +60,11 @@ class LocalBlacklist(NERDModule):
       [ip] !NEW -> search_ip() -> bl.id
     """
 
-    def __init__(self, config, update_manager):
+    def __init__(self):
         # Instantiate DB reader (i.e. open GeoLite database), raises IOError on error
-        blacklists = config.get("local_bl.lists", [])
-        tmpdir = config.get("local_bl.tmp_dir", "")
-        self._update = config.get("local_bl.update", 3600)
+        blacklists = g.config.get("local_bl.lists", [])
+        tmpdir = g.config.get("local_bl.tmp_dir", "")
+        self._update = g.config.get("local_bl.update", 3600)
         self._blacklists = {}
         self.log = logging.getLogger("local_bl")
 
@@ -74,8 +75,8 @@ class LocalBlacklist(NERDModule):
                     self._blacklists[bl[0]].update()
 
         itemlist = ['bl.' + i for i in self._blacklists]
-        self.log.info("Registering {0}".format(itemlist))
-        update_manager.register_handler(
+        self.log.debug("Registering {0}".format(itemlist))
+        g.um.register_handler(
             self.search_ip,
             'ip',
             ('!NEW','!refresh_localbl'),

@@ -10,7 +10,8 @@ This product includes GeoLite2 data created by MaxMind, available from
 http://www.maxmind.com.
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 import geoip2.database
 import geoip2.errors
@@ -31,15 +32,15 @@ class Geolocation(NERDModule):
       !NEW -> geoloc -> geo.{ctry,city,tz}
     """
     
-    def __init__(self, config, update_manager):
+    def __init__(self):
         # Get DB path
-        db_path = config.get('geolocation.geolite2_db_path')
+        db_path = g.config.get('geolocation.geolite2_db_path')
         
         # Instantiate DB reader (i.e. open GeoLite database)
         self._reader = geoip2.database.Reader(db_path)
         # TODO: error handlig (can't open file)
         
-        update_manager.register_handler(
+        g.um.register_handler(
             self.geoloc,
             'ip',
             ('!NEW','!refresh_geo'),

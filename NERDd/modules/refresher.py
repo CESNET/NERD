@@ -2,7 +2,8 @@
 TODO
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 from threading import Thread
 import time
@@ -47,11 +48,9 @@ class Refresher(NERDModule):
     a MongoDB query.
     TODO: How to get queries and actions? (now it's hardcoded)
     """
-    def __init__(self, config, update_manager, db):
+    def __init__(self):
         self.log = logging.getLogger("Refresher")
         self.log.setLevel("DEBUG")
-        self._um = update_manager
-        self._db = db
     
     def start(self):
         """
@@ -98,11 +97,11 @@ class Refresher(NERDModule):
             for i,key in enumerate(keys):
                 # If there are already too much requests queued, wait a while
                 #print("***** QUEUE SIZE: {} *****".format(self._um.get_queue_size()))
-                while self._um.get_queue_size() > MAX_QUEUE_SIZE:
+                while g.um.get_queue_size() > MAX_QUEUE_SIZE:
                     time.sleep(0.5)
                 
                 #print(key, actions)
-                self._um.update((etype,key), actions.copy())
+                g.um.update((etype,key), actions.copy())
                 if (i+1) % 1000 == 0:
                     self.log.debug("{} entities updated.".format(i+1))
             

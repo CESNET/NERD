@@ -4,7 +4,8 @@ NERD module summarizing number of events in last day, week and month (30 days).
 Should be triggered at least once a day for every address.
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 from datetime import datetime, timedelta
 
@@ -34,8 +35,8 @@ class EventCounter(NERDModule):
       or to issue an "!NEW_EVENT" update request when a new event is added, and hook this to it instead.
     """
 
-    def __init__(self, config, update_manager):
-        update_manager.register_handler(
+    def __init__(self):
+        g.um.register_handler(
             self.count_events, # function (or bound method) to call
             'ip', # entity type
             ('events.total','!refresh_event_count'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)

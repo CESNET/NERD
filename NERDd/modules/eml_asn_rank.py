@@ -2,7 +2,9 @@
 NERD module querying ASN ranking API of "The Email Laundry (EML)" company.
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
+
 import logging
 import requests
 
@@ -16,16 +18,16 @@ class EML_ASN_rank(NERDModule):
       asn: !NEW -> get_rank -> eml_rank
     """
     
-    def __init__(self, config, update_manager):
+    def __init__(self):
         self.log = logging.getLogger('EML_ASN_rank')
         #self.log.setLevel("DEBUG")
-        self.url = config.get('eml_api.url', None)
-        self.apikey = config.get('eml_api.key', None)
+        self.url = g.config.get('eml_api.url', None)
+        self.apikey = g.config.get('eml_api.key', None)
         if not self.url or not self.apikey:
             self.log.warning("API URL or key not set, EML ASN rank module disabled.")
             return
         
-        update_manager.register_handler(
+        g.um.register_handler(
             self.get_rank,
             'asn',
             ('!NEW','!refresh_eml_rank'),

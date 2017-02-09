@@ -9,7 +9,8 @@ Acknowledgment:
 Code of the GetASN class was inspired by https://github.com/oneryalcin/pyip2asn
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 import dns.resolver
 import requests
@@ -176,22 +177,21 @@ class ASN(NERDModule):
       !NEW -> handleRecord() -> asn.{id,description}
     """
 
-    def __init__(self, config, update_manager):
+    def __init__(self):
         # Instantiate DB reader (i.e. open GeoLite database), raises IOError on error
-        geoipFile = config.get("asn.geoipasn_file", "/tmp/GeoIPASNum.dat")
-        cacheFile = config.get("asn.cache_file", "/tmp/nerd-asn-cache.json")
-        maxValidity = config.get("asn.cache_max_valitidy", 86400)
+        geoipFile = g.config.get("asn.geoipasn_file", "/tmp/GeoIPASNum.dat")
+        cacheFile = g.config.get("asn.cache_file", "/tmp/nerd-asn-cache.json")
+        maxValidity = g.config.get("asn.cache_max_valitidy", 86400)
         self.reader = GetASN(geoipFile, cacheFile, maxValidity)
         self.log = logging.getLogger("ASNmodule")
 
-        self.um = update_manager
-        update_manager.register_handler(
+        g.um.register_handler(
             self.ip2asn,
             'ip',
             ('!NEW','!refresh_asn'),
             ('as_maxmind.num', 'as_maxmind.description', 'as_rv.num', 'as_rv.description')
         )
-        update_manager.register_handler(
+        g.um.register_handler(
             self.asn_info,
             'asn',
             ('!NEW','!refresh_asn_info'),
@@ -227,7 +227,7 @@ class ASN(NERDModule):
             actions.append(('set', k, v))
             # Add or update a record for the ASN
             if k.endswith('.num'):
-                self.um.update(('asn', v), []) # empty list of update_requests - just create the record if not exist
+                g.um.update(('asn', v), []) # empty list of update_requests -> just create the record if it doesn't exist yet
 
         return actions
 

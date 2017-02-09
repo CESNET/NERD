@@ -5,17 +5,16 @@ Requirements:
 - "pycares" package
 """
 
+from core.basemodule import NERDModule
+import g
+
 import ipaddress
-from .base import NERDModule
 import pycares
 import select
 import socket
 import logging
 import threading
 from datetime import datetime, date, timezone
-
-# TODO:
-# - counter of requests per day + limit and automatic stop of querying (to avoid blocking by blacklist providers)
 
 
 # From pycares example "cares-select.py"
@@ -92,15 +91,15 @@ class DNSBLResolver(NERDModule):
       -> we'll need paid subscription)
     """
     
-    def __init__(self, config, update_manager):
+    def __init__(self):
         self.log = logging.getLogger('DNSBL')
         # Configuration of blacklists is inspired by DNSBL.py from sources 
         # of python3-adns
         # (https://github.com/trolldbois/python3-adns/blob/master/DNSBL.py)
         # TODO: add possibility to add description to each blacklist to frontend
-        self.blacklists = config.get('dnsbl.blacklists', [])
+        self.blacklists = g.config.get('dnsbl.blacklists', [])
 
-        self.nameservers = config.get('dnsbl.nameservers', [])
+        self.nameservers = g.config.get('dnsbl.nameservers', [])
         if self.nameservers:
             self.log.info("Using nameserver(s) at {}.".format(', '.join(self.nameservers)))
         else:
@@ -108,9 +107,9 @@ class DNSBLResolver(NERDModule):
 
         # Limit number of requests per day to avoid getting blocked by blacklist
         # providers
-        if config.get('dnsbl.max_requests', None) and config.get('dnsbl.req_cnt_file', None):
-            self.max_req_count = int(config.get('dnsbl.max_requests'))
-            self.req_cnt_file = config.get('dnsbl.req_cnt_file')
+        if g.config.get('dnsbl.max_requests', None) and g.config.get('dnsbl.req_cnt_file', None):
+            self.max_req_count = int(g.config.get('dnsbl.max_requests'))
+            self.req_cnt_file = g.config.get('dnsbl.req_cnt_file')
             self.log.info("Maximal number of DNSBL requests per day set to {}.".format(self.max_req_count))
         else:
             self.max_req_count = float('inf')
@@ -120,7 +119,7 @@ class DNSBLResolver(NERDModule):
         
         bl_ids = (id for bl in self.blacklists for id in bl[2].values() )
 
-        update_manager.register_handler(
+        g.um.register_handler(
             self.query_blacklists, # function (or bound method) to call
             'ip', # entity type
             ('!NEW','!refresh_dnsbl'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)

@@ -5,9 +5,8 @@ Fetches IDEA messages dropped to a specified directory and updates entity
 records accordingly.
 """
 
-if __name__ != "__main__":
-    # import only when not runnning standalone (i.e. testing)
-    from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 from threading import Thread
 import time
@@ -182,11 +181,9 @@ class EventReceiver(NERDModule):
     """
     Receiver of security events. Receives events as IDEA files in given directory.
     """
-    def __init__(self, config, update_manager, eventdb):
+    def __init__(self):
         self.log = logging.getLogger("EventReceiver")
-        self._um = update_manager
-        self._drop_path = config.get('warden_filer_path')
-        self._eventdb = eventdb
+        self._drop_path = g.config.get('warden_filer_path')
     
     def start(self):
         """
@@ -217,7 +214,7 @@ class EventReceiver(NERDModule):
         # (termiated by setting running_flag to False)
         for (rawdata, event) in read_dir(self._drop_path):
             # Store the event to Event DB
-            self._eventdb.put(rawdata)
+            g.eventdb.put(rawdata)
             try:
                 if "Test" in event["Category"]:
                     continue # Ignore testing messages
@@ -235,7 +232,7 @@ class EventReceiver(NERDModule):
                         node = event["Node"][-1]["Name"]
                         key_cat = 'events.'+date+'.'+cat
                         key_node = 'events.'+date+'.nodes'
-                        self._um.update(
+                        g.um.update(
                             ('ip', ipv4),
                             [
                                 ('add', key_cat, 1),
@@ -251,7 +248,7 @@ class EventReceiver(NERDModule):
                 pass
             
             # If there are already too much requests queued, wait a while
-            #print("***** QUEUE SIZE: {} *****".format(self._um.get_queue_size()))
-            while self._um.get_queue_size() > MAX_QUEUE_SIZE:
+            #print("***** QUEUE SIZE: {} *****".format(g.um.get_queue_size()))
+            while g.um.get_queue_size() > MAX_QUEUE_SIZE:
                 time.sleep(0.5)
             

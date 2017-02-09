@@ -1,6 +1,6 @@
 """NERD module for testing UpdateManager"""
 
-from .base import NERDModule
+from core.basemodule import NERDModule
 import time
 
 class TestModule (NERDModule):
@@ -15,22 +15,22 @@ class TestModule (NERDModule):
       !sleep -> sleep -> None
     """
     
-    def __init__(self, config, update_manager):
-        update_manager.register_handler(
+    def __init__(self):
+        g.um.register_handler(
             self.setB, # function (or bound method) to call
             ('A',), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
             ('B',) # tuple/list/set of attributes the method may change
         )
-        update_manager.register_handler(
+        g.um.register_handler(
             self.setA, 'ip', ('!NEW',), ('A',) 
         )
-        update_manager.register_handler(
+        g.um.register_handler(
             self.setType, 'ip', ('!NEW',), ('type','type_desc') 
         )
-        update_manager.register_handler(
+        g.um.register_handler(
             self.setC, 'ip', ('A','B'), ('C') 
         )
-        update_manager.register_handler(
+        g.um.register_handler(
             self.sleep, 'ip', ('!sleep',), None 
         )
     
