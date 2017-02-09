@@ -2,7 +2,6 @@
 NERD module getting ASN.
 
 Requirements:
-- "BeautifulSoup4" package
 - "pygeoip" package
 
 Acknowledgment:
@@ -14,7 +13,6 @@ import g
 
 import dns.resolver
 import requests
-#from bs4 import BeautifulSoup
 import pickle
 import datetime
 import logging
