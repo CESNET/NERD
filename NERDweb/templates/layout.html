@@ -93,6 +93,7 @@ $(function() {
 <tr><td>Event queue (IDEA files):</td><td><span id="status-idea-queue">??</span></td></tr>
 <tr><td colspan="2"><div id="status-idea-queue-bar"><div></div></div></td></tr>
 </table>
+<table><tr><td>Requests/second <small>(10s avg)</small></td><td><span id="status-reqs">??</span></td></tr></table>
 <table><tr><td>Data disk usage:</td><td><span id="status-disk-usage">??</span></td></tr></table>
 <script>
 var refresh_status_enable = false; // Enable/disable refresh status
@@ -120,6 +121,7 @@ function refresh_status(force=false) {
         "{{ url_for('get_status') }}",
         function(data) {
             $("#status-ips").text(data.ips);
+            $("#status-reqs").text(data.requests_processed);
             $("#status-disk-usage").text(data.disk_usage);
             $("#status-idea-queue").text(data.idea_queue);
             // Set width of bar and its color

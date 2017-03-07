@@ -105,6 +105,10 @@ app.jinja_env.filters['datetime'] = format_datetime
 
 def create_login_handler(method_id, id_field, name_field, email_field, return_path):
     def login_handler():
+        # DEBUG: print whole environ to see what fields IdP has provided
+        if method_id == 'shibboleth':
+            print("Shibboleth login, metadata provided: "+str(request.environ))
+        
         # Check presence of the only mandatory field (id)
         if id_field not in request.environ:
             flash("ERROR: Login failed - '"+id_field+"' not defined (either your IdP is not providing this field or there is a problem with server configuration).", "error")
@@ -157,8 +161,24 @@ def logout():
     return redirect(redir_path)
 
 
+# ***** Functions called for each request *****
+
+# TODO: use g.user and g.ac everywhere
+@app.before_request
+def store_user_info():
+    """Store user info to 'g' (request-wide global variable)"""
+    g.user, g.ac = get_user_info(session)
+
+@app.after_request
+def add_user_header(resp):
+    # Set user ID to a special header, it's used to put user ID to Apache logs
+    if g.user:
+        resp.headers['X-UserID'] = g.user['fullid']
+    return resp
+
 
 # ***** Main page *****
+# TODO: rewrite as before_request (to check for this situation at any URL)
 @app.route('/')
 def main():
     user, ac = get_user_info(session)
@@ -557,6 +577,15 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
 def get_status():
     ips = mongo.db.ip.count()
     idea_queue_len = len(os.listdir(WARDEN_DROP_PATH))
+    
+    if "req_cnt_file" in config:
+        try:
+            requests_processed = open(config.get("req_cnt_file")).read().split("\n")[1]
+        except Exception as e:
+            requests_processed = "(error) " + str(e)
+    else:
+        requests_processed = "(N/A)"
+    
     try:
         if "data_disk_path" in config:
             disk_usage = subprocess.check_output(["df", config.get("data_disk_path"), "-P"]).decode('ascii').splitlines()[1].split()[4]
@@ -564,9 +593,11 @@ def get_status():
             disk_usage = "(N/A)"
     except Exception as e:
         disk_usage = "(error) " + str(e);
+    
     return jsonify(
         ips=ips,
         idea_queue=idea_queue_len,
+        requests_processed=requests_processed,
         disk_usage=disk_usage
     )
 
