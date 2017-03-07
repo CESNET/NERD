@@ -22,7 +22,7 @@ import gzip
 import os
 
 class GetASN:
-    def __init__(self, geoipasnFile, cacheFile, maxValidity):
+    def __init__(self, geoipasnFile, cacheFile, maxValidity, refresh):
         self.cacheFile = cacheFile
         self.geoipasnFile = geoipasnFile
         self.maxValidity = maxValidity
@@ -33,6 +33,9 @@ class GetASN:
         # Create DNS resolver that uses localhost
         self.dnsresolver = dns.resolver.Resolver()
         self.dnsresolver.nameservers = ['127.0.0.1']
+        
+        # Register periodic call of the "update" function 
+        g.scheduler.register(self.update_asn_dictionary, **refresh)
 
     def update_asn_dictionary(self):
         '''Update MaxMind database and list of ASN names.'''
@@ -179,8 +182,9 @@ class ASN(NERDModule):
         # Instantiate DB reader (i.e. open GeoLite database), raises IOError on error
         geoipFile = g.config.get("asn.geoipasn_file", "/tmp/GeoIPASNum.dat")
         cacheFile = g.config.get("asn.cache_file", "/tmp/nerd-asn-cache.json")
-        maxValidity = g.config.get("asn.cache_max_valitidy", 86400)
-        self.reader = GetASN(geoipFile, cacheFile, maxValidity)
+        maxValidity = g.config.get("asn.cache_max_validity", 86400)
+        refresh = g.config.get("asn.refresh", {"day_of_week": 0, "hour": 7})
+        self.reader = GetASN(geoipFile, cacheFile, maxValidity, refresh)
         self.log = logging.getLogger("ASNmodule")
 
         g.um.register_handler(

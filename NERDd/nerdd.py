@@ -31,11 +31,10 @@ log.info("NERDd start")
 # Load core components
 
 import common.config
-#import core.db
+import common.eventdb_psql
 import core.mongodb
 import core.update_manager
-#import common.eventdb
-import common.eventdb_psql
+import core.scheduler
 
 ################################################
 # Load configuration
@@ -62,6 +61,7 @@ config.update(common.config.read_config(common_cfg_file))
 
 import g
 g.config = config
+g.scheduler = core.scheduler.Scheduler()
 g.db = core.mongodb.MongoEntityDatabase(config)
 g.eventdb = common.eventdb_psql.PSQLEventDatabase(config)
 g.um = core.update_manager.UpdateManager(config, g.db)
@@ -114,6 +114,9 @@ g.um.start()
 for module in module_list:
     module.start()
 
+# Run scheduler
+g.scheduler.start()
+
 print("-------------------------------------------------------------------")
 print("Reading events from "+str(config.get('warden_filer_path'))+"/incoming")
 print()
@@ -128,6 +131,7 @@ except KeyboardInterrupt:
 # Finalization & cleanup
 
 log.info("Stopping running components ...")
+g.scheduler.stop()
 for module in module_list:
     module.stop()
 g.um.stop()
