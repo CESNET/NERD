@@ -14,6 +14,8 @@ from collections import defaultdict, deque, Iterable
 import logging
 import traceback
 
+import g
+
 WORKER_THREADS = 10
 
 ENTITY_TYPES = ['ip', 'asn']
@@ -180,8 +182,30 @@ class UpdateManager:
         self._records_being_processed = {}
         # Since _records_being_processed may be accessed by many thread, locking is necessary
         self._records_being_processed_lock = threading.Lock()
-    
-    
+        
+        # Total count of requests processed
+        self._request_counter = 0
+        self._last_request_counter = 0 # Last number written to log file
+        # Call it every 10 second
+        if ("req_cnt_file" in g.config):
+            g.scheduler.register(self.log_request_counter, second="*/10")
+
+
+    def log_request_counter(self):
+        # Write request counter to file (every 10 sec)
+        # First line: total number of request processed
+        # Second line: number of request per second (avg from last 10s period)
+        filename = g.config.get("req_cnt_file", None)
+        if not filename:
+            return
+        with open(filename, "w") as f:
+            f.write("{}\n{:.1f}\n".format(
+                self._request_counter,
+                (self._request_counter - self._last_request_counter) / 10
+            ))
+        self._last_request_counter = self._request_counter
+
+
     def register_handler(self, func, etype, triggers, changes):
         """
         Hook a function (or bound method) to specified attribute changes/events.
@@ -555,6 +579,7 @@ class UpdateManager:
             
 #             self.log.debug("Task done")
             self._request_queue.task_done()
-    
-        
+            self._request_counter += 1
+
+
 
