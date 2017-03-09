@@ -125,7 +125,7 @@ def perform_update(rec, updreq):
             rec[key] -= value
     
     else:
-        print("ERROR: perform_update: Unknown operation {}".fomrat(op), file=sys.stderr)
+        print("ERROR: perform_update: Unknown operation {}".format(op), file=sys.stderr)
         return None
     
     # Return tuple (updated attribute, new value)

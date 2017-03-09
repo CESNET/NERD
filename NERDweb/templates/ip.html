@@ -112,6 +112,14 @@
   <dt>ASN (MaxMind DB)</dt><dd>{{ val.num }} {{ val.description }}</dd>
  {% elif attr == "as_rv" %}
   <dt>ASN (routeviews.org & bgplookingglass.com)</dt><dd>{{ val.num }} {{ val.description }}</dd>
+ {% elif attr == "tags" %}
+  <dt>tags</td>
+  <dd>
+  {% for name,values in val.items() %}
+     <span class="tag" title="{% if values["description"] %}{{values["description"]}} <br /><br     />{% endif %} Tag was added {{values["date_added"]|datetime}}.">
+      {{-name-}}</span>
+  {% endfor %}
+  </dd> 
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}

@@ -162,9 +162,16 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
   {% if ip.open_dns %}<span class="tag amplifier dns">Open DNS resolver</span>{% endif %}
   {% if ip.open_ntp %}<span class="tag amplifier ntp">Open NTP</span>{% endif %}
   {% if ip.open_snmp %}<span class="tag amplifier snmp">Open SNMP</span>{% endif %}
-  
-  {% if ip.tor %}<span class="tag tor">TOR exit node</span>{% endif %}
 #}
+
+  {% if ip.tags %}
+    {% for name,values in ip.tags.items() %}
+      <span class="tag" title="{% if values["description"] %}{{values["description"]}} <br /><br />{% endif %} Tag was added {{values["date_added"]|datetime}}.">
+      {{-name-}}</span>
+    {% endfor %}
+  {% endif %} 
+
+  {% if ip.tor %}<span class="tag tor">TOR exit node</span>{% endif %}
   {% if ip.bl %}
   {% for name,times in ip.bl.items() -%}
     <span class="tag blacklist" title="IP was present on blacklist '{{name}}' at the following times:<br>

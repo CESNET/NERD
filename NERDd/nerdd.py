@@ -24,6 +24,8 @@ import modules.shodan
 import modules.eml_asn_rank
 import modules.refresher
 import modules.event_counter
+import modules.tor_exitnode
+import modules.hostname
 import common.eventdb_psql
 
 ############
@@ -62,6 +64,8 @@ if __name__ == "__main__":
     logging.getLogger("requests").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
 
+    logging.getLogger("hostname_tag").setLevel(logging.DEBUG)
+
     # Create main NERDd components
     #db = core.db.EntityDatabase({})
     db = core.mongodb.MongoEntityDatabase(config)
@@ -84,6 +88,8 @@ if __name__ == "__main__":
         modules.local_bl.LocalBlacklist(config, update_manager),
         modules.shodan.Shodan(config, update_manager),
         modules.eml_asn_rank.EML_ASN_rank(config, update_manager),
+	    modules.tor_exitnode.TORNodes(config, update_manager),
+        modules.hostname.Hostname(config, update_manager),
     ]
     
     # Run update manager thread/process
