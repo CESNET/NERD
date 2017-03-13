@@ -126,7 +126,7 @@ class GetASN:
             ret["as_maxmind.desc"] = asn[1] if len(asn) >= 2 else ""
             return ret
         else:
-            self.log.info("ASN for " + ip_address + " not found in GeoIP")
+            self.log.debug("ASN for " + ip_address + " not found in GeoIP")
             return None
 
     def routeviewsLookup(self, ip_address):
@@ -142,7 +142,7 @@ class GetASN:
             self.log.debug("Looked up " + ip_address + " using routeviews: " + ip_address + ": {0} {1} ({2}/{3})".format(ret["as_rv.num"],
                     ret["as_rv.desc"], record[1], record[2]))
         except:
-            self.log.info("ASN for " + ip_address + " not found in routeviews data")
+            self.log.debug("ASN for " + ip_address + " not found in routeviews data")
         return ret
 
     def asnLookup(self, ip_address):

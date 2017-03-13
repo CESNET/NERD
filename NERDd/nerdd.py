@@ -24,7 +24,7 @@ log = logging.getLogger()
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-log.info("NERDd start")
+log.info("***** NERDd start *****")
 
 
 ################################################
@@ -106,7 +106,7 @@ module_list = [
 # Initialization completed, run ...
 
 # Run update manager thread/process
-log.info("Initialization completed, starting UpdateManager")
+log.info("***** Initialization completed, starting all modules *****")
 g.um.start()
 
 # Run modules that have their own threads/processes
@@ -136,6 +136,6 @@ for module in module_list:
     module.stop()
 g.um.stop()
 
-log.info("Finished, main thread exitting.")
+log.info("***** Finished, main thread exitting. *****")
 logging.shutdown()
 
