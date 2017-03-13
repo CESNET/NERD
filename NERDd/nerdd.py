@@ -26,6 +26,7 @@ import modules.refresher
 import modules.event_counter
 import modules.tor_exitnode
 import modules.hostname
+import modules.caida_as_class
 import common.eventdb_psql
 
 ############
@@ -64,7 +65,7 @@ if __name__ == "__main__":
     logging.getLogger("requests").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-    logging.getLogger("hostname_tag").setLevel(logging.DEBUG)
+    logging.getLogger("CaidaASclass").setLevel(logging.DEBUG)
 
     # Create main NERDd components
     #db = core.db.EntityDatabase({})
@@ -90,6 +91,7 @@ if __name__ == "__main__":
         modules.eml_asn_rank.EML_ASN_rank(config, update_manager),
 	    modules.tor_exitnode.TORNodes(config, update_manager),
         modules.hostname.Hostname(config, update_manager),
+        modules.caida_as_class.CaidaASclass(config, update_manager),
     ]
     
     # Run update manager thread/process
