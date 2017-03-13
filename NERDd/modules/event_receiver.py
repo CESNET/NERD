@@ -214,7 +214,8 @@ class EventReceiver(NERDModule):
         # (termiated by setting running_flag to False)
         for (rawdata, event) in read_dir(self._drop_path):
             # Store the event to Event DB
-            g.eventdb.put(rawdata)
+            #g.eventdb.put(rawdata) # pass as string for old filesystem-database
+            g.eventdb.put(event) # pass as parsed JSON for PSQL version
             try:
                 if "Test" in event["Category"]:
                     continue # Ignore testing messages

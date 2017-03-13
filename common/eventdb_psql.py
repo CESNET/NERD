@@ -75,11 +75,8 @@ class PSQLEventDatabase:
         Store an IDEA message into the database.
         
         Arguments:
-        idea    IDEA message as a string
+        idea    IDEA message parsed into Python-native structures
         """
-        # Decode IDEA
-        idea = json.loads(idea)
-        
         # Get ID
         try:
             id = idea.get('ID')
