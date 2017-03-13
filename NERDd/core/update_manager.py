@@ -518,11 +518,12 @@ class UpdateManager:
         # Thread for printing debug messages about worker status
         threading.Thread(target=self._dbg_worker_status_print, daemon=True).start()
         
+        # Wait until all work is done (other modules should be stopped now, but some tasks may still be added as a result of already ongoing processing (e.g. new IP adds new ASN))
+        self._request_queue.join()
         # Send None to request_queue to signal workers to stop (one for each worker)
         for _ in self._workers:
             self._request_queue.put(None) 
-        # Wait until all workers finishes
-        self._request_queue.join()
+        # Wait until all workers stopped (this should be immediate)
         for worker in self._workers:
             worker.join()
         # Cleanup
