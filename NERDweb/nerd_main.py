@@ -580,11 +580,15 @@ def get_status():
     
     if "req_cnt_file" in config:
         try:
-            requests_processed = open(config.get("req_cnt_file")).read().split("\n")[1]
+            req_cnt = open(config.get("req_cnt_file")).read().split("\n")
+            req_processed = req_cnt[1]
+            req_queue = int(req_cnt[2])
         except Exception as e:
-            requests_processed = "(error) " + str(e)
+            req_processed = "(error) " + str(e)
+            req_queue = 0
     else:
-        requests_processed = "(N/A)"
+        req_processed = "(N/A)"
+        req_queue = 0
     
     try:
         if "data_disk_path" in config:
@@ -597,7 +601,8 @@ def get_status():
     return jsonify(
         ips=ips,
         idea_queue=idea_queue_len,
-        requests_processed=requests_processed,
+        req_queue=req_queue,
+        requests_processed=req_processed,
         disk_usage=disk_usage
     )
 

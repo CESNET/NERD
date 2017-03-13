@@ -547,14 +547,14 @@ div.idea .nodes li:first-child:last-child::before {
 #status-block td + td {
   text-align: right;
 }
-#status-block #status-idea-queue-bar {
+#status-block div.queue {
   width: 100%;
   height: 5px;
   padding: 0;
   margin: 0.2em 0 0 0;
   background-color: #fff;
 }
-#status-block #status-idea-queue-bar div {
+#status-block div.queue div {
   width: 0%;
   height: 100%;
   background-color: #00f;

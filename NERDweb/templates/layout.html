@@ -89,12 +89,16 @@ $(function() {
 <img class="refresh-spinner" src="{{ url_for('static', filename='spin.gif') }}">
 <p><b>Status</b> (refreshing <a id="status_refresh_toggle" href="#" onclick="toggle_status_refresh(); return false;">disabled</a>)</p>
 <table><tr><td>IPs in DB:</td><td><span id="status-ips">??</span></td></tr></table>
+<table><tr><td>Data disk usage:</td><td><span id="status-disk-usage">??</span></td></tr></table>
 <table>
 <tr><td>Event queue (IDEA files):</td><td><span id="status-idea-queue">??</span></td></tr>
-<tr><td colspan="2"><div id="status-idea-queue-bar"><div></div></div></td></tr>
+<tr><td colspan="2"><div id="status-idea-queue-bar" class="queue"><div></div></div></td></tr>
 </table>
-<table><tr><td>Requests/second <small>(10s avg)</small></td><td><span id="status-reqs">??</span></td></tr></table>
-<table><tr><td>Data disk usage:</td><td><span id="status-disk-usage">??</span></td></tr></table>
+<table>
+<tr><td>Request queue:</td><td><span id="status-req-queue">??</span></td></tr>
+<tr><td colspan="2"><div id="status-req-queue-bar" class="queue"><div></div></div></td></tr>
+</table>
+<table><tr><td>Requests/second</td><td><span id="status-reqs">??</span></td></tr></table>
 <script>
 var refresh_status_enable = false; // Enable/disable refresh status
 var refreshing_status = false; // Whether refresh is in progress (to avoid multiple parallel calls it they are very slow and refresh interval is small)
@@ -125,7 +129,7 @@ function refresh_status(force=false) {
             $("#status-disk-usage").text(data.disk_usage);
             $("#status-idea-queue").text(data.idea_queue);
             // Set width of bar and its color
-            bar_width = (data.idea_queue * 100 / 10000);
+            var bar_width = (data.idea_queue * 100 / 10000);
             $("#status-idea-queue-bar div").css('width', bar_width + "%");
             if (bar_width < 50) {
                 $("#status-idea-queue-bar div").css('background-color', '#0c0');
@@ -135,6 +139,20 @@ function refresh_status(force=false) {
             }
             else {
                 $("#status-idea-queue-bar div").css('background-color', '#c00');
+            }
+            
+            $("#status-req-queue").text(data.req_queue);
+            // Set width of bar and its color
+            var bar_width = (data.req_queue * 100 / 100);
+            $("#status-req-queue-bar div").css('width', bar_width + "%");
+            if (bar_width < 50) {
+                $("#status-req-queue-bar div").css('background-color', '#0c0');
+            }
+            else if (bar_width < 75) {
+                $("#status-req-queue-bar div").css('background-color', '#ea0');
+            }
+            else {
+                $("#status-req-queue-bar div").css('background-color', '#c00');
             }
         }
     )
