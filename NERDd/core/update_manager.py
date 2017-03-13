@@ -186,9 +186,9 @@ class UpdateManager:
         # Total count of requests processed
         self._request_counter = 0
         self._last_request_counter = 0 # Last number written to log file
-        # Call it every 10 second
+        # Call it every 1 second
         if ("req_cnt_file" in g.config):
-            g.scheduler.register(self.log_request_counter, second="*/10")
+            g.scheduler.register(self.log_request_counter, second="*/1")
 
 
     def log_request_counter(self):
@@ -199,9 +199,10 @@ class UpdateManager:
         if not filename:
             return
         with open(filename, "w") as f:
-            f.write("{}\n{:.1f}\n".format(
+            f.write("{}\n{:.1f}\n{}\n".format(
                 self._request_counter,
-                (self._request_counter - self._last_request_counter) / 10
+                (self._request_counter - self._last_request_counter) / 1,
+                self.get_queue_size()
             ))
         self._last_request_counter = self._request_counter
 
@@ -243,7 +244,7 @@ class UpdateManager:
 
     def get_queue_size(self):
         """Return current number of requests in the queue."""
-        return self._request_queue.qsize()
+        return self._request_queue.unfinished_tasks
         
 
     def update(self, ekey, update_spec):
