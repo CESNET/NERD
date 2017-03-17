@@ -74,6 +74,7 @@ g.um = core.update_manager.UpdateManager(config, g.db)
 # TODO load all modules automatically (or just modules specified in config)
 #import modules.test_module
 import modules.event_receiver
+import modules.updater
 import modules.dns
 import modules.geolocation
 import modules.asn
@@ -89,6 +90,7 @@ import modules.event_counter
 #  or take if from configuration
 module_list = [
     modules.event_receiver.EventReceiver(),
+    modules.updater.Updater(),
     #modules.refresher.Refresher(),
     modules.event_counter.EventCounter(),
     #modules.test_module.TestModule(),
@@ -104,6 +106,11 @@ module_list = [
 
 ################################################
 # Initialization completed, run ...
+
+# import yappi
+# # yappi.set_clock_type("Wall")
+# log.info("Profiler start")
+# yappi.start()
 
 # Run update manager thread/process
 log.info("***** Initialization completed, starting all modules *****")
@@ -126,6 +133,9 @@ try:
 except KeyboardInterrupt:
     pass
 
+# yappi.stop()
+# log.info("Profiler end")
+# yappi.get_func_stats().save('profile_output', type="pstat")
 
 ################################################
 # Finalization & cleanup
@@ -138,4 +148,5 @@ g.um.stop()
 
 log.info("***** Finished, main thread exitting. *****")
 logging.shutdown()
+
 

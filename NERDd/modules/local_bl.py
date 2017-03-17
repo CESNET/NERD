@@ -88,7 +88,7 @@ class LocalBlacklist(NERDModule):
         g.um.register_handler(
             self.search_ip,
             'ip',
-            ('!NEW','!refresh_localbl'),
+            ('!NEW','!every1d'),
             itemlist
         )
 

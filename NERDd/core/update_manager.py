@@ -27,7 +27,8 @@ ENTITY_TYPES = ['ip', 'asn']
 #      - ('add_to_set', key, value) - append new value to array at key if it isn't present in the array yet (if value not in rec[key]: rec[key].append(value))
 #      - ('extend_set', key, iterable) - append values from iterable to array at key if the value isn't present in the array yet (for value in iterable: if value not in rec[key]: rec[key].append(value))
 #      - ('add', key, value)        - add given numerical value to that stored at key (rec[key] += value)
-#      - ('sub', key, value)        - add given numerical value to that stored at key (rec[key] -= value)
+#      - ('sub', key, value)        - subtract given numerical value from that stored at key (rec[key] -= value)
+#      - ('next_step', key, (key_base, min, step)) - set value of 'key' to the smallest value of 'rec[key_base] + N*step' that is greater than 'min' (used by updater to set next update time); key_base MUST exist in the record!
 #      - ('event', !name, param)    - do nothing with record, only trigger functions hooked on the event name
 #  The tuple is passed to functions watching for updates of given keys / events
 #  with given name. Event names must begin with '!' (attribute keys mustn't).
@@ -125,6 +126,11 @@ def perform_update(rec, updreq):
             rec[key] = -value
         else:
             rec[key] -= value
+    
+    elif op == 'next_step':
+        key_base, min, step = value
+        base = rec[key_base]
+        rec[key] = base + ((min - base) // step + 1) * step 
     
     else:
         print("ERROR: perform_update: Unknown operation {}".fomrat(op), file=sys.stderr)
