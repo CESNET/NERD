@@ -1,7 +1,7 @@
-geoip2
 pymongo
+psycopg2
 dnspython
+geoip2
 pygeoip
 pycares
 shodan
-python-dateutil
