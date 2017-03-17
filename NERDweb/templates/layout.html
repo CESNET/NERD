@@ -98,7 +98,25 @@ $(function() {
 <tr><td>Request queue:</td><td><span id="status-req-queue">??</span></td></tr>
 <tr><td colspan="2"><div id="status-req-queue-bar" class="queue"><div></div></div></td></tr>
 </table>
-<table><tr><td>Requests/second</td><td><span id="status-reqs">??</span></td></tr></table>
+<table>
+<tr><td>Requests/second</td><td><span id="status-reqs">??</span></td></tr>
+<tr><td colspan="2"><canvas id="status-reqs-plot" width="100" height="40" style="width: 100%; height: 40px"></canvas></td></tr>
+</table>
+<script type="text/javascript" src="{{ url_for('static', filename='smoothie.js') }}"></script> {# Load library for plotting stream-data (reqs/s) #}
+<script>
+// resize the canvas to 100% width
+$("#status-reqs-plot").attr("width", $("#status-reqs-plot").css("width"));
+// Create reqs/s chart
+var smoothie = new SmoothieChart({millisPerPixel:200, interpolation:'linear', 
+    grid: {fillStyle:'#ffffff', millisPerLine:5000, verticalSections:3},
+    labels: {fillStyle:'#000000'},
+    minValue: 0, maxValue: 300
+});
+smoothie.streamTo(document.getElementById("status-reqs-plot"));
+smoothie.stop();
+var reqs_timeseries = new TimeSeries();
+smoothie.addTimeSeries(reqs_timeseries, {lineWidth: 2, strokeStyle:'#00c000', fillStyle: 'rgba(0,128,0,0.25)'});
+</script>
 <script>
 var refresh_status_enable = false; // Enable/disable refresh status
 var refreshing_status = false; // Whether refresh is in progress (to avoid multiple parallel calls it they are very slow and refresh interval is small)
@@ -107,10 +125,12 @@ function toggle_status_refresh() {
     if (refresh_status_enable) {
         refresh_status_enable=false;
         $("#status_refresh_toggle").text("disabled");
+        smoothie.stop();
     }
     else {
         refresh_status_enable=true;
         $("#status_refresh_toggle").text("enabled");
+        smoothie.start();
     }
 }
 
@@ -143,7 +163,10 @@ function refresh_status(force=false) {
             
             $("#status-req-queue").text(data.req_queue);
             // Set width of bar and its color
-            var bar_width = (data.req_queue * 100 / 100);
+            var bar_width = (data.req_queue * 100 / 1000);
+            if (bar_width > 100) {
+                bar_width = 100;
+            }
             $("#status-req-queue-bar div").css('width', bar_width + "%");
             if (bar_width < 50) {
                 $("#status-req-queue-bar div").css('background-color', '#0c0');
@@ -154,6 +177,8 @@ function refresh_status(force=false) {
             else {
                 $("#status-req-queue-bar div").css('background-color', '#c00');
             }
+            // Add data to res/s plot
+            reqs_timeseries.append(new Date().getTime(), data.requests_processed);
         }
     )
     .always(function() {
@@ -163,7 +188,7 @@ function refresh_status(force=false) {
 }
 
 // Set automatic refresh every 5s
-var status_refresh_timer = window.setInterval(refresh_status, 500);
+var status_refresh_timer = window.setInterval(refresh_status, 1000);
 // Run refresh once on load
 $(function() { refresh_status(true) });
 </script>
