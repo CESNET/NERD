@@ -10,9 +10,11 @@ import json
 import logging
 import datetime
 
-import dateutil.parser
 import psycopg2
 from psycopg2.extras import Json, Inet
+
+from common.utils import parse_rfc_time
+
 
 class BadEntityType(ValueError):
     pass
@@ -90,7 +92,7 @@ class PSQLEventDatabase:
         
         # Parse timestamps
         try:
-            detecttime = dateutil.parser.parse(idea.get('DetectTime'))
+            detecttime = parse_rfc_time(idea.get('DetectTime'))
         except KeyError:
             self.log.error("Message ID {}: DetectTime not found, skipping...".format(idea.get('ID','N/A')))
             return
@@ -101,17 +103,10 @@ class PSQLEventDatabase:
         # If EventTime is not present, try WinStartTime instead (similiary for CeaseTime and WinEndTime)
         starttime = idea.get('EventTime', idea.get('WinStartTime', None))
         if starttime:
-            starttime = dateutil.parser.parse(starttime)
+            starttime = parse_rfc_time(starttime)
         endtime = idea.get('CeaseTime', idea.get('WinEndTime', None))
         if endtime:
-            endtime = dateutil.parser.parse(endtime)
-        
-        # Convert to UTC and remove timezone information
-        detecttime = detecttime.astimezone(datetime.timezone.utc).replace(tzinfo=None)
-        if starttime:
-            starttime = starttime.astimezone(datetime.timezone.utc).replace(tzinfo=None)
-        if endtime:
-            endtime = endtime.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+            endtime = parse_rfc_time(endtime)
         
         self.log.debug("New event: %s, %s, %s, %s, %s, %s\n%s" % (id, sources, targets, detecttime, starttime, endtime, idea))
         #print("New event: %s, %s, %s, %s, %s, %s\n%s" % (id, sources, targets, detecttime, starttime, endtime, idea))

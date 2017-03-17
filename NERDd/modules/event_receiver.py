@@ -16,8 +16,9 @@ import sys
 import socket
 import json
 import logging
-import dateutil.parser
 import datetime
+
+from common.utils import parse_rfc_time
 
 MAX_QUEUE_SIZE = 100 # Maximal size of UpdateManager's request queue
                      # (when number of pending requests exceeds this value,
@@ -226,8 +227,7 @@ class EventReceiver(NERDModule):
                         self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
                         cat = '+'.join(event["Category"]).replace('.', '')
                         # Parse and reformat time
-                        date = dateutil.parser.parse(event["DetectTime"]) # Parse DetectTime
-                        date = date.astimezone(datetime.timezone.utc).replace(tzinfo=None) # Convert to UTC
+                        date = parse_rfc_time(event["DetectTime"]) # Parse DetectTime
                         date = date.strftime("%Y-%m-%d") # Get date as a string
 
                         node = event["Node"][-1]["Name"]
@@ -250,6 +250,6 @@ class EventReceiver(NERDModule):
             
             # If there are already too much requests queued, wait a while
             #print("***** QUEUE SIZE: {} *****".format(g.um.get_queue_size()))
-            while g.um.get_queue_size() > MAX_QUEUE_SIZE:
-                time.sleep(0.5)
+#             while g.um.get_queue_size() > MAX_QUEUE_SIZE:
+#                 time.sleep(0.5)
             
