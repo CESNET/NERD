@@ -24,7 +24,7 @@ class Updater(NERDModule):
     """
     def __init__(self):
         self.log = logging.getLogger('Updater')
-        self.log.setLevel("DEBUG")
+        #self.log.setLevel("DEBUG")
         
         self.POLL_INTERVAL = 10 # should be divisor of 60 (seconds)
         
