@@ -322,6 +322,7 @@ class IPFilterForm(Form):
         choices=[(bl,bl) for bl in get_blacklists()])
     bl_op = HiddenField('', default="or")
     sortby = SelectField('Sort by', choices=[
+                ('rep','Reputation score'),
                 ('events','Events'),
                 ('ts_update','Last update'),
                 ('ts_added','Time added'),
@@ -331,6 +332,7 @@ class IPFilterForm(Form):
     limit = IntegerField('Max number of addresses', [validators.NumberRange(1, 1000)], default=20)
 
 sort_mapping = {
+    'rep': 'rep',
     'events': 'events.total',
     'ts_update': 'ts_last_update',
     'ts_added': 'ts_added',
@@ -426,35 +428,35 @@ def ips():
             events['_n_cats'] = len(cats)
             events['_n_nodes'] = len(nodes)
             
-            # Experimental reputation computation
-            def nonlin(val, coef=0.5, max=20):
-                if val > max:
-                    return 1.0
-                else:
-                    return (1 - coef**val)
-            today = datetime.utcnow().date()
-            DATE_RANGE = 14
-            sum_weight = 0
-            rep = 0
-            for n in range(0,DATE_RANGE): # n - iterating dates from now back to history
-                d = today - timedelta(days=n)
-                dstr = d.strftime("%Y-%m-%d")
-                # reputation at day 'd'
-                if dstr in events:
-                    d_events = events[dstr]
-                    d_n_nodes = len(d_events['nodes'])
-                    d_n_events = sum(val for cat,val in d_events.items() if cat != 'nodes')
-                    daily_rep = nonlin(d_n_events) * nonlin(d_n_nodes)
-                    #print(ip['_id'], dstr, d_n_nodes, d_n_events, nonlin(d_n_events), nonlin(d_n_nodes), daily_rep)
-                else:
-                    daily_rep = 0.0
-                # total reputation as weighted avergae with linearly decreasing weight
-                weight = float(DATE_RANGE - n) / DATE_RANGE
-                sum_weight += weight
-                rep += daily_rep * weight
-                #print(daily_rep, weight, sum_weight, rep)
-            rep /= sum_weight
-            ip['rep'] = rep
+#             # Experimental reputation computation
+#             def nonlin(val, coef=0.5, max=20):
+#                 if val > max:
+#                     return 1.0
+#                 else:
+#                     return (1 - coef**val)
+#             today = datetime.utcnow().date()
+#             DATE_RANGE = 14
+#             sum_weight = 0
+#             rep = 0
+#             for n in range(0,DATE_RANGE): # n - iterating dates from now back to history
+#                 d = today - timedelta(days=n)
+#                 dstr = d.strftime("%Y-%m-%d")
+#                 # reputation at day 'd'
+#                 if dstr in events:
+#                     d_events = events[dstr]
+#                     d_n_nodes = len(d_events['nodes'])
+#                     d_n_events = sum(val for cat,val in d_events.items() if cat != 'nodes')
+#                     daily_rep = nonlin(d_n_events) * nonlin(d_n_nodes)
+#                     #print(ip['_id'], dstr, d_n_nodes, d_n_events, nonlin(d_n_events), nonlin(d_n_nodes), daily_rep)
+#                 else:
+#                     daily_rep = 0.0
+#                 # total reputation as weighted avergae with linearly decreasing weight
+#                 weight = float(DATE_RANGE - n) / DATE_RANGE
+#                 sum_weight += weight
+#                 rep += daily_rep * weight
+#                 #print(daily_rep, weight, sum_weight, rep)
+#             rep /= sum_weight
+#             ip['rep_frontend'] = rep
     else:
         results = None
         if user and not ac('ipsearch'):
