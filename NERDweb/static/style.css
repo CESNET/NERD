@@ -366,6 +366,16 @@ td.links img {
   padding: 0.3em 0.1em;
   border-bottom: 1px dotted #444;
 }
+.header .rep {
+  display: inline-block;
+  padding: 0.25em 0.4em;
+  vertical-align: bottom;
+  border-radius: 5px;
+  border: 1px solid #444;
+  margin-right: 0.75em;
+  /*font-size: 1.1em;*/
+  font-weight: bold;
+}
 .header .ip,
 .header .asn {
   font-size: 1.5em;
