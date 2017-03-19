@@ -84,6 +84,7 @@ import modules.shodan
 import modules.eml_asn_rank
 import modules.refresher
 import modules.event_counter
+import modules.reputation
 
 # Instantiate modules
 # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
@@ -101,6 +102,7 @@ module_list = [
     modules.local_bl.LocalBlacklist(),
     modules.shodan.Shodan(),
     modules.eml_asn_rank.EML_ASN_rank(),
+    modules.reputation.Reputation(),
 ]
 
 
