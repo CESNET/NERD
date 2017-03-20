@@ -75,6 +75,7 @@ g.um = core.update_manager.UpdateManager(config, g.db)
 #import modules.test_module
 import modules.event_receiver
 import modules.updater
+import modules.cleaner
 import modules.dns
 import modules.geolocation
 import modules.asn
@@ -92,6 +93,7 @@ import modules.reputation
 module_list = [
     modules.event_receiver.EventReceiver(),
     modules.updater.Updater(),
+    modules.cleaner.Cleaner(),
     #modules.refresher.Refresher(),
     modules.event_counter.EventCounter(),
     #modules.test_module.TestModule(),

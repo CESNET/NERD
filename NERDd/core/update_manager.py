@@ -28,6 +28,7 @@ ENTITY_TYPES = ['ip', 'asn']
 #      - ('extend_set', key, iterable) - append values from iterable to array at key if the value isn't present in the array yet (for value in iterable: if value not in rec[key]: rec[key].append(value))
 #      - ('add', key, value)        - add given numerical value to that stored at key (rec[key] += value)
 #      - ('sub', key, value)        - subtract given numerical value from that stored at key (rec[key] -= value)
+#      - ('remove', key, None)      - remove given key (and all subkeys) from the record (parameter is ignored) (do nothing if the key doesn't exist)
 #      - ('next_step', key, (key_base, min, step)) - set value of 'key' to the smallest value of 'rec[key_base] + N*step' that is greater than 'min' (used by updater to set next update time); key_base MUST exist in the record!
 #      - ('event', !name, param)    - do nothing with record, only trigger functions hooked on the event name
 #  The tuple is passed to functions watching for updates of given keys / events
@@ -71,9 +72,10 @@ def perform_update(rec, updreq):
     
     updreq - 3-tuple (op, key, value)
     
-    Return specification of performed updates - either updreq or None
+    Return specification of performed updates - either a pair (upated_key,
+    new_vlaue) or None.
     (None is returned when nothing was changed, either because op=add_to_set and
-    value was already in the array, or unknown operation was requested)
+    value was already in the array, or an unknown operation was requested)
     """
     op, key, value = updreq
     
@@ -127,13 +129,20 @@ def perform_update(rec, updreq):
         else:
             rec[key] -= value
     
+    elif op == 'remove':
+        if key in rec:
+            del rec[key]
+        else:
+            print("WARNING: Can't remove '{}' (request: {})".format(key, updreq))
+        return (updreq[1], None)
+    
     elif op == 'next_step':
         key_base, min, step = value
         base = rec[key_base]
         rec[key] = base + ((min - base) // step + 1) * step 
     
     else:
-        print("ERROR: perform_update: Unknown operation {}".fomrat(op), file=sys.stderr)
+        print("ERROR: perform_update: Unknown operation {}".format(op), file=sys.stderr)
         return None
     
     # Return tuple (updated attribute, new value)
