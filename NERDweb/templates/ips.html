@@ -149,8 +149,8 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
   {{ "%.3f"|format(ip.rep_frontend) }}
 </td>
 {% endif %}#}
-<td class="reputation" style="background-color: hsl({{ '%i, 100%%, 90%%'|format(100 - 100*ip.rep) if ip.rep else '0, 0%, 70%'}})">
-  {{ "%.3f"|format(ip.rep) if ip.rep else "---" }}
+<td class="reputation" style="background-color: {{ rep_css_color(ip.rep) }}">
+  {{ "%.3f"|format(ip.rep) if 'rep' in ip else "---" }}
 </td>
 <td class="other">
   {% if ip.shodan %}

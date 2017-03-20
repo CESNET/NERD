@@ -1,3 +1,6 @@
+{% macro rep_css_color(rep) %}
+hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70%'}})
+{% endmacro -%}
 <!doctype html>
 <html lang="en">
 <head>

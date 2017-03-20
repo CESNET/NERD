@@ -66,8 +66,8 @@
 <hr>
 
 <div class="ip-info">
-<p class="header"><span class="rep" style="background-color: hsl({{ '%i, 100%%, 90%%'|format(100 - 100*ipinfo.rep) if ipinfo.rep else '0, 0%, 70%'}})">
-  {{- "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep else "--" }}</span><span class="ip">{{ ip }}</span><span class="hostname">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
+<p class="header"><span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">
+  {{- "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span><span class="ip">{{ ip }}</span><span class="hostname">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
 
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
