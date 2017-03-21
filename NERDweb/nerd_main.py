@@ -322,16 +322,18 @@ class IPFilterForm(Form):
         choices=[(bl,bl) for bl in get_blacklists()])
     bl_op = HiddenField('', default="or")
     sortby = SelectField('Sort by', choices=[
+                ('none',"--"),
                 ('rep','Reputation score'),
                 ('events','Events'),
                 ('ts_update','Last update'),
                 ('ts_added','Time added'),
                 ('ip','IP address'),
-             ], default='events')
+             ], default='rep')
     asc = BooleanField('Ascending', default=False)
     limit = IntegerField('Max number of addresses', [validators.NumberRange(1, 1000)], default=20)
 
 sort_mapping = {
+    'none': 'none',
     'rep': 'rep',
     'events': 'events.total',
     'ts_update': 'ts_last_update',
@@ -388,7 +390,9 @@ def ips():
         # Perform DB query
         #print("Query: "+str(query))
         try:
-            results = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
+            results = mongo.db.ip.find(query).limit(form.limit.data)
+            if sortby != "none":
+                results.sort(sortby, 1 if form.asc.data else -1)
             results = list(results) # Load all data now, so we are able to get number of results in template
         except pymongo.errors.ServerSelectionTimeoutError:
             results = []
