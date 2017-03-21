@@ -2,7 +2,7 @@
 db.ip.createIndex({"events.total":-1},{background: true})
 db.ip.createIndex({"geo.ctry":1},{background: true})
 db.ip.createIndex({"as_maxmind.num":1},{background: true})
-db.ip.createIndex({"as_rw.num":1},{background: true})
+db.ip.createIndex({"as_rv.num":1},{background: true})
 db.ip.createIndex({"ts_added":-1},{background: true})
 db.ip.createIndex({"ts_last_update":-1},{background: true})
 db.ip.createIndex({"hostname":1},{background: true})
