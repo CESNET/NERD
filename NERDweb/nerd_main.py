@@ -325,7 +325,7 @@ class IPFilterForm(Form):
                 ('none',"--"),
                 ('rep','Reputation score'),
                 ('events','Events'),
-                ('ts_update','Last update'),
+                ('ts_last_event','Time of last event'),
                 ('ts_added','Time added'),
                 ('ip','IP address'),
              ], default='rep')
@@ -336,7 +336,7 @@ sort_mapping = {
     'none': 'none',
     'rep': 'rep',
     'events': 'events.total',
-    'ts_update': 'ts_last_update',
+    'ts_last_event': 'ts_last_event',
     'ts_added': 'ts_added',
     'ip': '_id',
 }
