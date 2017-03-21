@@ -71,8 +71,8 @@
 
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
- {% if attr.startswith("_") %}
-  {# pass #}
+ {% if attr.startswith("_") and not ac('internal_attrs') %}
+  {# pass (hide attrs starting with '_' from normal users) #}
  {% elif attr == "events" %}
   <dt>events ({{val.total}})</dt>
   <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>

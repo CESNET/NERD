@@ -111,9 +111,9 @@ $(function() {
 $("#status-reqs-plot").attr("width", $("#status-reqs-plot").css("width"));
 // Create reqs/s chart
 var smoothie = new SmoothieChart({millisPerPixel:200, interpolation:'linear', 
-    grid: {fillStyle:'#ffffff', millisPerLine:5000, verticalSections:3},
+    grid: {fillStyle:'#ffffff', millisPerLine:5000, verticalSections:4},
     labels: {fillStyle:'#000000'},
-    minValue: 0, maxValue: 300
+    minValue: 0, maxValue: 400
 });
 smoothie.streamTo(document.getElementById("status-reqs-plot"));
 smoothie.stop();
