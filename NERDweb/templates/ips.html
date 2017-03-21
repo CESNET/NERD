@@ -105,7 +105,7 @@ $(function () {
 <!--<th>Shodan info</th>
 <th>Device type</th>-->
 {#{% if ac('rep_exp') %}<th title="Reputation (frontend-computed)">Rep.</th>{% endif %}#}
-<th title="Reputation (experimental)">Rep.</th>
+<th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.</th>
 <th>Other properties</th>
 <th>Time added</th>
 <th>Last update</th>
