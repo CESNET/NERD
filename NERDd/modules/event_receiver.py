@@ -226,9 +226,19 @@ class EventReceiver(NERDModule):
 
                         self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
                         cat = '+'.join(event["Category"]).replace('.', '')
-                        # Parse and reformat time
-                        date = parse_rfc_time(event["DetectTime"]) # Parse DetectTime
-                        date = date.strftime("%Y-%m-%d") # Get date as a string
+                        # Parse and reformat detect time
+                        detect_time = parse_rfc_time(event["DetectTime"]) # Parse DetectTime
+                        date = detect_time.strftime("%Y-%m-%d") # Get date as a string
+                        
+                        # Get end time of event
+                        if "CeaseTime" in event:
+                            end_time = parse_rfc_time(event["CeaseTime"])
+                        elif "WinEndTime" in event:
+                            end_time = parse_rfc_time(event["WinEndTime"])
+                        elif "EventTime" in event:
+                            end_time = parse_rfc_time(event["EventTime"])
+                        else:
+                            end_time = detect_time
 
                         node = event["Node"][-1]["Name"]
                         key_cat = 'events.'+date+'.'+cat
@@ -239,6 +249,7 @@ class EventReceiver(NERDModule):
                                 ('add', key_cat, 1),
                                 ('add_to_set', key_node, node),
                                 ('add', 'events.total', 1),
+                                ('set', 'ts_last_event', end_time),
                             ]
                         )
                         

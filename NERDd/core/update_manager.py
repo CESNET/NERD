@@ -28,6 +28,8 @@ ENTITY_TYPES = ['ip', 'asn']
 #      - ('extend_set', key, iterable) - append values from iterable to array at key if the value isn't present in the array yet (for value in iterable: if value not in rec[key]: rec[key].append(value))
 #      - ('add', key, value)        - add given numerical value to that stored at key (rec[key] += value)
 #      - ('sub', key, value)        - subtract given numerical value from that stored at key (rec[key] -= value)
+#      - ('setmax', key, value)     - set new value of the key to larger of the given value and the current value (rec[key] = max(value, rec[key]))
+#      - ('setmin', key, value)     - set new value of the key to smaller of the given value and the current value (rec[key] = min(value, rec[key]))
 #      - ('remove', key, None)      - remove given key (and all subkeys) from the record (parameter is ignored) (do nothing if the key doesn't exist)
 #      - ('next_step', key, (key_base, min, step)) - set value of 'key' to the smallest value of 'rec[key_base] + N*step' that is greater than 'min' (used by updater to set next update time); key_base MUST exist in the record!
 #      - ('event', !name, param)    - do nothing with record, only trigger functions hooked on the event name
@@ -128,6 +130,18 @@ def perform_update(rec, updreq):
             rec[key] = -value
         else:
             rec[key] -= value
+    
+    elif op == 'setmax':
+        if key not in rec:
+            rec[key] = value
+        else:
+            rec[key] = max(value, rec[key])
+    
+    elif op == 'setmin':
+        if key not in rec:
+            rec[key] = value
+        else:
+            rec[key] = min(value, rec[key])
     
     elif op == 'remove':
         if key in rec:
