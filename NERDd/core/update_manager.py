@@ -91,7 +91,10 @@ def perform_update(rec, updreq):
             rec[key] = [value]
         else:
             rec[key].append(value)
-    
+    elif op == 'del':
+        if key in rec:
+            del rec[key]
+        return None
     elif op == 'add_to_set':
         if key not in rec:
             rec[key] = [value]
