@@ -93,7 +93,7 @@ import modules.tor_exitnode
 import modules.hostname
 import modules.caida_as_class
 import modules.event_type_counter
-import modules.tags
+#import modules.tags
 import common.eventdb_psql
 import modules.reputation
 
