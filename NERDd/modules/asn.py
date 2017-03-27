@@ -2,18 +2,17 @@
 NERD module getting ASN.
 
 Requirements:
-- "BeautifulSoup4" package
 - "pygeoip" package
 
 Acknowledgment:
 Code of the GetASN class was inspired by https://github.com/oneryalcin/pyip2asn
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 import dns.resolver
 import requests
-#from bs4 import BeautifulSoup
 import pickle
 import datetime
 import logging
@@ -23,7 +22,7 @@ import gzip
 import os
 
 class GetASN:
-    def __init__(self, geoipasnFile, cacheFile, maxValidity):
+    def __init__(self, geoipasnFile, cacheFile, maxValidity, refresh):
         self.cacheFile = cacheFile
         self.geoipasnFile = geoipasnFile
         self.maxValidity = maxValidity
@@ -34,6 +33,9 @@ class GetASN:
         # Create DNS resolver that uses localhost
         self.dnsresolver = dns.resolver.Resolver()
         self.dnsresolver.nameservers = ['127.0.0.1']
+        
+        # Register periodic call of the "update" function 
+        g.scheduler.register(self.update_asn_dictionary, **refresh)
 
     def update_asn_dictionary(self):
         '''Update MaxMind database and list of ASN names.'''
@@ -124,7 +126,7 @@ class GetASN:
             ret["as_maxmind.desc"] = asn[1] if len(asn) >= 2 else ""
             return ret
         else:
-            self.log.info("ASN for " + ip_address + " not found in GeoIP")
+            self.log.debug("ASN for " + ip_address + " not found in GeoIP")
             return None
 
     def routeviewsLookup(self, ip_address):
@@ -140,7 +142,7 @@ class GetASN:
             self.log.debug("Looked up " + ip_address + " using routeviews: " + ip_address + ": {0} {1} ({2}/{3})".format(ret["as_rv.num"],
                     ret["as_rv.desc"], record[1], record[2]))
         except:
-            self.log.info("ASN for " + ip_address + " not found in routeviews data")
+            self.log.debug("ASN for " + ip_address + " not found in routeviews data")
         return ret
 
     def asnLookup(self, ip_address):
@@ -176,22 +178,22 @@ class ASN(NERDModule):
       !NEW -> handleRecord() -> asn.{id,description}
     """
 
-    def __init__(self, config, update_manager):
+    def __init__(self):
         # Instantiate DB reader (i.e. open GeoLite database), raises IOError on error
-        geoipFile = config.get("asn.geoipasn_file", "/tmp/GeoIPASNum.dat")
-        cacheFile = config.get("asn.cache_file", "/tmp/nerd-asn-cache.json")
-        maxValidity = config.get("asn.cache_max_valitidy", 86400)
-        self.reader = GetASN(geoipFile, cacheFile, maxValidity)
+        geoipFile = g.config.get("asn.geoipasn_file", "/tmp/GeoIPASNum.dat")
+        cacheFile = g.config.get("asn.cache_file", "/tmp/nerd-asn-cache.json")
+        maxValidity = g.config.get("asn.cache_max_validity", 86400)
+        refresh = g.config.get("asn.refresh", {"day_of_week": 0, "hour": 7})
+        self.reader = GetASN(geoipFile, cacheFile, maxValidity, refresh)
         self.log = logging.getLogger("ASNmodule")
 
-        self.um = update_manager
-        update_manager.register_handler(
+        g.um.register_handler(
             self.ip2asn,
             'ip',
             ('!NEW','!refresh_asn'),
             ('as_maxmind.num', 'as_maxmind.description', 'as_rv.num', 'as_rv.description')
         )
-        update_manager.register_handler(
+        g.um.register_handler(
             self.asn_info,
             'asn',
             ('!NEW','!refresh_asn_info'),
@@ -227,7 +229,7 @@ class ASN(NERDModule):
             actions.append(('set', k, v))
             # Add or update a record for the ASN
             if k.endswith('.num'):
-                self.um.update(('asn', v), []) # empty list of update_requests - just create the record if not exist
+                g.um.update(('asn', v), []) # empty list of update_requests -> just create the record if it doesn't exist yet
 
         return actions
 

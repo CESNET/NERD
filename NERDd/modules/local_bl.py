@@ -2,25 +2,33 @@
 NERD module that downloads configured blacklists and queries them locally.
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 import requests
 import re
-
 import datetime
 import logging
 import os
 
 class IPBlacklist():
-    def __init__(self, name, url, re, tmpdir = ""):
+    def __init__(self, name, url, re, refresh_spec, tmpdir = ""):
         self.name = name
         self.url = url
         self.re = re
         self.tmpdir = tmpdir
         self.iplist = set()
         self.log = logging.getLogger("local_bl")
+        #self.log.setLevel("DEBUG")
+        # TODO: Check if a recent version is already in tmpdir and read it instead of downloading a new one
+        
+        # Register periodic call of the "update" function 
+        g.scheduler.register(self.update, **refresh_spec)
 
     def update(self):
+        # TODO PARALLELIZATION this function may be called asynchronously, self.iplist should be replaced atomically in all processes at once
+        self.log.debug("Downloading blacklist '{0}' ...".format(self.name))
+        # Download blacklist
         try:
             r = requests.get(self.url)
         except requests.exceptions.ConnectionError as e:
@@ -28,12 +36,16 @@ class IPBlacklist():
             self.iplist = set()
             return
         rc = r.content
-        self.iplist = set()
+        # Parse blacklist and load it into memory
+        iplist = set()
         for line in rc.decode('utf-8').split('\n'):
             ips = re.search(self.re, line)
             if ips:
-                self.iplist.add(ips.group())
-        self.log.info("Downloaded blacklist {0} with {1} entries.".format(self.name, len(self.iplist)))
+                iplist.add(ips.group())
+        self.log.info("Downloaded blacklist '{0}' with {1} entries.".format(self.name, len(iplist)))
+        # Replace the old list
+        self.iplist = iplist
+        # Store blacklist into tmpdir
         if self.tmpdir:
             with open("{0}/{1}".format(self.tmpdir, self.name), "w") as f:
                 f.write(repr(self.iplist))
@@ -59,26 +71,24 @@ class LocalBlacklist(NERDModule):
       [ip] !NEW -> search_ip() -> bl.id
     """
 
-    def __init__(self, config, update_manager):
-        # Instantiate DB reader (i.e. open GeoLite database), raises IOError on error
-        blacklists = config.get("local_bl.lists", [])
-        tmpdir = config.get("local_bl.tmp_dir", "")
-        self._update = config.get("local_bl.update", 3600)
+    def __init__(self):
+        blacklists = g.config.get("local_bl.lists", [])
+        tmpdir = g.config.get("local_bl.tmp_dir", "")
         self._blacklists = {}
         self.log = logging.getLogger("local_bl")
 
         if blacklists:
             for bl in blacklists:
                 if bl[0] not in self._blacklists:
-                    self._blacklists[bl[0]] = IPBlacklist(bl[0], bl[2], bl[3], tmpdir)
+                    self._blacklists[bl[0]] = IPBlacklist(bl[0], bl[2], bl[3], bl[4], tmpdir)
                     self._blacklists[bl[0]].update()
 
         itemlist = ['bl.' + i for i in self._blacklists]
-        self.log.info("Registering {0}".format(itemlist))
-        update_manager.register_handler(
+        self.log.debug("Registering {0}".format(itemlist))
+        g.um.register_handler(
             self.search_ip,
             'ip',
-            ('!NEW','!refresh_localbl'),
+            ('!NEW','!every1d'),
             itemlist
         )
 

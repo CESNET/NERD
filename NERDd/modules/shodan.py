@@ -5,7 +5,9 @@ Requirements:
 - "shodan" package
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
+
 import logging
 import shodan
 
@@ -21,13 +23,13 @@ class Shodan(NERDModule):
       !NEW -> getShodanInfo -> shodan.{ports,os,devicetype,linktype,tags}
     """
     
-    def __init__(self, config, update_manager):
+    def __init__(self):
         self.log = logging.getLogger('Shodan')
         #self.log.setLevel("DEBUG")
         self.errors = 0 # Number of API errors that has occured
         self.enabled = True
         
-        self.apikey = config.get('shodan.apikey', None)
+        self.apikey = g.config.get('shodan.apikey', None)
         if not self.apikey:
             self.log.warning("No API key set, Shodan module disabled.")
             return
@@ -40,7 +42,7 @@ class Shodan(NERDModule):
             self.log.error("Shodan module disabled.")
             return
 
-        update_manager.register_handler(
+        g.um.register_handler(
             self.getShodanInfo, # function (or bound method) to call
             'ip', # entity type
             ('!NEW',), # tuple/list/set of attributes to watch (their update triggers call of the registered method)

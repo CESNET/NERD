@@ -19,9 +19,6 @@ class NERDModule:
     """
     Abstract class for NERD modules.
     """
-    def __init__(self, update_manager):
-        pass
-    
     def start(self):
         """
         Run the module - used to run own thread if needed.

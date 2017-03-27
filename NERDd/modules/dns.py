@@ -5,7 +5,8 @@ Requirements:
 - "dnspython" package
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 from dns import resolver,reversename
 from dns.exception import *
@@ -22,12 +23,12 @@ class DNSResolver(NERDModule):
       !NEW -> get_hostname -> hostname
     """
     
-    def __init__(self, config, update_manager):
+    def __init__(self):
         self._resolver = resolver.Resolver()
-        self._resolver.timeout = config.get('dns.timeout', 2)
+        self._resolver.timeout = g.config.get('dns.timeout', 2)
         self._resolver.lifetime = 2 # TODO: Co to presne znamena?
 
-        update_manager.register_handler(
+        g.um.register_handler(
             self.get_hostname, # function (or bound method) to call
             'ip', # entity type
             ('!NEW','!refresh_hostname'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)

@@ -2,7 +2,9 @@
 NERD module determines main types of attack going from IP according to given parameters. 
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+
+import g
 
 import datetime
 import logging
@@ -19,13 +21,13 @@ class EventTypeCounter(NERDModule):
     [ip] 'events.total' -> count_type() -> 'events.types'
     """
     
-    def __init__(self, config, update_manager):
+    def __init__(self):
         self.log = logging.getLogger("EventTypeCounter")
-        self.event_days = config.get("event_type_counter.days", None)
-        self.event_threshold = config.get("event_type_counter.threshold", 5)
-        self.event_min = config.get("event_type_counter.min_num_of_events", 0)
+        self.event_days = g.config.get("event_type_counter.days", None)
+        self.event_threshold = g.config.get("event_type_counter.threshold", 5)
+        self.event_min = g.config.get("event_type_counter.min_num_of_events", 0)
 	
-        update_manager.register_handler(
+        g.um.register_handler(
 	    self.count_type,
 	    'ip',
 	    ('events.total',),

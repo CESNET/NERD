@@ -2,7 +2,9 @@
 NERD module tries to classify IPs according to their business type. It uses ASN and caida classification list  <www.caida.org/data/as-classification>. 
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+
+import g
 
 import datetime
 import logging
@@ -17,13 +19,13 @@ class CaidaASclass(NERDModule):
     [ip] 'as_maxmind.num' and 'as_rv.num' -> determinate_type() -> 'caida_as_class.v' and 'caida_as_class.c'
     """
     
-    def __init__(self, config, update_manager):
+    def __init__(self):
         self.log = logging.getLogger("CaidaASclass")
-        self.caida = config.get("caida")
+        self.caida = g.config.get("caida")
         
         self.caida_dict = self.parse_list(self.caida["caida_file"])
 	
-        update_manager.register_handler(
+        g.um.register_handler(
 	    self.determinate_type,
 	    'ip',
 	    ('as_maxmind.num','as_rv.num'),

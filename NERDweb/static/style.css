@@ -9,7 +9,7 @@ body {
 h1 {
   font-size: large;
   font-weight: bold;
-  color: #0061a2; //#102040;
+  color: #0061a2; /*#102040;*/
   margin-top: 0.5em;
   margin-bottom: 0.25em;
 }
@@ -86,7 +86,6 @@ img.load-spinner {
   float: right;
   width: 1em;
   height: 1em;
-  size: 0.5em;
   vertical-align: middle;
   text-decoration: none;
   font-weight: normal;
@@ -104,7 +103,7 @@ img.load-spinner {
   border-bottom: 1px solid #fff;
 }
 #header a {
-  color: #94c7e7;//#ccf;
+  color: #94c7e7;/*#ccf;*/
 }
 #header #corner-logo {
   float: left;
@@ -367,6 +366,16 @@ td.links img {
   padding: 0.3em 0.1em;
   border-bottom: 1px dotted #444;
 }
+.header .rep {
+  display: inline-block;
+  padding: 0.25em 0.4em;
+  vertical-align: bottom;
+  border-radius: 5px;
+  border: 1px solid #444;
+  margin-right: 0.75em;
+  /*font-size: 1.1em;*/
+  font-weight: bold;
+}
 .header .ip,
 .header .asn {
   font-size: 1.5em;
@@ -547,14 +556,14 @@ div.idea .nodes li:first-child:last-child::before {
 #status-block td + td {
   text-align: right;
 }
-#status-block #status-idea-queue-bar {
+#status-block div.queue {
   width: 100%;
   height: 5px;
   padding: 0;
   margin: 0.2em 0 0 0;
   background-color: #fff;
 }
-#status-block #status-idea-queue-bar div {
+#status-block div.queue div {
   width: 0%;
   height: 100%;
   background-color: #00f;

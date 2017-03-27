@@ -2,10 +2,12 @@
 Module classifies type of service associated to given IP according to hostname.
 """
  
-from .base import NERDModule
+from core.basemodule import NERDModule
 
 import requests
 import re
+
+import g
 
 import datetime
 import logging
@@ -20,12 +22,12 @@ class HostnameClass(NERDModule):
     [ip] 'hostname' -> hostname_classify() -> 'service.known_domain_service' and/or 'service.hostname_regex_service'
     """
 
-    def __init__(self, config, update_manager):
+    def __init__(self):
         self.log = logging.getLogger("hostname_class")
-        self.regex_hostname = config.get("hostname_tagging.regex_tagging", [])
-        self.known_domains = self.convert_domain_list_to_dict(config.get("hostname_tagging.known_domains", []))
+        self.regex_hostname = g.config.get("hostname_tagging.regex_tagging", [])
+        self.known_domains = self.convert_domain_list_to_dict(g.config.get("hostname_tagging.known_domains", []))
         	
-        update_manager.register_handler(
+        g.um.register_handler(
 	    self.hostname_classify,
 	    'ip',
 	    ('hostname',),

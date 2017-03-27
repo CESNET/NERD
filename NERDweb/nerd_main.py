@@ -105,6 +105,10 @@ app.jinja_env.filters['datetime'] = format_datetime
 
 def create_login_handler(method_id, id_field, name_field, email_field, return_path):
     def login_handler():
+        # DEBUG: print whole environ to see what fields IdP has provided
+        if method_id == 'shibboleth':
+            print("Shibboleth login, metadata provided: "+str(request.environ))
+        
         # Check presence of the only mandatory field (id)
         if id_field not in request.environ:
             flash("ERROR: Login failed - '"+id_field+"' not defined (either your IdP is not providing this field or there is a problem with server configuration).", "error")
@@ -157,8 +161,24 @@ def logout():
     return redirect(redir_path)
 
 
+# ***** Functions called for each request *****
+
+# TODO: use g.user and g.ac everywhere
+@app.before_request
+def store_user_info():
+    """Store user info to 'g' (request-wide global variable)"""
+    g.user, g.ac = get_user_info(session)
+
+@app.after_request
+def add_user_header(resp):
+    # Set user ID to a special header, it's used to put user ID to Apache logs
+    if g.user:
+        resp.headers['X-UserID'] = g.user['fullid']
+    return resp
+
 
 # ***** Main page *****
+# TODO: rewrite as before_request (to check for this situation at any URL)
 @app.route('/')
 def main():
     user, ac = get_user_info(session)
@@ -201,7 +221,7 @@ def noaccount():
                       #recipients=[email],
                       recipients=[config.get('login.request-email')],
                       reply_to=email,
-                     body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}".format(id,name,user.get('email',''),email),
+                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}".format(id,name,user.get('email',''),email),
                      )
         mailer.send(msg)
         request_sent = True
@@ -302,17 +322,21 @@ class IPFilterForm(Form):
         choices=[(bl,bl) for bl in get_blacklists()])
     bl_op = HiddenField('', default="or")
     sortby = SelectField('Sort by', choices=[
+                ('none',"--"),
+                ('rep','Reputation score'),
                 ('events','Events'),
-                ('ts_update','Last update'),
+                ('ts_last_event','Time of last event'),
                 ('ts_added','Time added'),
                 ('ip','IP address'),
-             ], default='events')
+             ], default='rep')
     asc = BooleanField('Ascending', default=False)
     limit = IntegerField('Max number of addresses', [validators.NumberRange(1, 1000)], default=20)
 
 sort_mapping = {
+    'none': 'none',
+    'rep': 'rep',
     'events': 'events.total',
-    'ts_update': 'ts_last_update',
+    'ts_last_event': 'ts_last_event',
     'ts_added': 'ts_added',
     'ip': '_id',
 }
@@ -366,7 +390,9 @@ def ips():
         # Perform DB query
         #print("Query: "+str(query))
         try:
-            results = mongo.db.ip.find(query).limit(form.limit.data).sort(sortby, 1 if form.asc.data else -1)
+            results = mongo.db.ip.find(query).limit(form.limit.data)
+            if sortby != "none":
+                results.sort(sortby, 1 if form.asc.data else -1)
             results = list(results) # Load all data now, so we are able to get number of results in template
         except pymongo.errors.ServerSelectionTimeoutError:
             results = []
@@ -406,35 +432,35 @@ def ips():
             events['_n_cats'] = len(cats)
             events['_n_nodes'] = len(nodes)
             
-            # Experimental reputation computation
-            def nonlin(val, coef=0.5, max=20):
-                if val > max:
-                    return 1.0
-                else:
-                    return (1 - coef**val)
-            today = datetime.utcnow().date()
-            DATE_RANGE = 14
-            sum_weight = 0
-            rep = 0
-            for n in range(0,DATE_RANGE): # n - iterating dates from now back to history
-                d = today - timedelta(days=n)
-                dstr = d.strftime("%Y-%m-%d")
-                # reputation at day 'd'
-                if dstr in events:
-                    d_events = events[dstr]
-                    d_n_nodes = len(d_events['nodes'])
-                    d_n_events = sum(val for cat,val in d_events.items() if cat != 'nodes')
-                    daily_rep = nonlin(d_n_events) * nonlin(d_n_nodes)
-                    #print(ip['_id'], dstr, d_n_nodes, d_n_events, nonlin(d_n_events), nonlin(d_n_nodes), daily_rep)
-                else:
-                    daily_rep = 0.0
-                # total reputation as weighted avergae with linearly decreasing weight
-                weight = float(DATE_RANGE - n) / DATE_RANGE
-                sum_weight += weight
-                rep += daily_rep * weight
-                #print(daily_rep, weight, sum_weight, rep)
-            rep /= sum_weight
-            ip['rep'] = rep
+#             # Experimental reputation computation
+#             def nonlin(val, coef=0.5, max=20):
+#                 if val > max:
+#                     return 1.0
+#                 else:
+#                     return (1 - coef**val)
+#             today = datetime.utcnow().date()
+#             DATE_RANGE = 14
+#             sum_weight = 0
+#             rep = 0
+#             for n in range(0,DATE_RANGE): # n - iterating dates from now back to history
+#                 d = today - timedelta(days=n)
+#                 dstr = d.strftime("%Y-%m-%d")
+#                 # reputation at day 'd'
+#                 if dstr in events:
+#                     d_events = events[dstr]
+#                     d_n_nodes = len(d_events['nodes'])
+#                     d_n_events = sum(val for cat,val in d_events.items() if cat != 'nodes')
+#                     daily_rep = nonlin(d_n_events) * nonlin(d_n_nodes)
+#                     #print(ip['_id'], dstr, d_n_nodes, d_n_events, nonlin(d_n_events), nonlin(d_n_nodes), daily_rep)
+#                 else:
+#                     daily_rep = 0.0
+#                 # total reputation as weighted avergae with linearly decreasing weight
+#                 weight = float(DATE_RANGE - n) / DATE_RANGE
+#                 sum_weight += weight
+#                 rep += daily_rep * weight
+#                 #print(daily_rep, weight, sum_weight, rep)
+#             rep /= sum_weight
+#             ip['rep_frontend'] = rep
     else:
         results = None
         if user and not ac('ipsearch'):
@@ -557,6 +583,19 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
 def get_status():
     ips = mongo.db.ip.count()
     idea_queue_len = len(os.listdir(WARDEN_DROP_PATH))
+    
+    if "req_cnt_file" in config:
+        try:
+            req_cnt = open(config.get("req_cnt_file")).read().split("\n")
+            req_processed = req_cnt[1]
+            req_queue = int(req_cnt[2])
+        except Exception as e:
+            req_processed = "(error) " + str(e)
+            req_queue = 0
+    else:
+        req_processed = "(N/A)"
+        req_queue = 0
+    
     try:
         if "data_disk_path" in config:
             disk_usage = subprocess.check_output(["df", config.get("data_disk_path"), "-P"]).decode('ascii').splitlines()[1].split()[4]
@@ -564,9 +603,12 @@ def get_status():
             disk_usage = "(N/A)"
     except Exception as e:
         disk_usage = "(error) " + str(e);
+    
     return jsonify(
         ips=ips,
         idea_queue=idea_queue_len,
+        req_queue=req_queue,
+        requests_processed=req_processed,
         disk_usage=disk_usage
     )
 

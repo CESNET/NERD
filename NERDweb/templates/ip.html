@@ -66,12 +66,13 @@
 <hr>
 
 <div class="ip-info">
-<p class="header"><span class="ip">{{ ip }}</span><span class="hostname">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
+<p class="header"><span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">
+  {{- "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span><span class="ip">{{ ip }}</span><span class="hostname">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
 
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
- {% if attr == "_id" %}
-  {# pass #}
+ {% if attr.startswith("_") and not ac('internal_attrs') %}
+  {# pass (hide attrs starting with '_' from normal users) #}
  {% elif attr == "events" %}
   <dt>events ({{val.total}})</dt>
   <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>

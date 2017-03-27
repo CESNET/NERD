@@ -2,10 +2,12 @@
 NERD module tags possible exit TOR nodes.
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
 
 import requests
 import re
+
+import g
 
 import datetime
 import logging
@@ -37,14 +39,14 @@ class TORNodes(NERDModule):
         self.log.info("Downloaded TOR exit nodes list from {} with {} entries.".format(url, len(torlist))) 
         return torlist
 
-    def __init__(self, config, update_manager):
+    def __init__(self):
         self.log = logging.getLogger("tor_nodes")
-        torlisturl = config.get("tor_exitnodes.address")
+        torlisturl = g.config.get("tor_exitnodes.address")
         
         self.log.debug("Start download TOR exit list from {}.".format(torlisturl))
         self.torlist = self.download_list(torlisturl)
 	
-        update_manager.register_handler(
+        g.um.register_handler(
 	    self.search_in_TORlist,
 	    'ip',
 	    ('!NEW','!refresh_tornodes'),

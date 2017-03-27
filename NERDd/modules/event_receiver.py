@@ -5,9 +5,8 @@ Fetches IDEA messages dropped to a specified directory and updates entity
 records accordingly.
 """
 
-if __name__ != "__main__":
-    # import only when not runnning standalone (i.e. testing)
-    from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 from threading import Thread
 import time
@@ -17,8 +16,9 @@ import sys
 import socket
 import json
 import logging
-import dateutil.parser
 import datetime
+
+from common.utils import parse_rfc_time
 
 MAX_QUEUE_SIZE = 100 # Maximal size of UpdateManager's request queue
                      # (when number of pending requests exceeds this value,
@@ -182,11 +182,9 @@ class EventReceiver(NERDModule):
     """
     Receiver of security events. Receives events as IDEA files in given directory.
     """
-    def __init__(self, config, update_manager, eventdb):
+    def __init__(self):
         self.log = logging.getLogger("EventReceiver")
-        self._um = update_manager
-        self._drop_path = config.get('warden_filer_path')
-        self._eventdb = eventdb
+        self._drop_path = g.config.get('warden_filer_path')
     
     def start(self):
         """
@@ -217,7 +215,8 @@ class EventReceiver(NERDModule):
         # (termiated by setting running_flag to False)
         for (rawdata, event) in read_dir(self._drop_path):
             # Store the event to Event DB
-            self._eventdb.put(rawdata)
+            #g.eventdb.put(rawdata) # pass as string for old filesystem-database
+            g.eventdb.put(event) # pass as parsed JSON for PSQL version
             try:
                 if "Test" in event["Category"]:
                     continue # Ignore testing messages
@@ -227,20 +226,30 @@ class EventReceiver(NERDModule):
 
                         self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
                         cat = '+'.join(event["Category"]).replace('.', '')
-                        # Parse and reformat time
-                        date = dateutil.parser.parse(event["DetectTime"]) # Parse DetectTime
-                        date = date.astimezone(datetime.timezone.utc).replace(tzinfo=None) # Convert to UTC
-                        date = date.strftime("%Y-%m-%d") # Get date as a string
+                        # Parse and reformat detect time
+                        detect_time = parse_rfc_time(event["DetectTime"]) # Parse DetectTime
+                        date = detect_time.strftime("%Y-%m-%d") # Get date as a string
+                        
+                        # Get end time of event
+                        if "CeaseTime" in event:
+                            end_time = parse_rfc_time(event["CeaseTime"])
+                        elif "WinEndTime" in event:
+                            end_time = parse_rfc_time(event["WinEndTime"])
+                        elif "EventTime" in event:
+                            end_time = parse_rfc_time(event["EventTime"])
+                        else:
+                            end_time = detect_time
 
                         node = event["Node"][-1]["Name"]
                         key_cat = 'events.'+date+'.'+cat
                         key_node = 'events.'+date+'.nodes'
-                        self._um.update(
+                        g.um.update(
                             ('ip', ipv4),
                             [
                                 ('add', key_cat, 1),
                                 ('add_to_set', key_node, node),
                                 ('add', 'events.total', 1),
+                                ('set', 'ts_last_event', end_time),
                             ]
                         )
                         
@@ -251,7 +260,7 @@ class EventReceiver(NERDModule):
                 pass
             
             # If there are already too much requests queued, wait a while
-            #print("***** QUEUE SIZE: {} *****".format(self._um.get_queue_size()))
-            while self._um.get_queue_size() > MAX_QUEUE_SIZE:
-                time.sleep(0.5)
+            #print("***** QUEUE SIZE: {} *****".format(g.um.get_queue_size()))
+#             while g.um.get_queue_size() > MAX_QUEUE_SIZE:
+#                 time.sleep(0.5)
             

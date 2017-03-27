@@ -1,8 +1,8 @@
-geoip2
 pymongo
+psycopg2
 dnspython
-BeautifulSoup4
+geoip2
 pygeoip
 pycares
 shodan
-python-dateutil
+apscheduler

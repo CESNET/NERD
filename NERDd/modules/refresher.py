@@ -2,13 +2,15 @@
 TODO
 """
 
-from .base import NERDModule
+from core.basemodule import NERDModule
+import g
 
 from threading import Thread
 import time
 import json
 import logging
 import pymongo
+from datetime import datetime, timedelta
 
 MAX_QUEUE_SIZE = 100 # Maximal size of UpdateManager's request queue
                      # (when number of pending requests exceeds this value,
@@ -19,16 +21,23 @@ running_flag = True # read_dir function terminates when this is set to False
 
 logger = logging.getLogger('Refresher')
 
+now = datetime.utcnow()
 
 # Module performs given action(s) for each IP address which is result of a MongoDB query
 
 commands = [
     # 3-tuple: expression returning iterable, entity_type, update_requests
-    #( "self._db.find('ip', {'as_maxmind': {'$exists': False}, 'as_rv': {'$exists': False}})", 'ip', [('event', '!refresh_asn', None)] ),
-    #( "self._db.find('ip', {'geo': {'$exists': False}})", 'ip', [('event', '!refresh_geo', None)] ),
-    #( "self._db.find('ip', {'bl': {'$exists': False}})", 'ip', [('event', '!refresh_localbl', None)] ),
-    #( "list(self._db._db.ip.aggregate([{'$group': {'_id': '$as_rv.num'}}, {'$group': {'_id': 0, 'asns': {'$addToSet': '$_id'}}}]))[0]['asns']", 'asn', [] ), # empty request to just create the record if it doesn't exist
-    ( "list(self._db._db.ip.aggregate([{'$group': {'_id': '$as_maxmind.num'}}, {'$group': {'_id': 0, 'asns': {'$addToSet': '$_id'}}}]))[0]['asns']", 'asn', [] ), # empty request to just create the record if it doesn't exist
+    #( "g.db.find('ip', {'as_maxmind': {'$exists': False}, 'as_rv': {'$exists': False}})", 'ip', [('event', '!refresh_asn', None)] ),
+    #( "g.db.find('ip', {'geo': {'$exists': False}})", 'ip', [('event', '!refresh_geo', None)] ),
+    #( "g.db.find('ip', {'bl': {'$exists': False}})", 'ip', [('event', '!refresh_localbl', None)] ),
+    #( "list(g.db._db.ip.aggregate([{'$group': {'_id': '$as_rv.num'}}, {'$group': {'_id': 0, 'asns': {'$addToSet': '$_id'}}}]))[0]['asns']", 'asn', [] ), # empty request to just create the record if it doesn't exist
+    #( "list(g.db._db.ip.aggregate([{'$group': {'_id': '$as_maxmind.num'}}, {'$group': {'_id': 0, 'asns': {'$addToSet': '$_id'}}}]))[0]['asns']", 'asn', [] ), # empty request to just create the record if it doesn't exist
+    #( "g.db.find('ip', {}, sort=[('events.total', pymongo.DESCENDING)], skip=0, limit=1000)", 'ip', [('event', '!refresh_dnsbl', None)] ),
+#     ( "g.db.find('ip', {'_nru1d': {'$exists': False}}, skip=0, limit=500000)", 'ip', [
+#         ('next_step', '_nru4h', ('ts_added', now, timedelta(seconds=4*60*60))),
+#         ('next_step', '_nru1d', ('ts_added', now, timedelta(days=1))),
+#         ('next_step', '_nru1w', ('ts_added', now, timedelta(days=7))),
+#     ] ),
 ]
 def get_commands():
     if not commands:
@@ -46,11 +55,9 @@ class Refresher(NERDModule):
     a MongoDB query.
     TODO: How to get queries and actions? (now it's hardcoded)
     """
-    def __init__(self, config, update_manager, db):
+    def __init__(self):
         self.log = logging.getLogger("Refresher")
         self.log.setLevel("DEBUG")
-        self._um = update_manager
-        self._db = db
     
     def start(self):
         """
@@ -97,11 +104,11 @@ class Refresher(NERDModule):
             for i,key in enumerate(keys):
                 # If there are already too much requests queued, wait a while
                 #print("***** QUEUE SIZE: {} *****".format(self._um.get_queue_size()))
-                while self._um.get_queue_size() > MAX_QUEUE_SIZE:
-                    time.sleep(0.5)
+                while g.um.get_queue_size() > MAX_QUEUE_SIZE:
+                    time.sleep(0.2)
                 
                 #print(key, actions)
-                self._um.update((etype,key), actions.copy())
+                g.um.update((etype,key), actions.copy())
                 if (i+1) % 1000 == 0:
                     self.log.debug("{} entities updated.".format(i+1))
             

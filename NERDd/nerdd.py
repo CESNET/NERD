@@ -5,16 +5,81 @@ import os
 from time import sleep
 import logging
 
-# Add to path the "one directory above the current file location"
+# Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+
+DEFAULT_CONFIG_FILE = "../etc/nerdd.cfg"
+
+
+################################################
+# Initialize logging mechanism
+
+LOGFORMAT = "%(asctime)-15s,%(threadName)s,%(name)s,[%(levelname)s] %(message)s"
+LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
+
+logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
+log = logging.getLogger()
+
+# Disable INFO and DEBUG messages from requests.urllib3 library, wihch is used by some modules
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+    
+logging.getLogger("CaidaASclass").setLevel(logging.DEBUG)    
+logging.getLogger("hostname_class").setLevel(logging.DEBUG)
+logging.getLogger("EventTypeCounter").setLevel(logging.DEBUG)
+
+log.info("***** NERDd start *****")
+
+
+################################################
+# Load core components
+
 import common.config
-#import core.db
+import common.eventdb_psql
 import core.mongodb
 import core.update_manager
-import modules.base
-# TODO load everything automatically (or everything specified in config)
+import core.scheduler
+
+################################################
+# Load configuration
+
+# TODO parse arguments using ArgParse
+if len(sys.argv) >= 2:
+    cfg_file = sys.argv[1]
+else:
+    cfg_file = DEFAULT_CONFIG_FILE
+
+# Read NERDd-specific config (nerdd.cfg)
+log.info("Loading config file {}".format(cfg_file))
+config = common.config.read_config(cfg_file)
+
+# Read common config (nerd.cfg) and combine them together
+common_cfg_file = os.path.join(os.path.dirname(os.path.abspath(cfg_file)), config.get('common_config'))
+log.info("Loading config file {}".format(common_cfg_file))
+config.update(common.config.read_config(common_cfg_file))
+
+
+################################################
+# Create instances of core components
+# Save them to "g" ("global") module so they can be easily accessed from everywhere
+
+import g
+g.config = config
+g.scheduler = core.scheduler.Scheduler()
+g.db = core.mongodb.MongoEntityDatabase(config)
+g.eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+g.um = core.update_manager.UpdateManager(config, g.db)
+
+
+################################################
+# Load all NERD modules
+# (all modules can now use core components in "g")
+
+# TODO load all modules automatically (or just modules specified in config)
 #import modules.test_module
 import modules.event_receiver
+import modules.updater
+import modules.cleaner
 import modules.dns
 import modules.geolocation
 import modules.asn
@@ -30,99 +95,75 @@ import modules.caida_as_class
 import modules.event_type_counter
 import modules.tags
 import common.eventdb_psql
+import modules.reputation
 
-############
+# Instantiate modules
+# TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
+#  or take if from configuration
+module_list = [
+    modules.event_receiver.EventReceiver(),
+    modules.updater.Updater(),
+    modules.cleaner.Cleaner(),
+    #modules.refresher.Refresher(),
+    modules.event_counter.EventCounter(),
+    #modules.test_module.TestModule(),
+    modules.dns.DNSResolver(),
+    modules.geolocation.Geolocation(),
+    modules.asn.ASN(),
+    modules.dnsbl.DNSBLResolver(),
+    modules.local_bl.LocalBlacklist(),
+    modules.shodan.Shodan(),
+    modules.eml_asn_rank.EML_ASN_rank(),
+    modules.reputation.Reputation(),
+	modules.tor_exitnode.TORNodes(),
+    modules.hostname.HostnameClass(),
+    modules.caida_as_class.CaidaASclass(),
+    modules.event_type_counter.EventTypeCounter(),
+    #modules.tags.Tags(),
+]
 
-DEFAULT_CONFIG_FILE = "../etc/nerdd.cfg"
 
-LOGFORMAT = "%(asctime)-15s,%(threadName)s,%(name)s,[%(levelname)s] %(message)s"
-LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
+################################################
+# Initialization completed, run ...
 
-############
+# import yappi
+# # yappi.set_clock_type("Wall")
+# log.info("Profiler start")
+# yappi.start()
 
+# Run update manager thread/process
+log.info("***** Initialization completed, starting all modules *****")
+g.um.start()
 
-if __name__ == "__main__":
+# Run modules that have their own threads/processes
+# (if they don't, the start() should do nothing)
+for module in module_list:
+    module.start()
 
-    # Initialize logging mechanism
-    logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
-    log = logging.getLogger()
-    
-    log.info("NERDd start")
-    
-    # Load configuration
-    # TODO parse arguments using ArgParse
-    if len(sys.argv) >= 2:
-        cfg_file = sys.argv[1]
-    else:
-        cfg_file = DEFAULT_CONFIG_FILE
-    # Read NERDd-specific config (nerdd.cfg)
-    log.info("Loading config file {}".format(cfg_file))
-    config = common.config.read_config(cfg_file)
-    # Read common config (nerd.cfg) and combine them together
-    common_cfg_file = os.path.join(os.path.dirname(os.path.abspath(cfg_file)), config.get('common_config'))
-    log.info("Loading config file {}".format(common_cfg_file))
-    config.update(common.config.read_config(common_cfg_file))
-    
-    # Disable INFO and DEBUG messages from requests.urllib3 library, wihch is used by some modules
-    logging.getLogger("requests").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
+# Run scheduler
+g.scheduler.start()
 
-    logging.getLogger("CaidaASclass").setLevel(logging.DEBUG)
-    logging.getLogger("hostname_class").setLevel(logging.DEBUG)
-    logging.getLogger("EventTypeCounter").setLevel(logging.DEBUG)
+print("-------------------------------------------------------------------")
+print("Reading events from "+str(config.get('warden_filer_path'))+"/incoming")
+print()
+print("*** Enter anything to quit ***")
+try:
+    input()
+except KeyboardInterrupt:
+    pass
 
-    # Create main NERDd components
-    #db = core.db.EntityDatabase({})
-    db = core.mongodb.MongoEntityDatabase(config)
-    #eventdb = common.eventdb.FileEventDatabase(config)
-    eventdb = common.eventdb_psql.PSQLEventDatabase(config)
-    update_manager = core.update_manager.UpdateManager(config, db)
-    
-    # Instantiate modules
-    # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
-    #  or take if from configuration
-    module_list = [
-        modules.event_receiver.EventReceiver(config, update_manager, eventdb),
-        #modules.refresher.Refresher(config, update_manager, db),
-        modules.event_counter.EventCounter(config, update_manager),
-        #modules.test_module.TestModule(config, update_manager),
-        modules.dns.DNSResolver(config, update_manager),
-        modules.geolocation.Geolocation(config, update_manager),
-        modules.asn.ASN(config, update_manager),
-        modules.dnsbl.DNSBLResolver(config, update_manager),
-        modules.local_bl.LocalBlacklist(config, update_manager),
-        modules.shodan.Shodan(config, update_manager),
-        modules.eml_asn_rank.EML_ASN_rank(config, update_manager),
-	    modules.tor_exitnode.TORNodes(config, update_manager),
-        modules.hostname.HostnameClass(config, update_manager),
-        modules.caida_as_class.CaidaASclass(config, update_manager),
-        modules.event_type_counter.EventTypeCounter(config, update_manager),
-        modules.tags.Tags(config, update_manager),
-    ]
-    
-    # Run update manager thread/process
-    log.info("Starting UpdateManager")
-    update_manager.start()
-    
-    # Run modules that have their own threads/processes
-    # (if they don't, the start() should do nothing)
-    for module in module_list:
-        module.start()
-    
-    print("-------------------------------------------------------------------")
-    print("Reading events from "+str(config.get('warden_filer_path'))+"/incoming")
-    print()
-    print("*** Enter anything to quit ***")
-    try:
-        input()
-    except KeyboardInterrupt:
-        pass
-    
-    log.info("Stopping running components ...")
-    for module in module_list:
-        module.stop()
-    update_manager.stop()
-    
-    log.info("Finished, main thread exitting.")
-    logging.shutdown()
+# yappi.stop()
+# log.info("Profiler end")
+# yappi.get_func_stats().save('profile_output', type="pstat")
 
+################################################
+# Finalization & cleanup
+
+log.info("Stopping running components ...")
+g.scheduler.stop()
+for module in module_list:
+    module.stop()
+g.um.stop()
+
+log.info("***** Finished, main thread exitting. *****")
+logging.shutdown()

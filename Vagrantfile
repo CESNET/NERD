@@ -56,6 +56,9 @@ enabled=1
     /usr/pgsql-9.6/bin/createdb -U postgres --owner nerd nerd
     # initialize database (create tables etc.)
     /usr/pgsql-9.6/bin/psql -d nerd -U nerd -f sync/create_db.sql
+    
+    # Set up MongoDB (create indexes)
+    mongo nerd sync/mongo_prepare_db.js
 
     # Download GeoIP database
     mkdir -p /data/geoip

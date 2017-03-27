@@ -14,6 +14,8 @@ from collections import defaultdict, deque, Iterable
 import logging
 import traceback
 
+import g
+
 WORKER_THREADS = 10
 
 ENTITY_TYPES = ['ip', 'asn']
@@ -25,7 +27,11 @@ ENTITY_TYPES = ['ip', 'asn']
 #      - ('add_to_set', key, value) - append new value to array at key if it isn't present in the array yet (if value not in rec[key]: rec[key].append(value))
 #      - ('extend_set', key, iterable) - append values from iterable to array at key if the value isn't present in the array yet (for value in iterable: if value not in rec[key]: rec[key].append(value))
 #      - ('add', key, value)        - add given numerical value to that stored at key (rec[key] += value)
-#      - ('sub', key, value)        - add given numerical value to that stored at key (rec[key] -= value)
+#      - ('sub', key, value)        - subtract given numerical value from that stored at key (rec[key] -= value)
+#      - ('setmax', key, value)     - set new value of the key to larger of the given value and the current value (rec[key] = max(value, rec[key]))
+#      - ('setmin', key, value)     - set new value of the key to smaller of the given value and the current value (rec[key] = min(value, rec[key]))
+#      - ('remove', key, None)      - remove given key (and all subkeys) from the record (parameter is ignored) (do nothing if the key doesn't exist)
+#      - ('next_step', key, (key_base, min, step)) - set value of 'key' to the smallest value of 'rec[key_base] + N*step' that is greater than 'min' (used by updater to set next update time); key_base MUST exist in the record!
 #      - ('event', !name, param)    - do nothing with record, only trigger functions hooked on the event name
 #  The tuple is passed to functions watching for updates of given keys / events
 #  with given name. Event names must begin with '!' (attribute keys mustn't).
@@ -68,9 +74,10 @@ def perform_update(rec, updreq):
     
     updreq - 3-tuple (op, key, value)
     
-    Return specification of performed updates - either updreq or None
+    Return specification of performed updates - either a pair (upated_key,
+    new_vlaue) or None.
     (None is returned when nothing was changed, either because op=add_to_set and
-    value was already in the array, or unknown operation was requested)
+    value was already in the array, or an unknown operation was requested)
     """
     op, key, value = updreq
     
@@ -91,10 +98,6 @@ def perform_update(rec, updreq):
             rec[key] = [value]
         else:
             rec[key].append(value)
-    elif op == 'del':
-        if key in rec:
-            del rec[key]
-        return None
     elif op == 'add_to_set':
         if key not in rec:
             rec[key] = [value]
@@ -126,6 +129,30 @@ def perform_update(rec, updreq):
             rec[key] = -value
         else:
             rec[key] -= value
+    
+    elif op == 'setmax':
+        if key not in rec:
+            rec[key] = value
+        else:
+            rec[key] = max(value, rec[key])
+    
+    elif op == 'setmin':
+        if key not in rec:
+            rec[key] = value
+        else:
+            rec[key] = min(value, rec[key])
+    
+    elif op == 'remove':
+        if key in rec:
+            del rec[key]
+        else:
+            print("WARNING: Can't remove '{}' (request: {})".format(key, updreq))
+        return (updreq[1], None)
+    
+    elif op == 'next_step':
+        key_base, min, step = value
+        base = rec[key_base]
+        rec[key] = base + ((min - base) // step + 1) * step 
     
     else:
         print("ERROR: perform_update: Unknown operation {}".format(op), file=sys.stderr)
@@ -183,8 +210,31 @@ class UpdateManager:
         self._records_being_processed = {}
         # Since _records_being_processed may be accessed by many thread, locking is necessary
         self._records_being_processed_lock = threading.Lock()
-    
-    
+        
+        # Total count of requests processed
+        self._request_counter = 0
+        self._last_request_counter = 0 # Last number written to log file
+        # Call it every 1 second
+        if ("req_cnt_file" in g.config):
+            g.scheduler.register(self.log_request_counter, second="*/1")
+
+
+    def log_request_counter(self):
+        # Write request counter to file (every 10 sec)
+        # First line: total number of request processed
+        # Second line: number of request per second (avg from last 10s period)
+        filename = g.config.get("req_cnt_file", None)
+        if not filename:
+            return
+        with open(filename, "w") as f:
+            f.write("{}\n{:.1f}\n{}\n".format(
+                self._request_counter,
+                (self._request_counter - self._last_request_counter) / 1,
+                self.get_queue_size()
+            ))
+        self._last_request_counter = self._request_counter
+
+
     def register_handler(self, func, etype, triggers, changes):
         """
         Hook a function (or bound method) to specified attribute changes/events.
@@ -222,7 +272,7 @@ class UpdateManager:
 
     def get_queue_size(self):
         """Return current number of requests in the queue."""
-        return self._request_queue.qsize()
+        return self._request_queue.unfinished_tasks
         
 
     def update(self, ekey, update_spec):
@@ -497,11 +547,12 @@ class UpdateManager:
         # Thread for printing debug messages about worker status
         threading.Thread(target=self._dbg_worker_status_print, daemon=True).start()
         
+        # Wait until all work is done (other modules should be stopped now, but some tasks may still be added as a result of already ongoing processing (e.g. new IP adds new ASN))
+        self._request_queue.join()
         # Send None to request_queue to signal workers to stop (one for each worker)
         for _ in self._workers:
             self._request_queue.put(None) 
-        # Wait until all workers finishes
-        self._request_queue.join()
+        # Wait until all workers stopped (this should be immediate)
         for worker in self._workers:
             worker.join()
         # Cleanup
@@ -558,6 +609,7 @@ class UpdateManager:
             
 #             self.log.debug("Task done")
             self._request_queue.task_done()
-    
-        
+            self._request_counter += 1
+
+
 
