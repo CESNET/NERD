@@ -19,7 +19,7 @@ class HostnameClass(NERDModule):
     Classifies IP according to hostname and given list of known domains and regular expressions
 
     Event flow specification:
-    [ip] 'hostname' -> hostname_classify() -> 'service.known_domain_service' and/or 'service.hostname_regex_service'
+    [ip] 'hostname' -> hostname_classify() -> 'hostname_class'
     """
 
     def __init__(self):
@@ -28,12 +28,12 @@ class HostnameClass(NERDModule):
         self.regex_hostname = g.config.get("hostname_tagging.regex_tagging", [])
         self.regex_hostname = [(re.compile(regex, flags=re.ASCII), tag) for regex,tag in self.regex_hostname]
         self.known_domains = self.convert_domain_list_to_dict(g.config.get("hostname_tagging.known_domains", []))
-        	
+
         g.um.register_handler(
-	    self.hostname_classify,
-	    'ip',
-	    ('hostname',),
-	    ('service.known_domain_service', 'service.hostname_regex_service')
+            self.hostname_classify,
+            'ip',
+            ('hostname',),
+            ('hostname_class',)
         )
 
     def convert_domain_list_to_dict(self, domain_list):
@@ -63,7 +63,7 @@ class HostnameClass(NERDModule):
         updates -- list of all attributes whose update triggered this call and
                    their new values (or events and their parameters) as a list of
                    2-tuples: [(attr, val), (!event, param), ...]
-                                                           
+
         Returns:
         List of update requests. 
         """
@@ -78,27 +78,28 @@ class HostnameClass(NERDModule):
             self.log.debug("Hostname attribute is not filled for IP ({}).".format(key))
             return None
         
-        ret = []
+        tags = []
         
         dot_count = hostname.count(".")
         
         for i in range(0,dot_count):
             portion = hostname.split(".",i)[-1]
             if portion in self.known_domains:
-                self.log.debug("Hostname ({}) ends with domain {} and has been classified as {}.".format(hostname, portion, self.known_domains[portion]))
-                ret.append(('set', 'service.known_domain_service', self.known_domains[portion]))
+                tag = self.known_domains[portion]
+                self.log.debug("Hostname ({}) ends with domain {} and has been classified as {}.".format(hostname, portion, tag))
+                if tag not in tags:
+                    tags.append(tag)
                 break
         
-        ret_regex = []
         for regex in self.regex_hostname:
             if regex[0].search(hostname):
-                self.log.debug("Hostname ({}) matches regex {} and has been classified as {}.".format(hostname, regex[0].pattern, regex[1]))
-                if not regex[1] in ret_regex:
-                    ret_regex.append(regex[1])
-        if ret_regex:
-            ret.append(('set', 'service.hostname_regex_service', ret_regex))
-        else:
-            # If hostname_regex_service existed previously but no regex matches now, remove the key
-            ret.append(('remove', 'service.hostname_regex_service', None)) 
+                tag = regex[1]
+                self.log.debug("Hostname ({}) matches regex {} and has been classified as {}.".format(hostname, regex[0].pattern, tag))
+                if tag not in tags:
+                    tags.append(tag)
         
-        return ret
+        if tags:
+            return [('set', 'hostname_class', tags)]
+        else:
+            # If hostname_class existed previously but no rule matches now, remove the key
+            return [('remove', 'hostname_class', None)] 
