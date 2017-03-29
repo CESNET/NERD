@@ -77,7 +77,7 @@
   <dt>events ({{val.total}})</dt>
   <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
    {% for date,cats in val|dictsort %}
-    {% if date[:5] != 'total' %}
+    {% if date[:4].isdigit() %}
      <dt>{{date}}</dt><dd>
       {% for cat,val in cats|dictsort %}
        {% if cat != 'nodes' %}

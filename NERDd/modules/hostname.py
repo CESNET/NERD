@@ -24,7 +24,9 @@ class HostnameClass(NERDModule):
 
     def __init__(self):
         self.log = logging.getLogger("hostname_class")
+        #self.log.setLevel("DEBUG")
         self.regex_hostname = g.config.get("hostname_tagging.regex_tagging", [])
+        self.regex_hostname = [(re.compile(regex, flags=re.ASCII), tag) for regex,tag in self.regex_hostname]
         self.known_domains = self.convert_domain_list_to_dict(g.config.get("hostname_tagging.known_domains", []))
         	
         g.um.register_handler(
@@ -87,9 +89,16 @@ class HostnameClass(NERDModule):
                 ret.append(('set', 'service.known_domain_service', self.known_domains[portion]))
                 break
         
+        ret_regex = []
         for regex in self.regex_hostname:
-            if re.match(regex[0], hostname):
-                self.log.debug("Hostname ({}) matches regex {} and has been classified as {}.".format(hostname, regex[0], regex[1]))
-                ret.append(('set', 'service.hostname_regex_service', regex[1]))
+            if regex[0].search(hostname):
+                self.log.debug("Hostname ({}) matches regex {} and has been classified as {}.".format(hostname, regex[0].pattern, regex[1]))
+                if not regex[1] in ret_regex:
+                    ret_regex.append(regex[1])
+        if ret_regex:
+            ret.append(('set', 'service.hostname_regex_service', ret_regex))
+        else:
+            # If hostname_regex_service existed previously but no regex matches now, remove the key
+            ret.append(('remove', 'service.hostname_regex_service', None)) 
         
         return ret
