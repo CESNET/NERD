@@ -98,7 +98,6 @@ def perform_update(rec, updreq):
             rec[key] = [value]
         else:
             rec[key].append(value)
-    
     elif op == 'add_to_set':
         if key not in rec:
             rec[key] = [value]
@@ -146,8 +145,6 @@ def perform_update(rec, updreq):
     elif op == 'remove':
         if key in rec:
             del rec[key]
-        else:
-            print("WARNING: Can't remove '{}' (request: {})".format(key, updreq))
         return (updreq[1], None)
     
     elif op == 'next_step':

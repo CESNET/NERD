@@ -23,7 +23,7 @@ log = logging.getLogger()
 # Disable INFO and DEBUG messages from requests.urllib3 library, wihch is used by some modules
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
-
+    
 log.info("***** NERDd start *****")
 
 
@@ -85,6 +85,10 @@ import modules.shodan
 import modules.eml_asn_rank
 import modules.refresher
 import modules.event_counter
+import modules.hostname
+import modules.caida_as_class
+import modules.event_type_counter
+#import modules.tags
 import modules.reputation
 
 # Instantiate modules
@@ -105,6 +109,10 @@ module_list = [
     modules.shodan.Shodan(),
     modules.eml_asn_rank.EML_ASN_rank(),
     modules.reputation.Reputation(),
+    modules.hostname.HostnameClass(),
+    modules.caida_as_class.CaidaASclass(),
+    modules.event_type_counter.EventTypeCounter(),
+    #modules.tags.Tags(),
 ]
 
 
@@ -152,5 +160,3 @@ g.um.stop()
 
 log.info("***** Finished, main thread exitting. *****")
 logging.shutdown()
-
-

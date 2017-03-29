@@ -65,6 +65,9 @@ enabled=1
     wget -q http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz -O /data/geoip/GeoLite2-City.mmdb.gz
     gunzip /data/geoip/GeoLite2-City.mmdb.gz
 
+    # Add caida file
+    cp sync/caida-as2types.txt /data/caida-as2types.txt
+
     # Warden_filer
     wget -q https://homeproj.cesnet.cz/tar/warden/contrib_3.0-beta2.tar.bz2
     tar -xf contrib_3.0-beta2.tar.bz2
