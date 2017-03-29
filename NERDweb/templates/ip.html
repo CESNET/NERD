@@ -92,6 +92,11 @@
      </dd>
     {% endif %}
    {% endfor %}
+   {%- if ac('internal_attrs') %}
+     {% for k,v in val|dictsort %}
+       {% if not k[:4].isdigit() %}<dt>{{k}}</dt><dd>{{v}}</dd>{% endif %}
+     {% endfor %}
+   {% endif -%}
   </dl></dd>
  {% elif attr == "geo" %}
   <dt>geo</dt><dd><span class="country">
