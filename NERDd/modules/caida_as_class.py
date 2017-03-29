@@ -27,7 +27,7 @@ class CaidaASclass(NERDModule):
             return
         
         self.caida_dict = self.parse_list(self.caida.get("caida_file", ""))
-        if self.caida_dict:
+        if not self.caida_dict:
             return
 
         g.um.register_handler(
@@ -111,7 +111,6 @@ class CaidaASclass(NERDModule):
         Return:
         List of update requests.
         """
-
         etype, key = ekey
         if etype != 'ip':
             return None
