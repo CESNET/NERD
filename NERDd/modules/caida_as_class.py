@@ -13,23 +13,28 @@ import os
 class CaidaASclass(NERDModule):
     """
     CaidaASclass module.
-    Parses Caida AS classification list of ASN and determinates bussiness usage of IP.
+    Parses Caida AS classification list of ASN and determines bussiness usage of IP.
 
     Event flow specification:
-    [ip] 'as_maxmind.num' and 'as_rv.num' -> determinate_type() -> 'caida_as_class.v' and 'caida_as_class.c'
+    [ip] 'as_maxmind.num' and 'as_rv.num' -> determine_type() -> 'caida_as_class.v' and 'caida_as_class.c'
     """
     
     def __init__(self):
         self.log = logging.getLogger("CaidaASclass")
-        self.caida = g.config.get("caida")
+        self.caida = g.config.get("caida", None)
+        if not self.caida:
+            self.log.warning("Configuration for CaidaASclass module not found - module is disabled.")
+            return
         
-        self.caida_dict = self.parse_list(self.caida["caida_file"])
-	
+        self.caida_dict = self.parse_list(self.caida.get("caida_file", ""))
+        if not self.caida_dict:
+            return
+
         g.um.register_handler(
-	    self.determinate_type,
-	    'ip',
-	    ('as_maxmind.num','as_rv.num'),
-	    ('caida_as_class.v', 'caida_as_class.c')
+            self.determine_type,
+            'ip',
+            ('as_maxmind.num','as_rv.num'),
+            ('caida_as_class.v', 'caida_as_class.c')
         )
     
     def parse_list(self, path):
@@ -62,7 +67,7 @@ class CaidaASclass(NERDModule):
                             ASN_dictionary[asn_num] = ASN_data
                         except ValueError:
                             self.log.error("Can't parse line starting with '{}' - it's not number.".format(data[0]))
-        except EnvironmentError as e:
+        except Exception as e:
             self.log.error("Can't parse Caida list file ({}): {} .".format(path, str(e)))
             return {}
        
@@ -92,7 +97,7 @@ class CaidaASclass(NERDModule):
                 return res
         return None
 
-    def determinate_type(self, ekey, rec, updates):
+    def determine_type(self, ekey, rec, updates):
         """
         Classifies IP according to its AS number
 
@@ -106,7 +111,6 @@ class CaidaASclass(NERDModule):
         Return:
         List of update requests.
         """
-
         etype, key = ekey
         if etype != 'ip':
             return None
@@ -137,7 +141,7 @@ class CaidaASclass(NERDModule):
                             ret.append(('set', 'caida_as_class.c', confidence))
                         return ret
                     else:
-                        self.log.debug("IP {} has different ASNs (ASN_maxmind: {} and ASN_rv: {}) and type can't be determinated ({} or {}).".format(key,as_maxmind["num"], as_rv["num"], res_maxmind["class"], res_rv["class"]))
+                        self.log.debug("IP {} has different ASNs (ASN_maxmind: {} and ASN_rv: {}) and type can't be determined ({} or {}).".format(key,as_maxmind["num"], as_rv["num"], res_maxmind["class"], res_rv["class"]))
                         return [('set', 'caida_as_class.v', 'unknown')]
                 elif res_maxmind is not None:
                     self.log.debug("IP {} (ASN: {}) has class: {} (source: {}, confidence: {}) according to CAIDA.".format(key,as_maxmind["num"], res_maxmind["class"], res_maxmind["source"], res_maxmind["confidence"]))
@@ -175,7 +179,7 @@ class CaidaASclass(NERDModule):
                 return ret
         
         # No ASNs set for IP or ASN is not in caida file -> set caida_as_class value to unknown 
-        if "as_rv" not in rec and "as_maxmind" in rec: 
+        if "as_rv" not in rec and "as_maxmind" not in rec: 
             self.log.debug("No ASNs have been found for IP {}.".format(key))
         else:
             rv = rec["as_rv"]["num"] if "as_rv" in rec else "None"

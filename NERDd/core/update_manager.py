@@ -145,8 +145,6 @@ def perform_update(rec, updreq):
     elif op == 'remove':
         if key in rec:
             del rec[key]
-        else:
-            print("WARNING: Can't remove '{}' (request: {})".format(key, updreq))
         return (updreq[1], None)
     
     elif op == 'next_step':

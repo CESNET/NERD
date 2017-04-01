@@ -111,6 +111,12 @@ $INCLUDE /etc/named/zones/originas
     chown -R vagrant:vagrant ~vagrant/ /data/warden_filer
     chown vagrant:vagrant /data
 
+    # TODO:
+    # Some more things should be done production, which are not included in
+    # this Vagrant file, since they are complicated and not needed for testing.
+    # - Set up cron to run scripts/nerd_db_remove_old_records.sh regularly
+    # - Set up Apache (or other web server) to run NERDweb/wsgi.py via WSGI
+
     echo "
 ------------------------------------------------------------
 Installation finished.

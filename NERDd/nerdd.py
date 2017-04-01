@@ -24,10 +24,6 @@ log = logging.getLogger()
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
     
-logging.getLogger("CaidaASclass").setLevel(logging.DEBUG)    
-logging.getLogger("hostname_class").setLevel(logging.DEBUG)
-logging.getLogger("EventTypeCounter").setLevel(logging.DEBUG)
-
 log.info("***** NERDd start *****")
 
 
@@ -89,12 +85,10 @@ import modules.shodan
 import modules.eml_asn_rank
 import modules.refresher
 import modules.event_counter
-import modules.tor_exitnode
 import modules.hostname
 import modules.caida_as_class
 import modules.event_type_counter
 #import modules.tags
-import common.eventdb_psql
 import modules.reputation
 
 # Instantiate modules
@@ -115,7 +109,6 @@ module_list = [
     modules.shodan.Shodan(),
     modules.eml_asn_rank.EML_ASN_rank(),
     modules.reputation.Reputation(),
-	modules.tor_exitnode.TORNodes(),
     modules.hostname.HostnameClass(),
     modules.caida_as_class.CaidaASclass(),
     modules.event_type_counter.EventTypeCounter(),
