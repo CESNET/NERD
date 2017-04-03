@@ -201,6 +201,11 @@ class UpdateManager:
         # List of worker threads for processing the update requests
         self._workers = []
         
+        # Number of restarts of threads by watchdog
+        self._watchdog_restarts = 0
+        # Register watchdog to scheduler
+        g.scheduler.register(self.watchdog, second="*/30")
+
         # Temporary storage of records being updated.
         # Mapping of "ekey" to the following 3-tuple:
         #     (record [JSON-like object], 
@@ -557,8 +562,30 @@ class UpdateManager:
             worker.join()
         # Cleanup
         self._workers = []
-    
-    
+
+
+    def watchdog(self):
+        """
+        Check whether all workers are running and restart them if not.
+        
+        Should be called periodically by scheduler.
+        Stop whole program after 20 restarts of threads.
+        """
+        for i,worker in enumerate(self._workers):
+            if not worker.is_alive():
+                if self._watchdog_restarts < 20:
+                    self.log.error("Thread {} is dead, restarting.".format(worker.name))
+                    worker.join()
+                    new_thread = threading.Thread(target=self._worker_func, args=(i,), name="UMWorker-"+str(i))
+                    self._workers[i] = new_thread
+                    new_thread.start()
+                    self._watchdog_restarts += 1
+                else:
+                    self.log.critical("Thread {} is dead, more than 20 restarts attempted, giving up...".format(worker.name))
+                    g.daemon_stop_lock.release()
+                    break
+
+
     def _dbg_worker_status_print(self):
         """
         Print status of workers and the request queue every 5 seconds.

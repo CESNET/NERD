@@ -4,6 +4,8 @@ import sys
 import os
 from time import sleep
 import logging
+import threading
+import signal
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -116,6 +118,18 @@ module_list = [
 ]
 
 
+# Lock used to control when the program stops.
+g.daemon_stop_lock = threading.Lock()
+g.daemon_stop_lock.acquire()
+
+# Signal handler releasing the lock on SIGINT or SIGTERM
+def sigint_handler(signum, frame):
+    log.debug("Signal {} received, stopping daemon".format({signal.SIGINT: "SIGINT", signal.SIGTERM: "SIGTERM"}.get(signum, signum)))
+    g.daemon_stop_lock.release()
+signal.signal(signal.SIGINT, sigint_handler)
+signal.signal(signal.SIGTERM, sigint_handler)
+signal.signal(signal.SIGABRT, sigint_handler)
+
 ################################################
 # Initialization completed, run ...
 
@@ -136,14 +150,16 @@ for module in module_list:
 # Run scheduler
 g.scheduler.start()
 
+
 print("-------------------------------------------------------------------")
 print("Reading events from "+str(config.get('warden_filer_path'))+"/incoming")
 print()
-print("*** Enter anything to quit ***")
-try:
-    input()
-except KeyboardInterrupt:
-    pass
+print("*** Press Ctrl-C to quit ***")
+
+# Wait until someone wants to stop the program by releasing this Lock.
+# It may be a user by pressing Ctrl-C or some program module.
+# (try to acquire the lock again, effectively waiting until it's released by signal handler or another thread)
+g.daemon_stop_lock.acquire()
 
 # yappi.stop()
 # log.info("Profiler end")
