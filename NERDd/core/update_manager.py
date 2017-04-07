@@ -377,7 +377,7 @@ class UpdateManager:
         # Fetch the record from database or create a new one
         rec = self.db.get(ekey[0], ekey[1])
         if rec is None:
-            now = datetime.now(tz=timezone.utc)
+            now = datetime.utcnow()
             rec = {
                 'ts_added': now,
                 'ts_last_update': now,
@@ -514,7 +514,7 @@ class UpdateManager:
         assert(len(may_change) == 0)
         
         # Set ts_last_update
-        rec['ts_last_update'] = datetime.now(tz=timezone.utc)
+        rec['ts_last_update'] = datetime.utcnow()
         
         #self.log.debug("RECORD: {}: {}".format(ekey, rec))
         
