@@ -22,11 +22,11 @@ class CaidaASclass(NERDModule):
     def __init__(self):
         self.log = logging.getLogger("CaidaASclass")
         self.caida = g.config.get("caida", None)
-        if not self.caida:
+        if not self.caida or not self.caida.get("caida_file", False):
             self.log.warning("Configuration for CaidaASclass module not found - module is disabled.")
             return
         
-        self.caida_dict = self.parse_list(self.caida.get("caida_file", ""))
+        self.caida_dict = self.parse_list(self.caida.get("caida_file"))
         if not self.caida_dict:
             return
 
