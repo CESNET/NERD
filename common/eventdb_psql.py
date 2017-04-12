@@ -135,4 +135,6 @@ class PSQLEventDatabase:
             self.db.commit() # Close transaction (the first command opens it automatically)
         except Exception as e:
             self.log.error(str(e))
+            if str(e).startswith("duplicate"):
+                self.log.error("IDEA: "+str(idea))
             self.db.rollback() # Rollback all non-commited changes
