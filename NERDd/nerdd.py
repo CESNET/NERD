@@ -23,7 +23,11 @@ log = logging.getLogger()
 # Disable INFO and DEBUG messages from requests.urllib3 library, wihch is used by some modules
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
-    
+
+#TODO for testing purpose only!
+logging.getLogger("Tags").setLevel(logging.DEBUG)
+logging.getLogger("TagsInterpreter").setLevel(logging.DEBUG)
+
 log.info("***** NERDd start *****")
 
 
@@ -88,7 +92,7 @@ import modules.event_counter
 import modules.hostname
 import modules.caida_as_class
 import modules.event_type_counter
-#import modules.tags
+import modules.tags
 import modules.reputation
 
 # Instantiate modules
@@ -112,7 +116,7 @@ module_list = [
     modules.hostname.HostnameClass(),
     modules.caida_as_class.CaidaASclass(),
     modules.event_type_counter.EventTypeCounter(),
-    #modules.tags.Tags(),
+    modules.tags.Tags(),
 ]
 
 

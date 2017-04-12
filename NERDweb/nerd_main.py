@@ -42,6 +42,8 @@ config = common.config.read_config(cfg_file)
 # Read common config (nerd.cfg) and combine them together
 common_cfg_file = os.path.join(cfg_dir, config.get('common_config'))
 config.update(common.config.read_config(common_cfg_file))
+# Read tags config (tags.cfg) and combine it with previous config
+config.update(common.config.read_config('../etc/tags.cfg'))
 
 BASE_URL = config.get('base_url', '')
 
@@ -465,7 +467,7 @@ def ips():
         results = None
         if user and not ac('ipsearch'):
             flash('Only registered users may search IPs.', 'error')
-
+    
     return render_template('ips.html', config=config, ctrydata=ctrydata, **locals())
 
 
