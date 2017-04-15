@@ -227,7 +227,7 @@ img.load-spinner {
   width: 16em;
 }
 
-#bl_op_button {
+.op_button {
   display: inline-block;
   width: 1.5em;
   /*height: 100%;*/

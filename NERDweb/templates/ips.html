@@ -16,7 +16,9 @@
   {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
   {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
   {{ formfield(form.asn, size=7) }} &nbsp; &amp; &nbsp;
-  {{ form.blacklist.label }} <span id="bl_op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %}<br>
+  {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+  {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
+  {{ formfield(form.tag_conf, size=1)}}<br>
   {{ formfield(form.sortby) }}
   {{ formfield(form.asc) }}<br>
   {{ formfield(form.limit, size=10) }}<br>
@@ -26,6 +28,7 @@
 <script>
 // Improve blacklist select using "multiselect" library/plugin
 $("select#blacklist").multiselect({texts: {placeholder: "\xa0"}, search: true});
+$("select#tag").multiselect({texts: {placeholder: "\xa0"}, search: true});
 // Set up the blacklist operation (and/or) button
 $("#bl_op_button").on("click", function() {
   if ($("#bl_op").val() == 'and') {
@@ -41,6 +44,22 @@ if ($("#bl_op").val() == "or") {
     $("#bl_op_button").text("\u22c1").attr("title", "OR: At least one of the selected blacklists");
 } else {
     $("#bl_op_button").text("\u22c0").attr("title", "AND: All selected blacklists");
+}
+// Set up the tag operation (and/or) button
+$("#tag_op_button").on("click", function() {
+  if ($("#tag_op").val() == "and") {
+    $("#tag_op").val("or");
+    $(this).text("\u22c1").attr("title", "OR: At least one of the selected tags"); // \u22c1 = Logical OR
+  } else {
+    $("#tag_op").val("and");
+    $(this).text("\u22c0").attr("title", "AND: All selected tags"); // \u22c0 = Logical AND
+  }
+  return false;
+});
+if ($("#tag_op").val() == "or") {
+    $("#tag_op_button").text("\u22c1").attr("title", "OR: At least one of the selected tags");
+} else {
+    $("#tag_op_button").text("\u22c0").attr("title", "AND: All selected tags");
 }
 </script>
 
