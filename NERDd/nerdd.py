@@ -26,12 +26,7 @@ log = logging.getLogger()
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-#TODO for testing purpose only!
-logging.getLogger("Tags").setLevel(logging.DEBUG)
-logging.getLogger("TagsInterpreter").setLevel(logging.DEBUG)
-
 log.info("***** NERDd start *****")
-
 
 ################################################
 # Load core components

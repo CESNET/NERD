@@ -42,8 +42,9 @@ config = common.config.read_config(cfg_file)
 # Read common config (nerd.cfg) and combine them together
 common_cfg_file = os.path.join(cfg_dir, config.get('common_config'))
 config.update(common.config.read_config(common_cfg_file))
-# Read tags config (tags.cfg) and combine it with previous config
-config.update(common.config.read_config('../etc/tags.cfg'))
+# Read tags config and combine it with previous config
+tags_cfg_file = os.path.join(cfg_dir, config.get('tags_config'))
+config.update(common.config.read_config(tags_cfg_file))
 
 BASE_URL = config.get('base_url', '')
 
