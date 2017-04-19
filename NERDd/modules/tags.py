@@ -50,18 +50,18 @@ class Tags(NERDModule):
             
             condition = self.parse_condition(tag_params["condition"])
             if condition is None:
-                self.log.error("Error occured when parsing condition of tag \"{}\"-> skipping tag.".format(tag_id))
+                self.log.error("Error occured when parsing condition of tag \"{}\" -> skipping tag.".format(tag_id))
                 continue
 
             confidence = self.parse_confidence(tag_params["confidence"])
             if confidence is None:
-                self.log.error("Error occured when parsing confidence of tag \"{}\"-> skipping tag.".format(tag_id))
+                self.log.error("Error occured when parsing confidence of tag \"{}\" -> skipping tag.".format(tag_id))
                 continue
            
             if "info" in tag_params:
                 info = self.parse_info(tag_params["info"])
                 if info is None:
-                    self.log.error("Error occured when parsing info of tag \"{}\"-> skipping tag.".format(tag_id))
+                    self.log.error("Error occured when parsing info of tag \"{}\" -> skipping tag.".format(tag_id))
                     continue
             else:
                 info = None
@@ -146,7 +146,7 @@ class Tags(NERDModule):
     def parse_info(self, string):
         """
         Creates lexer, parser and interpreter for tag info. Quotes are added to argument 
-        so lexer will handle with it as with string.
+        so lexer will handle it as a string.
 
         Arguments:
         string -- tag info
@@ -216,7 +216,7 @@ class Tags(NERDModule):
                     ret.append(('set', 'tags.'+ tag_id + '.confidence', updated_tags[tag_id][0]))
                     if updated_tags[tag_id][1] is not None:
                         ret.append(('set', 'tags.' + tag_id + '.info', updated_tags[tag_id][1]))
-                    ret.append(('set', 'tags.' + tag_id + '.time_modified', datetime.datetime.now()))
+                    ret.append(('set', 'tags.' + tag_id + '.time_modified', datetime.datetime.utcnow()))
                     self.log.debug("Tag {} has been updated in record for IP {}.".format(tag_id,key))
                 else:
                     self.log.debug("Tag {} has been already added to record for IP {} and nothing changed.".format(tag_id,key))
@@ -225,7 +225,7 @@ class Tags(NERDModule):
                 ret.append(('set', 'tags.'+ tag_id + '.confidence', updated_tags[tag_id][0]))
                 if updated_tags[tag_id][1] is not None:
                     ret.append(('set', 'tags.' + tag_id + '.info', updated_tags[tag_id][1]))
-                time = datetime.datetime.now()
+                time = datetime.datetime.utcnow()
                 ret.append(('set', 'tags.' + tag_id + '.time_added', time))
                 ret.append(('set', 'tags.' + tag_id + '.time_modified', time))
                 self.log.debug("Tag {} is new for IP {} and has been added to record.".format(tag_id,key))
@@ -628,7 +628,7 @@ class String(Expr):
         for key,var in self.variables.items():
             res = var.eval(data)
             if res is not None:
-                formatted_string = formatted_string.replace("{"+key+"}", res)
+                formatted_string = formatted_string.replace("{"+key+"}", str(res))
         return formatted_string
 
 class UnCond(Expr):
