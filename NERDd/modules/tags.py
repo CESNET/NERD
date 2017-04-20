@@ -97,11 +97,15 @@ class Tags(NERDModule):
             if tag_params[2] is not None:
                 changes.append("tags." + tag_id + ".info")
         self.log.debug("Tag module may update attributes: {}.".format(changes))
+        
+
+        attribute_triggers = list(self.triggers.keys())
+        attribute_triggers.append("!refresh_tags")
 
         g.um.register_handler(
             self.update_tags,
             'ip',
-            self.triggers.keys(),
+            attribute_triggers,
             changes
         )
 
@@ -187,11 +191,21 @@ class Tags(NERDModule):
         if etype != 'ip':
             return None
 
+        # If event !refresh_tags is set, update all available tags
+        refresh_all = False
+        for attr,val in updates:
+            if attr == "!refresh_tags":
+                refresh_all = True
+                break
+         
         # Create set of tags which may be updated
         tags_for_update = set()
-        for updated_attr,updated_val in updates:
-            if not updated_attr.startswith("!") and updated_attr in self.triggers:
-                tags_for_update.update(self.triggers[updated_attr])
+        if refresh_all:
+            tags_for_update.update(self.tags.keys())
+        else:
+            for updated_attr,updated_val in updates:
+                if not updated_attr.startswith("!") and updated_attr in self.triggers:
+                    tags_for_update.update(self.triggers[updated_attr])
         self.log.debug("Updating tags for IP {}: these tags may be assigned: {}.".format(key, tags_for_update))
 
         # Evaluate condition for each tag from set. Evaluate confidence and format info if condition is met.
@@ -209,6 +223,14 @@ class Tags(NERDModule):
         
         # Create appropriate update request for each tag which may be updated
         ret = []
+
+        # Remove all obsolate tags if event !refresh_tags is set
+        if refresh_all and "tags" in rec:
+            for tag_id in rec["tags"]:
+                if tag_id not in tags_for_update:
+                    ret.append(('remove', 'tags.' + tag_id, None))
+                    self.log.debug("Obsolate tag {} has been deleted from record for IP {}.".format(tag_id,key))
+
         for tag_id in tags_for_update:
             # Update confidence or info in entity record if these values has been changed otherwise do nothing
             if tag_id in updated_tags and "tags" in rec and tag_id in rec["tags"]:
