@@ -569,15 +569,17 @@ class In(Expr):
     In node represents membership operator ("in" and "not in"). 
     """
     
-    def __init__(self,item,var,positive=True):
+    def __init__(self,item,var,positive=True, math_mode=False):
         self.item = item
         self.var = var
         self.positive = positive
+        self.math_mode = math_mode
     
     def eval(self, data):
         """
         Returns true if item is in list/set/dict or false if item is not in list/set/dict or exception has been thrown during evaluation.
         If evaluates "not in" keyword evaluation works in opposite way.
+        If math mode is set returns 1 instead of true and 0 instead of false
         """
         
         item_eval = self.item.eval(data)
@@ -590,6 +592,11 @@ class In(Expr):
                 ret = item_eval not in var_eval
         except Exception:
             ret = False
+        
+        if self.math_mode and ret == False:
+            ret = 0
+        elif self.math_mode and ret == True:
+            ret = 1
         return ret 
 
 class UnMinus(Expr):
@@ -745,51 +752,67 @@ class Parser:
         else:
             self.error_comparison(s)
 
-    def math_expr(self):
-        return self.math_expr_rest(self.math_times())
+    def math_expr(self, math_mode=False):
+        return self.math_expr_rest(self.math_times(math_mode), math_mode)
 
-    def math_expr_rest(self, du):
+    def math_expr_rest(self, du, math_mode):
         if self.symbol.type == PLUS:
             self.symbol = self.read_lexem()
-            return self.math_expr_rest(Bop(PLUS, du, self.math_times()))
+            return self.math_expr_rest(Bop(PLUS, du, self.math_times(math_mode)), math_mode)
         elif self.symbol.type == MINUS:
             self.symbol = self.read_lexem()
-            return self.math_expr_rest(Bop(MINUS, du, self.math_times()))
+            return self.math_expr_rest(Bop(MINUS, du, self.math_times(math_mode)), math_mode)
         else:
             return du
 
-    def math_times(self):
-        return self.math_times_rest(self.operand())
+    def math_times(self, math_mode):
+        return self.math_times_rest(self.operand(math_mode), math_mode)
 
-    def math_times_rest(self, du):
+    def math_times_rest(self, du, math_mode):
         if self.symbol.type == TIMES:
             self.symbol = self.read_lexem()
-            return self.math_times_rest(Bop(TIMES, du, self.operand()))
+            return self.math_times_rest(Bop(TIMES, du, self.operand(math_mode)), math_mode)
         elif self.symbol.type == DIVIDE:
             self.symbol = self.read_lexem()
-            return self.math_times_rest(Bop(DIVIDE, du, self.operand()))
+            return self.math_times_rest(Bop(DIVIDE, du, self.operand(math_mode)), math_mode)
         else:
             return du
 
-    def operand(self):
+    def operand(self, math_mode):
+        ret = None
         if self.symbol.type == IDENT:
             ident = self.comparison(IDENT)
-            return Var(ident)
+            ret = Var(ident)
         elif self.symbol.type == STRING:
-            return self.string()
+            ret = self.string()
         elif self.symbol.type == NUMB:
             num = self.comparison(NUMB)
-            return Numb(num)
+            ret = Numb(num)
         elif self.symbol.type == MINUS:
             self.comparison(MINUS)
-            return UnMinus(self.operand())
+            ret = UnMinus(self.operand())
         elif self.symbol.type == LPAR:
             self.comparison(LPAR)
-            math_expr = self.math_expr() 
+            math_expr = self.math_expr(math_mode) 
             self.comparison(RPAR)
-            return math_expr
+            ret = math_expr
         else:
             self.error_expansion("Operand")
+        
+        # In math mode it is possible to use in and not in keywords in math expression
+        if math_mode and self.symbol.type == kwIN:
+            self.comparison(kwIN)
+            ident = self.comparison(IDENT)
+            right = Var(ident)
+            ret = In(ret,right, True, True)
+        elif math_mode and self.symbol.type == kwNOT:
+            self.comparison(kwNOT)
+            self.comparison(kwIN)
+            ident = self.comparison(IDENT)
+            right = Var(ident)
+            ret = In(ret,right, False, True)
+        
+        return ret
     
     def string(self):
         string = self.comparison(STRING)
@@ -878,7 +901,7 @@ class Parser:
         This function is starting point for parsing of mathematical expression.
         """
         
-        ast = Math(self.math_expr())
+        ast = Math(self.math_expr(True))
         self.comparison(EOI)
         return ast
     
