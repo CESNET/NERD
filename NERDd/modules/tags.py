@@ -17,7 +17,7 @@ import os
 class Tags(NERDModule):
     """
     Tags module.
-    It is responsible for parsing classification rule, confidence and info of each tag. 
+    It is responsible for parsing classification rule, info of each tag. 
     It automatically generates triggers (attributes whose update trigger this module) 
     and changes (attributes the method call may update). It is also responsible for 
     evaluating of classification rule for tags which may be added, updated or removed 
@@ -44,18 +44,9 @@ class Tags(NERDModule):
                 self.log.error("Tag \"{}\" doesn't have obligatory key \"condition\" in configuration -> skipping tag.".format(tag_id))
                 continue
             
-            if "confidence" not in tag_params:
-                self.log.error("Tag \"{}\" doesn't have obligatory key \"confidence\" in configuration -> skipping tag.".format(tag_id))
-                continue
-            
             condition = self.parse_condition(tag_params["condition"])
             if condition is None:
                 self.log.error("Error occured when parsing condition of tag \"{}\" -> skipping tag.".format(tag_id))
-                continue
-
-            confidence = self.parse_confidence(tag_params["confidence"])
-            if confidence is None:
-                self.log.error("Error occured when parsing confidence of tag \"{}\" -> skipping tag.".format(tag_id))
                 continue
            
             if "info" in tag_params:
@@ -66,8 +57,8 @@ class Tags(NERDModule):
             else:
                 info = None
             
-            # create three-tuple from ASTs of tag condition, confidence and info and add it to dict
-            self.tags[tag_id] = (condition,confidence,info)            
+            # create two-tuple from ASTs of tag condition and info and add it to dict
+            self.tags[tag_id] = (condition,info)            
             self.log.debug("Tag \"{}\" has been parsed.".format(tag_id))
 
         self.log.info("{} tags have been parsed.".format(len(self.tags)))
@@ -77,8 +68,6 @@ class Tags(NERDModule):
         for tag_id, tag_params in self.tags.items():
             # Get all attributes which have been parsed from tag condition 
             variables = tag_params[0].parser.variables
-            # Get all attributes which have been parsed from tag confidence
-            variables.update(tag_params[1].parser.variables)
             for var in variables:
                 if var in self.triggers:
                     self.triggers[var].append(tag_id)
@@ -94,7 +83,7 @@ class Tags(NERDModule):
             changes.append("tags." + tag_id + ".confidence")
             changes.append("tags." + tag_id + ".time_added")
             changes.append("tags." + tag_id + ".time_modified")
-            if tag_params[2] is not None:
+            if tag_params[1] is not None:
                 changes.append("tags." + tag_id + ".info")
         self.log.debug("Tag module may update attributes: {}.".format(changes))
         
@@ -109,7 +98,7 @@ class Tags(NERDModule):
             changes
         )
 
-    def parse_condition(selfi, string):
+    def parse_condition(self, string):
         """
         Creates lexer, parser and interpreter for tag condition.
 
@@ -122,26 +111,7 @@ class Tags(NERDModule):
         
         lexer = Lexer(string)
         parser = Parser(lexer)
-        interpreter = Interpreter(parser, "condition")
-        if interpreter.ast is None:
-            return None
-        else:
-            return interpreter
-
-    def parse_confidence(self, string):
-        """
-        Creates lexer, parser and interpreter for tag confidence.
-
-        Arguments:
-        string -- tag confidence
-
-        Return:
-        Interpreter if valid AST has been created otherwise returns None
-        """
-        
-        lexer = Lexer(string)
-        parser = Parser(lexer)
-        interpreter = Interpreter(parser, "mathematical_expression")
+        interpreter = Interpreter(parser)
         if interpreter.ast is None:
             return None
         else:
@@ -162,7 +132,7 @@ class Tags(NERDModule):
         string = '"' + string + '"'
         lexer = Lexer(string)
         parser = Parser(lexer)
-        interpreter = Interpreter(parser, "string")
+        interpreter = Interpreter(parser)
         if interpreter.ast is None:
             return None
         else:
@@ -212,9 +182,10 @@ class Tags(NERDModule):
         # Add two-tuple of confidence value and info to updated_tags dict if condition is met
         updated_tags = {}
         for tag_id in tags_for_update:
-            condition, confidence, info = self.tags[tag_id]
-            if condition.evaluate(rec):
-                eval_confidence = confidence.evaluate(rec)
+            condition, info = self.tags[tag_id]
+            eval_value = condition.evaluate(rec)
+            if condition.evaluate_logical(eval_value):
+                eval_confidence = condition.evaluate_mathematical(eval_value)
                 eval_info = info.evaluate(rec) if info is not None else None
                 updated_tags[tag_id] = (eval_confidence, eval_info)
                 self.log.debug("Tag {} satisfies condition for IP {} - confidence: {}, info: {} .".format(tag_id, key, eval_confidence, eval_info))
@@ -510,6 +481,14 @@ class Bop(Expr):
         self.left = left
         self.right = right
     
+    def eval_operand_to_logical(self, operand):
+        if not isinstance(operand,bool):
+            if isinstance(operand, Number):
+                operand = False if operand == 0 else True
+            else:
+                operand = True if operand is not None else False
+        return operand
+
     def eval(self, data):
         """
         Returns true/false based on binary operator. If there is None on left or right side and arithmetic operator is used
@@ -519,30 +498,34 @@ class Bop(Expr):
         left_eval = self.left.eval(data)
         if self.op == kwAND:
             #Short circuit evaluation of AND
+            left_eval = self.eval_operand_to_logical(left_eval)
             if left_eval is False:
                 return False
-            right_eval = self.right.eval(data)
+            right_eval = self.eval_operand_to_logical(self.right.eval(data))
             return left_eval and right_eval
         elif self.op == kwOR:
             #Short circuit evaluation of OR
+            left_eval = self.eval_operand_to_logical(left_eval)
             if left_eval is True:
                 return True
-            right_eval = self.right.eval(data)
+            right_eval = self.eval_operand_to_logical(self.right.eval(data))
             return left_eval or right_eval
-        
         
         right_eval = self.right.eval(data)
         if self.op in (PLUS, MINUS, TIMES, DIVIDE) and not isinstance(left_eval, Number):
-            if left_eval is not None:
-                left_eval = 1
-            else:
+            if left_eval is None:
                 left_eval = 0
-        if self.op in (PLUS, MINUS, TIMES, DIVIDE) and not isinstance(right_eval, Number):
-            if right_eval is not None:
-                right_eval = 1
+            elif left_eval == False:
+                left_eval = 0
             else:
+                left_eval = 1
+        if self.op in (PLUS, MINUS, TIMES, DIVIDE) and not isinstance(right_eval, Number):
+            if right_eval is None:
                 right_eval = 0
-        
+            elif right_eval == False:
+                right_eval = 0
+            else:
+                right_eval = 1
         if self.op == PLUS:
             return left_eval + right_eval
         elif self.op == MINUS:
@@ -569,17 +552,15 @@ class In(Expr):
     In node represents membership operator ("in" and "not in"). 
     """
     
-    def __init__(self,item,var,positive=True, math_mode=False):
+    def __init__(self,item,var,positive=True):
         self.item = item
         self.var = var
         self.positive = positive
-        self.math_mode = math_mode
     
     def eval(self, data):
         """
         Returns true if item is in list/set/dict or false if item is not in list/set/dict or exception has been thrown during evaluation.
         If evaluates "not in" keyword evaluation works in opposite way.
-        If math mode is set returns 1 instead of true and 0 instead of false
         """
         
         item_eval = self.item.eval(data)
@@ -592,11 +573,6 @@ class In(Expr):
                 ret = item_eval not in var_eval
         except Exception:
             ret = False
-        
-        if self.math_mode and ret == False:
-            ret = 0
-        elif self.math_mode and ret == True:
-            ret = 1
         return ret 
 
 class UnMinus(Expr):
@@ -752,67 +728,51 @@ class Parser:
         else:
             self.error_comparison(s)
 
-    def math_expr(self, math_mode=False):
-        return self.math_expr_rest(self.math_times(math_mode), math_mode)
+    def math_expr(self):
+        return self.math_expr_rest(self.math_times())
 
-    def math_expr_rest(self, du, math_mode):
+    def math_expr_rest(self, du):
         if self.symbol.type == PLUS:
             self.symbol = self.read_lexem()
-            return self.math_expr_rest(Bop(PLUS, du, self.math_times(math_mode)), math_mode)
+            return self.math_expr_rest(Bop(PLUS, du, self.math_times()))
         elif self.symbol.type == MINUS:
             self.symbol = self.read_lexem()
-            return self.math_expr_rest(Bop(MINUS, du, self.math_times(math_mode)), math_mode)
+            return self.math_expr_rest(Bop(MINUS, du, self.math_times()))
         else:
             return du
 
-    def math_times(self, math_mode):
-        return self.math_times_rest(self.operand(math_mode), math_mode)
+    def math_times(self):
+        return self.math_times_rest(self.operand())
 
-    def math_times_rest(self, du, math_mode):
+    def math_times_rest(self, du):
         if self.symbol.type == TIMES:
             self.symbol = self.read_lexem()
-            return self.math_times_rest(Bop(TIMES, du, self.operand(math_mode)), math_mode)
+            return self.math_times_rest(Bop(TIMES, du, self.operand()))
         elif self.symbol.type == DIVIDE:
             self.symbol = self.read_lexem()
-            return self.math_times_rest(Bop(DIVIDE, du, self.operand(math_mode)), math_mode)
+            return self.math_times_rest(Bop(DIVIDE, du, self.operand()))
         else:
             return du
 
-    def operand(self, math_mode):
-        ret = None
+    def operand(self):
         if self.symbol.type == IDENT:
             ident = self.comparison(IDENT)
-            ret = Var(ident)
+            return Var(ident)
         elif self.symbol.type == STRING:
-            ret = self.string()
+            return self.string()
         elif self.symbol.type == NUMB:
             num = self.comparison(NUMB)
-            ret = Numb(num)
+            return Numb(num)
         elif self.symbol.type == MINUS:
             self.comparison(MINUS)
-            ret = UnMinus(self.operand())
+            return UnMinus(self.operand())
         elif self.symbol.type == LPAR:
             self.comparison(LPAR)
-            math_expr = self.math_expr(math_mode) 
+            expr = self.cond_or() 
             self.comparison(RPAR)
-            ret = math_expr
+            return expr
         else:
             self.error_expansion("Operand")
-        
-        # In math mode it is possible to use in and not in keywords in math expression
-        if math_mode and self.symbol.type == kwIN:
-            self.comparison(kwIN)
-            ident = self.comparison(IDENT)
-            right = Var(ident)
-            ret = In(ret,right, True, True)
-        elif math_mode and self.symbol.type == kwNOT:
-            self.comparison(kwNOT)
-            self.comparison(kwIN)
-            ident = self.comparison(IDENT)
-            right = Var(ident)
-            ret = In(ret,right, False, True)
-        
-        return ret
     
     def string(self):
         string = self.comparison(STRING)
@@ -845,7 +805,7 @@ class Parser:
         left = self.math_expr()
         op = self.compare_operator()
         if op == UNARY:
-            return UnCond(left)
+            return left
         ret = None
         if op == NOTIN or op == IN:
             ident = self.comparison(IDENT)
@@ -887,34 +847,14 @@ class Parser:
         else:
             return UNARY
 
-    def parse_cond(self):
+    def parse(self):
         """
-        This function is starting point for parsing of condition.
+        This function is starting point for parsing.
         """
         
         ast = self.cond_or()
         self.comparison(EOI)
         return ast
-    
-    def parse_expr(self):
-        """
-        This function is starting point for parsing of mathematical expression.
-        """
-        
-        ast = Math(self.math_expr(True))
-        self.comparison(EOI)
-        return ast
-    
-    def parse_string(self):
-        """
-        This function is starting point for parsing of string.
-        """
-
-        ast = self.string()
-        self.comparison(EOI)
-        return ast
-
-
 
 """
 Interpreter
@@ -925,19 +865,14 @@ class Interpreter:
     Starts parsing process, holds AST and evaluates it.
     """
     
-    def __init__(self, parser, parse_as = "condition"):
+    def __init__(self, parser):
         self.parser = parser
         self.ast = None
         self.log = logging.getLogger("TagsInterpreter")
         #self.log.setLevel("DEBUG")
         
         try:
-            if parse_as == "mathematical_expression":
-                self.ast = self.parser.parse_expr()
-            elif parse_as == "string":
-                self.ast = self.parser.parse_string()
-            else:
-                self.ast = self.parser.parse_cond()
+            self.ast = self.parser.parse()
         except Exception as e:
             self.log.debug("{}: {}".format(self.parser.lexer.string, e))
 
@@ -949,9 +884,44 @@ class Interpreter:
         data -- entity record which is used for evaluation
 
         Return:
-        Evaluated value if AST exists otherwise returns None
+        Evaluated value as is if AST exists otherwise returns None
         """
 
         if self.ast is None:
             return None
         return self.ast.eval(data)
+    
+    def evaluate_logical(self, evaluated_value):
+        """
+        Returns False if evaluated value is False, None or 0 otherwise returns True 
+
+        Arguments:
+        evaluated_value -- value which has been evaluated by evaluate function
+
+        Return:
+        True or False
+        """
+        
+        if evaluated_value is None or evaluated_value == False or evaluated_value == 0:
+            return False
+        else:
+            return True
+
+    def evaluate_mathematical(self, evaluated_value):
+        """
+        Returns evaluated value if it is number or 0 if evaluated value is False/None 
+        or 1 if evaluated value is True/not None 
+
+        Arguments:
+        evaluated_value-- value which has been evaluated by evaluate function
+
+        Return:
+        Number
+        """
+
+        if evaluated_value is None or evaluated_value == False:
+            return 0
+        elif not isinstance(evaluated_value, Number) or evaluated_value == True:
+            return 1
+        else:
+            return evaluated_value
