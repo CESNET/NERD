@@ -168,6 +168,10 @@ g.daemon_stop_lock.acquire()
 ################################################
 # Finalization & cleanup
 
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+signal.signal(signal.SIGTERM, signal.SIG_DFL)
+signal.signal(signal.SIGABRT, signal.SIG_DFL)
+
 log.info("Stopping running components ...")
 g.scheduler.stop()
 for module in module_list:
