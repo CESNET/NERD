@@ -20,7 +20,7 @@ import datetime
 
 from common.utils import parse_rfc_time
 
-MAX_QUEUE_SIZE = 100 # Maximal size of UpdateManager's request queue
+MAX_QUEUE_SIZE = 1000 # Maximal size of UpdateManager's request queue
                      # (when number of pending requests exceeds this value,
                      # reading of events is paused for a while)
 
@@ -261,6 +261,6 @@ class EventReceiver(NERDModule):
             
             # If there are already too much requests queued, wait a while
             #print("***** QUEUE SIZE: {} *****".format(g.um.get_queue_size()))
-#             while g.um.get_queue_size() > MAX_QUEUE_SIZE:
-#                 time.sleep(0.5)
+            while g.um.get_queue_size() >= MAX_QUEUE_SIZE:
+                time.sleep(0.2)
             

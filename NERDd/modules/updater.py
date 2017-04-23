@@ -8,9 +8,15 @@ TODO: describe database keys and how it works
 
 import logging
 from datetime import datetime, timedelta, timezone
+from time import sleep
 
 from core.basemodule import NERDModule
 import g
+
+MAX_QUEUE_SIZE = 700 # Maximal size of UpdateManager's request queue
+                     # (when number of pending requests exceeds this value,
+                     # issuing new requests is paused for a while)
+
 
 class Updater(NERDModule):
     """
@@ -27,6 +33,7 @@ class Updater(NERDModule):
         #self.log.setLevel("DEBUG")
         
         self.POLL_INTERVAL = 10 # should be divisor of 60 (seconds)
+        self.FETCH_LIMIT = 10000 # Max number of entities fetched at once
         
         self.last_fetch_time = datetime(1970, 1, 1) # Time of last fetch of entites from DB
         
@@ -62,13 +69,18 @@ class Updater(NERDModule):
             #  _nru* of an entity is set to next interval only after the update
             #  is processed, which may take some time, and we don't want to
             #  fetch the same entity twice)
+            # Note: This algorithm depends on the fact that lists of 1d and 1w are always subsets of 4h.
+            #       If other intervals will be added in the future, it might need change.
             self.log.debug("Getting list of '{}' entities to update ...".format(etype))
-            ids4h = set()#set(g.db.find(etype, {'_nru4h': {'$lte': time, '$gt': self.last_fetch_time}}))
-            ids1d = set(g.db.find(etype, {'_nru1d': {'$lte': time, '$gt': self.last_fetch_time}}))
-            ids1w = set(g.db.find(etype, {'_nru1w': {'$lte': time, '$gt': self.last_fetch_time}}))
+            ids4h = []#set(g.db.find(etype, {'_nru4h': {'$lte': time, '$gt': self.last_fetch_time}}, limit=self.FETCH_LIMIT))
+            ids1d = list(g.db.find(etype, {'_nru1d': {'$lte': time, '$gt': self.last_fetch_time}}, limit=self.FETCH_LIMIT))
+            ids1w = list(g.db.find(etype, {'_nru1w': {'$lte': time, '$gt': self.last_fetch_time}}, limit=self.FETCH_LIMIT))
+#             ids4h = set()#set(g.db.find(etype, {'_nru4h': {'$lte': time}}, limit=self.FETCH_LIMIT))
+#             ids1d = set(g.db.find(etype, {'_nru1d': {'$lte': time}}, limit=self.FETCH_LIMIT))
+#             ids1w = set(g.db.find(etype, {'_nru1w': {'$lte': time}}, limit=self.FETCH_LIMIT))
             self.last_fetch_time = time
             # Merge the lists, so for each entity only one update request is issued, possibly containing more than one event
-            all_ids = ids4h | ids1d | ids1w # (Union not needed since list for 1d and 1w are always subsets of 4h)
+            all_ids = ids1d #ids4h | ids1d | ids1w # (Union not needed since list for 1d and 1w are always subsets of 4h)
             self.log.debug("Requesting updates for {} '{}' entities ({} 4h, {} 1d, {} 1w)".format(
                 len(all_ids), etype, len(ids4h), len(ids1d), len(ids1w)
             ))
@@ -86,5 +98,7 @@ class Updater(NERDModule):
                     requests.append(('event', '!every1w', None))
                     requests.append(('next_step', '_nru1w', ('ts_added', time, timedelta(days=7))))
                 # Issue update requests
+                while g.um.get_queue_size() >= MAX_QUEUE_SIZE:
+                    sleep(0.2)
                 g.um.update((etype, id), requests)
 
