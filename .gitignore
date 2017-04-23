@@ -1,1 +1,5 @@
 *.pyc
+.vagrant/
+alerts.tar.gz
+alerts/
+caida-as2types.txt

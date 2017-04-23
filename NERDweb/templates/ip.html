@@ -121,9 +121,16 @@
  {% elif attr == "tags" %}
   <dt>tags</td>
   <dd>
-  {% for name,values in val.items() %}
-     <span class="tag" title="{% if values["description"] %}{{values["description"]}} <br /><br     />{% endif %} Tag was added {{values["date_added"]|datetime}}.">
-      {{-name-}}</span>
+  {% for tag_id,tag_param in val.items() %}
+  {% if tag_id in config.tags and "description" in config.tags[tag_id] and "name" in config.tags[tag_id] %}
+     <span class="tag" style="{% if "tag_color" in config.tags[tag_id] %}background: {{config.tags[tag_id].tag_color}};{% endif %}opacity: {{ 0.5 + tag_param.confidence / 2 }};" title="<b>{{config.tags[tag_id].description}}</b><br /><br />{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+      {{config.tags[tag_id].name}}
+     </span>
+  {% else %}
+     <span class="tag" title="<b>ERROR:</b> Missing mandatory config for tag {{tag_id}}">
+      {{tag_id}}
+     </span>
+  {% endif %}
   {% endfor %}
   </dd> 
  {% else %}

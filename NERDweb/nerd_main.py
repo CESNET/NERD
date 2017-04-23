@@ -14,7 +14,7 @@ from flask import Flask, request, render_template, make_response, g, jsonify, js
 from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from flask_mail import Mail, Message
-from wtforms import validators, TextField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
+from wtforms import validators, TextField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -42,6 +42,9 @@ config = common.config.read_config(cfg_file)
 # Read common config (nerd.cfg) and combine them together
 common_cfg_file = os.path.join(cfg_dir, config.get('common_config'))
 config.update(common.config.read_config(common_cfg_file))
+# Read tags config and combine it with previous config
+tags_cfg_file = os.path.join(cfg_dir, config.get('tags_config'))
+config.update(common.config.read_config(tags_cfg_file))
 
 BASE_URL = config.get('base_url', '')
 
@@ -311,6 +314,11 @@ def get_blacklists():
     blacklists.sort()
     return blacklists
 
+def get_tags():
+    tags = [ (tag_id, tag_param.get('name', tag_id)) for tag_id, tag_param in config.get('tags', {}).items()]
+    tags.sort()    
+    return tags
+
 class IPFilterForm(Form):
     subnet = TextField('IP prefix', [validators.Optional()])
     hostname = TextField('Hostname suffix', [validators.Optional()])
@@ -321,6 +329,11 @@ class IPFilterForm(Form):
     blacklist = SelectMultipleField('Blacklist', [validators.Optional()],
         choices=[(bl,bl) for bl in get_blacklists()])
     bl_op = HiddenField('', default="or")
+    tag_op = HiddenField('', default="or")
+    tag = SelectMultipleField('Tag', [validators.Optional()],
+        choices = get_tags()
+        )
+    tag_conf = FloatField('Min tag confidence', [validators.Optional(), validators.NumberRange(0, 1, 'Must be a number between 0 and 1')], default=0.5)
     sortby = SelectField('Sort by', choices=[
                 ('none',"--"),
                 ('rep','Reputation score'),
@@ -366,7 +379,11 @@ def create_query(form):
     if form.blacklist.data:
         op = '$and' if (form.bl_op.data == "and") else '$or'
         queries.append( {op: [{'bl.'+blname: {'$exists': True}} for blname in form.blacklist.data]} )
-    
+    if form.tag.data:
+        op = '$and' if (form.tag_op.data == "and") else '$or'
+        confidence = form.tag_conf.data if form.tag_conf.data else 0
+        queries.append( {op: [{'$and': [{'tags.'+ tag_id: {'$exists': True}}, {'tags.'+ tag_id +'.confidence': {'$gte': confidence}}]} for tag_id in form.tag.data]} )
+         
     query = {'$and': queries} if queries else None
     return query
 
@@ -383,7 +400,6 @@ def ips():
         sortby = sort_mapping[form.sortby.data]
         
         query = create_query(form)
-        
         # Query parameters to be used in AJAX requests
         query_params = json.dumps(form.data)
         
@@ -465,7 +481,7 @@ def ips():
         results = None
         if user and not ac('ipsearch'):
             flash('Only registered users may search IPs.', 'error')
-
+    
     return render_template('ips.html', config=config, ctrydata=ctrydata, **locals())
 
 
