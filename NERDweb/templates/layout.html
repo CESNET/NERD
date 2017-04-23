@@ -1,6 +1,16 @@
 {% macro rep_css_color(rep) %}
 hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70%'}})
 {% endmacro -%}
+{% macro tag_color_style(color, conf) -%}
+ {% if color is defined -%}
+   background: {{color}};
+   {#- Get lightness of background color, and set text color to black or white accordingly -#}
+   color: {% if color[1:3]|int(base=16)*0.3 + color[3:5]|int(base=16)*0.59 + color[5:7]|int(base=16)*0.11 > 128 %}#000000{% else %}#ffffff{% endif %};
+ {%- endif %}
+ {% if conf is defined -%}
+   opacity: {{ 0.5 + conf / 2.0 }};
+ {%- endif %}
+{%- endmacro %}
 <!doctype html>
 <html lang="en">
 <head>

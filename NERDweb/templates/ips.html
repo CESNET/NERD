@@ -190,7 +190,7 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
   {% if ip.tags %}
     {% for tag_id,tag_param in ip.tags.items() %}
       {% if tag_id in config.tags and "name" in config.tags[tag_id] %}
-      <span class="tag" style="{% if "tag_color" in config.tags[tag_id] %}background: {{config.tags[tag_id].tag_color}};{% endif %}opacity: {{ 0.5 + tag_param.confidence / 2 }};" title="{% if "description" in config.tags[tag_id] %}<b>{{config.tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+      <span class="tag" style="{{ tag_color_style(config.tags[tag_id].tag_color, tag_param.confidence) }}" title="{% if "description" in config.tags[tag_id] %}<b>{{config.tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
       {{config.tags[tag_id].name}}
       </span>
       {% else %}
