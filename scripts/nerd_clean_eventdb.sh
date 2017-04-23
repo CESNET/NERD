@@ -1,0 +1,6 @@
+#!/bin/sh
+# Remove all events older then 14 days from Event DB
+d="$(date -d "-14 days" -I)T00:00:00"
+echo "Removing all events older than $d ..."
+psql -U nerd -d nerd -c "DELETE FROM events WHERE detecttime < '$d';"
+echo Done
