@@ -38,12 +38,24 @@ commands = [
 #         ('next_step', '_nru1d', ('ts_added', now, timedelta(days=1))),
 #         ('next_step', '_nru1w', ('ts_added', now, timedelta(days=7))),
 #     ] ),
+    #( "g.db.find('ip', {'ts_last_event': {'$exists': False}}, skip=0, limit=1000000)", 'ip', [('event', '!set_ts_last_event', None)] ),
+    #( "g.db.find('ip', {'_id': ''}, sort=[('ts_added', pymongo.DESCENDING)], skip=0, limit=1000000)", 'ip', [('event', '!refresh_tags', None)] ),
 ]
 def get_commands():
     if not commands:
         return None
     cmd = commands.pop(0)
     return cmd
+
+
+###
+
+# def set_ts_last_event(ekey, rec, updates):
+#     last_day = max(d for d in rec['events'].keys() if not d.startswith("total"))
+#     last_day = datetime.strptime(last_day, "%Y-%m-%d")
+#     return [('set', 'ts_last_event', last_day)]
+# 
+# g.um.register_handler(set_ts_last_event, 'ip', ('!set_ts_last_event',), ('ts_last_event',))
 
 
 ##############################################################################
