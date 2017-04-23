@@ -511,7 +511,8 @@ class UpdateManager:
             #self.log.debug("New may_change: {}".format(may_change))
         
         #self.log.debug("call_queue loop end")
-        assert(len(may_change) == 0)
+        # FIXME: Temporarily disabled, removing from may_change doesn't work well, the whole algorithm must be reworked
+        #assert(len(may_change) == 0)
         
         # Set ts_last_update
         rec['ts_last_update'] = datetime.utcnow()
