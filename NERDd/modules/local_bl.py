@@ -27,24 +27,35 @@ class IPBlacklist():
 
     def update(self):
         # TODO PARALLELIZATION this function may be called asynchronously, self.iplist should be replaced atomically in all processes at once
-        self.log.debug("Downloading blacklist '{0}' ...".format(self.name))
-        # Download blacklist
-        try:
-            r = requests.get(self.url)
-        except requests.exceptions.ConnectionError as e:
-            self.log.error("Error getting list '{0}' from '{1}': {2}".format(self.name, self.url, str(e)))
-            self.iplist = set()
-            return
-        rc = r.content
+        # Download via HTTP(S)
+        if self.url.startswith("http://") or self.url.startswith("https://"):
+            self.log.debug("Downloading blacklist '{0}' ...".format(self.name))
+            # Download blacklist
+            try:
+                r = requests.get(self.url)
+            except requests.exceptions.ConnectionError as e:
+                self.log.error("Error getting list '{0}' from '{1}': {2}".format(self.name, self.url, str(e)))
+                self.iplist = set()
+                return
+            data = r.content.decode('utf-8', 'ignore')
+        # Load from local file
+        elif self.url.startswith("file://"):
+            with open(self.url[7:], encoding='utf-8', errors='ignore') as f:
+                data = f.read()
+        else:
+            self.log.error("Unknown URL scheme for blacklist {0}".format(self.name))
+
         # Parse blacklist and load it into memory
         iplist = set()
-        for line in rc.decode('utf-8').split('\n'):
+        for line in data.split('\n'):
             ips = re.search(self.re, line)
             if ips:
                 iplist.add(ips.group())
-        self.log.info("Downloaded blacklist '{0}' with {1} entries.".format(self.name, len(iplist)))
+        self.log.info("Loaded blacklist '{0}' with {1} entries.".format(self.name, len(iplist)))
+
         # Replace the old list
         self.iplist = iplist
+
         # Store blacklist into tmpdir
         if self.tmpdir:
             with open("{0}/{1}".format(self.tmpdir, self.name), "w") as f:
