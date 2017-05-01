@@ -1,0 +1,4 @@
+# Remove old records from MongoDB every day at 02:00
+0 02 * * * /data/NERD_scripts/nerd_db_remove_old_records.sh
+# rsync Uceprotect blacklists 3 times a day
+40 01,09,17 * * * /data/NERD_scripts/bl_update_uceprotect.sh
