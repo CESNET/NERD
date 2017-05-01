@@ -10,6 +10,7 @@ import re
 import datetime
 import logging
 import os
+import time
 
 class IPBlacklist():
     def __init__(self, name, url, re, refresh_spec, tmpdir = ""):
@@ -20,7 +21,6 @@ class IPBlacklist():
         self.iplist = set()
         self.log = logging.getLogger("local_bl")
         #self.log.setLevel("DEBUG")
-        # TODO: Check if a recent version is already in tmpdir and read it instead of downloading a new one
         
         # Register periodic call of the "update" function 
         g.scheduler.register(self.update, **refresh_spec)
@@ -29,19 +29,38 @@ class IPBlacklist():
         # TODO PARALLELIZATION this function may be called asynchronously, self.iplist should be replaced atomically in all processes at once
         # Download via HTTP(S)
         if self.url.startswith("http://") or self.url.startswith("https://"):
-            self.log.debug("Downloading blacklist '{0}' ...".format(self.name))
-            # Download blacklist
-            try:
-                r = requests.get(self.url)
-            except requests.exceptions.ConnectionError as e:
-                self.log.error("Error getting list '{0}' from '{1}': {2}".format(self.name, self.url, str(e)))
-                self.iplist = set()
-                return
-            data = r.content.decode('utf-8', 'ignore')
+            data = None
+            if self.tmpdir:
+                # Try to load blacklist from local cache
+                tmpfilename = "{0}/{1}".format(self.tmpdir, self.name)
+                try:
+                    if time.time() - os.stat(tmpfilename).st_ctime < 3600: # If the tmp file is not older than 1 hour
+                        self.log.debug("Loading blacklist '{0}' from cache ...".format(self.name))                        
+                        with open(tmpfilename, encoding='utf-8', errors='ignore') as f:
+                            data = f.read()
+                        method = "loaded from cache"
+                except Exception:
+                    pass
+            if not data:
+                # Download blacklist
+                self.log.debug("Downloading blacklist '{0}' ...".format(self.name))
+                try:
+                    r = requests.get(self.url)
+                except requests.exceptions.ConnectionError as e:
+                    self.log.error("Error getting list '{0}' from '{1}': {2}".format(self.name, self.url, str(e)))
+                    self.iplist = set()
+                    return
+                data = r.content.decode('utf-8', 'ignore')
+                method = "downloaded"
+                # Store downloaded blacklist into local cache (tmpdir)
+                if self.tmpdir:
+                    with open("{0}/{1}".format(self.tmpdir, self.name), "wb") as f:
+                        f.write(r.content)
         # Load from local file
         elif self.url.startswith("file://"):
             with open(self.url[7:], encoding='utf-8', errors='ignore') as f:
                 data = f.read()
+            method = "loaded from local file"
         else:
             self.log.error("Unknown URL scheme for blacklist {0}".format(self.name))
 
@@ -51,15 +70,11 @@ class IPBlacklist():
             ips = re.search(self.re, line)
             if ips:
                 iplist.add(ips.group())
-        self.log.info("Loaded blacklist '{0}' with {1} entries.".format(self.name, len(iplist)))
+        self.log.info("Blacklist '{0}' {1}, {2} entries.".format(self.name, method, len(iplist)))
 
         # Replace the old list
         self.iplist = iplist
 
-        # Store blacklist into tmpdir
-        if self.tmpdir:
-            with open("{0}/{1}".format(self.tmpdir, self.name), "w") as f:
-                f.write(repr(self.iplist))
 
     def __contains__(self, item):
         """
