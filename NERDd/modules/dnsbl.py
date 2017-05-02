@@ -122,7 +122,7 @@ class DNSBLResolver(NERDModule):
         g.um.register_handler(
             self.query_blacklists, # function (or bound method) to call
             'ip', # entity type
-            ('!NEW','!refresh_dnsbl'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
+            ('!NEW','!refresh_dnsbl','!every1w'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
             ('bl.'+id for id in bl_ids) # tuple/list/set of attributes the method may change
         )
         self.log.debug("DNSBLResolver initialized")
