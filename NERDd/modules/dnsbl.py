@@ -176,7 +176,7 @@ class DNSBLResolver(NERDModule):
         if etype != 'ip':
             return None
         
-        req_time = datetime.now(tz=timezone.utc)
+        req_time = datetime.utcnow()
         
         # Limit of the number of requests per day
         with self.req_counter_lock:
@@ -215,8 +215,35 @@ class DNSBLResolver(NERDModule):
         
         self.log.debug("DNSBL for {}: {}".format(ip, results))
         
-        update_requests = []
-        for bl_id in results:
-            update_requests.append(('append', 'bl.'+bl_id, req_time))
+        actions = []
         
-        return update_requests
+        for bl in self.blacklists:
+            for blname in bl[2].values():
+                if blname in results:
+                    # IP is on blacklist blname
+                    self.log.debug("IP address ({0}) is on {1}.".format(key, blname))
+                    # Is there a record for blname in rec?
+                    for i, bl_entry in enumerate(rec.get('bl', [])):
+                        if bl_entry['n'] == blname:
+                            # There already is an entry for blname in rec, update it
+                            i = str(i)
+                            actions.append( ('set', 'bl.'+i+'.v', 1) )
+                            actions.append( ('set', 'bl.'+i+'.t', req_time) )
+                            actions.append( ('append', 'bl.'+i+'.h', req_time) )
+                            break
+                    else:
+                        # An entry for blname is not there yet, create it
+                        actions.append( ('append', 'bl', {'n': blname, 'v': 1, 't': req_time, 'h': [req_time]}) )
+                else:
+                    # IP is not on blacklist blname
+                    self.log.debug("IP address ({0}) is not on {1}.".format(key, blname))
+                    # Is there a record for blname in rec?
+                    for i, bl_entry in enumerate(rec.get('bl', [])):
+                        if bl_entry['n'] == blname:
+                            # There already is an entry for blname in rec, update it
+                            i = str(i)
+                            actions.append( ('set', 'bl.'+i+'.v', 0) )
+                            actions.append( ('set', 'bl.'+i+'.t', req_time) )
+                            break
+        
+        return actions

@@ -86,9 +86,12 @@ def perform_update(rec, updreq):
     # If path doesn't exist in the hierarchy, it's created
     while '.' in key:
         first_key, key = key.split('.',1)
-        if first_key not in rec:
-            rec[first_key] = {}
-        rec = rec[first_key]
+        if first_key.isdecimal(): # index of array
+            rec = rec[int(first_key)]
+        else: # key of object/dict
+            if first_key not in rec:
+                rec[first_key] = {}
+            rec = rec[first_key]
     
     if op == 'set':
         rec[key] = value

@@ -33,7 +33,7 @@ class Updater(NERDModule):
         #self.log.setLevel("DEBUG")
         
         self.POLL_INTERVAL = 10 # should be divisor of 60 (seconds)
-        self.FETCH_LIMIT = 10000 # Max number of entities fetched at once
+        self.FETCH_LIMIT = 50000 # Max number of entities fetched at once
         
         self.last_fetch_time = datetime(1970, 1, 1) # Time of last fetch of entites from DB
         
