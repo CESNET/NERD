@@ -378,7 +378,7 @@ def create_query(form):
             queries.append( {'$or': [{'as_maxmind.num': asn}, {'as_rv.num': asn}]} )
     if form.blacklist.data:
         op = '$and' if (form.bl_op.data == "and") else '$or'
-        queries.append( {op: [{'bl.'+blname: {'$exists': True}} for blname in form.blacklist.data]} )
+        queries.append( {op: [{'bl': {'$elemMatch': {'n': blname, 'v': 1}}} for blname in form.blacklist.data]} )
     if form.tag.data:
         op = '$and' if (form.tag_op.data == "and") else '$or'
         confidence = form.tag_conf.data if form.tag_conf.data else 0
