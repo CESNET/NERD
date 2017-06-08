@@ -1,0 +1,14 @@
+#!/bin/sh
+
+if [ "$1" == "config" ]; then
+  cat <<'END'
+graph_title Warden queue length
+graph_category nerd
+graph_vlabel Number of IDEA messages
+queue.label messages
+queue.warn 8000
+END
+  exit 0
+fi
+
+echo "queue.value $(ls /data/warden_filer/warden_receiver/incoming/ | wc -l)"

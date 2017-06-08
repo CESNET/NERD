@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if [ "$1" == "config" ]; then
+  cat <<'END'
+graph_title "Update requests" processed / s
+graph_category nerd
+graph_vlabel Number of requests / s
+reqs.label reqs
+reqs.type DERIVE
+reqs.min 0
+END
+  exit 0
+fi
+
+echo "reqs.value $(head -n 1 /data/nerd_requests_processed)"

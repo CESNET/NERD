@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ "$1" == "config" ]; then
+  cat <<'END'
+graph_title Event processing delay
+graph_info Difference between current time and time of the latest processed event.
+graph_category nerd
+graph_vlabel Delay [minutes]
+graph_scale no
+delay.label delay
+delay.warn 30
+END
+  exit 0
+fi
+
+echo "delay.value $(mongo nerd --quiet --eval 'print((ISODate().getTime() - db.ip.find({}, {ts_last_event: 1, _id: 0}).sort({ts_last_event: -1}).limit(1).next().ts_last_event.getTime())/60000)')"

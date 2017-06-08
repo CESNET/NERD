@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if [ "$1" == "config" ]; then
+  cat <<'END'
+graph_title Number of entities in database
+graph_category nerd
+graph_vlabel Number of entities
+ip.label Number of IPs
+asn.label Number of ASNs
+END
+  exit 0
+fi
+
+mongo nerd --quiet --eval "print('ip.value', db.ip.count()); print('asn.value', db.asn.count())"
+
