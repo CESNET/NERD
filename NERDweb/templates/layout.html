@@ -115,6 +115,7 @@ $(function() {
 <tr><td>Requests/second</td><td><span id="status-reqs">??</span></td></tr>
 <tr><td colspan="2"><canvas id="status-reqs-plot" width="100" height="40" style="width: 100%; height: 40px"></canvas></td></tr>
 </table>
+{% if config.munin_link %}See more graphs in <a href="{{ config.munin_link }}" target="_blank">Munin</a>{% endif %}
 <script type="text/javascript" src="{{ url_for('static', filename='smoothie.js') }}"></script> {# Load library for plotting stream-data (reqs/s) #}
 <script>
 // resize the canvas to 100% width
