@@ -1,0 +1,38 @@
+#!/bin/bash
+
+fields="ip_new_entity
+ip_event
+ip_regular_1d
+ip_regular_1w
+ip_other
+asn_new_entity
+asn_event
+asn_regular_1d
+asn_regular_1w
+asn_other"
+
+if [ "$1" == "config" ]; then
+  cat <<'END'
+graph_title Updates processed / s
+graph_category nerd
+graph_vlabel Number of updates / s
+ip_new_entity.label [IP] New entity record
+ip_event.label [IP] New event
+ip_regular_1d.label [IP] Regular daily update
+ip_regular_1w.label [IP] Regular weekly update
+ip_other.label [IP] Other
+asn_new_entity.label [ASN] New entity record
+asn_event.label [ASN] New event
+asn_regular_1d.label [ANS] Regular daily update
+asn_regular_1w.label [ASN] Regular weekly update
+asn_other.label [ASN] Other
+END
+  for f in ${fields}; do
+    echo ${f}.type DERIVE
+    echo ${f}.min 0
+    echo ${f}.draw AREASTACK
+  done
+  exit 0
+fi
+
+head -n 10 /data/nerd_updates_processed | paste <(echo "$fields") - | sed -e 's/\t/.value /'
