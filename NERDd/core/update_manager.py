@@ -5,12 +5,13 @@ Provides UpdateManager class - a NERD component which handles updates of entity
 records, including chain reaction of updates casued by other updates.
 """
 import sys
+import os
 import threading
 # import multiprocessing
 import queue
 from datetime import datetime, timezone
 import time
-from collections import defaultdict, deque, Iterable
+from collections import defaultdict, deque, Iterable, OrderedDict
 import logging
 import traceback
 
@@ -219,28 +220,46 @@ class UpdateManager:
         # Since _records_being_processed may be accessed by many thread, locking is necessary
         self._records_being_processed_lock = threading.Lock()
         
-        # Total count of requests processed
-        self._request_counter = 0
-        self._last_request_counter = 0 # Last number written to log file
-        # Call it every 1 second
-        if ("req_cnt_file" in g.config):
-            g.scheduler.register(self.log_request_counter, second="*/1")
+        # Count of update requests processed (per update type)
+        self._update_counter = OrderedDict([
+            ('ip_new_entity',0), # New entity (usually because of new event)
+            ('ip_event',0), # New event added to existing entity
+            ('ip_regular_1d',0), # Regular daily update
+            ('ip_regular_1w',0), # Regular weekly update
+            ('ip_other',0), # Other updates
+            ('asn_new_entity',0), # New entity (usually because of new event)
+            ('asn_event',0), # New event added to existing entity
+            ('asn_regular_1d',0), # Regular daily update
+            ('asn_regular_1w',0), # Regular weekly update
+            ('asn_other',0), # Other updates
+        ])
+        self._last_update_counter = self._update_counter.copy()
+
+        # Call it every 2 seconds
+        if ("upd_cnt_file" in g.config):
+            g.scheduler.register(self.log_update_counter, second="*/2")
 
 
-    def log_request_counter(self):
-        # Write request counter to file (every 10 sec)
-        # First line: total number of request processed
-        # Second line: number of request per second (avg from last 10s period)
-        filename = g.config.get("req_cnt_file", None)
+    def log_update_counter(self):
+        # Write update counter to file (every 2 sec)
+        # Lines 1-5: (IP) total number of updates (per update type)
+        # Lines 6-10: (ASN) total number of updates (per update type)
+        # Lines 10-15: (IP) number of updates per second (avg from last period)
+        # Lines 16-20: (ASN) number of updates per second (avg from last period)
+        # Line 21: current length of update request queue
+        filename = g.config.get("upd_cnt_file", None)
         if not filename:
             return
-        with open(filename, "w") as f:
-            f.write("{}\n{:.1f}\n{}\n".format(
-                self._request_counter,
-                (self._request_counter - self._last_request_counter) / 1,
-                self.get_queue_size()
-            ))
-        self._last_request_counter = self._request_counter
+        # Write to a temp file and then rename, so at no time there is a partially written file (rename is atomic operation)
+        tmp_filename = filename + "_tmp$"
+        with open(tmp_filename, "w") as f:
+            for _,cnt in self._update_counter.items():
+                f.write('{}\n'.format(cnt))
+            for (_,last),(_,cnt) in zip(self._last_update_counter.items(), self._update_counter.items()):
+                f.write('{}\n'.format(cnt-last))
+            f.write("{}\n".format(self.get_queue_size()))
+        os.replace(tmp_filename, filename)
+        self._last_update_counter = self._update_counter.copy()
 
 
     def register_handler(self, func, etype, triggers, changes):
@@ -325,12 +344,11 @@ class UpdateManager:
         """
         Main processing function - update attributes or trigger an event.
         
-        May be called asynchronously by NERD modules to request changes in
-        attributes of given entity.
-        
         Arguments:
         ekey -- Entity type and key (2-tuple)
         update_requests -- list of 3-tuples as described above
+        
+        Return True if a new record was created, False otherwise.
         """ 
         etype = ekey[0]
         
@@ -363,7 +381,7 @@ class UpdateManager:
                 # It's OK, put the new requests to the list and exit
                 requests_to_process.extend(update_requests)
                 requests_to_process_lock.release()
-                return
+                return False
             else:
                 requests_to_process_lock.release()
                 # The processing by the other thread was finished while we were  
@@ -378,6 +396,7 @@ class UpdateManager:
         # *** The record is currently not being processed by anyone. ***
             
         # Fetch the record from database or create a new one
+        new_rec_created = False
         rec = self.db.get(ekey[0], ekey[1])
         if rec is None:
             now = datetime.utcnow()
@@ -385,6 +404,7 @@ class UpdateManager:
                 'ts_added': now,
                 'ts_last_update': now,
             }
+            new_rec_created = True
             # New record was created -> add "!NEW" event to attrib_updates
             #self.log.debug("New record {} was created, injecting event '!NEW'".format(ekey))
             update_requests.insert(0,('event','!NEW',None))
@@ -392,7 +412,7 @@ class UpdateManager:
         # Short-circuit if update_requests is empty (used to only create a record if it doesn't exist)
         if not update_requests:
             self._records_being_processed_lock.release()
-            return
+            return False
         
         # Store the record and a list of update requests to the storage of records being processed
         requests_to_process = update_requests # may be accessed by other threads - locking necessary
@@ -535,6 +555,8 @@ class UpdateManager:
         # check again if the record is still being processed, it finds out that
         # it's not and takes the processing itself.
         requests_to_process_lock.release()
+        
+        return new_rec_created
 
     
     def start(self):
@@ -617,7 +639,7 @@ class UpdateManager:
         pull corresponding record from database, and call "_process_update_req"
         function.
         
-        During the updating process, the record is "locked" and cannot be
+        During the updating process, the record is "locked" and 
         no other worker can directly update it. Other workers can however
         put new requests into the running updating process (see beginning of 
         _process_update_req() for details).
@@ -635,12 +657,24 @@ class UpdateManager:
             
 #             self.log.debug("New update request: {},{}".format(ekey, updreq))
             
-            # Call update method
-            self._process_update_req(ekey, updreq)
+            # Call update method (pass copy of updreq since we need it unchanged for the logging code below)
+            new_rec_created = self._process_update_req(ekey, updreq.copy())
             
 #             self.log.debug("Task done")
             self._request_queue.task_done()
-            self._request_counter += 1
+            
+            # Increment corresponding update counter
+            if ekey[0] in ['ip', 'asn']:
+                if new_rec_created:
+                    self._update_counter[ekey[0]+'_new_entity'] += 1
+                elif any(u == ('add', 'events.total', 1) for u in updreq):
+                    self._update_counter[ekey[0]+'_event'] += 1
+                elif any(u[1] == '!every1w' for u in updreq):
+                    self._update_counter[ekey[0]+'_regular_1w'] += 1
+                elif any(u[1] == '!every1d' for u in updreq):
+                    self._update_counter[ekey[0]+'_regular_1d'] += 1
+                else:
+                    self._update_counter[ekey[0]+'_other'] += 1
 
 
 
