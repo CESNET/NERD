@@ -34,7 +34,7 @@ class IPBlacklist():
                 # Try to load blacklist from local cache
                 tmpfilename = "{0}/{1}".format(self.tmpdir, self.name)
                 try:
-                    if time.time() - os.stat(tmpfilename).st_ctime < 3600: # If the tmp file is not older than 1 hour
+                    if time.time() - os.stat(tmpfilename).st_mtime < 3600: # If the tmp file is not older than 1 hour
                         self.log.debug("Loading blacklist '{0}' from cache ...".format(self.name))                        
                         with open(tmpfilename, encoding='utf-8', errors='ignore') as f:
                             data = f.read()
