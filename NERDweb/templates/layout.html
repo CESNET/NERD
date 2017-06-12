@@ -108,28 +108,28 @@ $(function() {
 <tr><td colspan="2"><div id="status-idea-queue-bar" class="queue"><div></div></div></td></tr>
 </table>
 <table>
-<tr><td>Request queue:</td><td><span id="status-req-queue">??</span></td></tr>
-<tr><td colspan="2"><div id="status-req-queue-bar" class="queue"><div></div></div></td></tr>
+<tr><td>Update req. queue:</td><td><span id="status-updreq-queue">??</span></td></tr>
+<tr><td colspan="2"><div id="status-updreq-queue-bar" class="queue"><div></div></div></td></tr>
 </table>
 <table>
-<tr><td>Requests/second</td><td><span id="status-reqs">??</span></td></tr>
-<tr><td colspan="2"><canvas id="status-reqs-plot" width="100" height="40" style="width: 100%; height: 40px"></canvas></td></tr>
+<tr><td>Updates/second</td><td><span id="status-updates">??</span></td></tr>
+<tr><td colspan="2"><canvas id="status-updates-plot" width="100" height="40" style="width: 100%; height: 40px"></canvas></td></tr>
 </table>
 {% if config.munin_link %}See more graphs in <a href="{{ config.munin_link }}" target="_blank">Munin</a>{% endif %}
 <script type="text/javascript" src="{{ url_for('static', filename='smoothie.js') }}"></script> {# Load library for plotting stream-data (reqs/s) #}
 <script>
 // resize the canvas to 100% width
-$("#status-reqs-plot").attr("width", $("#status-reqs-plot").css("width"));
+$("#status-updates-plot").attr("width", $("#status-updates-plot").css("width"));
 // Create reqs/s chart
 var smoothie = new SmoothieChart({millisPerPixel:200, interpolation:'linear', 
     grid: {fillStyle:'#ffffff', millisPerLine:5000, verticalSections:4},
     labels: {fillStyle:'#000000'},
     minValue: 0, maxValue: 400
 });
-smoothie.streamTo(document.getElementById("status-reqs-plot"));
+smoothie.streamTo(document.getElementById("status-updates-plot"));
 smoothie.stop();
-var reqs_timeseries = new TimeSeries();
-smoothie.addTimeSeries(reqs_timeseries, {lineWidth: 2, strokeStyle:'#00c000', fillStyle: 'rgba(0,128,0,0.25)'});
+var updates_timeseries = new TimeSeries();
+smoothie.addTimeSeries(updates_timeseries, {lineWidth: 2, strokeStyle:'#00c000', fillStyle: 'rgba(0,128,0,0.25)'});
 </script>
 <script>
 var refresh_status_enable = false; // Enable/disable refresh status
@@ -159,7 +159,7 @@ function refresh_status(force=false) {
         "{{ url_for('get_status') }}",
         function(data) {
             $("#status-ips").text(data.ips);
-            $("#status-reqs").text(data.requests_processed);
+            $("#status-updates").text(data.updates_processed);
             $("#status-disk-usage").text(data.disk_usage);
             $("#status-idea-queue").text(data.idea_queue);
             // Set width of bar and its color
@@ -175,24 +175,24 @@ function refresh_status(force=false) {
                 $("#status-idea-queue-bar div").css('background-color', '#c00');
             }
             
-            $("#status-req-queue").text(data.req_queue);
+            $("#status-updreq-queue").text(data.update_queue);
             // Set width of bar and its color
-            var bar_width = (data.req_queue * 100 / 1000);
+            var bar_width = (data.update_queue * 100 / 1000);
             if (bar_width > 100) {
                 bar_width = 100;
             }
-            $("#status-req-queue-bar div").css('width', bar_width + "%");
+            $("#status-updreq-queue-bar div").css('width', bar_width + "%");
             if (bar_width < 50) {
-                $("#status-req-queue-bar div").css('background-color', '#0c0');
+                $("#status-updreq-queue-bar div").css('background-color', '#0c0');
             }
             else if (bar_width < 75) {
-                $("#status-req-queue-bar div").css('background-color', '#ea0');
+                $("#status-updreq-queue-bar div").css('background-color', '#ea0');
             }
             else {
-                $("#status-req-queue-bar div").css('background-color', '#c00');
+                $("#status-updreq-queue-bar div").css('background-color', '#c00');
             }
             // Add data to res/s plot
-            reqs_timeseries.append(new Date().getTime(), data.requests_processed);
+            updates_timeseries.append(new Date().getTime(), data.updates_processed);
         }
     )
     .always(function() {
@@ -201,8 +201,8 @@ function refresh_status(force=false) {
     });
 }
 
-// Set automatic refresh every 5s
-var status_refresh_timer = window.setInterval(refresh_status, 1000);
+// Set automatic refresh every 2s
+var status_refresh_timer = window.setInterval(refresh_status, 2000);
 // Run refresh once on load
 $(function() { refresh_status(true) });
 </script>

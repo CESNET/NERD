@@ -600,17 +600,17 @@ def get_status():
     ips = mongo.db.ip.count()
     idea_queue_len = len(os.listdir(WARDEN_DROP_PATH))
     
-    if "req_cnt_file" in config:
+    if "upd_cnt_file" in config:
         try:
-            req_cnt = open(config.get("req_cnt_file")).read().split("\n")
-            req_processed = req_cnt[1]
-            req_queue = int(req_cnt[2])
+            upd_cnt = open(config.get("upd_cnt_file")).read().split("\n")
+            upd_processed = sum(map(int, upd_cnt[10:20]))
+            upd_queue = int(upd_cnt[20])
         except Exception as e:
-            req_processed = "(error) " + str(e)
-            req_queue = 0
+            upd_processed = "(error) " + str(e)
+            upd_queue = 0
     else:
-        req_processed = "(N/A)"
-        req_queue = 0
+        upd_processed = "(N/A)"
+        upd_queue = 0
     
     try:
         if "data_disk_path" in config:
@@ -623,8 +623,8 @@ def get_status():
     return jsonify(
         ips=ips,
         idea_queue=idea_queue_len,
-        req_queue=req_queue,
-        requests_processed=req_processed,
+        update_queue=upd_queue,
+        updates_processed=upd_processed,
         disk_usage=disk_usage
     )
 
