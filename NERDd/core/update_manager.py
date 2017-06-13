@@ -586,6 +586,13 @@ class UpdateManager:
         # Wait until all workers stopped (this should be immediate)
         for worker in self._workers:
             worker.join()
+        # Delete file with updates count log
+        filename = g.config.get("upd_cnt_file", None)
+        if filename:
+            try:
+                os.remove(filename)
+            except Exception:
+                pass
         # Cleanup
         self._workers = []
 
