@@ -17,8 +17,6 @@ import traceback
 
 import g
 
-WORKER_THREADS = 10
-
 ENTITY_TYPES = ['ip', 'asn']
 
 #  Update request specification = list of three-tuples:
@@ -561,8 +559,10 @@ class UpdateManager:
     
     def start(self):
         """Run the worker threads."""
+        num_workers = g.config.get('worker_threads', 8)
+        self.log.info("Starting {} worker threads".format(num_workers))
         #self._process = multiprocessing.Process(target=self._main_loop)
-        self._workers = [ threading.Thread(target=self._worker_func, args=(i,), name="UMWorker-"+str(i)) for i in range(WORKER_THREADS) ]
+        self._workers = [ threading.Thread(target=self._worker_func, args=(i,), name="UMWorker-"+str(i)) for i in range(num_workers) ]
         for worker in self._workers:
             worker.start()
     
