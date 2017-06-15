@@ -9,9 +9,22 @@ from core.basemodule import NERDModule
 import g
 
 import logging
+import threading
 import shodan
 
-    
+# *** Global lock disabling parallel querying ***
+# Shodan API has a limit on query rate. Normally API response is so slow
+# (there is probably an artifically added delay) that the threshold can not be
+# exceeded by sequential querying. If we would send queries by more threads in
+# parallel, the rate limit would be easily exceeded and API would return errors.
+#
+# IMPORTANT: The API query takes around 0.7 second (according to my experiments 
+# at the time of writing), so maximal rate of queries is ~1.4/s.
+# THIS LIMITS THE MAXIMAL RATE OF NEW IPs NERD CAN PROCESS and also MAXIMAL 
+# NUMBER OF IPs IN DATABASE (since Shodan info of IPs is updated every week)
+shodan_api_lock = threading.Lock()
+
+
 class Shodan(NERDModule):
     """
     Module querying IP addresses in Shodan
@@ -45,8 +58,8 @@ class Shodan(NERDModule):
         g.um.register_handler(
             self.getShodanInfo, # function (or bound method) to call
             'ip', # entity type
-            ('!NEW',), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
-            ('shodan',) # tuple/list/set of attributes the method may change # TODO maybe there should be all particular fields enumerated (but it would be beterr if I coiuld write 'bl.*')
+            ('!NEW','!every1w'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
+            ('shodan.ports','shodan.os','shodan.devicetype','shodan.linktype','shodan.tags',) # tuple/list/set of attributes the method may change
         )
         self.log.info("Shodan module initialized")
 
@@ -83,7 +96,8 @@ class Shodan(NERDModule):
         self.log.debug("Querying Shodan for {}".format(ip))
         
         try:
-            data = self.client.host(ip, minify=True)
+            with shodan_api_lock: # This ensures only one thread can process the query at a time
+                data = self.client.host(ip, minify=True)
         except shodan.exception.APIError as e:
             if str(e) == "No information available for that IP.":
                 self.log.debug("Shodan info for {}: Not found".format(ip))
@@ -103,6 +117,7 @@ class Shodan(NERDModule):
 
         # Check presence of various fields and check whether they have expected format
         # If it is OK, add its value to our IP record.
+        # TODO: remove fields that may be set before but are no longer returned by Shodan
         if 'ports' in data and data['ports']:
             ports = data['ports']
             if isinstance(ports, list) and all(map(lambda x: isinstance(x, int), ports)):
