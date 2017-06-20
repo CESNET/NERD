@@ -10,7 +10,7 @@ import subprocess
 import re
 import pytz
 
-from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session
+from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session, Response
 from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from flask_mail import Mail, Message
@@ -627,6 +627,39 @@ def get_status():
         updates_processed=upd_processed,
         disk_usage=disk_usage
     )
+
+
+# ***** Plain-text list of IP addresses *****
+# (gets the same parameters as /ips/)
+
+@app.route('/iplist')
+@app.route('/iplist/')
+def iplist():
+    user, ac = get_user_info(session)
+
+    form = IPFilterForm(request.args, csrf_enabled=False)
+    
+    if not user or not ac('ipsearch'):
+        return Response('ERROR: Unauthorized', 403, mimetype='text/plain')
+    
+    if not form.validate():
+        return Response('ERROR: Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items()), 400, mimetype='text/plain')
+    
+    sortby = sort_mapping[form.sortby.data]
+    
+    query = create_query(form)
+    
+    # Perform DB query
+    try:
+        results = mongo.db.ip.find(query).limit(form.limit.data)
+        if sortby != "none":
+            results.sort(sortby, 1 if form.asc.data else -1)
+        results = list(results) # Load all data now, so we are able to get number of results in template
+    except pymongo.errors.ServerSelectionTimeoutError:
+        return Response('ERROR: Database connection error', 503, mimetype='text/plain')
+    
+    return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
+
 
 
 # **********
