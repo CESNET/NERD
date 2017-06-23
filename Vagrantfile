@@ -152,6 +152,7 @@ Alias ${NERDBaseLoc}/static/ ${NERDBaseDir}/static/
 </Location>
 
 <VirtualHost *:80>
+    WSGIPassAuthorization On 
 </VirtualHost>
 ' > /etc/httpd/conf.d/nerd.conf
 SCRIPT
