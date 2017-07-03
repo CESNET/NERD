@@ -680,18 +680,20 @@ def get_basic_info(ipaddr=None):
     if vals[0] != "token" or not authenticate_with_token(vals[1]):
         return Response(json.dumps(data), 403, mimetype='text/plain')
 
-    data['err_n'] = 400
     if not ipaddr:
+        data['err_n'] = 400
         data['error'] = "No IP address specified"
         return Response(json.dumps(data), 400, mimetype='text/plain')
 
     form = SingleIPForm(ip=ipaddr, csrf_enabled=False)
     if not form.validate():
+        data['err_n'] = 400
         data['error'] = "Bad IP address"
         return Response(json.dumps(data), 400, mimetype='text/plain')
 
     ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
     if not ipinfo:
+        data['err_n'] = 404
         data['error'] = "IP address not found"
         return Response(json.dumps(data), 404, mimetype='text/plain')
 
