@@ -663,7 +663,7 @@ def iplist():
 
 # ***** NERD API BasicInfo *****
 
-@app.route('/nerd/api/v1/ip')
+@app.route('/nerd/api/v1/ip/')
 @app.route('/nerd/api/v1/ip/<ipaddr>')
 def get_basic_info(ipaddr=None):
     data = {
@@ -677,7 +677,8 @@ def get_basic_info(ipaddr=None):
         return Response(json.dumps(data), 403, mimetype='text/plain')
 
     vals = auth.split()
-    if vals[0] != "token" or not authenticate_with_token(vals[1]):
+    user, ac = authenticate_with_token(vals[1])
+    if vals[0] != "token" or not user or not ac('ipsearch'):
         return Response(json.dumps(data), 403, mimetype='text/plain')
 
     if not ipaddr:
