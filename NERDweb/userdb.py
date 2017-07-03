@@ -113,3 +113,11 @@ def get_user_info(session):
     ac = get_ac_func(user['groups'])
     return user, ac
 
+def authenticate_with_token(token):
+    cur = db.cursor()
+    cur.execute("SELECT id FROM users WHERE api_token = %s", (token,))
+    row = cur.fetchone()
+    if not row:
+        return None
+
+    return row[0]

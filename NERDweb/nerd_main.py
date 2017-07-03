@@ -24,7 +24,7 @@ import common.config
 #import db
 import ctrydata
 import userdb
-from userdb import get_user_info
+from userdb import get_user_info, authenticate_with_token
 
 # ***** Load configuration *****
 
@@ -661,6 +661,72 @@ def iplist():
     return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
 
 
+# ***** NERD API BasicInfo *****
+
+@app.route('/nerd/api/v1/ip')
+@app.route('/nerd/api/v1/ip/<ipaddr>')
+def get_basic_info(ipaddr=None):
+    data = {
+        'err_n' : 403,
+        'error' : "Unauthorized",
+        'ip' : ipaddr
+    }
+
+    auth = request.headers.get("Authorization")
+    if not auth:
+        return Response(json.dumps(data), 403, mimetype='text/plain')
+
+    vals = auth.split()
+    if vals[0] != "token" or not authenticate_with_token(vals[1]):
+        return Response(json.dumps(data), 403, mimetype='text/plain')
+
+    data['err_n'] = 400
+    if not ipaddr:
+        data['error'] = "No IP address specified"
+        return Response(json.dumps(data), 400, mimetype='text/plain')
+
+    form = SingleIPForm(ip=ipaddr, csrf_enabled=False)
+    if not form.validate():
+        data['error'] = "Bad IP address"
+        return Response(json.dumps(data), 400, mimetype='text/plain')
+
+    ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+    if not ipinfo:
+        data['error'] = "IP address not found"
+        return Response(json.dumps(data), 404, mimetype='text/plain')
+
+    asn_d = {}
+    if 'as_maxmind' in ipinfo.keys():
+        asn_d['num'] = ipinfo['as_maxmind'].get('num', 0)
+
+    geo_d = {}
+    if 'geo' in ipinfo.keys():
+        geo_d['ctry'] = ipinfo['geo'].get('ctry', "unknown")
+
+    bl_l = []
+    for l in ipinfo.get('bl', []):
+        bl_l.append(l['n'])
+
+    tags_l = []
+    for l in ipinfo.get('tags', []):
+        d = {
+            'n' : l,
+            'c' : ipinfo['tags'][l]['confidence']
+        }
+
+        tags_l.append(d)
+
+    data = {
+        'ip' : ipinfo['_id'],
+        'rep' : ipinfo['rep'],
+        'hostname' : ipinfo['hostname'],
+        'asn' : asn_d,
+        'geo' : geo_d,
+        'bl'  : bl_l,
+        'tags'  : tags_l
+    }
+
+    return Response(json.dumps(data), 200, mimetype='text/plain')
 
 # **********
 
