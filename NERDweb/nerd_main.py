@@ -660,12 +660,7 @@ def iplist():
     
     return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
 
-
-# ***** NERD API BasicInfo *****
-
-@app.route('/nerd/api/v1/ip/')
-@app.route('/nerd/api/v1/ip/<ipaddr>')
-def get_basic_info(ipaddr=None):
+def validate_api_request(authorization, ipaddr):
     data = {
         'err_n' : 403,
         'error' : "Unauthorized",
@@ -674,55 +669,66 @@ def get_basic_info(ipaddr=None):
 
     auth = request.headers.get("Authorization")
     if not auth:
-        return Response(json.dumps(data), 403, mimetype='text/plain')
+        return False, Response(json.dumps(data), 403, mimetype='text/plain')
 
     vals = auth.split()
     user, ac = authenticate_with_token(vals[1])
     if vals[0] != "token" or not user or not ac('ipsearch'):
-        return Response(json.dumps(data), 403, mimetype='text/plain')
+        return False, Response(json.dumps(data), 403, mimetype='text/plain')
 
     if not ipaddr:
         data['err_n'] = 400
         data['error'] = "No IP address specified"
-        return Response(json.dumps(data), 400, mimetype='text/plain')
+        return False, Response(json.dumps(data), 400, mimetype='text/plain')
 
     form = SingleIPForm(ip=ipaddr, csrf_enabled=False)
     if not form.validate():
         data['err_n'] = 400
         data['error'] = "Bad IP address"
-        return Response(json.dumps(data), 400, mimetype='text/plain')
+        return False, Response(json.dumps(data), 400, mimetype='text/plain')
 
     ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
     if not ipinfo:
         data['err_n'] = 404
         data['error'] = "IP address not found"
-        return Response(json.dumps(data), 404, mimetype='text/plain')
+        return False, Response(json.dumps(data), 404, mimetype='text/plain')    
+
+    return True, ipinfo
+
+# ***** NERD API BasicInfo *****
+
+@app.route('/nerd/api/v1/ip/')
+@app.route('/nerd/api/v1/ip/<ipaddr>')
+def get_basic_info(ipaddr=None):
+    ret, val = validate_api_request(request.headers.get("Authorization"), ipaddr)
+    if not ret:
+        return val
 
     asn_d = {}
-    if 'as_maxmind' in ipinfo.keys():
-        asn_d['num'] = ipinfo['as_maxmind'].get('num', 0)
+    if 'as_maxmind' in val.keys():
+        asn_d['num'] = val['as_maxmind'].get('num', 0)
 
     geo_d = {}
-    if 'geo' in ipinfo.keys():
-        geo_d['ctry'] = ipinfo['geo'].get('ctry', "unknown")
+    if 'geo' in val.keys():
+        geo_d['ctry'] = val['geo'].get('ctry', "unknown")
 
     bl_l = []
-    for l in ipinfo.get('bl', []):
+    for l in val.get('bl', []):
         bl_l.append(l['n'])
 
     tags_l = []
-    for l in ipinfo.get('tags', []):
+    for l in val.get('tags', []):
         d = {
             'n' : l,
-            'c' : ipinfo['tags'][l]['confidence']
+            'c' : val['tags'][l]['confidence']
         }
 
         tags_l.append(d)
 
     data = {
-        'ip' : ipinfo['_id'],
-        'rep' : ipinfo['rep'],
-        'hostname' : ipinfo['hostname'],
+        'ip' : val['_id'],
+        'rep' : val['rep'],
+        'hostname' : val['hostname'],
         'asn' : asn_d,
         'geo' : geo_d,
         'bl'  : bl_l,
@@ -732,6 +738,42 @@ def get_basic_info(ipaddr=None):
     return Response(json.dumps(data), 200, mimetype='text/plain')
 
 # **********
+
+# ***** NERD API FullInfo *****
+
+@app.route('/nerd/api/v1/ip/<ipaddr>/full')
+def get_full_info(ipaddr=None):
+    ret, val = validate_api_request(request.headers.get("Authorization"), ipaddr)
+    if not ret:
+        return val
+
+    asn_d = {}
+    if 'as_maxmind' in val.keys():
+        asn_d['num'] = val['as_maxmind'].get('num', 0)
+        asn_d['name'] = val['as_maxmind'].get('description', "")
+    elif 'as_rv' in val.keys():
+        asn_d['num'] = val['as_rv'].get('num', 0)
+        asn_d['name'] = val['as_rv'].get('description', "")
+
+    evts = val['events']
+    del evts['total1']
+    del evts['total30']
+    del evts['total7']
+    del evts['types']
+
+    data = {
+        'ip' : val['_id'],
+        'rep' : val['rep'],
+        'hostname' : val['hostname'],
+        'asn' : asn_d,
+        'geo' : val['geo'],
+        'ts_added' : val['ts_added'],
+        'ts_last_update' : val['ts_last_update'],
+        'ts_last_event' : val['ts_last_event'],
+        'events' : evts
+    }
+
+    return Response(json.dumps(data), 200, mimetype='text/plain')
 
 if __name__ == "__main__":
     config.testing = True
