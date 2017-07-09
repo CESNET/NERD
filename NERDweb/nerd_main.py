@@ -660,38 +660,43 @@ def iplist():
     
     return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
 
-def validate_api_request(authorization, ipaddr):
+def validate_api_request(authorization):
     data = {
         'err_n' : 403,
         'error' : "Unauthorized",
-        'ip' : ipaddr
     }
 
     auth = request.headers.get("Authorization")
     if not auth:
-        return False, Response(json.dumps(data), 403, mimetype='text/plain')
+        return Response(json.dumps(data), 403, mimetype='application/json')
 
     vals = auth.split()
     user, ac = authenticate_with_token(vals[1])
     if vals[0] != "token" or not user or not ac('ipsearch'):
-        return False, Response(json.dumps(data), 403, mimetype='text/plain')
+        return Response(json.dumps(data), 403, mimetype='application/json')
+
+    return None
+
+def get_ip_info(ipaddr):
+    data = {
+        'err_n' : 400,
+        'error' : "No IP address specified",
+        'ip' : ipaddr
+    }
 
     if not ipaddr:
-        data['err_n'] = 400
-        data['error'] = "No IP address specified"
-        return False, Response(json.dumps(data), 400, mimetype='text/plain')
+        return False, Response(json.dumps(data), 400, mimetype='application/json')
 
     form = SingleIPForm(ip=ipaddr, csrf_enabled=False)
     if not form.validate():
-        data['err_n'] = 400
         data['error'] = "Bad IP address"
-        return False, Response(json.dumps(data), 400, mimetype='text/plain')
+        return False, Response(json.dumps(data), 400, mimetype='application/json')
 
     ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
     if not ipinfo:
         data['err_n'] = 404
         data['error'] = "IP address not found"
-        return False, Response(json.dumps(data), 404, mimetype='text/plain')    
+        return False, Response(json.dumps(data), 404, mimetype='application/json')
 
     return True, ipinfo
 
@@ -730,22 +735,29 @@ def get_basic_info_dic(val):
 
     return data
 
-@app.route('/nerd/api/v1/ip/')
 @app.route('/nerd/api/v1/ip/<ipaddr>')
 def get_basic_info(ipaddr=None):
-    ret, val = validate_api_request(request.headers.get("Authorization"), ipaddr)
+    ret = validate_api_request(request.headers.get("Authorization"))
+    if ret:
+        return ret
+
+    ret, val = get_ip_info(ipaddr)
     if not ret:
         return val
 
     binfo = get_basic_info_dic(val)
 
-    return Response(json.dumps(binfo), 200, mimetype='text/plain')
+    return Response(json.dumps(binfo), 200, mimetype='application/json')
 
 # ***** NERD API FullInfo *****
 
 @app.route('/nerd/api/v1/ip/<ipaddr>/full')
 def get_full_info(ipaddr=None):
-    ret, val = validate_api_request(request.headers.get("Authorization"), ipaddr)
+    ret = validate_api_request(request.headers.get("Authorization"))
+    if ret:
+        return ret
+
+    ret, val = get_ip_info(ipaddr)
     if not ret:
         return val
 
@@ -775,31 +787,23 @@ def get_full_info(ipaddr=None):
         'events' : evts
     }
 
-    return Response(json.dumps(data), 200, mimetype='text/plain')
+    return Response(json.dumps(data), 200, mimetype='application/json')
 
 # ***** NERD API IPSearch *****
 
 @app.route('/nerd/api/v1/search/ip/')
 def ip_search():
-    err = {
-        'err_n' : 403,
-        'error' : "Unauthorized"
-    }
+    err = {}
 
-    auth = request.headers.get("Authorization")
-    if not auth:
-        return Response(json.dumps(err), 403, mimetype='text/plain')
-
-    vals = auth.split()
-    user, ac = authenticate_with_token(vals[1])
-    if vals[0] != "token" or not user or not ac('ipsearch'):
-        return Response(json.dumps(err), 403, mimetype='text/plain')
+    ret = validate_api_request(request.headers.get("Authorization"))
+    if ret:
+        return ret
 
     form = IPFilterForm(request.args, csrf_enabled=False)
     if not form.validate():
         err['err_n'] = 400
         err['error'] = 'Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items())
-        return Response(json.dumps(err), 400, mimetype='text/plain')
+        return Response(json.dumps(err), 400, mimetype='application/json')
 
     sortby = sort_mapping[form.sortby.data]
     query = create_query(form)
@@ -812,7 +816,7 @@ def ip_search():
     except pymongo.errors.ServerSelectionTimeoutError:
         err['err_n'] = 503
         err['error'] = 'Database connection error'
-        return Response(json.dumps(data), 503, mimetype='text/plain')
+        return Response(json.dumps(data), 503, mimetype='application/json')
 
     output = request.args.get('o', "json")
     if output == "json":
@@ -822,11 +826,11 @@ def ip_search():
         return Response(json.dumps(lres), 200, mimetype='text/plain')
 
     elif output == "list":
-        return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
+        return Response('\n'.join(res['_id'] for res in results), 200, mimetype='application/json')
     else:
         err['err_n'] = 400
-        err['error'] = 'Unrecognized value ' + output + ' of output option.'
-        return Response(json.dumps(err), 400, mimetype='text/plain')
+        err['error'] = 'Unrecognized value of output parameter: ' + output
+        return Response(json.dumps(err), 400, mimetype='application/json')
 
 # **********
 
