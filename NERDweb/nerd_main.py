@@ -737,8 +737,6 @@ def get_basic_info(ipaddr=None):
 
     return Response(json.dumps(data), 200, mimetype='text/plain')
 
-# **********
-
 # ***** NERD API FullInfo *****
 
 @app.route('/nerd/api/v1/ip/<ipaddr>/full')
@@ -774,6 +772,48 @@ def get_full_info(ipaddr=None):
     }
 
     return Response(json.dumps(data), 200, mimetype='text/plain')
+
+# ***** NERD API IPSearch *****
+
+@app.route('/nerd/api/v1/search/ip/')
+def ip_search():
+    data = {
+        'err_n' : 403,
+        'error' : "Unauthorized"
+    }
+
+    auth = request.headers.get("Authorization")
+    if not auth:
+        return Response(json.dumps(data), 403, mimetype='text/plain')
+
+    vals = auth.split()
+    user, ac = authenticate_with_token(vals[1])
+    if vals[0] != "token" or not user or not ac('ipsearch'):
+        return Response(json.dumps(data), 403, mimetype='text/plain')
+
+    form = IPFilterForm(request.args, csrf_enabled=False)
+    if not form.validate():
+        data['err_n'] = 400
+        data['error'] = 'Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items())
+        return Response(json.dumps(data), 400, mimetype='text/plain')
+
+    sortby = sort_mapping[form.sortby.data]
+    query = create_query(form)
+    
+    try:
+        results = mongo.db.ip.find(query).limit(form.limit.data)
+        if sortby != "none":
+            results.sort(sortby, 1 if form.asc.data else -1)
+        results = list(results)
+    except pymongo.errors.ServerSelectionTimeoutError:
+        data['err_n'] = 503
+        data['error'] = 'Database connection error'
+        return Response(json.dumps(data), 503, mimetype='text/plain')
+    
+    return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')   
+
+
+# **********
 
 if __name__ == "__main__":
     config.testing = True
