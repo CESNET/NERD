@@ -832,6 +832,22 @@ def ip_search():
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
 
+
+# Custom error 404 handler for API
+@app.errorhandler(404)
+def page_not_found(e):
+    if request.path.startswith("/api"):
+        # API -> return error in JSON
+        err = {
+            'err_n': 404,
+            'error': "Not Found - unrecognized API path",
+        }
+        return Response(json.dumps(err), 404, mimetype='application/json')
+    else:
+        # Otherwise return default error page
+        flask.abort(404)
+
+
 # **********
 
 if __name__ == "__main__":
