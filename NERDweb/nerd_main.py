@@ -735,7 +735,7 @@ def get_basic_info_dic(val):
 
     return data
 
-@app.route('/nerd/api/v1/ip/<ipaddr>')
+@app.route('/api/v1/ip/<ipaddr>')
 def get_basic_info(ipaddr=None):
     ret = validate_api_request(request.headers.get("Authorization"))
     if ret:
@@ -751,7 +751,7 @@ def get_basic_info(ipaddr=None):
 
 # ***** NERD API FullInfo *****
 
-@app.route('/nerd/api/v1/ip/<ipaddr>/full')
+@app.route('/api/v1/ip/<ipaddr>/full')
 def get_full_info(ipaddr=None):
     ret = validate_api_request(request.headers.get("Authorization"))
     if ret:
@@ -791,7 +791,7 @@ def get_full_info(ipaddr=None):
 
 # ***** NERD API IPSearch *****
 
-@app.route('/nerd/api/v1/search/ip/')
+@app.route('/api/v1/search/ip/')
 def ip_search():
     err = {}
 
