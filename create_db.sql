@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 -- testing user (used when testing on localhost by directly running nerd_main.py)
 INSERT INTO users (id,groups,name,email) VALUES ('test_user','{"registered","test"}','Mr. Test','test@example.org') ON CONFLICT DO NOTHING;
+INSERT INTO users VALUES ('api_user','{"registered"}','API_USER','','','Wj09BuhVMi') ON CONFLICT DO NOTHING;
 
 
 ------ event database (IDEA messages) ------
