@@ -113,3 +113,17 @@ def get_user_info(session):
     ac = get_ac_func(user['groups'])
     return user, ac
 
+def authenticate_with_token(token):
+    user = {}
+    cur = db.cursor()
+    cur.execute("SELECT * FROM users WHERE api_token = %s", (token,))
+    col_names = [col.name for col in cur.description]
+    row = cur.fetchone()
+    if not row:
+        return None, lambda x: False
+
+    col_names[0] = 'fullid' # rename column 'id' to 'fullid', other columns can be mapped directly as they are in DB
+    user.update(zip(col_names, row))
+    user['groups'] = set(user['groups'])
+    ac = get_ac_func(user['groups'])
+    return user, ac

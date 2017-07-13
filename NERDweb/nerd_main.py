@@ -10,7 +10,7 @@ import subprocess
 import re
 import pytz
 
-from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session
+from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session, Response
 from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from flask_mail import Mail, Message
@@ -24,7 +24,7 @@ import common.config
 #import db
 import ctrydata
 import userdb
-from userdb import get_user_info
+from userdb import get_user_info, authenticate_with_token
 
 # ***** Load configuration *****
 
@@ -627,6 +627,230 @@ def get_status():
         updates_processed=upd_processed,
         disk_usage=disk_usage
     )
+
+
+# ***** Plain-text list of IP addresses *****
+# (gets the same parameters as /ips/)
+
+@app.route('/iplist')
+@app.route('/iplist/')
+def iplist():
+    user, ac = get_user_info(session)
+
+    form = IPFilterForm(request.args, csrf_enabled=False)
+    
+    if not user or not ac('ipsearch'):
+        return Response('ERROR: Unauthorized', 403, mimetype='text/plain')
+    
+    if not form.validate():
+        return Response('ERROR: Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items()), 400, mimetype='text/plain')
+    
+    sortby = sort_mapping[form.sortby.data]
+    
+    query = create_query(form)
+    
+    # Perform DB query
+    try:
+        results = mongo.db.ip.find(query).limit(form.limit.data)
+        if sortby != "none":
+            results.sort(sortby, 1 if form.asc.data else -1)
+        results = list(results) # Load all data now, so we are able to get number of results in template
+    except pymongo.errors.ServerSelectionTimeoutError:
+        return Response('ERROR: Database connection error', 503, mimetype='text/plain')
+    
+    return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
+
+def validate_api_request(authorization):
+    data = {
+        'err_n' : 403,
+        'error' : "Unauthorized",
+    }
+
+    auth = request.headers.get("Authorization")
+    if not auth:
+        return Response(json.dumps(data), 403, mimetype='application/json')
+
+    if auth.find(' ') != -1:
+        vals = auth.split()
+        user, ac = authenticate_with_token(vals[1])
+        if vals[0] != "token" or not user or not ac('ipsearch'):
+            return Response(json.dumps(data), 403, mimetype='application/json')
+    else:
+        user, ac = authenticate_with_token(auth)
+        if not user or not ac('ipsearch'):
+            return Response(json.dumps(data), 403, mimetype='application/json')
+
+    return None
+
+def get_ip_info(ipaddr):
+    data = {
+        'err_n' : 400,
+        'error' : "No IP address specified",
+        'ip' : ipaddr
+    }
+
+    if not ipaddr:
+        return False, Response(json.dumps(data), 400, mimetype='application/json')
+
+    form = SingleIPForm(ip=ipaddr, csrf_enabled=False)
+    if not form.validate():
+        data['error'] = "Bad IP address"
+        return False, Response(json.dumps(data), 400, mimetype='application/json')
+
+    ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+    if not ipinfo:
+        data['err_n'] = 404
+        data['error'] = "IP address not found"
+        return False, Response(json.dumps(data), 404, mimetype='application/json')
+
+    return True, ipinfo
+
+# ***** NERD API BasicInfo *****
+def get_basic_info_dic(val):
+    asn_d = {}
+    if 'as_maxmind' in val.keys():
+        asn_d['num'] = val['as_maxmind'].get('num', 0)
+
+    geo_d = {}
+    if 'geo' in val.keys():
+        geo_d['ctry'] = val['geo'].get('ctry', "unknown")
+
+    bl_l = []
+    for l in val.get('bl', []):
+        bl_l.append(l['n'])
+
+    tags_l = []
+    for l in val.get('tags', []):
+        d = {
+            'n' : l,
+            'c' : val['tags'][l]['confidence']
+        }
+
+        tags_l.append(d)
+
+    data = {
+        'ip' : val['_id'],
+        'rep' : val['rep'],
+        'hostname' : val['hostname'],
+        'asn' : asn_d,
+        'geo' : geo_d,
+        'bl'  : bl_l,
+        'tags'  : tags_l
+    }
+
+    return data
+
+@app.route('/api/v1/ip/<ipaddr>')
+def get_basic_info(ipaddr=None):
+    ret = validate_api_request(request.headers.get("Authorization"))
+    if ret:
+        return ret
+
+    ret, val = get_ip_info(ipaddr)
+    if not ret:
+        return val
+
+    binfo = get_basic_info_dic(val)
+
+    return Response(json.dumps(binfo), 200, mimetype='application/json')
+
+# ***** NERD API FullInfo *****
+
+@app.route('/api/v1/ip/<ipaddr>/full')
+def get_full_info(ipaddr=None):
+    ret = validate_api_request(request.headers.get("Authorization"))
+    if ret:
+        return ret
+
+    ret, val = get_ip_info(ipaddr)
+    if not ret:
+        return val
+
+    asn_d = {}
+    if 'as_maxmind' in val.keys():
+        asn_d['num'] = val['as_maxmind'].get('num', 0)
+        asn_d['name'] = val['as_maxmind'].get('description', "")
+    elif 'as_rv' in val.keys():
+        asn_d['num'] = val['as_rv'].get('num', 0)
+        asn_d['name'] = val['as_rv'].get('description', "")
+
+    evts = val['events']
+    del evts['total1']
+    del evts['total30']
+    del evts['total7']
+    del evts['types']
+
+    data = {
+        'ip' : val['_id'],
+        'rep' : val['rep'],
+        'hostname' : val['hostname'],
+        'asn' : asn_d,
+        'geo' : val['geo'],
+        'ts_added' : val['ts_added'].strftime("%Y-%m-%dT%H:%M:%S"),
+        'ts_last_update' : val['ts_last_update'].strftime("%Y-%m-%dT%H:%M:%S"),
+        'ts_last_event' : val['ts_last_event'].strftime("%Y-%m-%dT%H:%M:%S"),
+        'events' : evts
+    }
+
+    return Response(json.dumps(data), 200, mimetype='application/json')
+
+# ***** NERD API IPSearch *****
+
+@app.route('/api/v1/search/ip/')
+def ip_search():
+    err = {}
+
+    ret = validate_api_request(request.headers.get("Authorization"))
+    if ret:
+        return ret
+
+    form = IPFilterForm(request.args, csrf_enabled=False)
+    if not form.validate():
+        err['err_n'] = 400
+        err['error'] = 'Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items())
+        return Response(json.dumps(err), 400, mimetype='application/json')
+
+    sortby = sort_mapping[form.sortby.data]
+    query = create_query(form)
+    
+    try:
+        results = mongo.db.ip.find(query).limit(form.limit.data)
+        if sortby != "none":
+            results.sort(sortby, 1 if form.asc.data else -1)
+        results = list(results)
+    except pymongo.errors.ServerSelectionTimeoutError:
+        err['err_n'] = 503
+        err['error'] = 'Database connection error'
+        return Response(json.dumps(data), 503, mimetype='application/json')
+
+    output = request.args.get('o', "json")
+    if output == "json":
+        lres = []
+        for res in results:
+            lres.append(get_basic_info_dic(res))
+        return Response(json.dumps(lres), 200, mimetype='text/plain')
+
+    elif output == "list":
+        return Response('\n'.join(res['_id'] for res in results), 200, mimetype='application/json')
+    else:
+        err['err_n'] = 400
+        err['error'] = 'Unrecognized value of output parameter: ' + output
+        return Response(json.dumps(err), 400, mimetype='application/json')
+
+
+# Custom error 404 handler for API
+@app.errorhandler(404)
+def page_not_found(e):
+    if request.path.startswith("/api"):
+        # API -> return error in JSON
+        err = {
+            'err_n': 404,
+            'error': "Not Found - unrecognized API path",
+        }
+        return Response(json.dumps(err), 404, mimetype='application/json')
+    else:
+        # Otherwise return default error page
+        flask.abort(404)
 
 
 # **********

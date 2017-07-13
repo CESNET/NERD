@@ -151,6 +151,14 @@ Alias ${NERDBaseLoc}/static/ ${NERDBaseDir}/static/
     Require valid-user
 </Location>
 
+# API handlers
+<Location ${NERDBaseLoc}api>
+    # Pass Authorization header
+    WSGIPassAuthorization On
+    # Return JSON-formatted error message in case something goes wrong.
+    ErrorDocument 500 "{\\"err_n\\": 500, \\"error\\": \\"Internal Server Error\\"}"
+</Location>
+
 <VirtualHost *:80>
 </VirtualHost>
 ' > /etc/httpd/conf.d/nerd.conf
