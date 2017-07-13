@@ -786,9 +786,9 @@ def get_full_info(ipaddr=None):
         'hostname' : val['hostname'],
         'asn' : asn_d,
         'geo' : val['geo'],
-        'ts_added' : val['ts_added'],
-        'ts_last_update' : val['ts_last_update'],
-        'ts_last_event' : val['ts_last_event'],
+        'ts_added' : val['ts_added'].strftime("%Y-%m-%dT%H:%M:%S"),
+        'ts_last_update' : val['ts_last_update'].strftime("%Y-%m-%dT%H:%M:%S"),
+        'ts_last_event' : val['ts_last_event'].strftime("%Y-%m-%dT%H:%M:%S"),
         'events' : evts
     }
 
