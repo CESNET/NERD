@@ -670,10 +670,15 @@ def validate_api_request(authorization):
     if not auth:
         return Response(json.dumps(data), 403, mimetype='application/json')
 
-    vals = auth.split()
-    user, ac = authenticate_with_token(vals[1])
-    if vals[0] != "token" or not user or not ac('ipsearch'):
-        return Response(json.dumps(data), 403, mimetype='application/json')
+    if auth.find(' ') != -1:
+        vals = auth.split()
+        user, ac = authenticate_with_token(vals[1])
+        if vals[0] != "token" or not user or not ac('ipsearch'):
+            return Response(json.dumps(data), 403, mimetype='application/json')
+    else:
+        user, ac = authenticate_with_token(auth)
+        if not user or not ac('ipsearch'):
+            return Response(json.dumps(data), 403, mimetype='application/json')
 
     return None
 
