@@ -27,6 +27,7 @@ now = datetime.utcnow()
 
 commands = [
     # 3-tuple: expression returning iterable, entity_type, update_requests
+    ( "g.db.find('ip', {})", 'ip', [('event', '!refresh_hostname_class', None)] ),
     #( "g.db.find('ip', {'as_maxmind': {'$exists': False}, 'as_rv': {'$exists': False}})", 'ip', [('event', '!refresh_asn', None)] ),
     #( "g.db.find('ip', {'geo': {'$exists': False}})", 'ip', [('event', '!refresh_geo', None)] ),
     #( "g.db.find('ip', {'bl': {'$exists': False}})", 'ip', [('event', '!refresh_localbl', None)] ),

@@ -32,7 +32,7 @@ class HostnameClass(NERDModule):
         g.um.register_handler(
             self.hostname_classify,
             'ip',
-            ('hostname',),
+            ('hostname','!refresh_hostname_class'), # !refresh_hostname_class is called only manually, e.g. after change of tag configuration
             ('hostname_class',)
         )
 
