@@ -31,7 +31,7 @@ class DNSResolver(NERDModule):
         g.um.register_handler(
             self.get_hostname, # function (or bound method) to call
             'ip', # entity type
-            ('!NEW','!refresh_hostname'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
+            ('!NEW','!refresh_hostname','!every1w'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
             ('hostname',) # tuple/list/set of attributes the method may change
         )
         
