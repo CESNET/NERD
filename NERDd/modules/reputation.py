@@ -33,7 +33,7 @@ class Reputation(NERDModule):
         g.um.register_handler(
             self.estimate_reputation, # function (or bound method) to call
             'ip', # entity type
-            ('events.total','!every1d',), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
+            ('events_meta.total','!every1d',), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
             ('rep',) # tuple/list/set of attributes the method may change
         )
 
@@ -44,7 +44,7 @@ class Reputation(NERDModule):
         
         Simple method (first prototype):
         - take list of events from last 14 days
-        - compute a "daily repoutation" for each day as:
+        - compute a "daily reputation" for each day as:
           - nonlin(num_of_events) * nonlin(number_of_nodes)
           - where nonlin is a nonlinear tranformation: 1 - 1/2^x
         - get total reputation as weighted average of all "daily" ones with
@@ -56,25 +56,34 @@ class Reputation(NERDModule):
 
         today = datetime.utcnow().date()
         DATE_RANGE = 14
+        
+        # Get total number of events and list of nodes for each day
+        # (index 'd' of arrays is 'number of days before today')
+        num_events = [0 for _ in range(DATE_RANGE)]
+        set_nodes = [set() for _ in range(DATE_RANGE)]
+        for evtrec in rec['events']:
+            date = datetime.strptime(evtrec['date'], '%Y-%m-%d').date()
+            d = (today - date).days
+            if d >= DATE_RANGE:
+                continue
+            num_events[d] += evtrec['n']
+            set_nodes[d].add(evtrec['node'])
+            # TEMPORARY: add set of nodes from old event format
+            try:
+                set_nodes[d].update(rec['events_meta']['nodes'][evtrec['date']])
+            except KeyError:
+                pass
+        
+        # Compute reputation score
         sum_weight = 0
         rep = 0
-        for n in range(0,DATE_RANGE): # n - iterating dates from now back to history
-            d = today - timedelta(days=n)
-            dstr = d.strftime("%Y-%m-%d")
+        for d in range(0,DATE_RANGE):
             # reputation at day 'd'
-            if dstr in rec['events']:
-                d_events = rec['events'][dstr]
-                d_n_nodes = len(d_events['nodes'])
-                d_n_events = sum(val for cat,val in d_events.items() if cat != 'nodes')
-                daily_rep = nonlin(d_n_events) * nonlin(d_n_nodes)
-                #print(ip['_id'], dstr, d_n_nodes, d_n_events, nonlin(d_n_events), nonlin(d_n_nodes), daily_rep)
-            else:
-                daily_rep = 0.0
+            daily_rep = nonlin(num_events[d]) * nonlin(len(set_nodes[d]))
             # total reputation as weighted avergae with linearly decreasing weight
-            weight = float(DATE_RANGE - n) / DATE_RANGE
+            weight = float(DATE_RANGE - d) / DATE_RANGE
             sum_weight += weight
             rep += daily_rep * weight
-            #print(daily_rep, weight, sum_weight, rep)
         rep /= sum_weight
         return [('set', 'rep', rep)]
 

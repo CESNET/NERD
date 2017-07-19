@@ -222,28 +222,11 @@ class DNSBLResolver(NERDModule):
                 if blname in results:
                     # IP is on blacklist blname
                     self.log.debug("IP address ({0}) is on {1}.".format(key, blname))
-                    # Is there a record for blname in rec?
-                    for i, bl_entry in enumerate(rec.get('bl', [])):
-                        if bl_entry['n'] == blname:
-                            # There already is an entry for blname in rec, update it
-                            i = str(i)
-                            actions.append( ('set', 'bl.'+i+'.v', 1) )
-                            actions.append( ('set', 'bl.'+i+'.t', req_time) )
-                            actions.append( ('append', 'bl.'+i+'.h', req_time) )
-                            break
-                    else:
-                        # An entry for blname is not there yet, create it
-                        actions.append( ('append', 'bl', {'n': blname, 'v': 1, 't': req_time, 'h': [req_time]}) )
+                    actions.append( ('array_upsert', 'bl', ({'n': blname}, [('set', 'v', 1), ('set', 't', req_time), ('append', 'h', req_time)])) )
                 else:
                     # IP is not on blacklist blname
                     self.log.debug("IP address ({0}) is not on {1}.".format(key, blname))
-                    # Is there a record for blname in rec?
-                    for i, bl_entry in enumerate(rec.get('bl', [])):
-                        if bl_entry['n'] == blname:
-                            # There already is an entry for blname in rec, update it
-                            i = str(i)
-                            actions.append( ('set', 'bl.'+i+'.v', 0) )
-                            actions.append( ('set', 'bl.'+i+'.t', req_time) )
-                            break
+                    actions.append( ('array_update', 'bl', ({'n': blname}, [('set', 'v', 0), ('set', 't', req_time)])) )
+                    # Note: array_update change the record only if the matching element is there, if the IP wasn't on the blacklist before, it does nothing
         
         return actions

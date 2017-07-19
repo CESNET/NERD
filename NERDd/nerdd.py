@@ -101,7 +101,6 @@ module_list = [
     modules.cleaner.Cleaner(),
     #modules.refresher.Refresher(),
     modules.event_counter.EventCounter(),
-    #modules.test_module.TestModule(),
     modules.dns.DNSResolver(),
     modules.geolocation.Geolocation(),
     modules.asn.ASN(),

@@ -31,6 +31,9 @@ ENTITY_TYPES = ['ip', 'asn']
 #      - ('setmin', key, value)     - set new value of the key to smaller of the given value and the current value (rec[key] = min(value, rec[key]))
 #      - ('remove', key, None)      - remove given key (and all subkeys) from the record (parameter is ignored) (do nothing if the key doesn't exist)
 #      - ('next_step', key, (key_base, min, step)) - set value of 'key' to the smallest value of 'rec[key_base] + N*step' that is greater than 'min' (used by updater to set next update time); key_base MUST exist in the record!
+#      - ('array_update', key, (query, actions)) - apply given actions to specified array item under key, see below for details.
+#      - ('array_upsert', key, (query, actions)) - apply given actions to specified array item under key (insert new item if no one matches), see below for details.
+#      - ('array_remove', key, query) - remove array item satisfying given query (do nothing if no one matches).
 #      - ('event', !name, param)    - do nothing with record, only trigger functions hooked on the event name
 #  The tuple is passed to functions watching for updates of given keys / events
 #  with given name. Event names must begin with '!' (attribute keys mustn't).
@@ -39,6 +42,25 @@ ENTITY_TYPES = ['ip', 'asn']
 #  A hooked function receives a list of updates that triggered its call, 
 #  i.e. a list of 2-tuples (attr_name, new_value) or (event_name, param)
 #  (if more than one update triggers the same function, it's called only once). 
+
+# Special action "array_update":
+#      - ('update_item', key, (query, actions))
+#  "key" must be path to an array of objects (dicts),
+#  the item whose values match those in "query" dict is selected
+#  all "actions" are performed with the selected object (keys inside those actions should be relative to the object root).
+#  If the array does not contain any matching item:
+#    - array_update: record is not changed
+#    - array_upsert: "query" is added as a new array item.
+#  If there are multiple matching events, only the first one is used.
+#  "actions" may contain actions of type "update_item" (recursion), it must not contain events.
+#  Rationale:
+#    Because of DB constraints, keys should always be fixed values. Therefore we often use 
+#    arrays of subobjects where one or more attributes of the subobject act as a key.
+#    This action type allows to work with such structures.
+#  Examples:
+#    ('update_item', 'bl', ({n: "blacklistname"} , [('set', 'v', 1), ('set', 't', req_time), ('append', 'h', req_time)]))
+#    ('update_item', 'events', ({date: "2017-07-17", cat: "ReconScanning"} , [('add', 'n', 1)]))
+
 
 # TODO: Let each module (or rather hook function) tell, whether it needs the whole record.
 # Many of them probably won't so we can save the load from database
@@ -67,16 +89,17 @@ def get_func_name(func_or_method):
     return func_or_method.__module__ + '.' + fname
 
 
+
 def perform_update(rec, updreq):
     """
     Update a record according to given update reqeust.
     
     updreq - 3-tuple (op, key, value)
     
-    Return specification of performed updates - either a pair (upated_key,
-    new_vlaue) or None.
-    (None is returned when nothing was changed, either because op=add_to_set and
-    value was already in the array, or an unknown operation was requested)
+    Return array with specifications of performed updates (pairs (upated_key,
+    new_value) or None.
+    (None is returned when nothing was changed, e.g. because op=add_to_set and
+    value was already present, or removal of non-existent item was requested)
     """
     op, key, value = updreq
     
@@ -148,7 +171,7 @@ def perform_update(rec, updreq):
     elif op == 'remove':
         if key in rec:
             del rec[key]
-            return (updreq[1], None)
+            return [(updreq[1], None)]
         return None
     
     elif op == 'next_step':
@@ -156,12 +179,52 @@ def perform_update(rec, updreq):
         base = rec[key_base]
         rec[key] = base + ((min - base) // step + 1) * step 
     
+    elif op == 'array_update' or op == 'array_upsert':
+        query, actions = value
+        if key not in rec:
+            rec[key] = []
+        array = rec[key]
+        # Find the matching item in the array
+        for i,item in enumerate(array):
+            if all(item[a] == v for a,v in query.items()):
+                break
+        else:
+            if op == 'array_upsert':
+                i = len(array)
+                item = query
+                array.append(query)
+            else:
+                return None # No matching element found and insert not requested
+        # Now, "item" is the selected array item ("i" its index), apply all actions to it
+        updates_performed = []
+        for action in actions:
+            upds = perform_update(item, action)
+            # List of all actions must be returned, convert relative keys to absolute
+            for inner_key, new_val in upds:
+                updates_performed.append((key + '.' + str(i) + '.' + inner_key, new_val))
+        return updates_performed
+    
+    elif op == 'array_remove':
+        query = value
+        if key not in rec:
+            return None
+        array = rec[key]
+        # Find the matching item in the array
+        for i,item in enumerate(array):
+            if all(item[a] == v for a,v in query.items()):
+                break
+        else:
+            return None
+        # Remove it
+        del array[i]
+        return [(key + '.' + str(i), None)]
+    
     else:
         print("ERROR: perform_update: Unknown operation {}".format(op), file=sys.stderr)
         return None
     
     # Return tuple (updated attribute, new value)
-    return (updreq[1], rec[key]) 
+    return [(updreq[1], rec[key])] 
 
 
 class UpdateManager:
@@ -449,11 +512,11 @@ class UpdateManager:
                     
                     if op == 'event':
                         #self.log.debug("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
-                        updated = (attr, val)
+                        updated = [(attr, val)]
                     else:
                         #self.log.debug("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
                         updated = perform_update(rec, updreq)
-                        if updated is None:
+                        if not updated:
                             #self.log.debug("Attribute value wasn't changed.")
                             continue
                     
@@ -464,11 +527,11 @@ class UpdateManager:
                             if f == func:
                                 # ... just add upd to list of updates that triggered it
                                 # TODO FIXME: what if one attribute is updated several times? It should be in the list only once, with the latest value.
-                                updates.append(updated)
+                                updates.extend(updated)
                                 break
                         # Otherwise put the function to the queue
                         else:
-                            call_queue.append((func, [updated]))
+                            call_queue.append((func, updated))
                 
                     # Compute all attribute changes that may occur due to this event and add 
                     # them to the set of attributes to change
@@ -674,7 +737,7 @@ class UpdateManager:
             if ekey[0] in ['ip', 'asn']:
                 if new_rec_created:
                     self._update_counter[ekey[0]+'_new_entity'] += 1
-                elif any(u == ('add', 'events.total', 1) for u in updreq):
+                elif any(u == ('add', 'events_meta.total', 1) for u in updreq):
                     self._update_counter[ekey[0]+'_event'] += 1
                 elif any(u[1] == '!every1w' for u in updreq):
                     self._update_counter[ekey[0]+'_regular_1w'] += 1

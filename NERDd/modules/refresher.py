@@ -27,7 +27,7 @@ now = datetime.utcnow()
 
 commands = [
     # 3-tuple: expression returning iterable, entity_type, update_requests
-    ( "g.db.find('ip', {})", 'ip', [('event', '!refresh_hostname_class', None)] ),
+    #( "g.db.find('ip', {})", 'ip', [('event', '!every1d', None)] ),
     #( "g.db.find('ip', {'as_maxmind': {'$exists': False}, 'as_rv': {'$exists': False}})", 'ip', [('event', '!refresh_asn', None)] ),
     #( "g.db.find('ip', {'geo': {'$exists': False}})", 'ip', [('event', '!refresh_geo', None)] ),
     #( "g.db.find('ip', {'bl': {'$exists': False}})", 'ip', [('event', '!refresh_localbl', None)] ),
@@ -42,6 +42,7 @@ commands = [
     #( "g.db.find('ip', {'ts_last_event': {'$exists': False}}, skip=0, limit=1000000)", 'ip', [('event', '!set_ts_last_event', None)] ),
     #( "g.db.find('ip', {'_id': ''}, sort=[('ts_added', pymongo.DESCENDING)], skip=0, limit=1000000)", 'ip', [('event', '!refresh_tags', None)] ),
 #    ( "g.db.find('ip', {'bl_old': {'$exists': True}}, skip=0, limit=100000)", 'ip', [('event', '!restore_bl_info', None)] ),
+#     ( "g.db.find('ip', {'events.total': {'$exists': True}}, skip=0, limit=300000)", 'ip', [('event', '!conv_events_to_new_format', None)] ),
 ]
 def get_commands():
     if not commands:
@@ -59,29 +60,49 @@ def get_commands():
 # 
 # g.um.register_handler(set_ts_last_event, 'ip', ('!set_ts_last_event',), ('ts_last_event',))
 
-def restore_bl_info(ekey, rec, updates):
-    now = datetime.utcnow()
-    actions = []
-    for blname,times in rec['bl_old'].items():
-        # Is there a record for blname in rec?
-        for i, bl_entry in enumerate(rec.get('bl', [])):
-            if bl_entry['n'] == blname:
-                i = str(i)
-                # There already is an entry for blname in rec, update it
-                actions.append( ('set', 'bl.'+i+'.v', 1 if now - times[-1] < timedelta(days=7) else 0) )
-                actions.append( ('setmax', 'bl.'+i+'.t', times[-1]) )
-                actions.append( ('set', 'bl.'+i+'.h', times + bl_entry['h']) )
-                break
-        else:
-            # An entry for blname is not there yet, create it
-            if now - times[-1] < timedelta(days=7):
-                actions.append( ('append', 'bl', {'n': blname, 'v': 1, 't': times[-1], 'h': times}) )
-            else:
-                actions.append( ('append', 'bl', {'n': blname, 'v': 0, 'h': times}) )
-    actions.append(('remove', 'bl_old', None))
+# def restore_bl_info(ekey, rec, updates):
+#     now = datetime.utcnow()
+#     actions = []
+#     for blname,times in rec['bl_old'].items():
+#         # Is there a record for blname in rec?
+#         for i, bl_entry in enumerate(rec.get('bl', [])):
+#             if bl_entry['n'] == blname:
+#                 i = str(i)
+#                 # There already is an entry for blname in rec, update it
+#                 actions.append( ('set', 'bl.'+i+'.v', 1 if now - times[-1] < timedelta(days=7) else 0) )
+#                 actions.append( ('setmax', 'bl.'+i+'.t', times[-1]) )
+#                 actions.append( ('set', 'bl.'+i+'.h', times + bl_entry['h']) )
+#                 break
+#         else:
+#             # An entry for blname is not there yet, create it
+#             if now - times[-1] < timedelta(days=7):
+#                 actions.append( ('append', 'bl', {'n': blname, 'v': 1, 't': times[-1], 'h': times}) )
+#             else:
+#                 actions.append( ('append', 'bl', {'n': blname, 'v': 0, 'h': times}) )
+#     actions.append(('remove', 'bl_old', None))
+#     return actions
+# 
+# g.um.register_handler(restore_bl_info, 'ip', ('!restore_bl_info',), ('bl',))
+
+# Note: Only the Refresher module should be activated, so no other actions are made to DB while converting
+def conv_events_to_new_format(ekey, rec, updates):
+    actions = [ ('remove', 'events', None) ]
+    for date,val in rec['events'].items():
+        if date.startswith("t"):
+            continue
+        for cat,num in val.items():
+            if cat == "nodes":
+                actions.append(('set', 'events_meta.nodes.'+date, num))
+                continue
+            actions.append(('append', 'events', {'date': date, 'cat': cat, 'node': '?', 'n': num}))
+    actions.append(('set', 'events_meta.total', rec['events']['total']))
+    actions.append(('set', 'events_meta.total1', rec['events']['total1']))
+    actions.append(('set', 'events_meta.total7', rec['events']['total7']))
+    actions.append(('set', 'events_meta.total30', rec['events']['total30']))
     return actions
 
-g.um.register_handler(restore_bl_info, 'ip', ('!restore_bl_info',), ('bl',))
+g.um.register_handler(conv_events_to_new_format, 'ip', ('!conv_events_to_new_format',), tuple())
+    
 
 ##############################################################################
 # Main module code

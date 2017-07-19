@@ -47,15 +47,19 @@ class Cleaner(NERDModule):
         today = datetime.utcnow().date()
         cut_day = (today - self.max_event_history).strftime("%Y-%m-%d")
 
-        # Get list of days to delete
-        days = [d for d in rec['events'].keys() if not d.startswith("total") and d < cut_day]
-        if not days:
-            return None
-        # Get total number of events that will be deleted
-        events = rec['events']
-        num_events = sum(events[d][cat] for d in days for cat in events[d].keys() if cat != "nodes")
-
-        # Issue request to remove info from given days and subtract corresponding number of events from "total" counter
-        self.log.debug("Cleaning {}: Removing info on {} events from dates: {}".format(key, num_events, ','.join(days)))
-        return [('remove', 'events.'+d, None) for d in days] + [('sub', 'events.total', num_events)]
+        # Remove all event-records with day before cut_day
+        actions = []
+        num_events = 0
+        for evtrec in rec['events']:
+            if evtrec['date'] < cut_day: # Thanks to ISO format it's OK to compare dates as strings
+                actions.append( ('array_remove', 'events', {'date': evtrec['date'], 'node': evtrec['node'], 'cat': evtrec['cat']}) )
+            else:
+                num_events += evtrec['n']
+        
+        # Set new total number of events
+        if actions:
+            actions.append(('set', 'events_meta.total', num_events))
+        
+        self.log.debug("Cleaning {}: Removing {} old event-records".format(key, len(actions)-1))
+        return actions
 

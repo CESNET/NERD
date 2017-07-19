@@ -1,5 +1,5 @@
 // Set up indexes in MongoDB
-db.ip.createIndex({"events.total":-1},{background: true})
+db.ip.createIndex({"events_meta.total":-1},{background: true})
 db.ip.createIndex({"geo.ctry":1},{background: true})
 db.ip.createIndex({"as_maxmind.num":1},{background: true})
 db.ip.createIndex({"as_rv.num":1},{background: true})

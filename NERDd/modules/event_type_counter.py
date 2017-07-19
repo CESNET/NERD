@@ -6,7 +6,7 @@ from core.basemodule import NERDModule
 
 import g
 
-import datetime
+from datetime import datetime, timedelta
 import logging
 import os
 import re
@@ -21,7 +21,7 @@ class EventTypeCounter(NERDModule):
     event type determination.
 
     Event flow specification:
-    [ip] 'events.total' -> count_type() -> 'events.types'
+    [ip] 'events_meta.total' -> count_type() -> 'events_meta.types'
     """
 
     def __init__(self):
@@ -33,8 +33,8 @@ class EventTypeCounter(NERDModule):
         g.um.register_handler(
             self.count_type,
             'ip',
-            ('events.total',),
-            ('events.types',)
+            ('events_meta.total',),
+            ('events_meta.types',)
         )
 
 
@@ -63,40 +63,33 @@ class EventTypeCounter(NERDModule):
 
         ret = []
         total_events = 0
-        types = {}
+        types = {} # Map: event_type -> count
 
-        if self.event_days is not None:
-            today = datetime.datetime.utcnow().date()
-            for day in range(0,self.event_days+1):
-                date = today - datetime.timedelta(days=day)
-                events_in_day = rec["events"].get(date.isoformat(), {})
-                for event_type,cnt in events_in_day.items():
-                    if event_type != "nodes":
-                        total_events += cnt
-                        if event_type not in types:
-                            types[event_type] = cnt
-                        else:
-                            types[event_type] += cnt
-
+        # Count number of events per type in last "event_days" days
+        if self.event_days is None:
+            minday = None
         else:
-            for event_key in rec["events"]:
-                if date_regex.match(event_key):
-                    events_in_day = rec["events"][event_key]
-                    for event_type,cnt in events_in_day.items():
-                        if event_type != "nodes":
-                            total_events += cnt
-                            if event_type not in types:
-                                types[event_type] = cnt
-                            else:
-                                types[event_type] += cnt
-
+            minday = datetime.utcnow().date() - timedelta(days=self.event_days)
+            # Let's compare days as strings - it works thanks to ISO format 
+            # and it's faster than to convert all string keys in DB to datetime
+            minday = minday.strftime("%Y-%m-%d")
+        for evtrec in rec['events']:
+            if minday and evtrec['date'] < minday:
+                continue
+            cat = evtrec['cat']
+            n = evtrec['n']
+            total_events += n
+            if cat not in types:
+                types[cat] = n
+            else:
+                types[cat] += n
 
         if total_events < self.event_min:
             if self.event_days is not None:
                 self.log.debug("In last {} days only {} events happened for IP {} (minimal number of events for classification is {}).".format(self.event_days, total_events, key, self.event_min)) 
             else:
                 self.log.debug("Only {} events happened for IP {} (minimal number of events for classification is {}).".format(total_events, key, self.event_min)) 
-            return [('set', 'events.types', [])]
+            return [('set', 'events_meta.types', [])]
 
         for event_type in types:
             if (types[event_type]/total_events*100) >= self.event_threshold:
@@ -105,4 +98,4 @@ class EventTypeCounter(NERDModule):
             else:
                self.log.debug("Event type {} doesn't exceed {}% threshold for IP {} ({} events from {}).".format(event_type, self.event_threshold, key, types[event_type], total_events))
 
-        return [('set', 'events.types', ret)] 
+        return [('set', 'events_meta.types', ret)] 

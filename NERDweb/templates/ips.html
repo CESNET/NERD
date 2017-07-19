@@ -15,10 +15,15 @@
   {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
   {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
   {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
-  {{ formfield(form.asn, size=7) }} &nbsp; &amp; &nbsp;
+  {{ formfield(form.asn, size=7) }}
+  <br>
+  {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+  {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
+  <br>
   {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
   {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
-  {{ formfield(form.tag_conf, size=1)}}<br>
+  {{ formfield(form.tag_conf, size=1)}}
+  <br>
   {{ formfield(form.sortby) }}
   {{ formfield(form.asc) }}<br>
   {{ formfield(form.limit, size=10) }}<br>
@@ -26,41 +31,33 @@
 </form>
 
 <script>
-// Improve blacklist select using "multiselect" library/plugin
+// Improve selects using "multiselect" library/plugin
+$("select#cat").multiselect({texts: {placeholder: "\xa0"}, search: true});
+$("select#node").multiselect({texts: {placeholder: "\xa0"}, search: true});
 $("select#blacklist").multiselect({texts: {placeholder: "\xa0"}, search: true});
 $("select#tag").multiselect({texts: {placeholder: "\xa0"}, search: true});
-// Set up the blacklist operation (and/or) button
-$("#bl_op_button").on("click", function() {
-  if ($("#bl_op").val() == 'and') {
-    $("#bl_op").val("or");
-    $(this).text("\u22c1").attr("title", "OR: At least one of the selected blacklists"); // \u22c1 = Logical OR
+// Set up an operation (and/or) button
+function set_up_op_button(button_id, form_elem_id, title_or, title_and) {
+  $(button_id).on("click", function() {
+    if ($(form_elem_id).val() == 'and') {
+      $(form_elem_id).val("or");
+      $(this).text("\u22c1").attr("title", title_or); // \u22c1 = Logical OR
+    } else {
+      $(form_elem_id).val("and");
+      $(this).text("\u22c0").attr("title", title_and); // \u22c0 = Logical AND
+    }
+    return false;
+  });
+  if ($(form_elem_id).val() == "or") {
+      $(button_id).text("\u22c1").attr("title", title_or);
   } else {
-    $("#bl_op").val("and");
-    $(this).text("\u22c0").attr("title", "AND: All selected blacklists"); // \u22c0 = Logical AND
+      $(button_id).text("\u22c0").attr("title", title_and);
   }
-  return false;
-});
-if ($("#bl_op").val() == "or") {
-    $("#bl_op_button").text("\u22c1").attr("title", "OR: At least one of the selected blacklists");
-} else {
-    $("#bl_op_button").text("\u22c0").attr("title", "AND: All selected blacklists");
 }
-// Set up the tag operation (and/or) button
-$("#tag_op_button").on("click", function() {
-  if ($("#tag_op").val() == "and") {
-    $("#tag_op").val("or");
-    $(this).text("\u22c1").attr("title", "OR: At least one of the selected tags"); // \u22c1 = Logical OR
-  } else {
-    $("#tag_op").val("and");
-    $(this).text("\u22c0").attr("title", "AND: All selected tags"); // \u22c0 = Logical AND
-  }
-  return false;
-});
-if ($("#tag_op").val() == "or") {
-    $("#tag_op_button").text("\u22c1").attr("title", "OR: At least one of the selected tags");
-} else {
-    $("#tag_op_button").text("\u22c0").attr("title", "AND: All selected tags");
-}
+set_up_op_button("#cat_op_button", "#cat_op", "OR: At least one of the selected categories", "AND: All selected categories")
+set_up_op_button("#node_op_button", "#node_op", "OR: At least one of the selected nodes", "AND: All selected nodes")
+set_up_op_button("#bl_op_button", "#bl_op", "OR: At least one of the selected blacklists", "AND: All selected blacklists")
+set_up_op_button("#tag_op_button", "#tag_op", "OR: At least one of the selected tags", "AND: All selected tags")
 </script>
 
 {% if results %}
@@ -159,9 +156,9 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
   {% endif %}
 </td>
 
-<td class="events" data-cats="{{ip.events._cats}}" data-dates="{{ip.events._dates}}"
-  data-nodes="{{ip.events._nodes}}" data-table="{{ip.events._date_cat_table}}">
-  <span>{{ip.events.total}}</span><span>{{ip.events._n_nodes}}</span><span>{{ ip.events._n_cats}}</span>
+<td class="events" data-cats="{{ip._evt_info.cats}}" data-dates="{{ip._evt_info.dates}}"
+  data-nodes="{{ip._evt_info.nodes}}" data-table="{{ip._evt_info.date_cat_table}}">
+  <span>{{ip.events_meta.total}}</span><span>{{ip._evt_info.n_nodes}}</span><span>{{ip._evt_info.n_cats}}</span>
 </td>
 {#{% if ac('rep_exp') %}
 <td class="reputation" style="background-color: hsl({{100 - 100*ip.rep_frontend}}, 100%, 90%)">

@@ -10,6 +10,7 @@ import subprocess
 import re
 import pytz
 
+import flask
 from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session, Response
 from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
@@ -326,6 +327,10 @@ class IPFilterForm(Form):
     asn = TextField('ASN', [validators.Optional(),
         validators.Regexp('^((AS)?\d+|\?)+$', re.IGNORECASE,
         message='Must be a number, optionally preceded by "AS", or "?".')])
+    cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
+    cat_op = HiddenField('', default="or")
+    node = SelectMultipleField('Node', [validators.Optional()])
+    node_op = HiddenField('', default="or")
     blacklist = SelectMultipleField('Blacklist', [validators.Optional()],
         choices=[(bl,bl) for bl in get_blacklists()])
     bl_op = HiddenField('', default="or")
@@ -344,11 +349,25 @@ class IPFilterForm(Form):
              ], default='rep')
     asc = BooleanField('Ascending', default=False)
     limit = IntegerField('Max number of addresses', [validators.NumberRange(1, 1000)], default=20)
+    
+    # Choices for some lists must be loaded dynamically from DB, so they're
+    # defined when Form is initialized
+    def __init__(self, *args, **kwargs):
+        super(IPFilterForm, self).__init__(*args, **kwargs)
+        # Dynamically load list of Categories/Nodes and their number of occurences
+        # Collections n_ip_by_* should be periodically updated by queries run by 
+        # cron (see /scripts/update_db_meta_info.js)
+        self.cat.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_cat.find().sort('_id') if item['_id']]
+        self.node.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_node.find().sort('_id') if item['_id']]
+        # Number of occurences for blacklists (list of blacklists is taken from configuration)
+        bl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_bl.find()}
+        self.blacklist.choices = [(name, '{} ({})'.format(name, bl_name2num.get(name, 0))) for name in get_blacklists()]
+
 
 sort_mapping = {
     'none': 'none',
     'rep': 'rep',
-    'events': 'events.total',
+    'events': 'events_meta.total',
     'ts_last_event': 'ts_last_event',
     'ts_added': 'ts_added',
     'ip': '_id',
@@ -376,6 +395,12 @@ def create_query(form):
         else:
             asn = int(form.asn.data.lstrip("ASas"))
             queries.append( {'$or': [{'as_maxmind.num': asn}, {'as_rv.num': asn}]} )
+    if form.cat.data:
+        op = '$and' if (form.cat_op.data == "and") else '$or'
+        queries.append( {op: [{'events.cat': cat} for cat in form.cat.data]} )
+    if form.node.data:
+        op = '$and' if (form.node_op.data == "and") else '$or'
+        queries.append( {op: [{'events.node': node} for node in form.node.data]} )
     if form.blacklist.data:
         op = '$and' if (form.bl_op.data == "and") else '$or'
         queries.append( {op: [{'bl': {'$elemMatch': {'n': blname, 'v': 1}}} for blname in form.blacklist.data]} )
@@ -383,7 +408,6 @@ def create_query(form):
         op = '$and' if (form.tag_op.data == "and") else '$or'
         confidence = form.tag_conf.data if form.tag_conf.data else 0
         queries.append( {op: [{'$and': [{'tags.'+ tag_id: {'$exists': True}}, {'tags.'+ tag_id +'.confidence': {'$gte': confidence}}]} for tag_id in form.tag.data]} )
-         
     query = {'$and': queries} if queries else None
     return query
 
@@ -394,7 +418,7 @@ def ips():
     user, ac = get_user_info(session)
 
     form = IPFilterForm(request.args, csrf_enabled=False)
-
+    
     if ac('ipsearch') and form.validate():
         timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
         sortby = sort_mapping[form.sortby.data]
@@ -417,66 +441,55 @@ def ips():
         # Add metainfo about evetns for easier creation of event table in the template
         date_regex = re.compile('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         for ip in results:
-            events = ip.get('events', {})
+            events = ip.get('events', [])
+            # Get sets of all dates, cats and nodes
             dates = set()
             cats = set()
             nodes = set()
-            for key,val in events.items():
-                if date_regex.match(key):
-                    dates.add(key)
-                    for cat,val in val.items():
-                        if cat == 'nodes':
-                            nodes.update(val)
-                        elif "Test" not in cat: # Ignore categories containing "Test"
-                            cats.add(cat)
+            for evtrec in events:
+                dates.add(evtrec['date'])
+                cats.add(evtrec['cat'])
+                nodes.add(evtrec['node'])
+                # TEMPORARY: add set of nodes from old event format
+                try:
+                    nodes.update(ip['events_meta']['nodes'][evtrec['date']])
+                except KeyError:
+                    pass
+            try:
+                nodes.remove('?')
+            except KeyError:
+                pass
+            
             dates = sorted(dates)
             cats = sorted(cats)
             nodes = sorted(nodes)
-            date_cat_table = [ [ events.get(d, {}).get(c, 0) for c in cats ] for d in dates ]
             
+            # Show only last 5 days
             MAX_DAYS = 5
             if len(dates) > MAX_DAYS:
                 dates = dates[-MAX_DAYS:]
                 dates.insert(0, '...')
-                date_cat_table = date_cat_table[-MAX_DAYS:]
-                date_cat_table.insert(0, ['...' for c in cats])
             
-            events['_dates'] = ','.join(dates)
-            events['_cats'] = ','.join(cats)
-            events['_nodes'] = ','.join(nodes)
-            events['_date_cat_table'] = ';'.join( [','.join(map(str,c)) for c in date_cat_table] )
-            events['_n_cats'] = len(cats)
-            events['_n_nodes'] = len(nodes)
+            # Table len(dates) x len(cats) -> number
+            date_cat_table = [ [0 for _ in cats] for _ in dates ] 
+            for evtrec in events:
+                try:
+                    date_cat_table[dates.index(evtrec['date'])][cats.index(evtrec['cat'])] += evtrec['n']
+                except ValueError:
+                    pass # date not found in dates because we cut it
             
-#             # Experimental reputation computation
-#             def nonlin(val, coef=0.5, max=20):
-#                 if val > max:
-#                     return 1.0
-#                 else:
-#                     return (1 - coef**val)
-#             today = datetime.utcnow().date()
-#             DATE_RANGE = 14
-#             sum_weight = 0
-#             rep = 0
-#             for n in range(0,DATE_RANGE): # n - iterating dates from now back to history
-#                 d = today - timedelta(days=n)
-#                 dstr = d.strftime("%Y-%m-%d")
-#                 # reputation at day 'd'
-#                 if dstr in events:
-#                     d_events = events[dstr]
-#                     d_n_nodes = len(d_events['nodes'])
-#                     d_n_events = sum(val for cat,val in d_events.items() if cat != 'nodes')
-#                     daily_rep = nonlin(d_n_events) * nonlin(d_n_nodes)
-#                     #print(ip['_id'], dstr, d_n_nodes, d_n_events, nonlin(d_n_events), nonlin(d_n_nodes), daily_rep)
-#                 else:
-#                     daily_rep = 0.0
-#                 # total reputation as weighted avergae with linearly decreasing weight
-#                 weight = float(DATE_RANGE - n) / DATE_RANGE
-#                 sum_weight += weight
-#                 rep += daily_rep * weight
-#                 #print(daily_rep, weight, sum_weight, rep)
-#             rep /= sum_weight
-#             ip['rep_frontend'] = rep
+            if dates[0] == '...':
+                date_cat_table.insert(0, ['...' for _ in cats])
+            
+            # Store info into IP record
+            ip['_evt_info'] = {
+                'dates': ','.join(dates),
+                'cats': ','.join(cats),
+                'nodes': ','.join(nodes),
+                'date_cat_table': ';'.join( [','.join(map(str,c)) for c in date_cat_table] ),
+                'n_cats': len(cats),
+                'n_nodes': len(nodes)
+            }
     else:
         results = None
         if user and not ac('ipsearch'):
@@ -774,11 +787,9 @@ def get_full_info(ipaddr=None):
         asn_d['num'] = val['as_rv'].get('num', 0)
         asn_d['name'] = val['as_rv'].get('description', "")
 
-    evts = val['events']
-    del evts['total1']
-    del evts['total30']
-    del evts['total7']
-    del evts['types']
+    evt_meta = val['events_meta']
+    if 'nodes' in evt_meta: # TEMPORARY: remove when old evt_meta.nodes is not needed anymore
+        del evt_meta['nodes']
 
     data = {
         'ip' : val['_id'],
@@ -789,7 +800,14 @@ def get_full_info(ipaddr=None):
         'ts_added' : val['ts_added'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_update' : val['ts_last_update'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_event' : val['ts_last_event'].strftime("%Y-%m-%dT%H:%M:%S"),
-        'events' : evts
+        'bl' : [ {
+                'name': bl['n'],
+                'last_check': bl['t'].strftime("%Y-%m-%dT%H:%M:%S"),
+                'last_result': True if bl['v'] else False,
+                'history': [t.strftime("%Y-%m-%dT%H:%M:%S") for t in bl['h']]
+            } for bl in val['bl'] ],
+        'events' : val['events'],
+        'events_meta' : val['events_meta'],
     }
 
     return Response(json.dumps(data), 200, mimetype='application/json')
@@ -857,5 +875,5 @@ def page_not_found(e):
 
 if __name__ == "__main__":
     config.testing = True
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host="127.0.0.1", debug=True)
 

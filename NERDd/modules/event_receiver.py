@@ -241,14 +241,12 @@ class EventReceiver(NERDModule):
                             end_time = detect_time
 
                         node = event["Node"][-1]["Name"]
-                        key_cat = 'events.'+date+'.'+cat
-                        key_node = 'events.'+date+'.nodes'
+                        
                         g.um.update(
                             ('ip', ipv4),
                             [
-                                ('add', key_cat, 1),
-                                ('add_to_set', key_node, node),
-                                ('add', 'events.total', 1),
+                                ('array_upsert', 'events', ({'date': date, 'node': node, 'cat': cat}, [('add', 'n', 1)])),
+                                ('add', 'events_meta.total', 1),
                                 ('set', 'ts_last_event', end_time),
                             ]
                         )

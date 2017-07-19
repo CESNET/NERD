@@ -1,5 +1,7 @@
 # Remove old records from MongoDB every day at 02:00
 0 02 * * * /data/NERD_scripts/nerd_db_remove_old_records.sh
+# Update metainformation about numbers of IPs with particular event Category and Node
+*/30 * * * * mongo --quiet nerd /data/NERD_scripts/update_db_meta_info.js
 # rsync Uceprotect blacklist 3 times a day
 40 01,09,17 * * * rsync -azq rsync-mirrors.uceprotect.net::RBLDNSD-ALL/dnsbl-1.uceprotect.net /data/blacklists/uceprotect-level1
 # rsync PSBL blacklist 3 times a day

@@ -153,29 +153,11 @@ class LocalBlacklist(NERDModule):
             if key in bl:
                 # IP is on blacklist
                 self.log.debug("IP address ({0}) is on {1}.".format(key, blname))
-                # Is there a record for blname in rec?
-                for i, bl_entry in enumerate(rec.get('bl', [])):
-                    if bl_entry['n'] == blname:
-                        # There already is an entry for blname in rec, update it
-                        i = str(i)
-                        actions.append( ('set', 'bl.'+i+'.v', 1) )
-                        actions.append( ('set', 'bl.'+i+'.t', now) )
-                        actions.append( ('append', 'bl.'+i+'.h', now) )
-                        break
-                else:
-                    # An entry for blname is not there yet, create it
-                    actions.append( ('append', 'bl', {'n': blname, 'v': 1, 't': now, 'h': [now]}) )
+                actions.append( ('array_upsert', 'bl', ({'n': blname}, [('set', 'v', 1), ('set', 't', now), ('append', 'h', now)])) )
             else:
                 # IP is not on blacklist
                 self.log.debug("IP address ({0}) is not on {1}.".format(key, blname))
-                # Is there a record for blname in rec?
-                for i, bl_entry in enumerate(rec.get('bl', [])):
-                    if bl_entry['n'] == blname:
-                        # There already is an entry for blname in rec, update it
-                        i = str(i)
-                        actions.append( ('set', 'bl.'+i+'.v', 0) )
-                        actions.append( ('set', 'bl.'+i+'.t', now) )
-                        break
+                actions.append( ('array_update', 'bl', ({'n': blname}, [('set', 'v', 0), ('set', 't', now)])) )
 
         return actions
 
