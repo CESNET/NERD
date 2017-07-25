@@ -787,10 +787,6 @@ def get_full_info(ipaddr=None):
         asn_d['num'] = val['as_rv'].get('num', 0)
         asn_d['name'] = val['as_rv'].get('description', "")
 
-    evt_meta = val['events_meta']
-    if 'nodes' in evt_meta: # TEMPORARY: remove when old evt_meta.nodes is not needed anymore
-        del evt_meta['nodes']
-
     data = {
         'ip' : val['_id'],
         'rep' : val['rep'],
@@ -807,7 +803,13 @@ def get_full_info(ipaddr=None):
                 'history': [t.strftime("%Y-%m-%dT%H:%M:%S") for t in bl['h']]
             } for bl in val['bl'] ],
         'events' : val['events'],
-        'events_meta' : val['events_meta'],
+        'events_meta' : {
+            'total': val['events_meta']['total'],
+            'total1': val['events_meta']['total1'],
+            'total7': val['events_meta']['total7'],
+            'total30': val['events_meta']['total30'],
+        }
+        ,
     }
 
     return Response(json.dumps(data), 200, mimetype='application/json')
