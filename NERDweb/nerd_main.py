@@ -25,7 +25,7 @@ import common.config
 #import db
 import ctrydata
 import userdb
-from userdb import get_user_info, authenticate_with_token
+from userdb import get_user_info, authenticate_with_token, generate_unique_token
 
 # ***** Load configuration *****
 
@@ -242,6 +242,7 @@ class PasswordChangeForm(Form):
 
 
 @app.route('/account')
+@app.route('/account/gen_token', endpoint='gen_token', methods=['POST'])
 @app.route('/account/set_password', endpoint='set_password', methods=['POST'])
 def account_info():
     user, ac = get_user_info(session)
@@ -249,7 +250,19 @@ def account_info():
         return make_response("ERROR: no user is authenticated")
     if user and ac('notregistered'):
         return redirect(BASE_URL+'/noaccount')
-    
+
+    if request.endpoint == 'gen_token':
+        generate_unique_token(user)
+        return redirect(BASE_URL+'/account')
+
+    token = {}
+    if not user['api_token']:
+        token['value'] = 'Token not yet created.'
+        token['status'] = 0
+    else:
+        token['value'] = user['api_token']
+        token['status'] = 1
+
     # Handler for /account/set_password
     if request.endpoint == 'set_password':
         if user['login_type'] != 'local':
@@ -295,7 +308,6 @@ def account_info():
             passwd_form = PasswordChangeForm()
     
     return render_template('account_info.html', config=config, **locals())
-
 
 # def set_password():
 #     form = PasswordChangeForm(request.form)
