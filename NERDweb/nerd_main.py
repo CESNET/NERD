@@ -252,7 +252,8 @@ def account_info():
         return redirect(BASE_URL+'/noaccount')
 
     if request.endpoint == 'gen_token':
-        generate_unique_token(user)
+        if not generate_unique_token(user):
+            return make_response("ERROR: An unexpected error during token creation occured.")
         return redirect(BASE_URL+'/account')
 
     token = {}
