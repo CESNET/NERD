@@ -1,7 +1,9 @@
 # NERDweb module for handling user database
-
+import string
+import random
 import os.path
 import psycopg2
+import sys
 from flask import flash
 
 __all__ = ['get_user_info']
@@ -127,3 +129,22 @@ def authenticate_with_token(token):
     user['groups'] = set(user['groups'])
     ac = get_ac_func(user['groups'])
     return user, ac
+
+def generate_unique_token(user):
+    while True:
+        token = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
+        cur = db.cursor()
+        try:
+            cur.execute("SELECT id FROM users WHERE api_token = %s", (token,))
+        except psycopg2.Error as e:
+            print(e.pgerror, file=sys.stderr)
+            return False
+        row = cur.fetchone()
+        if not row:
+            try:
+                cur.execute("UPDATE users SET api_token = %s WHERE id = %s", (token, user['fullid'],))
+            except psycopg2.Error as e:
+                print(e.pgerror, file=sys.stderr)
+                return False
+
+            return True
