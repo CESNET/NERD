@@ -1,4 +1,5 @@
 # NERDweb module for handling user database
+from __future__ import print_function
 import string
 import random
 import os.path
