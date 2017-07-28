@@ -258,7 +258,7 @@ def account_info():
 
     token = {}
     if not user['api_token']:
-        token['value'] = 'Token not yet created.'
+        token['value'] = 'Token not created yet.'
         token['status'] = 0
     else:
         token['value'] = user['api_token']

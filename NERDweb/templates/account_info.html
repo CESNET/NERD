@@ -8,9 +8,12 @@
 <p>User ID: {{ user.id }}</p>
 <p>Login type: {{ user.login_type }}</p>
 <p>Groups: {{ user.groups|join(', ') }}</p>
-<p>API key: {{ token.value }}</p>
+
+<hr>
+<p>API token: <tt>{{ token.value }}</tt></p>
 <form action="{{ url_for('gen_token')}}" method="POST" {% if token.status == 1 %} onsubmit="return confirm('Are you sure you want to create a new token?');" {% endif %}>
 <input type="submit" value="Generate new token">
+<p><a href="https://gist.github.com/vaclavbartos/062185eab6688d2c20cb1e4eff421947/">API documentation</a></p>
 </form>
 
 {% if passwd_form %}
