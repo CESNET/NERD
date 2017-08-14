@@ -465,12 +465,6 @@ div.idea .others .descr {
   margin-bottom: 0.2em;
   background: #bdf;
 }
-div.idea .others .source,
-div.idea .others .target {
-  border-right: 2px solid #bdf;
-  padding-right: 0.5em;
-  margin-right: 0.25em;
-}
 div.idea.test {
   background: #eee;
   border-color: #ccc;

@@ -508,7 +508,7 @@ def ips():
         if user and not ac('ipsearch'):
             flash('Only registered users may search IPs.', 'error')
     
-    return render_template('ips.html', config=config, ctrydata=ctrydata, **locals())
+    return render_template('ips.html', config=config, json=json, ctrydata=ctrydata, **locals())
 
 
 @app.route('/_ips_count', methods=['POST'])
@@ -581,7 +581,7 @@ def ajax_ip_events(ipaddr):
     num_events = str(len(events))
     if len(events) >= 100:
         num_events = "&ge;100, only first 100 shown"
-    return render_template('ip_events.html', config=config, **locals())
+    return render_template('ip_events.html', config=config, json=json, **locals())
 
 
 
