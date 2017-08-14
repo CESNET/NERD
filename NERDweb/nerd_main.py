@@ -452,7 +452,6 @@ def ips():
             error = 'mongo_error'
         
         # Add metainfo about evetns for easier creation of event table in the template
-        date_regex = re.compile('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         for ip in results:
             events = ip.get('events', [])
             # Get sets of all dates, cats and nodes
