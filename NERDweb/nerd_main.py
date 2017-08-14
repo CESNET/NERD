@@ -491,7 +491,7 @@ def ips():
                 except ValueError:
                     pass # date not found in dates because we cut it
             
-            if dates[0] == '...':
+            if len(dates) > 0 and dates[0] == '...':
                 date_cat_table.insert(0, ['...' for _ in cats])
             
             # Store info into IP record
