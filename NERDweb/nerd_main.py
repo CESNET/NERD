@@ -218,8 +218,9 @@ def noaccount():
     
     request_sent = False
     if form.validate():
-        # TODO check presence of config login.request-email
-        # if not config.get()
+        # Check presence of config login.request-email
+        if not config.get('login.request-email', None):
+            return make_response("ERROR: No destination email address configured. This is a server configuration error. Please, report this to NERD administrator if possible.")
         # Send email
         name = user.get('name', '[name not available]')
         id = user['id']
