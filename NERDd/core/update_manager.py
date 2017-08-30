@@ -331,7 +331,7 @@ class UpdateManager:
         func -- function or bound method
         etype -- entity type (only changes of attributes of this etype trigger the func)
         triggers -- set/list/tuple of attributes whose update trigger the call of the method (update of any one of the attributes will do)
-        changes -- set/list/tuple of attributes the method call may update
+        changes -- set/list/tuple of attributes the method call may update (may be None)
         
         Notes:
         Each function must be registered only once. 
@@ -347,7 +347,7 @@ class UpdateManager:
         # Check types (because common error is to pass string instead of 1-tuple)
         if not isinstance(triggers, Iterable) or isinstance(triggers, str):
             raise TypeError('Argument "triggers" must be iterable and must not be str.')
-        if not isinstance(changes, Iterable) or isinstance(changes, str):
+        if change is not None and (not isinstance(changes, Iterable) or isinstance(changes, str)):
             raise TypeError('Argument "changes" must be iterable and must not be str.')
         
         self._func2attr[etype][func] = tuple(changes) if changes is not None else ()
