@@ -529,7 +529,7 @@ div.idea .nodes li:first-child:last-child::before {
   right: 0.5em;
   width: 15em;
   border: 1px solid #000;
-  padding: 0.5em 1em;
+  padding: 0em 1em 0.5em 1em;
   background-color: #ddd;
 }
 #status-block .refresh-spinner {
