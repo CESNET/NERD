@@ -427,7 +427,12 @@ class UpdateManager:
             # *** The record is already being processed by someone else. ***
             # Just put our update requests to its list of requests to process.
             
-            # Load the records and its list of requests to process
+            # If update_requests is empty, there's nothing to do, exit immediately
+            if not update_requests:
+                self._records_being_processed_lock.release()
+                return False
+
+            # Load the record and its list of requests to process
             rec, requests_to_process, requests_to_process_lock = self._records_being_processed[ekey]
             self._records_being_processed_lock.release()
             
