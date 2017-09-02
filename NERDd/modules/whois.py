@@ -271,10 +271,10 @@ class WhoIS(NERDModule):
                 self.log.warning('Unable to find ASN: ' + asn + ' in RIR: ' + rir + '. Aborting record creation.')
                 return actions
 
-        for key in data_dict:
+        for key in data_dict.keys():
             if key == 'org':
                 # Create a new record of the organization, if not already present.
-                g.um.update(('org', rir + ':' + data_dict['org']), [])
+                g.um.update(('org', rir + ':' + data_dict[key]), [])
                 actions.append(('set', key, rir + ':' + data_dict[key]))
             else:
                 actions.append(('set', key, data_dict[key]))
@@ -341,10 +341,10 @@ class WhoIS(NERDModule):
                 self.log.warning('Unable to find IP Block: ' + ip_block + ' in RIR: ' + rir + '. Aborting record creation.')
                 return actions
 
-        for key in data_dict:
+        for key in data_dict.keys():
             if key == 'org':
                 # Create a new record of the organization, if not already present.
-                g.um.update(('org', rir + ':' + data_dict['org']), [])
+                g.um.update(('org', rir + ':' + data_dict[key]), [])
                 actions.append(('set', key, rir + ':' + data_dict[key]))
             else:
                 actions.append(('set', key, data_dict[key]))
