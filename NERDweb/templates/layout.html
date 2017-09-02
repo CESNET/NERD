@@ -100,7 +100,9 @@ $(function() {
 {% block status %} {# TODO make as "macro" #}
 <div id="status-block">
 <img class="refresh-spinner" src="{{ url_for('static', filename='spin.gif') }}">
-<p><b>Status</b> (refreshing <a id="status_refresh_toggle" href="#" onclick="toggle_status_refresh(); return false;">disabled</a>)</p>
+<p><b>Status</b> (refreshing <a id="status_refresh_toggle" href="#" onclick="toggle_status_refresh(); return false;">disabled</a>)
+<a id="status_box_toggle" style="text-decoration: none; border: 1px solid black; color: black; padding: 0px 0.2em; float: right;" href="#" onclick="toggle_status_box(); return false;">▲</a></p>
+<div>
 <table><tr><td>IPs in DB:</td><td><span id="status-ips">??</span></td></tr></table>
 <table><tr><td>Data disk usage:</td><td><span id="status-disk-usage">??</span></td></tr></table>
 <table>
@@ -134,6 +136,22 @@ smoothie.addTimeSeries(updates_timeseries, {lineWidth: 2, strokeStyle:'#00c000',
 <script>
 var refresh_status_enable = false; // Enable/disable refresh status
 var refreshing_status = false; // Whether refresh is in progress (to avoid multiple parallel calls it they are very slow and refresh interval is small)
+
+function toggle_status_box() {
+    var div = $('#status-block > div');
+    var a = $('#status_box_toggle');
+    if (a.text() == "▲") {
+        div.hide();
+        a.text("▼");
+        refresh_status_enable = false;
+        $("#status_refresh_toggle").text("disabled");
+        smoothie.stop();
+    }
+    else {
+        div.show();
+        a.text("▲");
+    }
+}
 
 function toggle_status_refresh() {
     if (refresh_status_enable) {
@@ -206,6 +224,7 @@ var status_refresh_timer = window.setInterval(refresh_status, 2000);
 // Run refresh once on load
 $(function() { refresh_status(true) });
 </script>
+</div>
 </div>
 {% endblock %}
 {% endif %}

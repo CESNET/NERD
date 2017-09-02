@@ -144,7 +144,7 @@ img.load-spinner {
 }
 
 #content {
-  padding: 0 0.75em;
+  padding: 0 0.75em 0.75em 0.75em;
   border-top: 2px solid #0061a2;
 }
 
@@ -193,9 +193,10 @@ img.load-spinner {
 
 /***** Main tables, such as IPs table (#entity_table) or Events table (#events_table) *****/
 .main_table {
-  margin-top: 0.5em;
+  margin: 0.5em 0em;
   background: #eeeeee;
   border: solid black;
+  width: 100%;
   /* This is necessary to avoid firefox bug, in which borders have different 
      widths when border-collapse:collapse is used and page is zoomed in (which
      is default for high DPI screens)
@@ -209,6 +210,7 @@ img.load-spinner {
   border: solid black;
   border-width: 1px 1px 0px 0px;
   padding: 0.2em 0.3em;
+  white-space: nowrap;
 }
 
 .main_table th {
@@ -465,12 +467,6 @@ div.idea .others .descr {
   margin-bottom: 0.2em;
   background: #bdf;
 }
-div.idea .others .source,
-div.idea .others .target {
-  border-right: 2px solid #bdf;
-  padding-right: 0.5em;
-  margin-right: 0.25em;
-}
 div.idea.test {
   background: #eee;
   border-color: #ccc;
@@ -533,7 +529,7 @@ div.idea .nodes li:first-child:last-child::before {
   right: 0.5em;
   width: 15em;
   border: 1px solid #000;
-  padding: 0.5em 1em;
+  padding: 0em 1em 0.5em 1em;
   background-color: #ddd;
 }
 #status-block .refresh-spinner {

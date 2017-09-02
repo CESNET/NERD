@@ -20,6 +20,7 @@ class Scheduler():
         logging.getLogger("apscheduler.scheduler").setLevel("WARNING")
         logging.getLogger("apscheduler.executors.default").setLevel("WARNING")
         self.sched = BackgroundScheduler(timezone="UTC")
+        self.last_job_id = 0
 
     def start(self):
         self.log.debug("Scheduler start")
@@ -42,10 +43,21 @@ class Scheduler():
            https://apscheduler.readthedocs.io/en/latest/modules/triggers/cron.html
         timezone - Timezone for time specification (default is UTC).
         args, kwargs - arguments passed to func
+        
+        Return job ID (integer).
         """
+        self.last_job_id += 1
         trigger = CronTrigger(year, month, day, week, day_of_week, hour, minute,
             second, timezone=timezone)
-        self.sched.add_job(func, trigger, args, kwargs, coalesce=True, max_instances=1)
+        self.sched.add_job(func, trigger, args, kwargs, coalesce=True, max_instances=1, id=str(self.last_job_id))
         self.log.debug("Registered function {0} to be called at {1}".format(func.__qualname__, trigger))
-        
+        return self.last_job_id
+
+    def pause_job(self, id):
+        """Pause job with given ID"""
+        self.sched.pause_job(str(id))        
+
+    def resume_job(self, id):
+        """Resume previously paused job with given ID"""
+        self.sched.resume_job(str(id))
 

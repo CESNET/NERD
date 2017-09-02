@@ -16,6 +16,7 @@ import logging
 import traceback
 
 import g
+import core.scheduler
 
 ENTITY_TYPES = ['ip', 'asn', 'bgppref', 'ipblock', 'org']
 
@@ -296,9 +297,14 @@ class UpdateManager:
         ])
         self._last_update_counter = self._update_counter.copy()
 
-        # Call it every 2 seconds
+        # Log number of update requests processed every 2 seconds
         if ("upd_cnt_file" in g.config):
-            g.scheduler.register(self.log_update_counter, second="*/2")
+            # Use a new scheduler, because the default one is stopped when
+            # NERDd daemon is going to exit, but we want to keep logging
+            # till the end
+            self.logging_scheduler = core.scheduler.Scheduler()
+            self.logging_scheduler.register(self.log_update_counter, second="*/2")
+            self.logging_scheduler.start()
 
 
     def log_update_counter(self):
@@ -323,6 +329,25 @@ class UpdateManager:
         self._last_update_counter = self._update_counter.copy()
 
 
+    def _dump_handler_chain(self, etype):
+        """
+        Dump information about registered handlers (return string).
+
+        What attrs/events they are hooked on and what attrs they may change.
+        Used for debugging.
+        """
+        s = "func_triggers:\n"
+        for k,v in self._func_triggers[etype].items():
+            s += "{} -> {}\n".format(v,get_func_name(k))
+        s += "\nfunc2attr:\n"
+        for k,v in self._func2attr[etype].items():
+            s += "{} -> {}\n".format(get_func_name(k),v)
+        s += "\nattr2func:\n"
+        for k,v in self._attr2func[etype].items():
+            s += "{} -> {}\n".format(k,list(map(get_func_name,v)))
+        return s
+
+
     def register_handler(self, func, etype, triggers, changes):
         """
         Hook a function (or bound method) to specified attribute changes/events.
@@ -331,7 +356,7 @@ class UpdateManager:
         func -- function or bound method
         etype -- entity type (only changes of attributes of this etype trigger the func)
         triggers -- set/list/tuple of attributes whose update trigger the call of the method (update of any one of the attributes will do)
-        changes -- set/list/tuple of attributes the method call may update
+        changes -- set/list/tuple of attributes the method call may update (may be None)
         
         Notes:
         Each function must be registered only once. 
@@ -347,7 +372,7 @@ class UpdateManager:
         # Check types (because common error is to pass string instead of 1-tuple)
         if not isinstance(triggers, Iterable) or isinstance(triggers, str):
             raise TypeError('Argument "triggers" must be iterable and must not be str.')
-        if not isinstance(changes, Iterable) or isinstance(changes, str):
+        if changes is not None and (not isinstance(changes, Iterable) or isinstance(changes, str)):
             raise TypeError('Argument "changes" must be iterable and must not be str.')
         
         self._func2attr[etype][func] = tuple(changes) if changes is not None else ()
@@ -427,7 +452,12 @@ class UpdateManager:
             # *** The record is already being processed by someone else. ***
             # Just put our update requests to its list of requests to process.
             
-            # Load the records and its list of requests to process
+            # If update_requests is empty, there's nothing to do, exit immediately
+            if not update_requests:
+                self._records_being_processed_lock.release()
+                return False
+
+            # Load the record and its list of requests to process
             rec, requests_to_process, requests_to_process_lock = self._records_being_processed[ekey]
             self._records_being_processed_lock.release()
             
@@ -506,7 +536,7 @@ class UpdateManager:
             if requests_to_process:
                 # Process update requests (perform updates, put hooked functions to call_queue and update may_change set)
                 self.log.debug("UpdateManager: New update requests for {}: {}".format(ekey, requests_to_process))
-                for updreq in update_requests:
+                for updreq in requests_to_process:
                     op, attr, val = updreq
                     assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
                     
@@ -540,7 +570,7 @@ class UpdateManager:
                     #self.log.debug("may_change: {}".format(may_change))
                 
                 # All reqests were processed, clear the list
-                update_requests.clear()
+                requests_to_process.clear()
             
             if not call_queue:
                 break # No more work to do (but keep requests_to_process_lock locked so noone can assign us new requests)
@@ -649,6 +679,9 @@ class UpdateManager:
         # Wait until all workers stopped (this should be immediate)
         for worker in self._workers:
             worker.join()
+        
+        # Stop logging scheduler
+        self.logging_scheduler.stop()
         # Delete file with updates count log
         filename = g.config.get("upd_cnt_file", None)
         if filename:
@@ -689,15 +722,16 @@ class UpdateManager:
         Should be run as a separate (deamon) thread.
         Exits when all workers has finished.
         """
+        time.sleep(10)
         while True:
             alive_workers = filter(threading.Thread.is_alive, self._workers)
-            if not alive_workers:
-                break
-            self.log.debug("Queue size: {:3}, records in processing {:3}, workers alive: {}".format(
+            self.log.info("Queue size: {:3}, records in processing {:3}, workers alive: {}".format(
                 self.get_queue_size(),
                 len(self._records_being_processed),
                 ','.join(map(lambda s: s.name[9:], alive_workers))) # 9 = len("UMWorker-")
             )
+            if not alive_workers:
+                break
             time.sleep(5)
             
     

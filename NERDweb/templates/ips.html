@@ -201,7 +201,7 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
   {% if ip.bl %}
   {% for bl_entry in ip.bl -%}
     {% if bl_entry.v %}
-      <span class="tag blacklist" title="IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">
+      <span class="tag blacklist" title="IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">
         {{-bl_entry.n-}}</span>
     {% endif %}
   {%- endfor %}
