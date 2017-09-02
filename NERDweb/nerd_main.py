@@ -752,6 +752,7 @@ def attach_whois_data(ipinfo, full):
 
         if 'ipblock' in ipinfo.keys():
             ipblock = mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']})
+
             if "org" in ipblock.keys():
                 ipblock['org'] = mongo.db.org.find_one({'_id':ipblock['org']})
 
@@ -783,7 +784,7 @@ def get_basic_info_dic(val):
     data = {
         'ip' : val['_id'],
         'rep' : val['rep'],
-        'hostname' : val['hostname'],
+        'hostname' : val.get('hostname', ''),
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
         'asn' : val.get('asn',[]),
@@ -823,7 +824,7 @@ def get_full_info(ipaddr=None):
     data = {
         'ip' : val['_id'],
         'rep' : val['rep'],
-        'hostname' : val['hostname'],
+        'hostname' : val.get('hostname', ''),
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
         'asn' : val.get('asn',[]),
