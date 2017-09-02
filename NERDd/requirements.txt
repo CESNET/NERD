@@ -6,3 +6,4 @@ pygeoip
 pycares
 shodan
 apscheduler
+netaddr
