@@ -729,6 +729,10 @@ def get_ip_info(ipaddr, full):
         data['error'] = "IP address not found"
         return False, Response(json.dumps(data), 404, mimetype='application/json')
 
+    attach_whois_data(ipinfo, full)
+    return True, ipinfo
+
+def attach_whois_data(ipinfo, full):
     if full:
         if 'bgppref' in ipinfo.keys():
             bgppref = mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']})
@@ -756,8 +760,6 @@ def get_ip_info(ipaddr, full):
         if 'bgppref' in ipinfo.keys():
             ipinfo['asn'] = (mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))['asn']
 
-
-    return True, ipinfo
 
 # ***** NERD API BasicInfo *****
 def get_basic_info_dic(val):
@@ -850,7 +852,7 @@ def get_full_info(ipaddr=None):
 # ***** NERD API IPSearch *****
 
 @app.route('/api/v1/search/ip/')
-def ip_search():
+def ip_search(full = False):
     err = {}
 
     ret = validate_api_request(request.headers.get("Authorization"))
@@ -880,6 +882,7 @@ def ip_search():
     if output == "json":
         lres = []
         for res in results:
+            attach_whois_data(res, full)
             lres.append(get_basic_info_dic(res))
         return Response(json.dumps(lres), 200, mimetype='text/plain')
 
@@ -889,6 +892,11 @@ def ip_search():
         err['err_n'] = 400
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
+
+@app.route('/api/v1/search/ip/full')
+def ip_search_full():
+    return ip_search(True)
+
 
 # Custom error 404 handler for API
 @app.errorhandler(404)
