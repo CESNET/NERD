@@ -323,6 +323,25 @@ class UpdateManager:
         self._last_update_counter = self._update_counter.copy()
 
 
+    def _dump_handler_chain(self, etype):
+        """
+        Dump information about registered handlers (return string).
+
+        What attrs/events they are hooked on and what attrs they may change.
+        Used for debugging.
+        """
+        s = "func_triggers:\n"
+        for k,v in self._func_triggers[etype].items():
+            s += "{} -> {}\n".format(v,get_func_name(k))
+        s += "\nfunc2attr:\n"
+        for k,v in self._func2attr[etype].items():
+            s += "{} -> {}\n".format(get_func_name(k),v)
+        s += "\nattr2func:\n"
+        for k,v in self._attr2func[etype].items():
+            s += "{} -> {}\n".format(k,list(map(get_func_name,v)))
+        return s
+
+
     def register_handler(self, func, etype, triggers, changes):
         """
         Hook a function (or bound method) to specified attribute changes/events.
