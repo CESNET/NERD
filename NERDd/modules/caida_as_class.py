@@ -32,8 +32,8 @@ class CaidaASclass(NERDModule):
 
         g.um.register_handler(
             self.determine_type,
-            'ip',
-            ('as_maxmind.num','as_rv.num'),
+            'asn',
+            ('!NEW',),
             ('caida_as_class.v', 'caida_as_class.c')
         )
     
@@ -102,7 +102,7 @@ class CaidaASclass(NERDModule):
         Classifies IP according to its AS number
 
         Arguments:
-        ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
+        ekey -- two-tuple of entity type and key, e.g. ('asn', '2582')
         rec -- record currently assigned to the key
         updates -- list of all attributes whose update triggered this call and
                    their new values (or events and their parameters) as a list of
@@ -112,77 +112,15 @@ class CaidaASclass(NERDModule):
         List of update requests.
         """
         etype, key = ekey
-        if etype != 'ip':
+        if etype != 'asn':
             return None
-        
-        # AS numbers from both sources are set in IP record
-        if "as_maxmind" in rec and "as_rv" in rec:
-            as_maxmind = rec["as_maxmind"]
-            as_rv = rec["as_rv"]
-            # Both AS numbers are same -> find AS in dict and if found create update request 
-            if as_maxmind["num"] == as_rv["num"]:
-                res = self.search_in_dict(as_maxmind["num"])
-                if res is not None:
-                    self.log.debug("IP {} (ASN: {}) has class: {} (source: {}, confidence: {}) according to CAIDA.".format(key,as_maxmind["num"], res["class"], res["source"], res["confidence"]))
-                    ret = [('set', 'caida_as_class.v', res["class"])]
-                    if res["confidence"] != 1:
-                        ret.append(('set', 'caida_as_class.c', res["confidence"]))
-                    return ret
-            # AS numbers are not same -> if class is same or only AS number from one AS source is found in dict return result else set class to unknown
-            else:
-                res_maxmind = self.search_in_dict(as_maxmind["num"])
-                res_rv = self.search_in_dict(as_rv["num"])
-                if res_maxmind is not None and res_rv is not None:
-                    if res_maxmind["class"] == res_rv["class"]:
-                        confidence = res_maxmind["confidence"] if res_maxmind["confidence"] > res_rv["confidence"] else res_rv["confidence"]
-                        self.log.debug("IP {} (ASN_maxmind: {} and ASN_rv: {}) has class: {} (sources: {} and {}, confidence: {}) according to CAIDA.".format(key,as_maxmind["num"], as_rv["num"], res_rv["class"], res_maxmind["source"], res_rv["source"], confidence))
-                        ret = [('set', 'caida_as_class.v', res_rv["class"])]
-                        if confidence != 1:
-                            ret.append(('set', 'caida_as_class.c', confidence))
-                        return ret
-                    else:
-                        self.log.debug("IP {} has different ASNs (ASN_maxmind: {} and ASN_rv: {}) and type can't be determined ({} or {}).".format(key,as_maxmind["num"], as_rv["num"], res_maxmind["class"], res_rv["class"]))
-                        return [('set', 'caida_as_class.v', 'unknown')]
-                elif res_maxmind is not None:
-                    self.log.debug("IP {} (ASN: {}) has class: {} (source: {}, confidence: {}) according to CAIDA.".format(key,as_maxmind["num"], res_maxmind["class"], res_maxmind["source"], res_maxmind["confidence"]))
-                    ret = [('set', 'caida_as_class.v', res_maxmind["class"])]
-                    if res_maxmind["confidence"] != 1:
-                        ret.append(('set', 'caida_as_class.c', res_maxmind["confidence"]))
-                    return ret
-                elif res_rv is not None:
-                    self.log.debug("IP {} (ASN: {}) has class: {} (source: {}, confidence: {}) according to CAIDA.".format(key,as_rv["num"], res_rv["class"], res_rv["source"], res_rv["confidence"]))
-                    ret = [('set', 'caida_as_class.v', res_rv["class"])]
-                    if res_rv["confidence"] != 1:
-                        ret.append(('set', 'caida_as_class.c', res_rv["confidence"]))
-                    return ret
-        
-        # Only AS number from AS maxmind source is set in IP record -> if AS number is found in dict create update request
-        elif "as_maxmind" in rec:
-            as_maxmind = rec["as_maxmind"]
-            res = self.search_in_dict(as_maxmind["num"])
-            if res is not None:
-                self.log.debug("IP {} (ASN: {}) has class: {} (source: {}, confidence: {}) according to CAIDA.".format(key,as_maxmind["num"], res["class"], res["source"], res["confidence"]))
-                ret = [('set', 'caida_as_class.v', res["class"])]
-                if res["confidence"] != 1:
-                    ret.append(('set', 'caida_as_class.c', res["confidence"]))
-                return ret
-        
-        # Only AS number from AS rv source is set in IP record -> if AS number is found in dict create update request
-        elif "as_rv" in rec:
-            as_rv = rec["as_rv"]
-            res = self.search_in_dict(as_rv["num"])
-            if res is not None:
-                self.log.debug("IP {} (ASN: {}) has class: {} (source: {}, confidence: {}) according to CAIDA.".format(key,as_rv["num"], res["class"], res["source"], res["confidence"]))
-                ret = [('set', 'caida_as_class.v', res["class"])]
-                if res["confidence"] != 1:
-                    ret.append(('set', 'caida_as_class.c', res["confidence"]))
-                return ret
-        
-        # No ASNs set for IP or ASN is not in caida file -> set caida_as_class value to unknown 
-        if "as_rv" not in rec and "as_maxmind" not in rec: 
-            self.log.debug("No ASNs have been found for IP {}.".format(key))
+
+        res = self.search_in_dict(int(key))
+        if res is not None:
+            self.log.debug("ASN: {} has class: {} (source: {}, confidence: {}) according to CAIDA.".format(key, res["class"], res["source"], res["confidence"]))
+            ret = [('set', 'caida_as_class.v', res["class"])]
+            if res["confidence"] != 1:
+                ret.append(('set', 'caida_as_class.c', res["confidence"]))
         else:
-            rv = rec["as_rv"]["num"] if "as_rv" in rec else "None"
-            maxmind = rec["as_maxmind"]["num"] if "as_maxmind" in rec else "None"
-            self.log.debug("ASN (ASN_maxmind: {}, ASN_rv: {}) hasn't been found in caida ASN list.".format(maxmind, rv))
-        return [('set', 'caida_as_class.v', 'unknown')] 
+             ret = [('set', 'caida_as_class.v', 'unknown')]
+        return ret
