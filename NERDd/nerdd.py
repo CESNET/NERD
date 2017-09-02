@@ -139,6 +139,7 @@ signal.signal(signal.SIGABRT, sigint_handler)
 # Run update manager thread/process
 log.info("***** Initialization completed, starting all modules *****")
 g.um.start()
+g.running = True
 
 # Run modules that have their own threads/processes
 # (if they don't, the start() should do nothing)
@@ -171,6 +172,7 @@ signal.signal(signal.SIGTERM, signal.SIG_DFL)
 signal.signal(signal.SIGABRT, signal.SIG_DFL)
 
 log.info("Stopping running components ...")
+g.running = False
 g.scheduler.stop()
 for module in module_list:
     module.stop()

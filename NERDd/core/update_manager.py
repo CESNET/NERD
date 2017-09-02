@@ -16,6 +16,7 @@ import logging
 import traceback
 
 import g
+import core.scheduler
 
 ENTITY_TYPES = ['ip', 'asn']
 
@@ -296,9 +297,14 @@ class UpdateManager:
         ])
         self._last_update_counter = self._update_counter.copy()
 
-        # Call it every 2 seconds
+        # Log number of update requests processed every 2 seconds
         if ("upd_cnt_file" in g.config):
-            g.scheduler.register(self.log_update_counter, second="*/2")
+            # Use a new scheduler, because the default one is stopped when
+            # NERDd daemon is going to exit, but we want to keep logging
+            # till the end
+            self.logging_scheduler = core.scheduler.Scheduler()
+            self.logging_scheduler.register(self.log_update_counter, second="*/2")
+            self.logging_scheduler.start()
 
 
     def log_update_counter(self):
@@ -673,6 +679,9 @@ class UpdateManager:
         # Wait until all workers stopped (this should be immediate)
         for worker in self._workers:
             worker.join()
+        
+        # Stop logging scheduler
+        self.logging_scheduler.stop()
         # Delete file with updates count log
         filename = g.config.get("upd_cnt_file", None)
         if filename:
@@ -713,15 +722,16 @@ class UpdateManager:
         Should be run as a separate (deamon) thread.
         Exits when all workers has finished.
         """
+        time.sleep(10)
         while True:
             alive_workers = filter(threading.Thread.is_alive, self._workers)
-            if not alive_workers:
-                break
-            self.log.debug("Queue size: {:3}, records in processing {:3}, workers alive: {}".format(
+            self.log.info("Queue size: {:3}, records in processing {:3}, workers alive: {}".format(
                 self.get_queue_size(),
                 len(self._records_being_processed),
                 ','.join(map(lambda s: s.name[9:], alive_workers))) # 9 = len("UMWorker-")
             )
+            if not alive_workers:
+                break
             time.sleep(5)
             
     
