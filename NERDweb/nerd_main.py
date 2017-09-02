@@ -708,7 +708,7 @@ def validate_api_request(authorization):
 
     return None
 
-def get_ip_info(ipaddr):
+def get_ip_info(ipaddr, full):
     data = {
         'err_n' : 400,
         'error' : "No IP address specified",
@@ -729,14 +729,38 @@ def get_ip_info(ipaddr):
         data['error'] = "IP address not found"
         return False, Response(json.dumps(data), 404, mimetype='application/json')
 
+    if full:
+        if 'bgppref' in ipinfo.keys():
+            bgppref = mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']})
+            asn_list = []
+
+            for i in  bgppref['asn']:
+                i = mongo.db.asn.find_one({'_id':i})
+                if 'org' in i.keys():
+                    i['org'] = mongo.db.org.find_one({'_id':i['org']})
+
+                del i['bgppref']
+                asn_list.append(i)
+
+            del bgppref['asn']
+            ipinfo['bgppref'] = bgppref
+            ipinfo['asn'] = asn_list
+
+        if 'ipblock' in ipinfo.keys():
+            ipblock = mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']})
+            if "org" in ipblock.keys():
+                ipblock['org'] = mongo.db.org.find_one({'_id':ipblock['org']})
+
+            ipinfo['ipblock'] = ipblock
+    else:
+        if 'bgppref' in ipinfo.keys():
+            ipinfo['asn'] = (mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))['asn']
+
+
     return True, ipinfo
 
 # ***** NERD API BasicInfo *****
 def get_basic_info_dic(val):
-    asn_d = {}
-    if 'as_maxmind' in val.keys():
-        asn_d['num'] = val['as_maxmind'].get('num', 0)
-
     geo_d = {}
     if 'geo' in val.keys():
         geo_d['ctry'] = val['geo'].get('ctry', "unknown")
@@ -758,7 +782,9 @@ def get_basic_info_dic(val):
         'ip' : val['_id'],
         'rep' : val['rep'],
         'hostname' : val['hostname'],
-        'asn' : asn_d,
+        'ipblock' : val.get('ipblock', ''),
+        'bgppref' : val.get('bgppref', ''),
+        'asn' : val.get('asn',[]),
         'geo' : geo_d,
         'bl'  : bl_l,
         'tags'  : tags_l
@@ -772,7 +798,7 @@ def get_basic_info(ipaddr=None):
     if ret:
         return ret
 
-    ret, val = get_ip_info(ipaddr)
+    ret, val = get_ip_info(ipaddr, False)
     if not ret:
         return val
 
@@ -788,23 +814,17 @@ def get_full_info(ipaddr=None):
     if ret:
         return ret
 
-    ret, val = get_ip_info(ipaddr)
+    ret, val = get_ip_info(ipaddr, True)
     if not ret:
         return val
-
-    asn_d = {}
-    if 'as_maxmind' in val.keys():
-        asn_d['num'] = val['as_maxmind'].get('num', 0)
-        asn_d['name'] = val['as_maxmind'].get('description', "")
-    elif 'as_rv' in val.keys():
-        asn_d['num'] = val['as_rv'].get('num', 0)
-        asn_d['name'] = val['as_rv'].get('description', "")
 
     data = {
         'ip' : val['_id'],
         'rep' : val['rep'],
         'hostname' : val['hostname'],
-        'asn' : asn_d,
+        'ipblock' : val.get('ipblock', ''),
+        'bgppref' : val.get('bgppref', ''),
+        'asn' : val.get('asn',[]),
         'geo' : val['geo'],
         'ts_added' : val['ts_added'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_update' : val['ts_last_update'].strftime("%Y-%m-%dT%H:%M:%S"),
@@ -869,7 +889,6 @@ def ip_search():
         err['err_n'] = 400
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
-
 
 # Custom error 404 handler for API
 @app.errorhandler(404)
