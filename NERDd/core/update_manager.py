@@ -511,7 +511,7 @@ class UpdateManager:
             if requests_to_process:
                 # Process update requests (perform updates, put hooked functions to call_queue and update may_change set)
                 self.log.debug("UpdateManager: New update requests for {}: {}".format(ekey, requests_to_process))
-                for updreq in update_requests:
+                for updreq in requests_to_process:
                     op, attr, val = updreq
                     assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
                     
@@ -545,7 +545,7 @@ class UpdateManager:
                     #self.log.debug("may_change: {}".format(may_change))
                 
                 # All reqests were processed, clear the list
-                update_requests.clear()
+                requests_to_process.clear()
             
             if not call_queue:
                 break # No more work to do (but keep requests_to_process_lock locked so noone can assign us new requests)
