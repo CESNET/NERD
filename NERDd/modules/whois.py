@@ -1,8 +1,5 @@
 """
 NERD module getting information about IPs, IP blocks, BGP prefixes, autonomous systems and organizations from RIRs.
-
-Requirements:
-- "netaddr" package
 """
 
 from core.basemodule import NERDModule
@@ -14,7 +11,7 @@ import logging
 import io
 import csv
 import bisect
-import netaddr
+import ipaddress
 
 class WhoIS(NERDModule):
     """
@@ -176,7 +173,7 @@ class WhoIS(NERDModule):
             actions.append(('set', 'bgppref', resp_list[0]['BGPPrefix']))
 
 
-        int_ip = int(netaddr.IPAddress(ip))
+        int_ip = int(ipaddress.ip_address(ip))
         pos = bisect.bisect_left(self.ipv4_array[0], int_ip)
         try:
             if self.ipv4_array[0][pos] != int_ip:
@@ -210,8 +207,8 @@ class WhoIS(NERDModule):
             if ret == None:
                 return None
 
-            inet = netaddr.IPNetwork(ret['inetnum'])
-            return str(inet.ip) + " - " + str(inet.broadcast)
+            inet = ipaddress.ip_network(ret['inetnum'])
+            return str(inet.network_address) + " - " + str(inet.broadcast_address)
         elif rir == 'arin':
             return self.receiveData('- n ' + ip, 'whois.arin.net', self.parseArinInet)
         else:
@@ -302,7 +299,7 @@ class WhoIS(NERDModule):
 
         # Perform a lookup for the RIR corresponding to this IP block.
         first_ip = ip_block.split()[0]
-        int_ip  = int(netaddr.IPAddress(first_ip))
+        int_ip  = int(ipaddress.ip_address(first_ip))
         pos = bisect.bisect_left(self.ipv4_array[0], int_ip)
 
         try:

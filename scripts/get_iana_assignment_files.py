@@ -2,7 +2,7 @@
 #-*- encoding: utf-8 -*-
 
 import subprocess
-import netaddr
+import ipaddress
 import csv
 
 DOWNLOAD_IP_COMMAND = '\
@@ -38,7 +38,7 @@ print("Converting IP representation to long uint...")
 
 for row in datareader:
 	rir = 'ripe' if row[1] == "ripencc" else row[1]
-	w.write(str(int(netaddr.IPAddress(row[0]))) + ' ' + rir + '\n')
+	w.write(str(int(ipaddress.ip_address(ip))) + ' ' + rir + '\n')
 
 r.close()
 w.close()
