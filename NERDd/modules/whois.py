@@ -115,7 +115,7 @@ class WhoIS(NERDModule):
         )
 
     def loadASN(self, asnFile):
-        self.log.info('Loading information about ASN allocation from file: ' + asnFile)
+        self.log.info('Loading information about ASN allocation from file: {}.'.format(asnFile))
         dataFile = open(asnFile, 'r')
         datareader = csv.reader(dataFile, delimiter=',')
 
@@ -128,7 +128,7 @@ class WhoIS(NERDModule):
         return data
 
     def loadIPv4(self, ipv4File):
-        self.log.info('Loading information about IP blocks allocation from file: ' + ipv4File)
+        self.log.info('Loading information about IP blocks allocation from file: {}.'.format(ipv4File))
         dataFile = open(ipv4File, 'r')
         datareader = csv.reader(dataFile, delimiter=',')
 
@@ -151,7 +151,7 @@ class WhoIS(NERDModule):
         # Perform initial query to whois.cymru.com server to get list of ASNs, BGP prefix and RIR.
         resp_list = self.receiveData('-p -o ' + ip, 'whois.cymru.com', self.parseCymru)
         if resp_list == None:
-            self.log.warning('Unable to acquire BGP prefix or ASN from whois.cymru.com. IP: ' + ip + '. Aborting ASN and BGP prefix record creation.')
+            self.log.warning('Unable to acquire BGP prefix or ASN from whois.cymru.com. IP: {}. Aborting ASN and BGP prefix record creation.'.format(ip))
         else:
             asn_list = []
             bgp_pref_list = []
@@ -164,7 +164,7 @@ class WhoIS(NERDModule):
                 asn_list.append(('add_to_set', 'asn', int(asn['AS'])))
 
             if len(set(bgp_pref_list)) != 1:
-                self.log.warning('Observed multiple BGP prefixes for a given IP: ' + ip + '\n' + str(bgp_pref_list))
+                self.log.warning('Observed multiple BGP prefixes for a given IP: {}.\n{}'.format(ip, bgp_pref_list))
 
             # Create a new BGP prefix (if not already present) and append all ASNs to its list.
             g.um.update(('bgppref', resp_list[0]['BGPPrefix']), asn_list)
@@ -186,7 +186,7 @@ class WhoIS(NERDModule):
         # Attempt to find netrange of the corresponding smallest IP block.
         inet = self.getInet(ip, rir)
         if inet == None:
-            self.log.warning('Unable to find IP block for IP: ' + ip + ' in RIR: ' + rir + '. Aborting IP block record creation.')
+            self.log.warning('Unable to find IP block for IP: {} in RIR: {}. Aborting IP block record creation.'.format(ip, rir))
             return actions
 
         # Add IP block to the IP record
@@ -256,7 +256,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData('AS' + str(asn), 'whois.lacnic.net', self.parseRIR, (map_dict, 1))
             if data_dict == None:
-                self.log.warning('Unable to find ASN: ' + str(asn) + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find ASN: {} in RIR: {}. Aborting record creation.'.format(asn, rir))
                 return actions
         elif rir == 'arin':
             map_dict = {
@@ -266,7 +266,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData('+ a = ' + str(asn), 'whois.arin.net', self.parseRIR, (map_dict, 2))
             if data_dict == None:
-                self.log.warning('Unable to find ASN: ' + str(asn) + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find ASN: {} in RIR: {}. Aborting record creation.'.format(asn, rir))
                 return actions
         else:
             map_dict = {
@@ -276,7 +276,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData('-r -T aut-num AS' + str(asn), 'whois.' + rir + '.net', self.parseRIR, (map_dict, 2))
             if data_dict == None:
-                self.log.warning('Unable to find ASN: ' + str(asn) + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find ASN: {} in RIR: {}. Aborting record creation.'.format(asn, rir))
                 return actions
 
         for key in data_dict.keys():
@@ -322,7 +322,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData(first_ip, 'whois.lacnic.net', self.parseRIR, (map_dict, 2))
             if data_dict == None:
-                self.log.warning('Unable to find IP Block: ' + ip_block + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find IP Block: {} in RIR: {}. Aborting record creation.'.format(ip_block, rir))
                 return actions
         elif rir == 'arin':
             map_dict = {
@@ -333,12 +333,12 @@ class WhoIS(NERDModule):
             # To ensure we get only one match in the database, we must first obtain NetHandle.
             ret = self.receiveData('- n ' + first_ip, 'whois.arin.net', self.parseArinNetHandle)
             if ret == None:
-                self.log.warning('Unable to find IP Block: ' + ip_block + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find IP Block: {} in RIR: {}. Aborting record creation.'.format(ip_block, rir))
                 return actions
 
             data_dict = self.receiveData('+ n = ' + ret, 'whois.arin.net', self.parseRIR, (map_dict, 2))
             if data_dict == None:
-                self.log.warning('Unable to find IP Block: ' + ip_block + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find IP Block: {} in RIR: {}. Aborting record creation.'.format(ip_block, rir))
                 return actions
         else:
             map_dict = {
@@ -350,7 +350,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData('-r -T inetnum ' + first_ip, 'whois.' + rir + '.net', self.parseRIR, (map_dict, 4))
             if data_dict == None:
-                self.log.warning('Unable to find IP Block: ' + ip_block + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find IP Block: {} in RIR: {}. Aborting record creation.'.format(ip_block, rir))
                 return actions
 
         for key in data_dict.keys():
@@ -386,7 +386,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData(org, 'whois.lacnic.net', self.parseRIR, (map_dict, 3))
             if data_dict == None:
-                self.log.warning('Unable to find organization: ' + org + ' in RIR: ' + rir + '. Attempting "whois.registro.br".')
+                self.log.warning('Unable to find organization: {} in RIR: {}. Attempting "whois.registro.br".'.format(org, rir))
                 map_dict = {
                     'owner' : 'name',
                     'responsible' : 'contact'
@@ -395,7 +395,7 @@ class WhoIS(NERDModule):
                 # Unfortunately, the information about LACNIC organizations might be stored on "whois.registro.br" server.
                 data_dict = self.receiveData(org, 'whois.registro.br', self.parseRIR, (map_dict, 2))
                 if data_dict == None:
-                    self.log.warning('Unable to find organization: ' + org + ' in whois.registro.br. Aborting record creation.')
+                    self.log.warning('Unable to find organization: {} in whois.registro.br. Aborting record creation.'.format(org))
                     return actions
 
         elif rir == 'arin':
@@ -411,7 +411,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData('+ o = ' + org, 'whois.arin.net', self.parseRIR, (map_dict, 3))
             if data_dict == None:
-                self.log.warning('Unable to find organization: ' + org + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find organization: {} in RIR: {}. Aborting record creation.'.format(org, rir))
                 return actions
         else:
             map_dict = {
@@ -422,7 +422,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData('-r -T organisation ' + org, 'whois.' + rir + '.net', self.parseRIR, (map_dict, 3))
             if data_dict == None:
-                self.log.warning('Unable to find organization: ' + org + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find organization: {} in RIR: {}. Aborting record creation.'.format(org, rir))
                 return actions
 
         for key in data_dict:
@@ -456,12 +456,12 @@ class WhoIS(NERDModule):
             counter += 1
             resp = self.sendRequest(query, host)
             if resp == None:
-                self.log.warning('Attempt #' + str(counter) + ' to receive data from ' + host + ' failed.')
+                self.log.warning('Attempt #{} to receive data from {} failed.'.format(counter, host))
                 continue
 
             result = parse_func(resp, args)
             if result == None or len(result) == 0:
-                self.log.warning('Attempt #' + str(counter) + ' to parse data from ' + host + ' with query: "' + query + '" either failed or provided no useful information.')
+                self.log.warning('Attempt #{} to parse data from {} with query: "{}" either failed or provided no useful information.'.format(counter, host, query))
                 self.log.debug(resp)
                 continue
 
