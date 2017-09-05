@@ -230,8 +230,11 @@ class WhoIS(NERDModule):
 
         # Perform a lookup for the RIR corresponding to this ASN.
         pos = bisect.bisect_left(self.asn_array[0], int(asn))
-        if self.asn_array[0][pos] != int(asn):
-            pos -= 1
+        try:
+            if self.asn_array[0][pos] != int(asn):
+                pos -= 1
+        except IndexError as e:
+                pos -= 1
 
         rir = self.asn_array[1][pos]
 
@@ -293,8 +296,12 @@ class WhoIS(NERDModule):
         first_ip = ip_block.split()[0]
         int_ip  = int(netaddr.IPAddress(first_ip))
         pos = bisect.bisect_left(self.ipv4_array[0], int_ip)
-        if self.ipv4_array[0][pos] != int_ip:
-            pos -= 1
+
+        try:
+            if self.ipv4_array[0][pos] != int_ip:
+                pos -= 1
+        except IndexError as e:
+                pos -= 1
 
         rir = self.ipv4_array[1][pos]
 
