@@ -149,15 +149,12 @@ class WhoIS(NERDModule):
         if etype != 'ip':
             return None
 
-        # Perform initial query to whois.cymru.com server to get list of ASNs, BGP prefix and RIR.
-        resp_list = self.receiveData('-r -p -o ' + ip, 'whois.cymru.com', self.parseCymru)
-        if resp_list == None:
-            return None
-
         actions = []
 
-        if resp_list[0]['AS'] == "NA" or resp_list[0]['BGPPrefix'] == "NA":
-            self.log.warning('Unable to acquire BGP prefix or ASN from whois.cymru.com. IP: ' + ip + ' ASN: ' + resp_list[0]['AS'] + ', BGP prefix: ' + resp_list[0]['BGPPrefix'] + '. Aborting ASN and BGP prefix record creation.')
+        # Perform initial query to whois.cymru.com server to get list of ASNs, BGP prefix and RIR.
+        resp_list = self.receiveData('-p -o ' + ip, 'whois.cymru.com', self.parseCymru)
+        if resp_list == None:
+            self.log.warning('Unable to acquire BGP prefix or ASN from whois.cymru.com. IP: ' + ip + '. Aborting ASN and BGP prefix record creation.')
         else:
             asn_list = []
             bgp_pref_list = []
@@ -178,10 +175,21 @@ class WhoIS(NERDModule):
             # Add BGP Prefix to the IP record
             actions.append(('set', 'bgppref', resp_list[0]['BGPPrefix']))
 
+
+        int_ip = int(netaddr.IPAddress(ip))
+        pos = bisect.bisect_left(self.ipv4_array[0], int_ip)
+        try:
+            if self.ipv4_array[0][pos] != int_ip:
+                pos -= 1
+        except IndexError as e:
+                pos -= 1
+
+        rir = self.ipv4_array[1][pos]
+
         # Attempt to find netrange of the corresponding smallest IP block.
-        inet = self.getInet(ip, asn['Registry'])
+        inet = self.getInet(ip, rir)
         if inet == None:
-            self.log.warning('Unable to find IP block for IP: ' + ip + ' in RIR: ' + resp_list[0]['Registry'] + '. Aborting IP block record creation.')
+            self.log.warning('Unable to find IP block for IP: ' + ip + ' in RIR: ' + rir + '. Aborting IP block record creation.')
             return actions
 
         # Add IP block to the IP record
@@ -481,8 +489,9 @@ class WhoIS(NERDModule):
                 break
             vals = ''.join(vals.split())
             d = dict(zip(header.split('|'), vals.split('|')))
-            if d['Registry'] == "ripencc":
-                d['Registry'] = "ripe"
+            if 'BGPPrefix' not in d.keys() or d['BGPPrefix'] == 'NA' or 'AS' not in d.keys() or d['AS'] == 'NA':
+                continue
+
             ret.append(d)
 
         return ret
@@ -499,10 +508,11 @@ class WhoIS(NERDModule):
         result = ""
         while True:
             line = buf.readline()
-            if not line.strip():
+            if not line:
                 break
 
-            if line[0] == '#':
+            # Skip comments and empty lines.
+            if line.strip() == '' or line[0] == '#':
                 continue
 
             beg = line.find(") ")
@@ -523,10 +533,11 @@ class WhoIS(NERDModule):
         result = ""
         while True:
             line = buf.readline()
-            if not line.strip():
+            if not line:
                 break
 
-            if line[0] == '#':
+            # Skip comments and empty lines.
+            if line.strip() == '' or line[0] == '#':
                 continue
 
             beg = line.find("(NET")
@@ -561,11 +572,11 @@ class WhoIS(NERDModule):
 
         while True:
             line = buf.readline()
-            if not line.strip():
+            if not line:
                 break
 
-            # Skip comments.
-            if line[0] == '%' or line[0] == '#':
+            # Skip comments and empty lines.
+            if line.strip() == '' or line[0] == '%' or line[0] == '#':
                 continue
 
             # Remove spaces.
