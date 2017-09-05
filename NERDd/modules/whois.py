@@ -182,6 +182,14 @@ class WhoIS(NERDModule):
                 pos -= 1
 
         rir = self.ipv4_array[1][pos]
+        if rir[0] == 'R':
+            if rir.find(':') != -1:
+                rir = rir.split(':')[1]
+                self.log.warning('Observed IP address {} from reserved IP block. Querying still possible to: {}.'.format(ip, rir))
+            else:
+                self.log.warning('Observed IP address {} from reserved IP block. Querying not possible.'.format(ip))
+                return actions
+
 
         # Attempt to find netrange of the corresponding smallest IP block.
         inet = self.getInet(ip, rir)
@@ -312,6 +320,9 @@ class WhoIS(NERDModule):
 
         actions.append(('set', 'rep', 0))
         actions.append(('set', 'rir', rir))
+        if rir[0] == 'R':
+            rir = rir.split(':')[0]
+            self.log.warning('Creating record for a reserved IP block: {}.'.format(ip_block))
 
         # Parse IP block information from the corresponding RIR.
         if rir == 'lacnic':

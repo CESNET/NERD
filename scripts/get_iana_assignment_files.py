@@ -5,6 +5,40 @@ import subprocess
 import ipaddress
 import csv
 
+SPECIAL_PURPOSE_ADDRESS ='\
+0,Reserved\n\
+167772160 Reserved:arin\n\
+184549376 arin\n\
+1681915904 Reserved:arin\n\
+1686110208 arin\n\
+2130706432 Reserved:arin\n\
+2147483648 ripe\n\
+2851995648 Reserved:arin\n\
+2852061184 afrinic\n\
+2886729728 Reserved:arin\n\
+2887778304 arin\n\
+3221225472 Reserved:arin\n\
+3221225728 Reserved\n\
+3221225984 Reserved:arin\n\
+3221226240 arin\n\
+3223307264 Reserved:arin\n\
+3223307520 apnic\n\
+3224682752 Reserved:arin\n\
+3224683008 arin\n\
+3227017984 Reserved:arin\n\
+3227018240 arin\n\
+3232235520 Reserved:arin\n\
+3232301056 arin\n\
+3232706560 Reserved:arin\n\
+3232706816 arin\n\
+3323068416 Reserved:arin\n\
+3323199488 arin\n\
+3325256704 Reserved:arin\n\
+3325256960 apnic\n\
+3405803776 Reserved:apnic\n\
+3405804032 apnic\n\
+4026531840 Reserved\n'
+
 DOWNLOAD_IP_COMMAND = '\
 loc=("lacnic" "ripe" "arin" "afrinic" "apnic");\
 rirs=("lacnic" "ripencc" "arin" "afrinic" "apnic");\
@@ -38,8 +72,9 @@ print("Converting IP representation to long uint...")
 
 for row in datareader:
 	rir = 'ripe' if row[1] == "ripencc" else row[1]
-	w.write(str(int(ipaddress.ip_address(ip))) + ' ' + rir + '\n')
+	w.write(str(int(ipaddress.ip_address(row[0]))) + ' ' + rir + '\n')
 
+w.write(SPECIAL_PURPOSE_ADDRESS)
 r.close()
 w.close()
 
