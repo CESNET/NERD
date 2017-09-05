@@ -499,7 +499,7 @@ class WhoIS(NERDModule):
         result = ""
         while True:
             line = buf.readline()
-            if not line:
+            if not line.strip():
                 break
 
             if line[0] == '#':
@@ -523,7 +523,7 @@ class WhoIS(NERDModule):
         result = ""
         while True:
             line = buf.readline()
-            if not line:
+            if not line.strip():
                 break
 
             if line[0] == '#':
@@ -561,7 +561,7 @@ class WhoIS(NERDModule):
 
         while True:
             line = buf.readline()
-            if not line:
+            if not line.strip():
                 break
 
             # Skip comments.
