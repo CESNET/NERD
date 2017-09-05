@@ -102,7 +102,7 @@ class CaidaASclass(NERDModule):
         Classifies IP according to its AS number
 
         Arguments:
-        ekey -- two-tuple of entity type and key, e.g. ('asn', '2582')
+        ekey -- two-tuple of entity type and key, e.g. ('asn', 2582)
         rec -- record currently assigned to the key
         updates -- list of all attributes whose update triggered this call and
                    their new values (or events and their parameters) as a list of
@@ -115,7 +115,7 @@ class CaidaASclass(NERDModule):
         if etype != 'asn':
             return None
 
-        res = self.search_in_dict(int(key))
+        res = self.search_in_dict(key)
         if res is not None:
             self.log.debug("ASN: {} has class: {} (source: {}, confidence: {}) according to CAIDA.".format(key, res["class"], res["source"], res["confidence"]))
             ret = [('set', 'caida_as_class.v', res["class"])]

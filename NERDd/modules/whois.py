@@ -165,9 +165,9 @@ class WhoIS(NERDModule):
             for asn in resp_list:
                 bgp_pref_list.append(asn['BGPPrefix'])
                 # Create a new ASN (if not already present) and append BGP prefix to its list.
-                g.um.update(('asn', asn['AS']), [('add_to_set', 'bgppref', asn['BGPPrefix'])])
+                g.um.update(('asn', int(asn['AS'])), [('add_to_set', 'bgppref', asn['BGPPrefix'])])
                 # Append all ASNs to the currently observed BGP prefix for later update.
-                asn_list.append(('add_to_set', 'asn', asn['AS']))
+                asn_list.append(('add_to_set', 'asn', int(asn['AS'])))
 
             if len(set(bgp_pref_list)) != 1:
                 self.log.warning('Observed multiple BGP prefixes for a given IP: ' + ip + '\n' + str(bgp_pref_list))
@@ -229,9 +229,9 @@ class WhoIS(NERDModule):
             return None
 
         # Perform a lookup for the RIR corresponding to this ASN.
-        pos = bisect.bisect_left(self.asn_array[0], int(asn))
+        pos = bisect.bisect_left(self.asn_array[0], asn)
         try:
-            if self.asn_array[0][pos] != int(asn):
+            if self.asn_array[0][pos] != asn:
                 pos -= 1
         except IndexError as e:
                 pos -= 1
@@ -249,9 +249,9 @@ class WhoIS(NERDModule):
                 'ownerid' : 'org'
             }
 
-            data_dict = self.receiveData('AS' + asn, 'whois.lacnic.net', self.parseRIR, (map_dict, 1))
+            data_dict = self.receiveData('AS' + str(asn), 'whois.lacnic.net', self.parseRIR, (map_dict, 1))
             if data_dict == None:
-                self.log.warning('Unable to find ASN: ' + asn + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find ASN: ' + str(asn) + ' in RIR: ' + rir + '. Aborting record creation.')
                 return actions
         elif rir == 'arin':
             map_dict = {
@@ -259,9 +259,9 @@ class WhoIS(NERDModule):
                 'OrgId' : 'org'
             }
 
-            data_dict = self.receiveData('+ a = ' + asn, 'whois.arin.net', self.parseRIR, (map_dict, 2))
+            data_dict = self.receiveData('+ a = ' + str(asn), 'whois.arin.net', self.parseRIR, (map_dict, 2))
             if data_dict == None:
-                self.log.warning('Unable to find ASN: ' + asn + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find ASN: ' + str(asn) + ' in RIR: ' + rir + '. Aborting record creation.')
                 return actions
         else:
             map_dict = {
@@ -269,9 +269,9 @@ class WhoIS(NERDModule):
                 'org' : 'org'
             }
 
-            data_dict = self.receiveData('-r -T aut-num AS' + asn, 'whois.' + rir + '.net', self.parseRIR, (map_dict, 2))
+            data_dict = self.receiveData('-r -T aut-num AS' + str(asn), 'whois.' + rir + '.net', self.parseRIR, (map_dict, 2))
             if data_dict == None:
-                self.log.warning('Unable to find ASN: ' + asn + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find ASN: ' + str(asn) + ' in RIR: ' + rir + '. Aborting record creation.')
                 return actions
 
         for key in data_dict.keys():
