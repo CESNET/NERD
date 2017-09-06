@@ -883,7 +883,7 @@ def page_not_found(e):
         return Response(json.dumps(err), 404, mimetype='application/json')
     else:
         # Otherwise return default error page
-        flask.abort(404)
+        return e
 
 
 # **********
