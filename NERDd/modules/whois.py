@@ -648,12 +648,13 @@ class WhoIS(NERDModule):
                 tmp = s.recv(4096)
                 response += tmp
                 if not tmp:
-                    s.close()
                     break
         except socket.error as e:
             self.log.error('Socket error: ' + str(e))
-            s.close()
+            if 's' in locals():
+                s.close()
             return None
 
+        s.close()
         response = response.decode('utf-8', errors = 'replace')
         return response
