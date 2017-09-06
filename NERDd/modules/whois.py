@@ -141,6 +141,44 @@ class WhoIS(NERDModule):
 
         return data
 
+    def findIPBlockRIR(self, ip):
+        int_ip = int(ipaddress.ip_address(ip))
+        pos = bisect.bisect_left(self.ipv4_array[0], int_ip)
+        try:
+            if self.ipv4_array[0][pos] != int_ip:
+                pos -= 1
+        except IndexError as e:
+                pos -= 1
+
+        rir = self.ipv4_array[1][pos]
+        if rir[0] == 'R':
+            if rir.find(':') != -1:
+                rir = rir.split(':')[1]
+                self.log.warning('Observed IP address {} from reserved IP block. Querying still possible to: {}.'.format(ip, rir))
+            else:
+                self.log.warning('Observed IP address {} from reserved IP block. Querying not possible.'.format(ip))
+                return None
+
+        return rir
+
+    def findASNRIR(self, asn):
+        pos = bisect.bisect_left(self.asn_array[0], asn)
+        try:
+            if self.asn_array[0][pos] != asn:
+                pos -= 1
+        except IndexError as e:
+                pos -= 1
+
+        rir = self.asn_array[1][pos]
+        if rir[0] == 'R':
+            rir = rir.split(':')[1]
+            self.log.warning('Observed reserved ASN {}. Querying still possible to: {}.'.format(asn, rir))
+        elif rir[0] == 'U':
+            self.log.warning('Observed unalloctaed ASN {}. Querying impossible.'.format(asn))
+            return None
+
+        return rir
+
     def getIPInfo(self, ekey, rec, updates):
         etype, ip = ekey
         if etype != 'ip':
@@ -172,24 +210,9 @@ class WhoIS(NERDModule):
             # Add BGP Prefix to the IP record
             actions.append(('set', 'bgppref', resp_list[0]['BGPPrefix']))
 
-
-        int_ip = int(ipaddress.ip_address(ip))
-        pos = bisect.bisect_left(self.ipv4_array[0], int_ip)
-        try:
-            if self.ipv4_array[0][pos] != int_ip:
-                pos -= 1
-        except IndexError as e:
-                pos -= 1
-
-        rir = self.ipv4_array[1][pos]
-        if rir[0] == 'R':
-            if rir.find(':') != -1:
-                rir = rir.split(':')[1]
-                self.log.warning('Observed IP address {} from reserved IP block. Querying still possible to: {}.'.format(ip, rir))
-            else:
-                self.log.warning('Observed IP address {} from reserved IP block. Querying not possible.'.format(ip))
-                return actions
-
+        rir = self.findIPBlockRIR(ip)
+        if rir == None:
+            return actions
 
         # Attempt to find netrange of the corresponding smallest IP block.
         inet = self.getInet(ip, rir)
@@ -242,14 +265,10 @@ class WhoIS(NERDModule):
             return None
 
         # Perform a lookup for the RIR corresponding to this ASN.
-        pos = bisect.bisect_left(self.asn_array[0], asn)
-        try:
-            if self.asn_array[0][pos] != asn:
-                pos -= 1
-        except IndexError as e:
-                pos -= 1
-
-        rir = self.asn_array[1][pos]
+        rir = self.findASNRIR(asn)
+        if rir == None:
+            # This branch should never happen, because unallocated blocks are filtered in parseCymru function.
+            return None
 
         data_dict = {}
         actions = []
@@ -307,22 +326,10 @@ class WhoIS(NERDModule):
 
         # Perform a lookup for the RIR corresponding to this IP block.
         first_ip = ip_block.split()[0]
-        int_ip  = int(ipaddress.ip_address(first_ip))
-        pos = bisect.bisect_left(self.ipv4_array[0], int_ip)
+        rir = self.findIPBlockRIR(first_ip)
+        if rir == None:
+            return actions
 
-        try:
-            if self.ipv4_array[0][pos] != int_ip:
-                pos -= 1
-        except IndexError as e:
-                pos -= 1
-
-        rir = self.ipv4_array[1][pos]
-
-        actions.append(('set', 'rep', 0))
-        actions.append(('set', 'rir', rir))
-        if rir[0] == 'R':
-            rir = rir.split(':')[1]
-            self.log.warning('Creating record for a reserved IP block: {}.'.format(ip_block))
 
         # Parse IP block information from the corresponding RIR.
         if rir == 'lacnic':
@@ -497,7 +504,7 @@ class WhoIS(NERDModule):
                 break
             vals = ''.join(vals.split())
             d = dict(zip(header.split('|'), vals.split('|')))
-            if 'BGPPrefix' not in d.keys() or d['BGPPrefix'] == 'NA' or 'AS' not in d.keys() or d['AS'] == 'NA':
+            if 'BGPPrefix' not in d.keys() or d['BGPPrefix'] == 'NA' or 'AS' not in d.keys() or d['AS'] == 'NA' or self.findASNRIR(int(d['AS'])) == None:
                 continue
 
             ret.append(d)
@@ -632,12 +639,12 @@ class WhoIS(NERDModule):
                 tmp = s.recv(4096)
                 response += tmp
                 if not tmp:
+                    s.close()
                     break
         except socket.error as e:
             self.log.error('Socket error: ' + str(e))
             s.close()
             return None
 
-        s.close()
         response = response.decode('utf-8', errors = 'replace')
         return response
