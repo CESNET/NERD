@@ -29,7 +29,7 @@ class WhoIS(NERDModule):
     bgppref:
         id      # BGP Prefix (CIDR)
         rep     # reputation score
-        asn     # list of autonomous systems in which this prefix is observed
+        asn     # list of autonomous systems this prefix originates in
 
     asn:
         id      # ASN
@@ -49,15 +49,15 @@ class WhoIS(NERDModule):
         org     # id of an administrating organization
 
     org:
-        id      # Organization
+        id      # Organization ID
         name    # name of the organization
         address # address of the organization
         contact # abuse contact (email or phone)
 
     Scheme:
-        IP ---M:N--- BGP prefix ---M:N--- ASN ---N:1---|
+        IP ---N:1--- BGP prefix ---M:N--- ASN ---N:1---,
         |                                              |
-        |-----N:1--- IP block   ---N:1--- ORG ---------|
+        '-----N:1--- IP block   ---N:1--- ORG ---------'
 
     Event flow specification:
         !NEW ip -> getIPInfo -> getBGPPrefInfo
