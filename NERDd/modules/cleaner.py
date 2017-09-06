@@ -31,13 +31,19 @@ class Cleaner(NERDModule):
             ('!every1d',),
             tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
         )
+        g.um.register_handler(
+            self.clear_bl_hist,
+            'ip',
+            ('!every1d',),
+            tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
+        )
 
 
     def clear_events(self, ekey, rec, updates):
         """
         Handler function to clear old events metadata.
         
-        Remove all keys named "events.%Y-%m-%d" with the date older then current
+        Remove all items under events with "date" older then current
         day minus 'max_event_history' days.
         """
         etype, key = ekey
@@ -62,4 +68,33 @@ class Cleaner(NERDModule):
         
         self.log.debug("Cleaning {}: Removing {} old event-records".format(key, len(actions)-1))
         return actions
+
+
+    def clear_bl_hist(self, ekey, rec, updates):
+        """
+        Handler function to clear old blacklist data.
+        
+        Remove all items from bl[].h arrays with date older then current
+        day minus 'max_event_history' days.
+        """
+        etype, key = ekey
+        if etype != 'ip':
+            return None
+
+        cut_time = datetime.utcnow() - self.max_event_history
+
+        actions = []
+        for blrec in rec['bl']:
+            name = blrec['n']
+            # Create a new list without the old records
+            newlist = [ts for ts in blrec['h'] if ts > cut_time]
+            if len(newlist) == 0:
+                # Everything was removed -> remove whole blacklist-record
+                actions.append( ('array_remove', 'bl', {'n': blrec['n']}) )
+            elif len(newlist) != len(blrec['h']):
+                # If something was removed, replace the list in the record with the new one
+                actions.append( ('array_update', 'bl', ({'n': blrec['n']}, [('set', 'h', newlist)])) )
+        
+        return actions
+
 

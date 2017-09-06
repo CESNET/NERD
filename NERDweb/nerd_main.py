@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from __future__ import print_function
 import sys
 import random
@@ -119,17 +119,20 @@ def create_login_handler(method_id, id_field, name_field, email_field, return_pa
             return redirect(return_path)
         session['user'] = {
             'login_type': method_id,
-            'id': request.environ[id_field].decode('utf-8'),
+            'id': request.environ[id_field],
         }
         # Name may be present in various fields, try all specified in the config and use the first present
         for field in (name_field if isinstance(name_field, list) else ([name_field] if name_field else [])):
             # Name may be a combination of more fields, specified using "+" symbol (e.g. )
             if "+" in field and all(f in request.environ for f in field.split('+')):
-                session['user']['name'] = " ".join(map(lambda f: request.environ[f].decode('utf-8'), field.split('+')))
+                session['user']['name'] = " ".join(map(lambda f: request.environ[f], field.split('+')))
                 break
             elif field in request.environ:
-                session['user']['name'] = request.environ[field].decode('utf-8')
+                session['user']['name'] = request.environ[field]
                 break
+        # Decode name from UTF-8 (Flask returns environ fields as str (which is always Unicode in Py3), but not parsed as utf-8; convert to bytes and decode)
+        if 'name' in session['user']:
+            session['user']['name'] = bytes(session['user']['name'], 'latin-1').decode('utf-8')
         # Email
         if email_field and email_field in request.environ:
             session['user']['email'] = request.environ[email_field]
@@ -215,14 +218,14 @@ def noaccount():
     
     request_sent = False
     if form.validate():
-        # TODO check presence of config login.request-email
-        # if not config.get()
+        # Check presence of config login.request-email
+        if not config.get('login.request-email', None):
+            return make_response("ERROR: No destination email address configured. This is a server configuration error. Please, report this to NERD administrator if possible.")
         # Send email
-        name = user.get('name', '[name not available]').encode('ascii', 'replace')
+        name = user.get('name', '[name not available]')
         id = user['id']
-        email = form.email.data.decode('utf-8')
+        email = form.email.data
         msg = Message(subject="[NERD] New account request from {} ({})".format(name,id),
-                      #recipients=[email],
                       recipients=[config.get('login.request-email')],
                       reply_to=email,
                       body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}".format(id,name,user.get('email',''),email),
@@ -452,7 +455,6 @@ def ips():
             error = 'mongo_error'
         
         # Add metainfo about evetns for easier creation of event table in the template
-        date_regex = re.compile('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         for ip in results:
             events = ip.get('events', [])
             # Get sets of all dates, cats and nodes
@@ -491,7 +493,7 @@ def ips():
                 except ValueError:
                     pass # date not found in dates because we cut it
             
-            if dates[0] == '...':
+            if len(dates) > 0 and dates[0] == '...':
                 date_cat_table.insert(0, ['...' for _ in cats])
             
             # Store info into IP record
@@ -508,7 +510,7 @@ def ips():
         if user and not ac('ipsearch'):
             flash('Only registered users may search IPs.', 'error')
     
-    return render_template('ips.html', config=config, ctrydata=ctrydata, **locals())
+    return render_template('ips.html', config=config, json=json, ctrydata=ctrydata, **locals())
 
 
 @app.route('/_ips_count', methods=['POST'])
@@ -581,7 +583,7 @@ def ajax_ip_events(ipaddr):
     num_events = str(len(events))
     if len(events) >= 100:
         num_events = "&ge;100, only first 100 shown"
-    return render_template('ip_events.html', config=config, **locals())
+    return render_template('ip_events.html', config=config, json=json, **locals())
 
 
 

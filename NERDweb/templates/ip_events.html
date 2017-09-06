@@ -20,12 +20,22 @@
   <div class="descr">{{ idea.pop('Description') }}</div>
 {% endif %}
 {% if idea.Source %}
-  <span class="source">Source: {{ idea.pop('Source') }}</span>
+  <div class="source">Source(s):
+  {%- set srcs = idea.pop('Source') -%}
+  {%- for src in srcs -%}
+    {{ printlist(src.pop('IP4', [])+src.pop('IP6', []), ' [', ']') }}{% for k,v in src|dictsort %}, {{k}}: {{json.dumps(v, ensure_ascii=False, sort_keys=True)}}{% endfor %};
+  {%- endfor -%}
+  </div>
 {% endif %}
 {% if idea.Target %}
-  <span class="target">Target: {{ idea.pop('Target') }}</span>
+  <div class="target">Target(s):
+  {%- set tgts = idea.pop('Target') -%}
+  {%- for tgt in tgts -%}
+    {{ printlist(tgt.pop('IP4', [])+tgt.pop('IP6', []), ' [', ']') }}{% for k,v in tgt|dictsort %}, {{k}}: {{json.dumps(v, ensure_ascii=False, sort_keys=True)}}{% endfor %};
+  {%- endfor -%}
+  </div>
 {% endif %}
-{{ idea }}
+{{ json.dumps(idea, ensure_ascii=False, sort_keys=True).strip("{}") }}
 </div>
 
 <div class="nodes"><ul>
