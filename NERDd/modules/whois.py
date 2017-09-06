@@ -155,11 +155,12 @@ class WhoIS(NERDModule):
             if rir.find(':') != -1:
                 rir = rir.split(':')[1]
                 self.log.warning('Observed IP address {} from reserved IP block. Querying still possible to: {}.'.format(ip, rir))
+                return rir, True
             else:
                 self.log.warning('Observed IP address {} from reserved IP block. Querying not possible.'.format(ip))
-                return None
+                return None, True
 
-        return rir
+        return rir, False
 
     def findASNRIR(self, asn):
         pos = bisect.bisect_left(self.asn_array[0], asn)
@@ -173,11 +174,12 @@ class WhoIS(NERDModule):
         if rir[0] == 'R':
             rir = rir.split(':')[1]
             self.log.warning('Observed reserved ASN {}. Querying still possible to: {}.'.format(asn, rir))
+            return rir, True
         elif rir[0] == 'U':
             self.log.warning('Observed unalloctaed ASN {}. Querying impossible.'.format(asn))
-            return None
+            return None, True
 
-        return rir
+        return rir, False
 
     def getIPInfo(self, ekey, rec, updates):
         etype, ip = ekey
@@ -210,7 +212,7 @@ class WhoIS(NERDModule):
             # Add BGP Prefix to the IP record
             actions.append(('set', 'bgppref', resp_list[0]['BGPPrefix']))
 
-        rir = self.findIPBlockRIR(ip)
+        rir, reserved = self.findIPBlockRIR(ip)
         if rir == None:
             return actions
 
@@ -265,7 +267,7 @@ class WhoIS(NERDModule):
             return None
 
         # Perform a lookup for the RIR corresponding to this ASN.
-        rir = self.findASNRIR(asn)
+        rir, reserved = self.findASNRIR(asn)
         if rir == None:
             # This branch should never happen, because unallocated blocks are filtered in parseCymru function.
             return None
@@ -273,7 +275,10 @@ class WhoIS(NERDModule):
         data_dict = {}
         actions = []
         actions.append(('set', 'rep', 0))
-        actions.append(('set', 'rir', rir))
+        if reserved:
+            actions.append(('set', 'rir', 'Reserved:' + rir))
+        else:
+            actions.append(('set', 'rir', rir))
 
         # Parse ASN information from the corresponding RIR.
         if rir == 'lacnic':
@@ -326,11 +331,15 @@ class WhoIS(NERDModule):
 
         # Perform a lookup for the RIR corresponding to this IP block.
         first_ip = ip_block.split()[0]
-        rir = self.findIPBlockRIR(first_ip)
+        rir, reserved = self.findIPBlockRIR(first_ip)
         if rir == None:
             return actions
 
-
+        actions.append(('set', 'rep', 0))
+        if reserved:
+            actions.append(('set', 'rir', 'Reserved:' + rir))
+        else:
+            actions.append(('set', 'rir', rir))
         # Parse IP block information from the corresponding RIR.
         if rir == 'lacnic':
             map_dict = {
@@ -504,7 +513,7 @@ class WhoIS(NERDModule):
                 break
             vals = ''.join(vals.split())
             d = dict(zip(header.split('|'), vals.split('|')))
-            if 'BGPPrefix' not in d.keys() or d['BGPPrefix'] == 'NA' or 'AS' not in d.keys() or d['AS'] == 'NA' or self.findASNRIR(int(d['AS'])) == None:
+            if 'BGPPrefix' not in d.keys() or d['BGPPrefix'] == 'NA' or 'AS' not in d.keys() or d['AS'] == 'NA' or self.findASNRIR(int(d['AS'])) == (None, True):
                 continue
 
             ret.append(d)
