@@ -1,8 +1,5 @@
 """
 NERD module getting information about IPs, IP blocks, BGP prefixes, autonomous systems and organizations from RIRs.
-
-Requirements:
-- "netaddr" package
 """
 
 from core.basemodule import NERDModule
@@ -14,7 +11,7 @@ import logging
 import io
 import csv
 import bisect
-import netaddr
+import ipaddress
 
 class WhoIS(NERDModule):
     """
@@ -118,7 +115,7 @@ class WhoIS(NERDModule):
         )
 
     def loadASN(self, asnFile):
-        self.log.info('Loading information about ASN allocation from file: ' + asnFile)
+        self.log.info('Loading information about ASN allocation from file: {}.'.format(asnFile))
         dataFile = open(asnFile, 'r')
         datareader = csv.reader(dataFile, delimiter=',')
 
@@ -131,7 +128,7 @@ class WhoIS(NERDModule):
         return data
 
     def loadIPv4(self, ipv4File):
-        self.log.info('Loading information about IP blocks allocation from file: ' + ipv4File)
+        self.log.info('Loading information about IP blocks allocation from file: {}.'.format(ipv4File))
         dataFile = open(ipv4File, 'r')
         datareader = csv.reader(dataFile, delimiter=',')
 
@@ -144,20 +141,57 @@ class WhoIS(NERDModule):
 
         return data
 
+    def findIPBlockRIR(self, ip):
+        int_ip = int(ipaddress.ip_address(ip))
+        pos = bisect.bisect_left(self.ipv4_array[0], int_ip)
+        try:
+            if self.ipv4_array[0][pos] != int_ip:
+                pos -= 1
+        except IndexError as e:
+                pos -= 1
+
+        rir = self.ipv4_array[1][pos]
+        if rir[0] == 'R':
+            if rir.find(':') != -1:
+                rir = rir.split(':')[1]
+                self.log.warning('Observed IP address {} from reserved IP block. Querying still possible to: {}.'.format(ip, rir))
+                return rir, True
+            else:
+                self.log.warning('Observed IP address {} from reserved IP block. Querying not possible.'.format(ip))
+                return None, True
+
+        return rir, False
+
+    def findASNRIR(self, asn):
+        pos = bisect.bisect_left(self.asn_array[0], asn)
+        try:
+            if self.asn_array[0][pos] != asn:
+                pos -= 1
+        except IndexError as e:
+                pos -= 1
+
+        rir = self.asn_array[1][pos]
+        if rir[0] == 'R':
+            rir = rir.split(':')[1]
+            self.log.warning('Observed reserved ASN {}. Querying still possible to: {}.'.format(asn, rir))
+            return rir, True
+        elif rir[0] == 'U':
+            self.log.warning('Observed unalloctaed ASN {}. Querying impossible.'.format(asn))
+            return None, True
+
+        return rir, False
+
     def getIPInfo(self, ekey, rec, updates):
         etype, ip = ekey
         if etype != 'ip':
             return None
 
-        # Perform initial query to whois.cymru.com server to get list of ASNs, BGP prefix and RIR.
-        resp_list = self.receiveData('-r -p -o ' + ip, 'whois.cymru.com', self.parseCymru)
-        if resp_list == None:
-            return None
-
         actions = []
 
-        if resp_list[0]['AS'] == "NA" or resp_list[0]['BGPPrefix'] == "NA":
-            self.log.warning('Unable to acquire BGP prefix or ASN from whois.cymru.com. IP: ' + ip + ' ASN: ' + resp_list[0]['AS'] + ', BGP prefix: ' + resp_list[0]['BGPPrefix'] + '. Aborting ASN and BGP prefix record creation.')
+        # Perform initial query to whois.cymru.com server to get list of ASNs, BGP prefix and RIR.
+        resp_list = self.receiveData('-p -o ' + ip, 'whois.cymru.com', self.parseCymru)
+        if resp_list == None:
+            self.log.warning('Unable to acquire BGP prefix or ASN from whois.cymru.com. IP: {}. Aborting ASN and BGP prefix record creation.'.format(ip))
         else:
             asn_list = []
             bgp_pref_list = []
@@ -165,12 +199,12 @@ class WhoIS(NERDModule):
             for asn in resp_list:
                 bgp_pref_list.append(asn['BGPPrefix'])
                 # Create a new ASN (if not already present) and append BGP prefix to its list.
-                g.um.update(('asn', asn['AS']), [('add_to_set', 'bgppref', asn['BGPPrefix'])])
+                g.um.update(('asn', int(asn['AS'])), [('add_to_set', 'bgppref', asn['BGPPrefix'])])
                 # Append all ASNs to the currently observed BGP prefix for later update.
-                asn_list.append(('add_to_set', 'asn', asn['AS']))
+                asn_list.append(('add_to_set', 'asn', int(asn['AS'])))
 
             if len(set(bgp_pref_list)) != 1:
-                self.log.warning('Observed multiple BGP prefixes for a given IP: ' + ip + '\n' + str(bgp_pref_list))
+                self.log.warning('Observed multiple BGP prefixes for a given IP: {}.\n{}'.format(ip, bgp_pref_list))
 
             # Create a new BGP prefix (if not already present) and append all ASNs to its list.
             g.um.update(('bgppref', resp_list[0]['BGPPrefix']), asn_list)
@@ -178,10 +212,14 @@ class WhoIS(NERDModule):
             # Add BGP Prefix to the IP record
             actions.append(('set', 'bgppref', resp_list[0]['BGPPrefix']))
 
+        rir, reserved = self.findIPBlockRIR(ip)
+        if rir == None:
+            return actions
+
         # Attempt to find netrange of the corresponding smallest IP block.
-        inet = self.getInet(ip, asn['Registry'])
+        inet = self.getInet(ip, rir)
         if inet == None:
-            self.log.warning('Unable to find IP block for IP: ' + ip + ' in RIR: ' + resp_list[0]['Registry'] + '. Aborting IP block record creation.')
+            self.log.warning('Unable to find IP block for IP: {} in RIR: {}. Aborting IP block record creation.'.format(ip, rir))
             return actions
 
         # Add IP block to the IP record
@@ -202,8 +240,8 @@ class WhoIS(NERDModule):
             if ret == None:
                 return None
 
-            inet = netaddr.IPNetwork(ret['inetnum'])
-            return str(inet.ip) + " - " + str(inet.broadcast)
+            inet = ipaddress.ip_network(ret['inetnum'])
+            return str(inet.network_address) + " - " + str(inet.broadcast_address)
         elif rir == 'arin':
             return self.receiveData('- n ' + ip, 'whois.arin.net', self.parseArinInet)
         else:
@@ -229,16 +267,18 @@ class WhoIS(NERDModule):
             return None
 
         # Perform a lookup for the RIR corresponding to this ASN.
-        pos = bisect.bisect_left(self.asn_array[0], int(asn))
-        if self.asn_array[0][pos] != int(asn):
-            pos -= 1
-
-        rir = self.asn_array[1][pos]
+        rir, reserved = self.findASNRIR(asn)
+        if rir == None:
+            # This branch should never happen, because unallocated blocks are filtered in parseCymru function.
+            return None
 
         data_dict = {}
         actions = []
         actions.append(('set', 'rep', 0))
-        actions.append(('set', 'rir', rir))
+        if reserved:
+            actions.append(('set', 'rir', 'Reserved:' + rir))
+        else:
+            actions.append(('set', 'rir', rir))
 
         # Parse ASN information from the corresponding RIR.
         if rir == 'lacnic':
@@ -246,9 +286,9 @@ class WhoIS(NERDModule):
                 'ownerid' : 'org'
             }
 
-            data_dict = self.receiveData('AS' + asn, 'whois.lacnic.net', self.parseRIR, (map_dict, 1))
+            data_dict = self.receiveData('AS' + str(asn), 'whois.lacnic.net', self.parseRIR, (map_dict, 1))
             if data_dict == None:
-                self.log.warning('Unable to find ASN: ' + asn + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find ASN: {} in RIR: {}. Aborting record creation.'.format(asn, rir))
                 return actions
         elif rir == 'arin':
             map_dict = {
@@ -256,9 +296,9 @@ class WhoIS(NERDModule):
                 'OrgId' : 'org'
             }
 
-            data_dict = self.receiveData('+ a = ' + asn, 'whois.arin.net', self.parseRIR, (map_dict, 2))
+            data_dict = self.receiveData('+ a = ' + str(asn), 'whois.arin.net', self.parseRIR, (map_dict, 2))
             if data_dict == None:
-                self.log.warning('Unable to find ASN: ' + asn + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find ASN: {} in RIR: {}. Aborting record creation.'.format(asn, rir))
                 return actions
         else:
             map_dict = {
@@ -266,9 +306,9 @@ class WhoIS(NERDModule):
                 'org' : 'org'
             }
 
-            data_dict = self.receiveData('-r -T aut-num AS' + asn, 'whois.' + rir + '.net', self.parseRIR, (map_dict, 2))
+            data_dict = self.receiveData('-r -T aut-num AS' + str(asn), 'whois.' + rir + '.net', self.parseRIR, (map_dict, 2))
             if data_dict == None:
-                self.log.warning('Unable to find ASN: ' + asn + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find ASN: {} in RIR: {}. Aborting record creation.'.format(asn, rir))
                 return actions
 
         for key in data_dict.keys():
@@ -291,16 +331,15 @@ class WhoIS(NERDModule):
 
         # Perform a lookup for the RIR corresponding to this IP block.
         first_ip = ip_block.split()[0]
-        int_ip  = int(netaddr.IPAddress(first_ip))
-        pos = bisect.bisect_left(self.ipv4_array[0], int_ip)
-        if self.ipv4_array[0][pos] != int_ip:
-            pos -= 1
-
-        rir = self.ipv4_array[1][pos]
+        rir, reserved = self.findIPBlockRIR(first_ip)
+        if rir == None:
+            return actions
 
         actions.append(('set', 'rep', 0))
-        actions.append(('set', 'rir', rir))
-
+        if reserved:
+            actions.append(('set', 'rir', 'Reserved:' + rir))
+        else:
+            actions.append(('set', 'rir', rir))
         # Parse IP block information from the corresponding RIR.
         if rir == 'lacnic':
             map_dict = {
@@ -310,7 +349,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData(first_ip, 'whois.lacnic.net', self.parseRIR, (map_dict, 2))
             if data_dict == None:
-                self.log.warning('Unable to find IP Block: ' + ip_block + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find IP Block: {} in RIR: {}. Aborting record creation.'.format(ip_block, rir))
                 return actions
         elif rir == 'arin':
             map_dict = {
@@ -321,12 +360,12 @@ class WhoIS(NERDModule):
             # To ensure we get only one match in the database, we must first obtain NetHandle.
             ret = self.receiveData('- n ' + first_ip, 'whois.arin.net', self.parseArinNetHandle)
             if ret == None:
-                self.log.warning('Unable to find IP Block: ' + ip_block + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find IP Block: {} in RIR: {}. Aborting record creation.'.format(ip_block, rir))
                 return actions
 
             data_dict = self.receiveData('+ n = ' + ret, 'whois.arin.net', self.parseRIR, (map_dict, 2))
             if data_dict == None:
-                self.log.warning('Unable to find IP Block: ' + ip_block + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find IP Block: {} in RIR: {}. Aborting record creation.'.format(ip_block, rir))
                 return actions
         else:
             map_dict = {
@@ -338,7 +377,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData('-r -T inetnum ' + first_ip, 'whois.' + rir + '.net', self.parseRIR, (map_dict, 4))
             if data_dict == None:
-                self.log.warning('Unable to find IP Block: ' + ip_block + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find IP Block: {} in RIR: {}. Aborting record creation.'.format(ip_block, rir))
                 return actions
 
         for key in data_dict.keys():
@@ -374,7 +413,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData(org, 'whois.lacnic.net', self.parseRIR, (map_dict, 3))
             if data_dict == None:
-                self.log.warning('Unable to find organization: ' + org + ' in RIR: ' + rir + '. Attempting "whois.registro.br".')
+                self.log.warning('Unable to find organization: {} in RIR: {}. Attempting "whois.registro.br".'.format(org, rir))
                 map_dict = {
                     'owner' : 'name',
                     'responsible' : 'contact'
@@ -383,7 +422,7 @@ class WhoIS(NERDModule):
                 # Unfortunately, the information about LACNIC organizations might be stored on "whois.registro.br" server.
                 data_dict = self.receiveData(org, 'whois.registro.br', self.parseRIR, (map_dict, 2))
                 if data_dict == None:
-                    self.log.warning('Unable to find organization: ' + org + ' in whois.registro.br. Aborting record creation.')
+                    self.log.warning('Unable to find organization: {} in whois.registro.br. Aborting record creation.'.format(org))
                     return actions
 
         elif rir == 'arin':
@@ -399,7 +438,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData('+ o = ' + org, 'whois.arin.net', self.parseRIR, (map_dict, 3))
             if data_dict == None:
-                self.log.warning('Unable to find organization: ' + org + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find organization: {} in RIR: {}. Aborting record creation.'.format(org, rir))
                 return actions
         else:
             map_dict = {
@@ -410,7 +449,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData('-r -T organisation ' + org, 'whois.' + rir + '.net', self.parseRIR, (map_dict, 3))
             if data_dict == None:
-                self.log.warning('Unable to find organization: ' + org + ' in RIR: ' + rir + '. Aborting record creation.')
+                self.log.warning('Unable to find organization: {} in RIR: {}. Aborting record creation.'.format(org, rir))
                 return actions
 
         for key in data_dict:
@@ -444,12 +483,12 @@ class WhoIS(NERDModule):
             counter += 1
             resp = self.sendRequest(query, host)
             if resp == None:
-                self.log.warning('Attempt #' + str(counter) + ' to receive data from ' + host + ' failed.')
+                self.log.warning('Attempt #{} to receive data from {} failed.'.format(counter, host))
                 continue
 
             result = parse_func(resp, args)
             if result == None or len(result) == 0:
-                self.log.warning('Attempt #' + str(counter) + ' to parse data from ' + host + ' with query: "' + query + '" either failed or provided no useful information.')
+                self.log.warning('Attempt #{} to parse data from {} with query: "{}" either failed or provided no useful information.'.format(counter, host, query))
                 self.log.debug(resp)
                 continue
 
@@ -474,8 +513,9 @@ class WhoIS(NERDModule):
                 break
             vals = ''.join(vals.split())
             d = dict(zip(header.split('|'), vals.split('|')))
-            if d['Registry'] == "ripencc":
-                d['Registry'] = "ripe"
+            if 'BGPPrefix' not in d.keys() or d['BGPPrefix'] == 'NA' or 'AS' not in d.keys() or d['AS'] == 'NA' or self.findASNRIR(int(d['AS'])) == (None, True):
+                continue
+
             ret.append(d)
 
         return ret
@@ -495,7 +535,8 @@ class WhoIS(NERDModule):
             if not line:
                 break
 
-            if line[0] == '#':
+            # Skip comments and empty lines.
+            if line.strip() == '' or line[0] == '#':
                 continue
 
             beg = line.find(") ")
@@ -519,7 +560,8 @@ class WhoIS(NERDModule):
             if not line:
                 break
 
-            if line[0] == '#':
+            # Skip comments and empty lines.
+            if line.strip() == '' or line[0] == '#':
                 continue
 
             beg = line.find("(NET")
@@ -557,8 +599,8 @@ class WhoIS(NERDModule):
             if not line:
                 break
 
-            # Skip comments.
-            if line[0] == '%' or line[0] == '#':
+            # Skip comments and empty lines.
+            if line.strip() == '' or line[0] == '%' or line[0] == '#':
                 continue
 
             # Remove spaces.
@@ -609,7 +651,8 @@ class WhoIS(NERDModule):
                     break
         except socket.error as e:
             self.log.error('Socket error: ' + str(e))
-            s.close()
+            if 's' in locals():
+                s.close()
             return None
 
         s.close()
