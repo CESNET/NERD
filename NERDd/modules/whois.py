@@ -321,7 +321,7 @@ class WhoIS(NERDModule):
         actions.append(('set', 'rep', 0))
         actions.append(('set', 'rir', rir))
         if rir[0] == 'R':
-            rir = rir.split(':')[0]
+            rir = rir.split(':')[1]
             self.log.warning('Creating record for a reserved IP block: {}.'.format(ip_block))
 
         # Parse IP block information from the corresponding RIR.
