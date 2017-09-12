@@ -1,5 +1,8 @@
 """
 NERD module getting information about IPs, IP blocks, BGP prefixes, autonomous systems and organizations from RIRs.
+
+Requirements:
+- "dnspython" package
 """
 
 from core.basemodule import NERDModule
@@ -12,6 +15,9 @@ import io
 import csv
 import bisect
 import ipaddress
+
+from dns import resolver
+from dns.exception import *
 
 class WhoIS(NERDModule):
     """
@@ -77,6 +83,11 @@ class WhoIS(NERDModule):
         except OSError as e:
             self.log.error(str(e) + ' -> Unable to start the WhoIS module.')
             return
+
+        # Initialize DNS resolver (for queries to asn.cymru.com)
+        self.dnsresolver = resolver.Resolver()
+        self.dnsresolver.timeout = g.config.get('dns.timeout', 2)
+        self.dnsresolver.lifetime = 2
 
         # Register all necessary handlers.
         g.um.register_handler(
@@ -187,34 +198,65 @@ class WhoIS(NERDModule):
             return None
 
         actions = []
+        cymru_ok = False
 
-        # Perform initial query to whois.cymru.com server to get list of ASNs, BGP prefix and RIR.
-        resp_list = self.receiveData('-p -o ' + ip, 'whois.cymru.com', self.parseCymru)
-        if resp_list == None:
-            self.log.warning('Unable to acquire BGP prefix or ASN from whois.cymru.com. IP: {}. Aborting ASN and BGP prefix record creation.'.format(ip))
-        else:
-            asn_list = []
-            bgp_pref_list = []
+        # ** BGP prefixes and ASNs **
+        # Perform query to whois.cymru.com server to get BGP prefix and list of ASNs
+        reverse_ip = ".".join(ip.split(".")[::-1])
+        query = reverse_ip + ".origin.asn.cymru.com"
+        try:
+            resp_list = self.dnsresolver.query(query, "TXT").rrset
+            # Expected format of response (may be multiple lines):
+            #   ASN (may be multiple) | BGP Prefix | Country | RIR | Date allocated
+            # example:
+            #   "23028 | 216.90.108.0/24 | US | arin | 1998-09-25"  (including the quotation marks)
+            # If there're more results, find the one with the most specific prefix
+            max_prefix_len = 0
+            max_prefix_len_i = 0
+            if len(resp_list) > 1:
+                for i,resp in enumerate(resp_list):
+                    try:
+                        _, prefix, _, _, _ = str(resp).strip('"').split("|")
+                        prefix_len = int(prefix.split("/")[1])
+                    except Exception:
+                        self.log.error('Unable to parse answer from origin.asn.cymru.com. Query: "{} TXT", response: ({}) {}'.format(query, i, str(resp)))
+                        continue
+                    if prefix_len > max_prefix_len:
+                        max_prefix_len = prefix_len
+                        max_prefix_len_i = i
+            # Parse response with the longest prefix
+            resp = resp_list[max_prefix_len_i]
+            asns, prefix, _, cymru_rir, _ = map(str.strip, str(resp).strip('"').split("|"))
+            if cymru_rir == "ripencc":
+                cymru_rir = "ripe"
+            asn_list = list(map(int, asns.split()))
+            ipaddress.ip_network(prefix) # Test prefix validity
+            cymru_ok = True
+        except DNSException as e:
+            self.log.warning('Unable to acquire BGP prefix or ASN from origin.asn.cymru.com. IP: {}. Aborting ASN and BGP prefix record creation.'.format(ip))
+        except Exception as e:
+            self.log.error('Unable to parse answer from origin.asn.cymru.com. Query: "{} TXT", Response: {}, Error: "{}"'.format(query, [str(resp) for resp in resp_list], str(e)))
 
-            for asn in resp_list:
-                bgp_pref_list.append(asn['BGPPrefix'])
-                # Create a new ASN (if not already present) and append BGP prefix to its list.
-                g.um.update(('asn', int(asn['AS'])), [('add_to_set', 'bgppref', asn['BGPPrefix'])])
-                # Append all ASNs to the currently observed BGP prefix for later update.
-                asn_list.append(('add_to_set', 'asn', int(asn['AS'])))
+        if cymru_ok:
+            #self.log.info("IP: {}, prefix: {}, asn_list: {}".format(ip, prefix, asn_list))
+            # Create/update corresponding records
+            for asn in asn_list:
+                # Create a new ASN record (if not already present) and add BGP prefix to its list.
+                g.um.update(('asn', asn), [('add_to_set', 'bgppref', prefix)])
+            # Create a new BGP prefix record (if not already present) and add all ASNs to its list.
+            g.um.update(('bgppref', prefix), [('extend_set', 'asn', asn_list)])
+            # Add BGP prefix to the IP record
+            actions.append(('set', 'bgppref', prefix))
 
-            if len(set(bgp_pref_list)) != 1:
-                self.log.warning('Observed multiple BGP prefixes for a given IP: {}.\n{}'.format(ip, bgp_pref_list))
 
-            # Create a new BGP prefix (if not already present) and append all ASNs to its list.
-            g.um.update(('bgppref', resp_list[0]['BGPPrefix']), asn_list)
-
-            # Add BGP Prefix to the IP record
-            actions.append(('set', 'bgppref', resp_list[0]['BGPPrefix']))
-
+        # ** IP block allocation **
+        # Get RIR from IANA list
         rir, reserved = self.findIPBlockRIR(ip)
         if rir == None:
             return actions
+
+        if cymru_ok and rir != cymru_rir:
+            self.log.warning('RIRs according to IANA and asn.cymru.com doesn\'t match for ip {}. IANA: "{}", Cymru: "{}" (using the IANA one)'.format(ip, rir, cymru_rir))
 
         # Attempt to find netrange of the corresponding smallest IP block.
         inet = self.getInet(ip, rir)
@@ -225,7 +267,7 @@ class WhoIS(NERDModule):
         # Add IP block to the IP record
         actions.append(('set', 'ipblock', inet))
 
-        # Create a new IP block (if not already present).
+        # Create new IP block record (if not already present).
         g.um.update(('ipblock', inet), [])
         return actions
 
@@ -268,9 +310,6 @@ class WhoIS(NERDModule):
 
         # Perform a lookup for the RIR corresponding to this ASN.
         rir, reserved = self.findASNRIR(asn)
-        if rir == None:
-            # This branch should never happen, because unallocated blocks are filtered in parseCymru function.
-            return None
 
         data_dict = {}
         actions = []
@@ -300,7 +339,7 @@ class WhoIS(NERDModule):
             if data_dict == None:
                 self.log.warning('Unable to find ASN: {} in RIR: {}. Aborting record creation.'.format(asn, rir))
                 return actions
-        else:
+        elif rir is not None:
             map_dict = {
                 'as-name' : 'name',
                 'org' : 'org'
@@ -467,7 +506,7 @@ class WhoIS(NERDModule):
         query -- string to be sent to the whois server
         host -- hostname of the whois server
         parse_func -- function for parsing data received from the whois server,
-            possible functions: parseCymru, parseArinInet, parseArinNetHandle, parseRIR
+            possible functions: parseArinInet, parseArinNetHandle, parseRIR
         args -- tuple of arguments required by the parsing function
 
         Returns:
@@ -494,31 +533,6 @@ class WhoIS(NERDModule):
 
             return result
 
-    def parseCymru(self, data, args):
-        """
-        Function used for parsing data received from whois.cymru.com.
-        Needs no values in tuple "args".
-
-        Returns:
-        list of dictionaries
-        """
-        buf = io.StringIO(data)
-        header = buf.readline()
-        header = ''.join(header.split())
-
-        ret = []
-        while True:
-            vals = buf.readline()
-            if not vals:
-                break
-            vals = ''.join(vals.split())
-            d = dict(zip(header.split('|'), vals.split('|')))
-            if 'BGPPrefix' not in d.keys() or d['BGPPrefix'] == 'NA' or 'AS' not in d.keys() or d['AS'] == 'NA' or self.findASNRIR(int(d['AS'])) == (None, True):
-                continue
-
-            ret.append(d)
-
-        return ret
 
     def parseArinInet(self, data, args):
         """
