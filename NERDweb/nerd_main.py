@@ -625,7 +625,11 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
 
 @app.route('/status')
 def get_status():
-    ips = mongo.db.ip.count()
+    cnt_ip = mongo.db.ip.count()
+    cnt_bgppref = mongo.db.bgppref.count()
+    cnt_asn = mongo.db.asn.count()
+    cnt_ipblock = mongo.db.ipblock.count()
+    cnt_org = mongo.db.org.count()
     idea_queue_len = len(os.listdir(WARDEN_DROP_PATH))
     
     if "upd_cnt_file" in config:
@@ -649,7 +653,11 @@ def get_status():
         disk_usage = "(error) " + str(e);
     
     return jsonify(
-        ips=ips,
+        cnt_ip=cnt_ip,
+        cnt_bgppref=cnt_bgppref,
+        cnt_asn=cnt_asn,
+        cnt_ipblock=cnt_ipblock,
+        cnt_org=cnt_org,
         idea_queue=idea_queue_len,
         update_queue=upd_queue,
         updates_processed=upd_processed,
