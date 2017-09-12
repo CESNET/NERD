@@ -458,7 +458,7 @@ class WhoIS(NERDModule):
 
             data_dict = self.receiveData(org, 'whois.lacnic.net', self.parseRIR, (map_dict, 3))
             if data_dict == None:
-                self.log.warning('Unable to find organization: {} in RIR: {}. Attempting "whois.registro.br".'.format(org, rir))
+                self.log.debug('Unable to find organization: {} in RIR: {}. Attempting "whois.registro.br".'.format(org, rir))
                 map_dict = {
                     'owner' : 'name',
                     'responsible' : 'contact'
@@ -467,7 +467,7 @@ class WhoIS(NERDModule):
                 # Unfortunately, the information about LACNIC organizations might be stored on "whois.registro.br" server.
                 data_dict = self.receiveData(org, 'whois.registro.br', self.parseRIR, (map_dict, 2))
                 if data_dict == None:
-                    self.log.warning('Unable to find organization: {} in whois.registro.br. Aborting record creation.'.format(org))
+                    self.log.warning('Unable to find organization {} in whois.lacnic.net nor whois.registro.br. Aborting record creation.'.format(org))
                     return actions
 
         elif rir == 'arin':
@@ -533,10 +533,12 @@ class WhoIS(NERDModule):
 
             result = parse_func(resp, args)
             if result == None or len(result) == 0:
-                self.log.warning('Attempt #{} to parse data from {} with query: "{}" either failed or provided no useful information.'.format(counter, host, query))
+                self.log.warning('Attempt to parse data from {} with query: "{}" either failed or provided no useful information.'.format(host, query))
                 self.log.debug(resp)
-                continue
+                # TODO: check for "Query rate limit exceeded."
+                return None
 
+            #self.log.info('Data about "{}" from {} succesfully received and parsed'.format(query, host))
             return result
 
 
