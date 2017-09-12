@@ -282,7 +282,13 @@ class WhoIS(NERDModule):
             if ret == None:
                 return None
 
-            inet = ipaddress.ip_network(ret['inetnum'])
+            inetnumstr = ret['inetnum']
+            # Short format of network, e.g. "192.168/16" -> fill zeros to the end
+            if inetnumstr.count(".") < 3:
+                net,mask = inetnumstr.split("/")
+                net += ".0" * (3 - inetnumstr.count("."))
+                inetnumstr = net + "/" + mask
+            inet = ipaddress.ip_network(inetnumstr)
             return str(inet.network_address) + " - " + str(inet.broadcast_address)
         elif rir == 'arin':
             return self.receiveData('- n ' + ip, 'whois.arin.net', self.parseArinInet)
