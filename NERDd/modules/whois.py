@@ -545,6 +545,11 @@ class WhoIS(NERDModule):
         Function used for parsing netrange from the minimalistic data received from whois.arin.com.
         Needs no values in tuple "args".
 
+        A result line looks like this:
+          Organization NetName (NetHandle) NetRange
+        Note that Organization may contain spaces and parentheses, e.g.:
+          OVH (NWK) OVH-DEDICATED-149-56-248-128-FO (NET-149-56-248-128-1) 149.56.248.128 - 149.56.248.255
+
         Returns:
         string
         """
@@ -559,7 +564,7 @@ class WhoIS(NERDModule):
             if line.strip() == '' or line[0] == '#':
                 continue
 
-            beg = line.find(") ")
+            beg = line.rfind(") ")
             if beg != -1:
                 result = line[beg + 2:-1]
 
@@ -584,7 +589,7 @@ class WhoIS(NERDModule):
             if line.strip() == '' or line[0] == '#':
                 continue
 
-            beg = line.find("(NET")
+            beg = line.rfind("(NET")
             if beg != -1:
                 end = line.find(')', beg + 1)
                 result = line[beg + 1:end]
