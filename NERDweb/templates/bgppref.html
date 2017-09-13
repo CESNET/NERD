@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<h1>BGP prefix</h1>
+
+{% if not bgppref or not ac('ipsearch') %}
+  {# Print nothing if no prefix was passed or insufficient permissions #}
+{% elif not rec %}
+  <hr>
+  <p class="msg info notfound">BGP prefix '{{ bgppref }}' not in database.</p>
+{% else %}
+
+<hr>
+
+<div class="entity-info bgppref">
+<p class="header"><span class="rep" style="background-color: {{ rep_css_color(rec.rep) }}">
+  {{- "%.3f"|format(rec.rep)|replace("0.",".") if rec.rep is defined else "--" }}</span><span class="entity-id">{{ bgppref }}</span></p>
+
+<dl class="attrs">
+{% for attr,val in rec|dictsort %}
+ {% if attr.startswith("_") and not ac('internal_attrs') %}
+  {# pass (hide attrs starting with '_' from normal users) #}
+ {% elif attr == "asn" %}
+  <dt>Origin ASN(s)</dt>
+  {% for asn in val|sort %}
+   <dd><a href="{{ url_for('asn') + asn|string }}">{{ 'AS' + asn|string }}</a></dd>
+  {% endfor %}
+ {% else %}
+  <dt>{{ attr }}</dt><dd>{{ val }}</dd>
+ {% endif %}
+{% endfor %}
+</dl>
+</div>
+{% endif %}{# if not found #}
+
+{% endblock %}

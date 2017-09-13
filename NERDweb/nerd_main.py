@@ -596,6 +596,8 @@ class SingleASForm(Form):
 
 @app.route('/as/')
 @app.route('/as/<asn>')
+@app.route('/asn/')
+@app.route('/asn/<asn>')
 def asn(asn=None): # Can't be named "as" since it's a Python keyword
     user, ac = get_user_info(session)
     
@@ -610,14 +612,74 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
         asn = int(asn.lstrip("ASas")) # strip AS at the beginning
         if ac('assearch'):
             title = 'AS'+str(asn)
-            asinfo = mongo.db.asn.find_one({'_id':asn})
+            rec = mongo.db.asn.find_one({'_id':asn})
         else:
             flash('Only registered users may search ASNs.', 'error')
     else:
         # Wrong format of passed ASN
         asn = None
-        asinfo = {}
-    return render_template('as.html', config=config, ctrydata=ctrydata, **locals())
+        rec = {}
+    return render_template('asn.html', config=config, ctrydata=ctrydata, **locals())
+
+
+# ***** Detailed info about individual IP block *****
+
+# class SingleIPBlockForm(Form):
+#     ip = TextField('IP block')#, [validators.IPAddress(message="Invalid IPv4 address")])
+
+@app.route('/ipblock/')
+@app.route('/ipblock/<ipblock>')
+def ipblock(ipblock=None):
+    user, ac = get_user_info(session)
+    
+#     form = SingleIPForm(ip=ipaddr)
+    #if form.validate():
+    if not ipblock:
+        return make_response("ERROR: No IP block given.")
+    if ac('ipsearch'):
+        title = ipblock
+        rec = mongo.db.ipblock.find_one({'_id': ipblock})
+    else:
+        flash('Insufficient permissions to view this.', 'error')
+    return render_template('ipblock.html', config=config, ctrydata=ctrydata, **locals())
+
+
+# ***** Detailed info about individual Organization *****
+
+@app.route('/org/')
+@app.route('/org/<org>')
+def org(org=None):
+    user, ac = get_user_info(session)
+    
+    if not org:
+        return make_response("ERROR: No Organzation ID given.")
+    if ac('ipsearch'):
+        title = org
+        rec = mongo.db.org.find_one({'_id': org})
+    else:
+        flash('Insufficient permissions to view this.', 'error')
+    return render_template('org.html', config=config, ctrydata=ctrydata, **locals())
+
+
+# ***** Detailed info about individual BGP prefix *****
+
+# Note: Slash ('/') in the prefix must be replaced by undescore ('_') in URL, e.g.:
+# "192.168.0.0/16" -> "192.168.0.0_16"
+@app.route('/bgppref/')
+@app.route('/bgppref/<bgppref>')
+def bgppref(bgppref=None):
+    user, ac = get_user_info(session)
+    
+    bgppref = bgppref.replace('_','/')
+    
+    if not org:
+        return make_response("ERROR: No BGP Prefix given.")
+    if ac('ipsearch'):
+        title = org
+        rec = mongo.db.bgppref.find_one({'_id': bgppref})
+    else:
+        flash('Insufficient permissions to view this.', 'error')
+    return render_template('bgppref.html', config=config, ctrydata=ctrydata, **locals())
 
 
 

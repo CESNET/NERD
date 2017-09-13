@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<h1>Organization</h1>
+
+{% if not org or not ac('ipsearch') %}
+  {# Print nothing if no org was passed or insufficient permissions #}
+{% elif not rec %}
+  <hr>
+  <p class="msg info notfound">Organization '{{ org }}' not in database.</p>
+{% else %}
+
+<hr>
+
+<div class="entity-info org">
+<p class="header"><span class="rep" style="background-color: {{ rep_css_color(rec.rep) }}">
+  {{- "%.3f"|format(rec.rep)|replace("0.",".") if rec.rep is defined else "--" }}</span><span class="entity-id">{{ rec.name if rec.name else org }}</span><span class="entity-name">{{ '('+org+')' if rec.name else '' }}</span></p>
+
+<dl class="attrs">
+{% for attr,val in rec|dictsort %}
+ {% if attr.startswith("_") and not ac('internal_attrs') %}
+  {# pass (hide attrs starting with '_' from normal users) #}
+ {% elif attr == "address" %}
+  <dt>{{ attr }}</dt><dd>{{ val|replace("\n","<br>"|safe) }}</dd>
+ {% else %}
+  <dt>{{ attr }}</dt><dd>{{ val }}</dd>
+ {% endif %}
+{% endfor %}
+</dl>
+</div>
+{% endif %}{# if not found #}
+
+{% endblock %}
