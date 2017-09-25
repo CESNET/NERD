@@ -966,9 +966,9 @@ def ip_search(full = False):
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
 
-@app.route('/api/v1/search/ip/full')
-def ip_search_full():
-    return ip_search(True)
+#@app.route('/api/v1/search/ip/full')
+#def ip_search_full():
+#    return ip_search(True)
 
 
 # Custom error 404 handler for API
