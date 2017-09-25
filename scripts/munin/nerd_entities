@@ -6,10 +6,19 @@ graph_title Number of entities in database
 graph_category nerd
 graph_vlabel Number of entities
 ip.label Number of IPs
+bgppref.label Number of BGP prefixes
+ipblock.label Number of IP blocks
 asn.label Number of ASNs
+org.label Number of Organizations
 END
   exit 0
 fi
 
-mongo nerd --quiet --eval "print('ip.value', db.ip.count()); print('asn.value', db.asn.count())"
+mongo nerd --quiet --eval "
+  print('ip.value', db.ip.count());
+  print('bgppref.value', db.bgppref.count());
+  print('ipblock.value', db.ipblock.count());
+  print('asn.value', db.asn.count());
+  print('org.value', db.org.count());
+"
 

@@ -79,7 +79,6 @@ import modules.updater
 import modules.cleaner
 import modules.dns
 import modules.geolocation
-import modules.asn
 import modules.dnsbl
 import modules.local_bl
 import modules.shodan
@@ -91,6 +90,7 @@ import modules.caida_as_class
 import modules.event_type_counter
 import modules.tags
 import modules.reputation
+import modules.whois
 
 # Instantiate modules
 # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
@@ -103,7 +103,7 @@ module_list = [
     modules.event_counter.EventCounter(),
     modules.dns.DNSResolver(),
     modules.geolocation.Geolocation(),
-    modules.asn.ASN(),
+    modules.whois.WhoIS(),
     modules.dnsbl.DNSBLResolver(),
     modules.local_bl.LocalBlacklist(),
     modules.shodan.Shodan(),

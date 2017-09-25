@@ -359,19 +359,17 @@ td.links img {
 .notfound {
   font-size: 1.25em;
 }
-.ip-info,
-.as-info {
+.entity-info {
   /*margin: 1em 0 0 0;*/
   background-color: #fff;
   padding: 0.5em 1em 0.5em 1em;  
 }
-.ip-info .header,
-.as-info .header {
+.entity-info .header {
   margin: 0.5em 0;
   padding: 0.3em 0.1em;
   border-bottom: 1px dotted #444;
 }
-.header .rep {
+.entity-info .header .rep {
   display: inline-block;
   padding: 0.25em 0.4em;
   vertical-align: bottom;
@@ -381,13 +379,11 @@ td.links img {
   /*font-size: 1.1em;*/
   font-weight: bold;
 }
-.header .ip,
-.header .asn {
+.entity-info .header .entity-id {
   font-size: 1.5em;
   font-weight: bold;
 }
-.header .hostname,
-.header .asname {
+.entity-info .header .entity-name {
   font-size: 1.2em;
   color: #444;
   margin-left: 1em;

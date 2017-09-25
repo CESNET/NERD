@@ -18,7 +18,7 @@ import traceback
 import g
 import core.scheduler
 
-ENTITY_TYPES = ['ip', 'asn']
+ENTITY_TYPES = ['ip', 'asn', 'bgppref', 'ipblock', 'org']
 
 #  Update request specification = list of three-tuples:
 #    - [(op, key, value), ...]

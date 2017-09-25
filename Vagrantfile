@@ -164,6 +164,11 @@ Alias ${NERDBaseLoc}/static/ ${NERDBaseDir}/static/
 ' > /etc/httpd/conf.d/nerd.conf
 SCRIPT
 
+$prepare_whois = <<SCRIPT
+mv /vagrant/etc/nerd-whois-asn.csv /tmp/nerd-whois-asn.csv
+mv /vagrant/etc/nerd-whois-ipv4.csv /tmp/nerd-whois-ipv4.csv
+SCRIPT
+
 $start = <<SCRIPT
 echo '
 from nerd_main import config
@@ -193,5 +198,6 @@ Vagrant.configure(2) do |config|
   config.vm.provision :shell, inline: $dependencies
   config.vm.provision :shell, inline: $prepare_db
   config.vm.provision :shell, inline: $httpd_nerd_config
+  config.vm.provision :shell, inline: $prepare_whois
   config.vm.provision :shell, inline: $start
 end

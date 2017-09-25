@@ -1,9 +1,9 @@
 {% extends "layout.html" %}
 {% block body %}
 
-<h1>{{ ip._id }}</h1>
+<h1>IP address</h1>
 
-{# Note: The onsubmit script ovverrides funcionality of Submit button to put IP address to custom URL #}
+{# Note: The onsubmit script overrides funcionality of Submit button to put IP address to custom URL #}
 <form id="ip_form" onsubmit="window.location='{{ url_for('ip') }}'+$('#ip_form #ip').val(); return false;">
   {# form.csrf_token #}
   {{ form.ip.label }} {{ form.ip(size=30) }}
@@ -19,9 +19,9 @@
 
 <hr>
 
-<div class="ip-info">
+<div class="entity-info ip">
 <p class="header"><span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">
-  {{- "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span><span class="ip">{{ ip }}</span><span class="hostname">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
+  {{- "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span><span class="entity-id">{{ ip }}</span><span class="entity-name">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
 
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
@@ -65,6 +65,12 @@
   <dt>ASN (MaxMind DB)</dt><dd>{{ val.num }} {{ val.description }}</dd>
  {% elif attr == "as_rv" %}
   <dt>ASN (routeviews.org & bgplookingglass.com)</dt><dd>{{ val.num }} {{ val.description }}</dd>
+ {% elif attr == "ipblock" %} 
+  <dt>Address block ('inetnum' or 'NetRange' in whois database)</dt>
+  <dd><a href="{{ url_for('ipblock') + val }}">{{ val }}</a></dd>
+ {% elif attr == "bgppref" %} 
+  <dt>BGP Prefix</dt>
+  <dd><a href="{{ url_for('bgppref') + val|replace('/','_') }}">{{ val }}</a></dd>
  {% elif attr == "tags" %}
   <dt>tags</td>
   <dd>

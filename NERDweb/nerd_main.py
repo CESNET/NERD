@@ -596,6 +596,8 @@ class SingleASForm(Form):
 
 @app.route('/as/')
 @app.route('/as/<asn>')
+@app.route('/asn/')
+@app.route('/asn/<asn>')
 def asn(asn=None): # Can't be named "as" since it's a Python keyword
     user, ac = get_user_info(session)
     
@@ -610,14 +612,74 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
         asn = int(asn.lstrip("ASas")) # strip AS at the beginning
         if ac('assearch'):
             title = 'AS'+str(asn)
-            asinfo = mongo.db.asn.find_one({'_id':asn})
+            rec = mongo.db.asn.find_one({'_id':asn})
         else:
             flash('Only registered users may search ASNs.', 'error')
     else:
         # Wrong format of passed ASN
         asn = None
-        asinfo = {}
-    return render_template('as.html', config=config, ctrydata=ctrydata, **locals())
+        rec = {}
+    return render_template('asn.html', config=config, ctrydata=ctrydata, **locals())
+
+
+# ***** Detailed info about individual IP block *****
+
+# class SingleIPBlockForm(Form):
+#     ip = TextField('IP block')#, [validators.IPAddress(message="Invalid IPv4 address")])
+
+@app.route('/ipblock/')
+@app.route('/ipblock/<ipblock>')
+def ipblock(ipblock=None):
+    user, ac = get_user_info(session)
+    
+#     form = SingleIPForm(ip=ipaddr)
+    #if form.validate():
+    if not ipblock:
+        return make_response("ERROR: No IP block given.")
+    if ac('ipsearch'):
+        title = ipblock
+        rec = mongo.db.ipblock.find_one({'_id': ipblock})
+    else:
+        flash('Insufficient permissions to view this.', 'error')
+    return render_template('ipblock.html', config=config, ctrydata=ctrydata, **locals())
+
+
+# ***** Detailed info about individual Organization *****
+
+@app.route('/org/')
+@app.route('/org/<org>')
+def org(org=None):
+    user, ac = get_user_info(session)
+    
+    if not org:
+        return make_response("ERROR: No Organzation ID given.")
+    if ac('ipsearch'):
+        title = org
+        rec = mongo.db.org.find_one({'_id': org})
+    else:
+        flash('Insufficient permissions to view this.', 'error')
+    return render_template('org.html', config=config, ctrydata=ctrydata, **locals())
+
+
+# ***** Detailed info about individual BGP prefix *****
+
+# Note: Slash ('/') in the prefix must be replaced by undescore ('_') in URL, e.g.:
+# "192.168.0.0/16" -> "192.168.0.0_16"
+@app.route('/bgppref/')
+@app.route('/bgppref/<bgppref>')
+def bgppref(bgppref=None):
+    user, ac = get_user_info(session)
+    
+    bgppref = bgppref.replace('_','/')
+    
+    if not org:
+        return make_response("ERROR: No BGP Prefix given.")
+    if ac('ipsearch'):
+        title = org
+        rec = mongo.db.bgppref.find_one({'_id': bgppref})
+    else:
+        flash('Insufficient permissions to view this.', 'error')
+    return render_template('bgppref.html', config=config, ctrydata=ctrydata, **locals())
 
 
 
@@ -625,7 +687,11 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
 
 @app.route('/status')
 def get_status():
-    ips = mongo.db.ip.count()
+    cnt_ip = mongo.db.ip.count()
+    cnt_bgppref = mongo.db.bgppref.count()
+    cnt_asn = mongo.db.asn.count()
+    cnt_ipblock = mongo.db.ipblock.count()
+    cnt_org = mongo.db.org.count()
     idea_queue_len = len(os.listdir(WARDEN_DROP_PATH))
     
     if "upd_cnt_file" in config:
@@ -649,7 +715,11 @@ def get_status():
         disk_usage = "(error) " + str(e);
     
     return jsonify(
-        ips=ips,
+        cnt_ip=cnt_ip,
+        cnt_bgppref=cnt_bgppref,
+        cnt_asn=cnt_asn,
+        cnt_ipblock=cnt_ipblock,
+        cnt_org=cnt_org,
         idea_queue=idea_queue_len,
         update_queue=upd_queue,
         updates_processed=upd_processed,
@@ -710,7 +780,7 @@ def validate_api_request(authorization):
 
     return None
 
-def get_ip_info(ipaddr):
+def get_ip_info(ipaddr, full):
     data = {
         'err_n' : 400,
         'error' : "No IP address specified",
@@ -731,14 +801,41 @@ def get_ip_info(ipaddr):
         data['error'] = "IP address not found"
         return False, Response(json.dumps(data), 404, mimetype='application/json')
 
+    attach_whois_data(ipinfo, full)
     return True, ipinfo
+
+def attach_whois_data(ipinfo, full):
+    if full:
+        if 'bgppref' in ipinfo.keys():
+            bgppref = mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']})
+            asn_list = []
+
+            for i in  bgppref['asn']:
+                i = mongo.db.asn.find_one({'_id':i})
+                if 'org' in i.keys():
+                    i['org'] = mongo.db.org.find_one({'_id':i['org']})
+
+                del i['bgppref']
+                asn_list.append(i)
+
+            del bgppref['asn']
+            ipinfo['bgppref'] = bgppref
+            ipinfo['asn'] = asn_list
+
+        if 'ipblock' in ipinfo.keys():
+            ipblock = mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']})
+
+            if "org" in ipblock.keys():
+                ipblock['org'] = mongo.db.org.find_one({'_id':ipblock['org']})
+
+            ipinfo['ipblock'] = ipblock
+    else:
+        if 'bgppref' in ipinfo.keys():
+            ipinfo['asn'] = (mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))['asn']
+
 
 # ***** NERD API BasicInfo *****
 def get_basic_info_dic(val):
-    asn_d = {}
-    if 'as_maxmind' in val.keys():
-        asn_d['num'] = val['as_maxmind'].get('num', 0)
-
     geo_d = {}
     if 'geo' in val.keys():
         geo_d['ctry'] = val['geo'].get('ctry', "unknown")
@@ -759,8 +856,10 @@ def get_basic_info_dic(val):
     data = {
         'ip' : val['_id'],
         'rep' : val['rep'],
-        'hostname' : val['hostname'],
-        'asn' : asn_d,
+        'hostname' : val.get('hostname', ''),
+        'ipblock' : val.get('ipblock', ''),
+        'bgppref' : val.get('bgppref', ''),
+        'asn' : val.get('asn',[]),
         'geo' : geo_d,
         'bl'  : bl_l,
         'tags'  : tags_l
@@ -774,7 +873,7 @@ def get_basic_info(ipaddr=None):
     if ret:
         return ret
 
-    ret, val = get_ip_info(ipaddr)
+    ret, val = get_ip_info(ipaddr, False)
     if not ret:
         return val
 
@@ -790,23 +889,17 @@ def get_full_info(ipaddr=None):
     if ret:
         return ret
 
-    ret, val = get_ip_info(ipaddr)
+    ret, val = get_ip_info(ipaddr, True)
     if not ret:
         return val
-
-    asn_d = {}
-    if 'as_maxmind' in val.keys():
-        asn_d['num'] = val['as_maxmind'].get('num', 0)
-        asn_d['name'] = val['as_maxmind'].get('description', "")
-    elif 'as_rv' in val.keys():
-        asn_d['num'] = val['as_rv'].get('num', 0)
-        asn_d['name'] = val['as_rv'].get('description', "")
 
     data = {
         'ip' : val['_id'],
         'rep' : val['rep'],
-        'hostname' : val['hostname'],
-        'asn' : asn_d,
+        'hostname' : val.get('hostname', ''),
+        'ipblock' : val.get('ipblock', ''),
+        'bgppref' : val.get('bgppref', ''),
+        'asn' : val.get('asn',[]),
         'geo' : val['geo'],
         'ts_added' : val['ts_added'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_update' : val['ts_last_update'].strftime("%Y-%m-%dT%H:%M:%S"),
@@ -832,7 +925,7 @@ def get_full_info(ipaddr=None):
 # ***** NERD API IPSearch *****
 
 @app.route('/api/v1/search/ip/')
-def ip_search():
+def ip_search(full = False):
     err = {}
 
     ret = validate_api_request(request.headers.get("Authorization"))
@@ -862,6 +955,7 @@ def ip_search():
     if output == "json":
         lres = []
         for res in results:
+            attach_whois_data(res, full)
             lres.append(get_basic_info_dic(res))
         return Response(json.dumps(lres), 200, mimetype='text/plain')
 
@@ -871,6 +965,10 @@ def ip_search():
         err['err_n'] = 400
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
+
+@app.route('/api/v1/search/ip/full')
+def ip_search_full():
+    return ip_search(True)
 
 
 # Custom error 404 handler for API

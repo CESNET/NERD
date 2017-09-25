@@ -103,7 +103,14 @@ $(function() {
 <p><b>Status</b> (refreshing <a id="status_refresh_toggle" href="#" onclick="toggle_status_refresh(); return false;">disabled</a>)
 <a id="status_box_toggle" style="text-decoration: none; border: 1px solid black; color: black; padding: 0px 0.2em; float: right;" href="#" onclick="toggle_status_box(); return false;">▲</a></p>
 <div>
-<table><tr><td>IPs in DB:</td><td><span id="status-ips">??</span></td></tr></table>
+<table>
+<tr><td>Records in DB:</td><td></td>
+<tr><td><span style="margin-left: 1em">IP</td><td><span id="status-cnt-ip">??</span></td></tr>
+<tr><td><span style="margin-left: 1em">BGP prefix</td><td><span id="status-cnt-bgppref">??</span></td></tr>
+<tr><td><span style="margin-left: 1em">ASN</td><td><span id="status-cnt-asn">??</span></td></tr>
+<tr><td><span style="margin-left: 1em">IP block</td><td><span id="status-cnt-ipblock">??</span></td></tr>
+<tr><td><span style="margin-left: 1em">Organization</td><td><span id="status-cnt-org">??</span></td></tr>
+</table>
 <table><tr><td>Data disk usage:</td><td><span id="status-disk-usage">??</span></td></tr></table>
 <table>
 <tr><td>Event queue (IDEA files):</td><td><span id="status-idea-queue">??</span></td></tr>
@@ -176,7 +183,11 @@ function refresh_status(force=false) {
     $.getJSON(
         "{{ url_for('get_status') }}",
         function(data) {
-            $("#status-ips").text(data.ips);
+            $("#status-cnt-ip").text(data.cnt_ip);
+            $("#status-cnt-bgppref").text(data.cnt_bgppref);
+            $("#status-cnt-asn").text(data.cnt_asn);
+            $("#status-cnt-ipblock").text(data.cnt_ipblock);
+            $("#status-cnt-org").text(data.cnt_org);
             $("#status-updates").text(data.updates_processed);
             $("#status-disk-usage").text(data.disk_usage);
             $("#status-idea-queue").text(data.idea_queue);

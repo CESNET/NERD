@@ -1,9 +1,9 @@
 {% extends "layout.html" %}
 {% block body %}
 
-<h1>AS{{ asn or " search" }}</h1>
+<h1>Autonomous system number (ASN)</h1>
 
-{# Note: The onsubmit script ovverrides funcionality of Submit button to put IP address to custom URL #}
+{# Note: The onsubmit script overrides funcionality of Submit button to put IP address to custom URL #}
 <form id="as_form" onsubmit="window.location='{{ url_for('asn') }}'+$('#as_form #asn').val(); return false;">
   {{ form.asn.label }} {{ form.asn(size=10) }}
   {{ form.asn.errors|join(';') }}
@@ -12,26 +12,34 @@
 
 {% if not asn or not ac('assearch') %}
   {# Print nothing if no ASN was passed #}
-{% elif not asinfo %}
+{% elif not rec %}
   <hr>
   <p class="msg info notfound">AS{{asn}} not in database.</p>
 {% else %}
 
 <hr>
 
-<div class="as-info">
-<p class="header"><span class="asn">AS{{ asn }}</span> <span class="asname">{{ asinfo.name }}</span></p>
+<div class="entity-info asn">
+<p class="header"><span class="entity-id">AS{{ asn }}</span> <span class="entity-name">{{ rec.name }}</span></p>
 
 <dl class="attrs">
-{% for attr,val in asinfo|dictsort %}
- {% if attr == "_id" %}
-  {# pass #}
+{% for attr,val in rec|dictsort %}
+ {% if attr.startswith("_") and not ac('internal_attrs') %}
+  {# pass (hide attrs starting with '_' from normal users) #}
  {% elif attr == "ctry" %}
   <dt>Country</dt><dd><span class="country">
     <a href="http://country.io/{{val|lower}}/">
     <span class="flag flag-{{val|lower}}"></span>{{ ctrydata.names.get(val, '?') }}</a></span></dd>
  {% elif attr == "rir" %}
-  <dt>RIR</dt><dd>{{ val }}</dd> 
+  <dt>RIR</dt><dd>{{ val|upper }}</dd>
+ {% elif attr == "bgppref" %} 
+  <dt>BGP Prefixes</dt>
+  {% for pref in val|sort %}
+   <dd><a href="{{ url_for('bgppref') + pref|replace('/','_') }}">{{ pref }}</a></dd>
+  {% endfor %}
+ {% elif attr == "org" %}
+  <dt>Organization</dt>
+  <dd><a href="{{ url_for('org') + val }}">{{ val }}</a></dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}
