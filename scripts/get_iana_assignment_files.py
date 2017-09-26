@@ -6,38 +6,24 @@ import ipaddress
 import csv
 
 SPECIAL_PURPOSE_ADDRESS ='\
-0,Reserved\n\
-167772160 Reserved:arin\n\
-184549376 arin\n\
-1681915904 Reserved:arin\n\
-1686110208 arin\n\
-2130706432 Reserved:arin\n\
-2147483648 ripe\n\
-2851995648 Reserved:arin\n\
-2852061184 afrinic\n\
-2886729728 Reserved:arin\n\
-2887778304 arin\n\
-3221225472 Reserved:arin\n\
-3221225728 Reserved\n\
-3221225984 Reserved:arin\n\
-3221226240 arin\n\
-3223307264 Reserved:arin\n\
-3223307520 apnic\n\
-3224682752 Reserved:arin\n\
-3224683008 arin\n\
-3227017984 Reserved:arin\n\
-3227018240 arin\n\
-3232235520 Reserved:arin\n\
-3232301056 arin\n\
-3232706560 Reserved:arin\n\
-3232706816 arin\n\
-3323068416 Reserved:arin\n\
-3323199488 arin\n\
-3325256704 Reserved:arin\n\
-3325256960 apnic\n\
-3405803776 Reserved:apnic\n\
-3405804032 apnic\n\
-4026531840 Reserved\n'
+0 16777215 Reserved:arin\n\
+167772160 184549375 Reserved:arin\n\
+1681915904 1686110207 Reserved:arin\n\
+2130706432 2147483647 Reserved:arin\n\
+2851995648 2852061183 Reserved:arin\n\
+2886729728 2887778303 Reserved:arin\n\
+3221225472 3221225727 Reserved:arin\n\
+3221225984 3221226239 Reserved:arin\n\
+3223307264 3223307519 Reserved:arin\n\
+3224682752 3224683007 Reserved:arin\n\
+3227017984 3227018239 Reserved:arin\n\
+3232235520 3232301055 Reserved:arin\n\
+3232706560 3232706815 Reserved:arin\n\
+3323068416 3323199487 Reserved:arin\n\
+3325256704 3325256959 Reserved:arin\n\
+3405803776 3405804031 Reserved:apnic\n\
+4026531840 4294967295 Reserved\n\
+4294967295 4294967295 Reserved\n'
 
 SPECIAL_PURPOSE_ASN ='\
 0,Reserved:ripe\n\
@@ -56,7 +42,7 @@ rirs=("lacnic" "ripencc" "arin" "afrinic" "apnic");\
 for i in ${!rirs[*]};\
 do \
 wget "ftp://ftp."${loc[$i]}".net/pub/stats/"${rirs[$i]}"/delegated-"${rirs[$i]}"-extended-latest";\
-cat "delegated-"${rirs[$i]}"-extended-latest" | grep "ipv4" | awk \'BEGIN { FS = "|"} ; {print $4","$1}\' | tail -n +2 >> csv_tmp;\
+cat "delegated-"${rirs[$i]}"-extended-latest" | grep "ipv4" | awk \'BEGIN { FS = "|"} ; {print $4","$5","$1}\' | tail -n +2 >> csv_tmp;\
 rm -f "delegated-"${rirs[$i]}"-extended-latest";\
 done'
 
@@ -67,7 +53,7 @@ cat as-numbers-1.csv | tr " " ","  | egrep "ARIN|APNIC|RIPE|AFRINIC|LACNIC" | aw
 cat as-numbers-2.csv | tr " " ","  | egrep "ARIN|APNIC|RIPE|AFRINIC|LACNIC|Unallocated" | awk \'BEGIN { FS = ","} ; {if ($2 == "Unallocated")print $1","$2; else print $1","tolower($4);}\' >> asn_tmp;\
 rm -f as-numbers-1.csv as-numbers-2.csv'
 
-SORT_UNIQ_COMMAND_IPV4 = 'cat trans_tmp | sort -n -k 1,1 | uniq -f 1 | tr " " ","  > nerd-whois-ipv4.csv'
+SORT_UNIQ_COMMAND_IPV4 = 'cat trans_tmp | sort -n -k 1,1 | tr " " ","  > nerd-whois-ipv4.csv'
 SORT_UNIQ_COMMAND_ASN = 'cat asn_tmp2 | tr ","  " " | sort -n -k1,1 | uniq -f 1 | tr " " "," > nerd-whois-asn.csv'
 
 CLEANUP_COMMAND = 'rm -f csv_tmp trans_tmp asn_tmp asn_tmp2'
@@ -83,8 +69,10 @@ datareader = csv.reader(r, delimiter=',')
 print("Converting IP representation to long uint...")
 
 for row in datareader:
-	rir = 'ripe' if row[1] == "ripencc" else row[1]
-	w.write(str(int(ipaddress.ip_address(row[0]))) + ' ' + rir + '\n')
+	rir = 'ripe' if row[2] == "ripencc" else row[2]
+	first_ip = int(ipaddress.ip_address(row[0]))
+	last_ip = first_ip + int(row[1]) - 1
+	w.write(str(first_ip) + ' ' + str(last_ip) + ' ' + rir + '\n')
 
 w.write(SPECIAL_PURPOSE_ADDRESS)
 r.close()

@@ -145,14 +145,15 @@ class WhoIS(NERDModule):
 
         # Create a tuple of 2 arrays: row:([IP], [RIR])
         # IPs are in numeric form (long int)
-        data = ([],[])
+        data = ([],[],[])
         for row in datareader:
             data[0].append(int(row[0]))
-            data[1].append(row[1])
+            data[1].append(int(row[1]))
+            data[2].append(row[2])
 
         return data
 
-    def findIPBlockRIR(self, ip):
+    def findIPBlockData(self, ip):
         int_ip = int(ipaddress.ip_address(ip))
         pos = bisect.bisect_left(self.ipv4_array[0], int_ip)
         try:
@@ -161,17 +162,22 @@ class WhoIS(NERDModule):
         except IndexError as e:
                 pos -= 1
 
-        rir = self.ipv4_array[1][pos]
-        if rir[0] == 'R':
-            if rir.find(':') != -1:
-                rir = rir.split(':')[1]
-                self.log.warning('Observed IP address {} from reserved IP block. Querying still possible to: {}.'.format(ip, rir))
-                return rir, True
+        d = {
+            'first_ip' : str(ipaddress.ip_address(self.ipv4_array[0][pos])),
+            'last_ip' : str(ipaddress.ip_address(self.ipv4_array[1][pos])),
+            'rir' : self.ipv4_array[2][pos]
+        }
+
+        if d['rir'][0] == 'R':
+            if d['rir'].find(':') != -1:
+                d['rir'] = d['rir'].split(':')[1]
+                self.log.warning('Observed IP address {} from reserved IP block. Querying still possible to: {}.'.format(ip, d['rir']))
+                return d, True
             else:
                 self.log.warning('Observed IP address {} from reserved IP block. Querying not possible.'.format(ip))
                 return None, True
 
-        return rir, False
+        return d, False
 
     def findASNRIR(self, asn):
         pos = bisect.bisect_left(self.asn_array[0], asn)
@@ -250,19 +256,16 @@ class WhoIS(NERDModule):
 
 
         # ** IP block allocation **
-        # Get RIR from IANA list
-        rir, reserved = self.findIPBlockRIR(ip)
-        if rir == None:
+        # Get IP block from IANA list
+        ip_block_data, reserved = self.findIPBlockData(ip)
+        if ip_block_data == None:
             return actions
 
-        if cymru_ok and rir != cymru_rir:
-            self.log.warning('RIRs according to IANA and asn.cymru.com doesn\'t match for ip {}. IANA: "{}", Cymru: "{}" (using the IANA one)'.format(ip, rir, cymru_rir))
+        if cymru_ok and ip_block_data['rir'] != cymru_rir:
+            self.log.warning('RIRs according to IANA and asn.cymru.com doesn\'t match for ip {}. IANA: "{}", Cymru: "{}" (using the IANA one)'.format(ip, ip_block_data['rir'], cymru_rir))
 
-        # Attempt to find netrange of the corresponding smallest IP block.
-        inet = self.getInet(ip, rir)
-        if inet == None:
-            self.log.warning('Unable to find IP block for IP: {} in RIR: {}. Aborting IP block record creation.'.format(ip, rir))
-            return actions
+        # Set IP block id.
+        inet = ip_block_data['first_ip'] + " - " + ip_block_data['last_ip']
 
         # Add IP block to the IP record
         actions.append(('set', 'ipblock', inet))
@@ -270,34 +273,6 @@ class WhoIS(NERDModule):
         # Create new IP block record (if not already present).
         g.um.update(('ipblock', inet), [])
         return actions
-
-    def getInet(self, ip, rir):
-        map_dict = {
-           'inetnum' : 'inetnum'
-        }
-
-        # Parse IP block from the corresponding RIR.
-        if rir == 'lacnic':
-            ret = self.receiveData(ip, 'whois.lacnic.net', self.parseRIR, (map_dict, 1))
-            if ret == None:
-                return None
-
-            inetnumstr = ret['inetnum']
-            # Short format of network, e.g. "192.168/16" -> fill zeros to the end
-            if inetnumstr.count(".") < 3:
-                net,mask = inetnumstr.split("/")
-                net += ".0" * (3 - inetnumstr.count("."))
-                inetnumstr = net + "/" + mask
-            inet = ipaddress.ip_network(inetnumstr)
-            return str(inet.network_address) + " - " + str(inet.broadcast_address)
-        elif rir == 'arin':
-            return self.receiveData('- n ' + ip, 'whois.arin.net', self.parseArinInet)
-        else:
-            ret = self.receiveData('-r -T inetnum ' + ip, 'whois.' + rir + '.net', self.parseRIR, (map_dict, 1))
-            if ret != None:
-                ret = ret['inetnum']
-
-            return ret
 
     def getBGPPrefInfo(self, ekey, rec, updates):
         etype, bgp_pref = ekey
@@ -376,10 +351,11 @@ class WhoIS(NERDModule):
 
         # Perform a lookup for the RIR corresponding to this IP block.
         first_ip = ip_block.split()[0]
-        rir, reserved = self.findIPBlockRIR(first_ip)
-        if rir == None:
+        ip_block_data, reserved = self.findIPBlockData(first_ip)
+        if ip_block_data == None:
             return actions
 
+        rir = ip_block_data['rir']
         actions.append(('set', 'rep', 0))
         if reserved:
             actions.append(('set', 'rir', 'Reserved:' + rir))
