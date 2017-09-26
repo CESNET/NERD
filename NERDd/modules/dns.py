@@ -25,8 +25,8 @@ class DNSResolver(NERDModule):
     
     def __init__(self):
         self._resolver = resolver.Resolver()
-        self._resolver.timeout = g.config.get('dns.timeout', 2)
-        self._resolver.lifetime = 2 # TODO: Co to presne znamena?
+        self._resolver.timeout = g.config.get('dns.timeout', 1)
+        self._resolver.lifetime = 3 # Socket is open up to 3 seconds and will perform up to 3 queries in case of 1 second timeout occurence.
 
         g.um.register_handler(
             self.get_hostname, # function (or bound method) to call

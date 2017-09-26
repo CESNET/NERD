@@ -86,8 +86,8 @@ class WhoIS(NERDModule):
 
         # Initialize DNS resolver (for queries to asn.cymru.com)
         self.dnsresolver = resolver.Resolver()
-        self.dnsresolver.timeout = g.config.get('dns.timeout', 2)
-        self.dnsresolver.lifetime = 2
+        self.dnsresolver.timeout = g.config.get('dns.timeout', 1)
+        self.dnsresolver.lifetime = 3
 
         # Register all necessary handlers.
         g.um.register_handler(
