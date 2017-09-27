@@ -20,6 +20,20 @@
 {% for attr,val in rec|dictsort %}
  {% if attr.startswith("_") and not ac('internal_attrs') %}
   {# pass (hide attrs starting with '_' from normal users) #}
+ {% elif attr == "asns" %}
+  <dt>Autonomous Systems ({{val|length}})</dt>
+  <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
+  {% for asn in val|sort %}
+   <dd><a href="{{ url_for('asn') + asn|string }}">{{ 'AS' + asn|string }}</a></dd>
+  {% endfor %}
+  </dl></dd>
+ {% elif attr == "ipblocks" %}
+  <dt>IP Blocks ({{val|length}})</dt>
+  <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
+  {% for ipb in val|sort %}
+   <dd><a href="{{ url_for('ipblock') + ipb|string }}">{{ ipb }}</a></dd>
+  {% endfor %}
+  </dl></dd>
  {% elif attr == "address" %}
   <dt>{{ attr }}</dt><dd>{{ val|replace("\n","<br>"|safe) }}</dd>
  {% else %}

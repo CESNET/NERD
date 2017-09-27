@@ -23,6 +23,13 @@
  {% elif attr == "org" %}
   <dt>Organization</dt>
   <dd><a href="{{ url_for('org') + val }}">{{ val }}</a></dd>
+ {% elif attr == "ips" %}
+  <dt>IPs ({{val|length}})</dt>
+  <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
+  {% for ip in val|sort %}
+   <dd><a href="{{ url_for('ip') + ip|string }}">{{ ip }}</a></dd>
+  {% endfor %}
+  </dl></dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}

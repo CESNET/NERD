@@ -639,6 +639,10 @@ def ipblock(ipblock=None):
     if ac('ipsearch'):
         title = ipblock
         rec = mongo.db.ipblock.find_one({'_id': ipblock})
+        cursor = mongo.db.ip.find({'ipblock': ipblock}, {'_id': 1})
+        rec['ips'] = []
+        for val in cursor:
+            rec['ips'].append(val['_id'])
     else:
         flash('Insufficient permissions to view this.', 'error')
     return render_template('ipblock.html', config=config, ctrydata=ctrydata, **locals())
@@ -656,6 +660,14 @@ def org(org=None):
     if ac('ipsearch'):
         title = org
         rec = mongo.db.org.find_one({'_id': org})
+        rec['ipblocks'] = []
+        rec['asns'] = []
+        cursor = mongo.db.ipblock.find({'org': org}, {'_id': 1})
+        for val in cursor:
+            rec['ipblocks'].append(val['_id'])
+        cursor = mongo.db.asn.find({'org': org}, {'_id': 1})
+        for val in cursor:
+            rec['asns'].append(val['_id'])
     else:
         flash('Insufficient permissions to view this.', 'error')
     return render_template('org.html', config=config, ctrydata=ctrydata, **locals())
@@ -677,11 +689,13 @@ def bgppref(bgppref=None):
     if ac('ipsearch'):
         title = org
         rec = mongo.db.bgppref.find_one({'_id': bgppref})
+        cursor = mongo.db.ip.find({'bgppref': bgppref}, {'_id': 1})
+        rec['ips'] = []
+        for val in cursor:
+            rec['ips'].append(val['_id'])
     else:
         flash('Insufficient permissions to view this.', 'error')
     return render_template('bgppref.html', config=config, ctrydata=ctrydata, **locals())
-
-
 
 # ***** NERD status information *****
 
