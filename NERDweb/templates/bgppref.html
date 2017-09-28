@@ -21,10 +21,19 @@
  {% if attr.startswith("_") and not ac('internal_attrs') %}
   {# pass (hide attrs starting with '_' from normal users) #}
  {% elif attr == "asn" %}
-  <dt>Origin ASN(s)</dt>
+  <dt>Origin ASN(s) ({{val|length}})</dt>
+  <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
   {% for asn in val|sort %}
    <dd><a href="{{ url_for('asn') + asn|string }}">{{ 'AS' + asn|string }}</a></dd>
   {% endfor %}
+  </dl></dd>
+ {% elif attr == "ips" %}
+  <dt>IPs ({{val|length}})</dt>
+  <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
+  {% for ip in val|sort %}
+   <dd><a href="{{ url_for('ip') + ip|string }}">{{ ip }}</a></dd>
+  {% endfor %}
+  </dl></dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}

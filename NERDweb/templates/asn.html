@@ -33,10 +33,12 @@
  {% elif attr == "rir" %}
   <dt>RIR</dt><dd>{{ val|upper }}</dd>
  {% elif attr == "bgppref" %} 
-  <dt>BGP Prefixes</dt>
+  <dt>BGP Prefixes ({{val|length}})</dt>
+  <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
   {% for pref in val|sort %}
    <dd><a href="{{ url_for('bgppref') + pref|replace('/','_') }}">{{ pref }}</a></dd>
   {% endfor %}
+  </dl></dd>
  {% elif attr == "org" %}
   <dt>Organization</dt>
   <dd><a href="{{ url_for('org') + val }}">{{ val }}</a></dd>
