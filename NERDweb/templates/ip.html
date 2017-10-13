@@ -30,11 +30,13 @@
  {% elif attr == "events" %}
   <dt>events ({{ipinfo.events_meta.total}})</dt>
   <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
-   {% set last_date = None %}
+   {% set last_date = [''] %}
    {% for evtrec in val|sort(attribute='date') %}
-     {% if evtrec.date != last_date %}
+     {% if evtrec.date != last_date[0] %}
        <dt>{{evtrec.date}}</dt><dd>
-       {% set last_date = evtrec.date %}
+       {# using last_day as array instead of variable, this hack is needed for changes to be visible outside the scope of this 'if' #}
+       {% set _ = last_date.pop() %}
+       {% set _ = last_date.append(evtrec.date) %}
      {% endif %}
      <dd>
      {%if "Test" in evtrec.cat %}
