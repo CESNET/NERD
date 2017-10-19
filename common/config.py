@@ -1,8 +1,7 @@
 """
 NERDd - config file reader
 """
-import json
-import re
+import yaml
 
 class NoDefault:
     pass
@@ -74,32 +73,16 @@ def read_config(file):
     """
     Read configuration file and return config as a dict-like object.
     
-    The configuration file shoud contain a valid JSON document, with the 
-    following exceptions:
-    - Comments may be included as lines starting with '#' (optionally preceded 
+    The configuration file shoud contain a valid YAML
+    - Comments may be included as lines starting with '#' (optionally preceded
       by whitespaces).
-    - There may be a comma after the last item of an object or list.
-    - Top level object is added automatically (i.e. '{' and '}' are added at the
-      beginning and the end of the whole file before passing to JSON parser)
 
     This function reads the file and converts it to an dict-like object.
     The only difference from normal dict is its "get" method, which allows
     hierarchical keys (e.g. 'abc.x.y'). See doc of "hierarchical_get" function
     for more information.
     """
-    with open(file, "r") as f:
-        # Read file and replace whole-line comments with empty line
-        # (lines are not completely removed to keep correct line numbers in error messages)
-        configstr = "".join((line if not line.lstrip().startswith("#") else "\n") for line in f)
-        # Add { and } around the string
-        configstr = '{' + configstr + '}'
-        # Remove commas before closing braces/brackets
-        configstr = re.sub(',(?=\s*[}\]])', '', configstr)
-        # Load as JSON
-        conf_dict = json.loads(configstr)
-    return HierarchicalDict(conf_dict)
-
-
+    return HierarchicalDict(yaml.load(open(file)))
 
 # ***** Unit tests *****
 # TODO 'update' is tested only, test 'get' as well
@@ -107,6 +90,7 @@ def read_config(file):
 if __name__ == '__main__':
     import unittest
     from copy import deepcopy
+
     class HierarchicalUpdateTest(unittest.TestCase):
         def runTest(self):
             # Testing dicts
@@ -220,4 +204,3 @@ if __name__ == '__main__':
             self.assertEqual(res, d1, "dict has changed after update by empty dict")
     
     unittest.main()
-            
