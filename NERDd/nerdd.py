@@ -10,7 +10,7 @@ import signal
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 
-DEFAULT_CONFIG_FILE = "../etc/nerdd.cfg"
+DEFAULT_CONFIG_FILE = "../etc/nerdd.yml"
 
 
 ################################################
