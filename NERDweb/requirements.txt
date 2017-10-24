@@ -1,3 +1,4 @@
+pyyaml
 pytz
 Flask
 Flask-WTF
