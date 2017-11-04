@@ -1,7 +1,7 @@
 # NERD config (for NERDweb only)
 ---
 # Paths to other configuration files (relative to this file or absolute)
-common_config: nerd.cfg
+common_config: nerd.yml
 acl_config: acl
 
 # Secret key used by Flask for various security purposes

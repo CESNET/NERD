@@ -7,7 +7,7 @@ mongodb:
   dbname: nerd
 
 # Tag configuration file
-tags_config: tags.cfg
+tags_config: tags.yml
 
 # Path to a directory where Warden filer stores incoming IDEA messages
 warden_filer_path: "/data/warden_filer/warden_receiver"
@@ -23,7 +23,7 @@ upd_cnt_file: "/data/nerd_updates_processed"
 worker_threads: 16
 
 dnsbl:
-  # List of blacklists to query (the rest of "dnsbl" config is in nerdd.cfg)
+  # List of blacklists to query (the rest of "dnsbl" config is in nerdd.yml)
   blacklists:
   # blacklist_name, zone, dict{response -> blacklist_id}
   # Note: blacklist_id mustn't contain '.'
@@ -90,7 +90,7 @@ dnsbl:
     - bl.spamcop.net
     - 127.0.0.2: spamcop
 local_bl:
-   # (the rest of "local_bl" config is in nerdd.cfg)
+   # (the rest of "local_bl" config is in nerdd.yml)
    # List specification:
    #   id (used as key in records),
    #   name (for humans),
