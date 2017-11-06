@@ -140,7 +140,7 @@ def perform_update(rec, updreq):
             changed = False
             for val in value:
                 if val not in rec[key]:
-                    rec[key].append(value)
+                    rec[key].append(val)
                     changed = True
             if not changed:
                 return None
