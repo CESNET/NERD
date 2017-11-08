@@ -15,24 +15,22 @@ from api import *   ----> from .api import *
 
 """
 
-from ..core.basemodule import NERDModule
-from .. import g
+from NERDd.core.basemodule import NERDModule
+from NERDd import g
 
 import bgpranking_web
+import logging
 
 
 class CIRCL_BGPRank(NERDModule):
     """
-    DNS resolver module.
+    BGP Rank module.
 
-    Reoslves newly added IP addresses to hostnames using reverse DNS queries
-    (PTR records).
-
-    Event flow specification:
-      !NEW -> get_hostname -> hostname
+    Module for getting BGP rank of ASN entities using BGP Ranking API (bgpranking_web).
     """
 
     def __init__(self):
+        self.log = logging.getLogger('CIRCL_BGPRank')
         g.um.register_handler(
             self.set_bgprank,  # function (or bound method) to call
             'asn',                # entity type
@@ -47,7 +45,7 @@ class CIRCL_BGPRank(NERDModule):
         Arguments:
         ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
         rec -- record currently assigned to the key
-        updates -- list of all attributes whose update triggerd this call and
+        updates -- list of all attributes whose update triggered this call and
           their new values (or events and their parameters) as a list of
           2-tuples: [(attr, val), (!event, param), ...]
 
@@ -58,16 +56,16 @@ class CIRCL_BGPRank(NERDModule):
         In particular, the following update is requested:
           ('set', 'circl_bgprank', RANK_NUM)
         """
-        entity, key = ekey
+        etype, key = ekey
 
-        if entity != 'asn':
+        if etype != 'asn':
             return None
 
         try:
-            # the return format is: [asn, date, source, rank]
+            # the return format is: [asn, name, date, source, rank]
             rank = bgpranking_web.cached_daily_rank(ekey[1])[-1]
         except Exception as e:
-            print("Exception: " + e.__str__())
+            self.log.exception("Exception: " + e.__str__())
             return None             # could be connection error etc.
 
         return [('set', 'circl_bgprank', rank)]
