@@ -15,8 +15,8 @@ from api import *   ----> from .api import *
 
 """
 
-from NERDd.core.basemodule import NERDModule
-from NERDd import g
+from core.basemodule import NERDModule
+import g
 
 import bgpranking_web
 import logging
@@ -65,7 +65,7 @@ class CIRCL_BGPRank(NERDModule):
             # the return format is: [asn, name, date, source, rank]
             rank = bgpranking_web.cached_daily_rank(ekey[1])[-1]
         except Exception as e:
-            self.log.exception("Exception: " + e.__str__())
+            self.log.exception("Can't get BGPRank of ASN {}".format(key))
             return None             # could be connection error etc.
 
         return [('set', 'circl_bgprank', rank)]

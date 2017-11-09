@@ -87,6 +87,7 @@ import modules.refresher
 import modules.event_counter
 import modules.hostname
 import modules.caida_as_class
+import modules.bgp_rank
 import modules.event_type_counter
 import modules.tags
 import modules.reputation
@@ -111,6 +112,7 @@ module_list = [
     modules.reputation.Reputation(),
     modules.hostname.HostnameClass(),
     modules.caida_as_class.CaidaASclass(),
+    modules.bgp_rank.CIRCL_BGPRank(),
     modules.event_type_counter.EventTypeCounter(),
     modules.tags.Tags(),
 ]
