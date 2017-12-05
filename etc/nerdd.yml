@@ -5,6 +5,11 @@ common_config: nerd.yml
 # Number of days to store meta-data about events in IP records
 max_event_history: 90
 
+eventdb:
+  # Number of separate processes for inserting messages to DB
+  # (zero means don't spawn a separate process)
+  dbwriter_processes: 0
+
 whois:
   asn_file: "/tmp/nerd-whois-asn.csv"
   ipv4_file: "/tmp/nerd-whois-ipv4.csv"

@@ -8,7 +8,7 @@ Should be triggered at least once a day for every address.
 from core.basemodule import NERDModule
 import g
 
-from datetime import datetime, timedelta
+import datetime
 
 
 def nonlin(val, coef=0.5, max=20):
@@ -54,7 +54,7 @@ class Reputation(NERDModule):
         if etype != 'ip':
             return None
 
-        today = datetime.utcnow().date()
+        today = datetime.datetime.utcnow().date()
         DATE_RANGE = 14
         
         # Get total number of events and list of nodes for each day
@@ -62,17 +62,13 @@ class Reputation(NERDModule):
         num_events = [0 for _ in range(DATE_RANGE)]
         set_nodes = [set() for _ in range(DATE_RANGE)]
         for evtrec in rec['events']:
-            date = datetime.strptime(evtrec['date'], '%Y-%m-%d').date()
+            date = evtrec['date']
+            date = datetime.date(int(date[0:4]), int(date[5:7]), int(date[8:10]))
             d = (today - date).days
             if d >= DATE_RANGE:
                 continue
             num_events[d] += evtrec['n']
             set_nodes[d].add(evtrec['node'])
-            # TEMPORARY: add set of nodes from old event format
-            try:
-                set_nodes[d].update(rec['events_meta']['nodes'][evtrec['date']])
-            except KeyError:
-                pass
         
         # Compute reputation score
         sum_weight = 0

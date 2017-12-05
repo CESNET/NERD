@@ -8,6 +8,7 @@ Requirements:
 from core.basemodule import NERDModule
 import g
 
+import logging
 from dns import resolver,reversename
 from dns.exception import *
 
@@ -24,6 +25,7 @@ class DNSResolver(NERDModule):
     """
     
     def __init__(self):
+        self.log = logging.getLogger("DNSResolver")
         self._resolver = resolver.Resolver()
         self._resolver.timeout = g.config.get('dns.timeout', 1)
         self._resolver.lifetime = 3 # Socket is open up to 3 seconds and will perform up to 3 queries in case of 1 second timeout occurence.
@@ -66,6 +68,9 @@ class DNSResolver(NERDModule):
             result = str(answer.rrset[0]) # get first (it should be only) answer
             if result[-1] == '.':
                 result = result[:-1] # trim trailing '.'
+        except Timeout as e:
+            self.log.warning("PTR query for {} timed out".format(key))
+            result = None
         except DNSException as e:
             result = None # set result to None if NXDOMAIN, Timeout or other error
         

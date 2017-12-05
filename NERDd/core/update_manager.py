@@ -11,7 +11,7 @@ import threading
 import queue
 from datetime import datetime, timezone
 import time
-from collections import defaultdict, deque, Iterable, OrderedDict
+from collections import defaultdict, deque, Iterable, OrderedDict, Counter
 import logging
 import traceback
 
@@ -306,13 +306,16 @@ class UpdateManager:
             self.logging_scheduler.register(self.log_update_counter, second="*/2")
             self.logging_scheduler.start()
 
+#        self.t_handlers = Counter()
+#        self.logging_scheduler.register(self.log_t_handlers, second="*/60")
+
 
     def log_update_counter(self):
         # Write update counter to file (every 2 sec)
         # Lines 1-5: (IP) total number of updates (per update type)
         # Lines 6-10: (ASN) total number of updates (per update type)
-        # Lines 10-15: (IP) number of updates per second (avg from last period)
-        # Lines 16-20: (ASN) number of updates per second (avg from last period)
+        # Lines 11-15: (IP) number of updates from last period
+        # Lines 16-20: (ASN) number of updates from last period
         # Line 21: current length of update request queue
         filename = g.config.get("upd_cnt_file", None)
         if not filename:
@@ -327,6 +330,12 @@ class UpdateManager:
             f.write("{}\n".format(self.get_queue_size()))
         os.replace(tmp_filename, filename)
         self._last_update_counter = self._update_counter.copy()
+    
+    def log_t_handlers(self):
+        print("Handler function running times:")
+        for name,t in self.t_handlers.most_common(10):
+            print("{:50s} {:7.3f}".format(name,t))
+        self.t_handlers = Counter()
 
 
     def _dump_handler_chain(self, etype):
@@ -447,10 +456,13 @@ class UpdateManager:
         #     updates (2-tuples (key, new_value) or (event, param) which tirggered the function.
         #   may_change - set of attributes that may be changed by planned function calls
 
+#        t1 = time.time()
+
         self._records_being_processed_lock.acquire()
         if ekey in self._records_being_processed:
             # *** The record is already being processed by someone else. ***
             # Just put our update requests to its list of requests to process.
+            #self.log.debug("Record {} is already processed by some other worker - handing the request over".format(ekey))
             
             # If update_requests is empty, there's nothing to do, exit immediately
             if not update_requests:
@@ -485,7 +497,7 @@ class UpdateManager:
         
         
         # *** The record is currently not being processed by anyone. ***
-            
+        
         # Fetch the record from database or create a new one
         new_rec_created = False
         rec = self.db.get(ekey[0], ekey[1])
@@ -512,6 +524,8 @@ class UpdateManager:
         
         self._records_being_processed_lock.release()
         
+#        t2 = time.time()
+#        t_handlers = {}
         
         # *** Now we have the record, process the requested updates ***
         
@@ -603,12 +617,15 @@ class UpdateManager:
             # Call the event handler function.
             # Set of requested updates of the record should be returned
             self.log.debug("Calling: {}({}, ..., {})".format(get_func_name(func), ekey, updates))
+#            t_handler1 = time.time()
             try:
                 reqs = func(ekey, rec, updates)
             except Exception as e:
                 self.log.exception("Unhandled exception during call of {}({}, rec, {}). Traceback follows:"
                     .format(get_func_name(func), ekey, updates) )
                 reqs = []
+#            t_handler2 = time.time()
+#            t_handlers[get_func_name(func)] = t_handler2 - t_handler1
 
             # Set requested updates to requests_to_process
             if reqs:
@@ -633,6 +650,8 @@ class UpdateManager:
         
         #self.log.debug("RECORD: {}: {}".format(ekey, rec))
         
+#        t3 = time.time()
+
         # Put the record back to the DB
         self.db.put(ekey[0], ekey[1], rec)
         # and delete the entity record from list of records being processed
@@ -646,6 +665,13 @@ class UpdateManager:
         # check again if the record is still being processed, it finds out that
         # it's not and takes the processing itself.
         requests_to_process_lock.release()
+        
+#        t4 = time.time()
+#        #if t4 - t1 > 1.0:
+#        #    self.log.info("Entity {}: load: {:.3f}s, process: {:.3f}s, store: {:.3f}s".format(ekey, t2-t1, t3-t2, t4-t3))
+#        #    self.log.info("  handlers:" + ", ".join("{}: {:.3f}s".format(fname, t) for fname, t in t_handlers))
+#
+#        self.t_handlers.update(t_handlers)
         
         return new_rec_created
 

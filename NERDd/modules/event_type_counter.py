@@ -85,17 +85,17 @@ class EventTypeCounter(NERDModule):
                 types[cat] += n
 
         if total_events < self.event_min:
-            if self.event_days is not None:
-                self.log.debug("In last {} days only {} events happened for IP {} (minimal number of events for classification is {}).".format(self.event_days, total_events, key, self.event_min)) 
-            else:
-                self.log.debug("Only {} events happened for IP {} (minimal number of events for classification is {}).".format(total_events, key, self.event_min)) 
+#             if self.event_days is not None:
+#                 self.log.debug("In last {} days only {} events happened for IP {} (minimal number of events for classification is {}).".format(self.event_days, total_events, key, self.event_min)) 
+#             else:
+#                 self.log.debug("Only {} events happened for IP {} (minimal number of events for classification is {}).".format(total_events, key, self.event_min)) 
             return [('set', 'events_meta.types', [])]
 
         for event_type in types:
             if (types[event_type]/total_events*100) >= self.event_threshold:
-               self.log.debug("Event type {} exceed {}% threshold for IP {} ({} events from {}).".format(event_type, self.event_threshold, key, types[event_type], total_events))
+#                self.log.debug("Event type {} exceed {}% threshold for IP {} ({} events from {}).".format(event_type, self.event_threshold, key, types[event_type], total_events))
                ret.append(event_type)
-            else:
-               self.log.debug("Event type {} doesn't exceed {}% threshold for IP {} ({} events from {}).".format(event_type, self.event_threshold, key, types[event_type], total_events))
+#             else:
+#                self.log.debug("Event type {} doesn't exceed {}% threshold for IP {} ({} events from {}).".format(event_type, self.event_threshold, key, types[event_type], total_events))
 
         return [('set', 'events_meta.types', ret)] 

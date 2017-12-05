@@ -7,7 +7,7 @@ Should be triggered at least once a day for every address.
 from core.basemodule import NERDModule
 import g
 
-from datetime import datetime, timedelta
+import datetime
 
 # TODO - (re)compute sets of nodes for 1, 7 and 30 days as well (or do it in frontend?)
 
@@ -65,14 +65,16 @@ class EventCounter(NERDModule):
         if etype != 'ip':
             return None
 
-        today = datetime.utcnow().date()
+        today = datetime.datetime.utcnow().date()
         
         total1 = 0
         total7 = 0
         total30 = 0
         for evtrec in rec['events']:
-            days_diff = (today - datetime.strptime(evtrec['date'], "%Y-%m-%d").date()).days
             n = evtrec['n']
+            date = evtrec['date']
+            date = datetime.date(int(date[0:4]), int(date[5:7]), int(date[8:10]))
+            days_diff = (today - date).days
             if days_diff <= 1:
                 total1 += n
             if days_diff <= 7:

@@ -9,6 +9,7 @@ from core.basemodule import NERDModule
 import g
 
 from threading import Thread
+import multiprocessing as mp
 import time
 import random
 import os
@@ -178,6 +179,35 @@ if __name__ == "__main__":
 ##############################################################################
 # Main module code
 
+def dbwriter(queue, config):
+    """
+    Process for writing evetns to EventDB
+    
+    Pull new events from Queue and stores them to EventDB. Runs as separate
+    process, because storing events is quite CPU demanding.
+    """
+    # Ingnore SIGINT - process should be terminated from the main process
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    
+    # Create instance of EventDB (PSQL wrapper)
+    # It's easier to create it here again than copy the one from main process to this one
+    import common.eventdb_psql
+    eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+    
+    event_set = []
+    
+    while True:
+        event = queue.get()
+        if event is None:
+            print("EventDB process exitting")
+            break
+        event_set.append(event)
+        if len(event_set) >= 100 or queue.empty():
+            eventdb.put(event_set)
+            event_set = []
+
+
 class EventReceiver(NERDModule):
     """
     Receiver of security events. Receives events as IDEA files in given directory.
@@ -185,6 +215,13 @@ class EventReceiver(NERDModule):
     def __init__(self):
         self.log = logging.getLogger("EventReceiver")
         self._drop_path = g.config.get('warden_filer_path')
+        # Number of separate DB-writer processes to spawn
+        self._n_dbwriters = g.config.get('eventdb.dbwriter_processes', 0)
+        if self._n_dbwriters > 0:
+            # Create multiprocessing context
+            self.mpctx = mp.get_context('spawn') # Create processes using 'spawn', 'fork' doesn't work well in multithreaded applications (and not at all in Windows)
+            # Queue for sending events to DB-writer (max size is set, so eventRecevier gets blocked if DB-writer is too slow)
+            self.event_queue = self.mpctx.Queue(maxsize=100)
     
     def start(self):
         """
@@ -196,6 +233,13 @@ class EventReceiver(NERDModule):
         self._recv_thread = Thread(target=self._receive_events)
         self._recv_thread.daemon = True
         self._recv_thread.start()
+        if self._n_dbwriters > 0:
+            # Run EventDB writing processes
+            self._dbwriter_procs = []
+            for i in range(self._n_dbwriters):
+                self._dbwriter_procs.append(self.mpctx.Process(target=dbwriter, args=(self.event_queue, g.config)))
+            for i in range(self._n_dbwriters):
+                self._dbwriter_procs[i].start()
     
     def stop(self):
         """
@@ -208,15 +252,30 @@ class EventReceiver(NERDModule):
         running_flag = False
         self.log.info("Going to exit, waiting for event-reading thread ...")
         self._recv_thread.join()
-        self.log.info("Exitting.")
-    
+        
+        # Signal EventDB process to stop (send None to queue)
+        if self._n_dbwriters > 0:
+            self.log.info("Waiting for EventDB-writing process to finish ...")
+            for i in range(self._n_dbwriters):
+                self.event_queue.put(None)
+            for i in range(self._n_dbwriters):
+                self._dbwriter_procs[i].join()
+        self.log.info("Exitting.") 
+
     def _receive_events(self):
         # Infinite loop reading events as files in given directory
         # (termiated by setting running_flag to False)
         for (rawdata, event) in read_dir(self._drop_path):
-            # Store the event to Event DB
-            #g.eventdb.put(rawdata) # pass as string for old filesystem-database
-            g.eventdb.put(event) # pass as parsed JSON for PSQL version
+            #t1 = time.time()
+            # Store the event to EventDB
+            if self._n_dbwriters > 0:
+                # pass it to the Queue for separate DB-writing process
+                #print("EventDB Writer queue length: {:3d}".format(self.event_queue.qsize()), end="\r")
+                self.event_queue.put(event)
+            else:
+                # no separate processes - store it directly
+                g.eventdb.put([event])
+            #t2 = time.time()
             try:
                 if "Test" in event["Category"]:
                     continue # Ignore testing messages
@@ -257,8 +316,14 @@ class EventReceiver(NERDModule):
                 self.log.error("ERROR in parsing event: {}".format(str(e)))
                 pass
             
+            #t3 = time.time()
+            
             # If there are already too much requests queued, wait a while
             #print("***** QUEUE SIZE: {} *****".format(g.um.get_queue_size()))
             while g.um.get_queue_size() >= MAX_QUEUE_SIZE:
                 time.sleep(0.2)
+            
+            #t4 = time.time()
+            #g.um.t_handlers.update({'_event_recevier': t3-t1})
+            #self.log.info("Event {}: storage: {:.3f}s, process: {:.3f}s, put_to_queue: {:.3f}s".format(event["ID"], t2-t1, t3-t2, t4-t3))
             
