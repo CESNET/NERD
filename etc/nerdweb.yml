@@ -13,7 +13,7 @@ secret_key: "!!! CHANGE THIS !!!"
 # URL of NERDweb root (without trailing slash, e.g. "/nerd")
 # All NERDweb pages are relative to this
 # Keep empty if NERDweb resides in web server's root directory
-base_url: "/nerd"
+base_url: ""
 
 data_disk_path: "/data"
 
@@ -40,8 +40,6 @@ login:
 #      email_field: mail
 #      logout_path: "/Shibboleth.sso/Logout?return=/nerd/"
 
-  # TODO get this automatically
-  return-path: "/nerd/"
   # Where to send emails about account requests
   # !!! Fill this when shibboleth is enabled !!!
   request-email: ''

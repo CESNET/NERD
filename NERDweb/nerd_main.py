@@ -149,14 +149,14 @@ for method_id, method_cfg in config.get('login.methods', {}).items():
                              method_cfg.get('id_field', 'REMOTE_USER'),
                              method_cfg.get('name_field', None),
                              method_cfg.get('email_field', None),
-                             config['login']['return-path']
+                             BASE_URL+'/'
         )
     )
 
 
 @app.route('/logout')
 def logout():
-    redir_path = config['login']['return-path']
+    redir_path = BASE_URL+'/'
     if 'user' in session:
         # If there is logout-path defined for the login_type, redirect to this instead of the default
         login_type = session['user']['login_type']
