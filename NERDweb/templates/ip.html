@@ -87,7 +87,12 @@
      </span>
   {% endif %}
   {% endfor %}
-  </dd> 
+ {% elif attr == "dshield" %}
+    <dt><a href="https://www.dshield.org/">DShield</a></dt>
+        <dd><b>Reports number: </b>{{ val.reports }}</dd>
+        <dd><b>Targets number: </b>{{ val.targets }}</dd>
+        <dd><b>First date: </b>{{ val.mindate }}</dd>
+        <dd><b>Last date:  </b>{{ val.maxdate }}</dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}

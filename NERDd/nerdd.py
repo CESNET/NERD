@@ -91,6 +91,7 @@ import modules.event_type_counter
 import modules.tags
 import modules.reputation
 import modules.whois
+import modules.dshield
 
 # Instantiate modules
 # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
@@ -113,6 +114,7 @@ module_list = [
     modules.caida_as_class.CaidaASclass(),
     modules.event_type_counter.EventTypeCounter(),
     modules.tags.Tags(),
+    modules.dshield.DShield(),
 ]
 
 

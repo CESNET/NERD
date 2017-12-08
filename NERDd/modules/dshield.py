@@ -13,7 +13,7 @@ from copy import copy
 import xml.etree.ElementTree as ET
 import requests
 import logging
-
+import json
 
 class DShield(NERDModule):
     """
@@ -50,10 +50,20 @@ class DShield(NERDModule):
             root = ET.fromstring(response.text)
             # make a dict from the response
             dict_response = self.dictify(root)
-            reports = dict_response["ip"]["count"][0]["value"]
-            targets = dict_response["ip"]["attacks"][0]["value"]
-            mindate = dict_response["ip"]["mindate"][0]["value"]
-            maxdate = dict_response["ip"]["maxdate"][0]["value"]
+            reports = targets = mindate = maxdate = ""
+
+            # server can return no values, if it has no record of this IP
+            if "value" in dict_response["ip"]["count"][0].keys():
+                reports = dict_response["ip"]["count"][0]["value"]
+            if "value" in dict_response["ip"]["attacks"][0].keys():
+                targets = dict_response["ip"]["attacks"][0]["value"]
+            if "value" in dict_response["ip"]["mindate"][0].keys():
+                mindate = dict_response["ip"]["mindate"][0]["value"]
+            if "value" in dict_response["ip"]["maxdate"][0].keys():
+                maxdate = dict_response["ip"]["maxdate"][0]["value"]
+
+            if reports == "" or targets == "" or mindate == "" or maxdate == "":
+                return None
 
         except Exception as e:
             self.log.exception(e.__str__())
