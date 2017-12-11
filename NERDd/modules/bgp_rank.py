@@ -63,7 +63,11 @@ class CIRCL_BGPRank(NERDModule):
 
         try:
             # the return format is: [asn, name, date, source, rank]
-            rank = bgpranking_web.cached_daily_rank(ekey[1])[-1]
+            reply = bgpranking_web.cached_daily_rank(ekey[1])
+            if isinstance(reply, dict) and 'error' in reply:
+                self.log.error("Can't get BGPRank of ASN {}, server returned error: {}".format(key, reply['error']))
+                return None
+            rank = reply[-1]
         except Exception as e:
             self.log.exception("Can't get BGPRank of ASN {}".format(key))
             return None             # could be connection error etc.
