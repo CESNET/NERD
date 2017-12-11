@@ -63,6 +63,12 @@ class Updater(NERDModule):
         # Get all records whose next-regular-update time has passed
         time = datetime.utcnow()
         
+        # Updating the records may take some time - pause the job in scheduler
+        # so it doesn't try to run issue_events again until the current run is finished
+        # (it wouldn't run thanks to settings of Scheduler, but it would issue a warning,
+        # which we want to avoid)
+        g.scheduler.pause_job(self.sched_job_id)
+        
         for etype in ('ip','asn'):
             # Get list of IDs for each update interval
             # (i.e. all entities with _nru* less then current time
@@ -79,22 +85,18 @@ class Updater(NERDModule):
 #             ids4h = set()#set(g.db.find(etype, {'_nru4h': {'$lte': time}}, limit=self.FETCH_LIMIT))
 #             ids1d = set(g.db.find(etype, {'_nru1d': {'$lte': time}}, limit=self.FETCH_LIMIT))
 #             ids1w = set(g.db.find(etype, {'_nru1w': {'$lte': time}}, limit=self.FETCH_LIMIT))
-            self.last_fetch_time = time
+            
             # Merge the lists, so for each entity only one update request is issued, possibly containing more than one event
             all_ids = ids1d #ids4h | ids1d | ids1w # (Union not needed since list for 1d and 1w are always subsets of 4h)
 
             if not all_ids:
-                return
+                self.log.debug("Nothing to update")
+                continue
 
             # Issue update request(s) for each record found
             self.log.debug("Requesting updates for {} '{}' entities ({} 4h, {} 1d, {} 1w)".format(
                 len(all_ids), etype, len(ids4h), len(ids1d), len(ids1w)
             ))
-            # Updating the records may take some time - pause the job in scheduler
-            # so it doesn't try to run issue_events again until the current run is finished
-            # (it wouldn't run thanks to settings of Scheduler, but it would issue a warning,
-            # which we want to avoid)
-            g.scheduler.pause_job(self.sched_job_id)
 
             for id in all_ids:
                 # Each update request contains the corresponding "every*" event,
@@ -116,5 +118,7 @@ class Updater(NERDModule):
                 if not g.running:
                     return # Stop issuing update requests if daemon was requested to exit
 
-            g.scheduler.resume_job(self.sched_job_id)
+        self.last_fetch_time = time
+
+        g.scheduler.resume_job(self.sched_job_id)
 
