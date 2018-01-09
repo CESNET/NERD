@@ -97,10 +97,6 @@ echo 'zone "asn.localhost" {
    type master;
    file "/etc/named/zones/db.asn.localhost"; # zone file path
 };' > /etc/named/named.conf.local
-echo 'zone "asn.localhost" {
-   type master;
-   file "/etc/named/zones/db.asn.localhost"; # zone file path
-};' > /etc/named/named.conf.local
 
 mkdir -p /etc/named/zones
 wget -q -O - 'http://archive.routeviews.org/dnszones/originas.bz2' |
