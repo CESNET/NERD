@@ -240,7 +240,7 @@ echo "** Disabling SELinux **"
 # Disable for now (until reboot)
 setenforce 0
 # Disable permanently
-sed -i -e 's/^SELINUX=.*$/SELINUX=disabled/' /etc/sysconfig/selinux
+sed -i --follow-symlinks -e 's/^SELINUX=.*$/SELINUX=disabled/' /etc/sysconfig/selinux
 
 echo "** Starting Apache **"
 systemctl enable httpd
