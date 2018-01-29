@@ -60,10 +60,5 @@ dnsbl:
   # File where daily count of requests is stored (this is only prefix to which date will be appended)
   req_cnt_file: "/data/dnsbl-requests-"
 
-local_bl:
-  # tmp_dir: directory to store downloaded blacklists into, skip storage if missing or empty string
-  tmp_dir: "/data/local_bl/"
-  # Specification of the lists to download is in the common nerd.yml
-
 #shodan:
 #   apikey: ""

@@ -1,6 +1,8 @@
 pyyaml
 pymongo
 psycopg2
+redis
+hiredis
 dnspython
 geoip2
 pygeoip

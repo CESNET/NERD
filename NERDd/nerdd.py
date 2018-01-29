@@ -82,7 +82,7 @@ def main():
     import modules.dns
     import modules.geolocation
     import modules.dnsbl
-    import modules.local_bl
+    import modules.redis_bl
     import modules.shodan
     import modules.eml_asn_rank
     import modules.refresher
@@ -108,7 +108,7 @@ def main():
         modules.geolocation.Geolocation(),
         modules.whois.WhoIS(),
         modules.dnsbl.DNSBLResolver(),
-        modules.local_bl.LocalBlacklist(),
+        modules.redis_bl.RedisBlacklist(),
         modules.shodan.Shodan(),
         modules.eml_asn_rank.EML_ASN_rank(),
         modules.reputation.Reputation(),

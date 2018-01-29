@@ -103,6 +103,19 @@ echo "** Creating a database for NERD in PostgreSQL **"
 
 EOF
 
+##### Install and configure Redis #####
+
+$redis = <<EOF
+
+echo "** Installing Redis **"
+yum install -y redis
+
+echo "** Starting Redis **"
+systemctl enable redis.service
+systemctl start redis.service
+
+EOF
+
 ##### Install and configure BIND and download zone files #####
 
 $bind = <<EOF
@@ -311,6 +324,7 @@ Vagrant.configure(2) do |config|
   config.vm.provision :shell, inline: $python_packages
   config.vm.provision :shell, inline: $mongo
   config.vm.provision :shell, inline: $postgres
+  config.vm.provision :shell, inline: $redis
   config.vm.provision :shell, inline: $bind
   config.vm.provision :shell, inline: $warden
   config.vm.provision :shell, inline: $web
