@@ -421,7 +421,7 @@ class Lexer:
 """
 AST
 
-Tree representation of abstract syntactic structure created from condition, confidence and info
+Tree representation of abstract syntactic structure created from condition and info
 """
 
 class Expr:
@@ -526,27 +526,32 @@ class Bop(Expr):
                 right_eval = 0
             else:
                 right_eval = 1
-        if self.op == PLUS:
-            return left_eval + right_eval
-        elif self.op == MINUS:
-            return left_eval - right_eval
-        elif self.op == TIMES:
-            return left_eval * right_eval
-        elif self.op == DIVIDE:
-            return left_eval / right_eval
-        elif self.op == EQ:
-            return left_eval == right_eval
-        elif self.op == NEQ:
-            return left_eval != right_eval
-        elif self.op == LT:
-            return left_eval < right_eval
-        elif self.op == GT:
-            return left_eval > right_eval
-        elif self.op == LTE:
-            return left_eval <= right_eval
-        elif self.op == GTE:
-            return left_eval >= right_eval
-
+        try:
+            if self.op == PLUS:
+                return left_eval + right_eval
+            elif self.op == MINUS:
+                return left_eval - right_eval
+            elif self.op == TIMES:
+                return left_eval * right_eval
+            elif self.op == DIVIDE:
+                try:
+                    return left_eval / right_eval
+                except ZeroDivisionError:
+                    return 0
+            elif self.op == EQ:
+                return left_eval == right_eval
+            elif self.op == NEQ:
+                return left_eval != right_eval
+            elif self.op == LT:
+                return left_eval < right_eval
+            elif self.op == GT:
+                return left_eval > right_eval
+            elif self.op == LTE:
+                return left_eval <= right_eval
+            elif self.op == GTE:
+                return left_eval >= right_eval
+        except Exception:
+            return False
 class In(Expr):
     """
     In node represents membership operator ("in" and "not in"). 
