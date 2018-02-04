@@ -108,4 +108,11 @@ class MongoEntityDatabase():
         """
         return list(map(itemgetter('_id'), self._db[etype].find(filter=mongo_query, projection={'_id': 1}, **kwargs)))
 
+    def delete(self, etype, key):
+        """
+        Delete an entity specified with the key.
+        """
+        if etype not in self._supportedTypes:
+            raise UnknownEntityType("There is no collection for entity type "+str(etype))
 
+        self._db[etype].delete_one({'_id': key})

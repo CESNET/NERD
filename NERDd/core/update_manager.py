@@ -536,6 +536,7 @@ class UpdateManager:
         # TODO vyresit loop counter, kdyz muzou prichazet asynchronne nove pozadavky
         loop_counter = 0 # counter used to stop when looping too long - probably some cycle in attribute dependencies
         
+        deletion = False
         # *** call_queue loop ***
         while True:
             # *** If any update requests are pending, process them ***
@@ -557,6 +558,15 @@ class UpdateManager:
                     if op == 'event':
                         #self.log.debug("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
                         updated = [(attr, val)]
+
+                        # Check whether the event is !DELETE, clear queues and add calls to functions hooked to the !DELETE event
+                        if attr == '!DELETE':
+                            deletion = True
+                            requests_to_process.clear()
+                            call_queue.clear()
+                            for func in self._attr2func[etype].get(attr, []):
+                                call_queue.append((func, updated))
+                            break
                     else:
                         #self.log.debug("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
                         updated = perform_update(rec, updreq)
@@ -564,7 +574,7 @@ class UpdateManager:
                             #self.log.debug("Attribute value wasn't changed.")
                             continue
                     
-                    # Add to the call_queue all functions directly hooked to the attribute/event 
+                    # Add to the call_queue all functions directly hooked to the attribute/event
                     for func in self._attr2func[etype].get(attr, []):
                         # If the function is already in the queue...
                         for f,updates in call_queue:
@@ -652,8 +662,13 @@ class UpdateManager:
         
 #        t3 = time.time()
 
-        # Put the record back to the DB
-        self.db.put(ekey[0], ekey[1], rec)
+        # Remove or update processed database record
+        if deletion:
+            self.db.delete(ekey[0], ekey[1])
+            self.log.debug("Entity '{}' of type '{}' was removed from the database.".format(ekey[1], ekey[0]))
+        else:
+            self.db.put(ekey[0], ekey[1], rec)
+
         # and delete the entity record from list of records being processed
         self._records_being_processed_lock.acquire()
         del self._records_being_processed[ekey]
