@@ -106,11 +106,11 @@ class Updater(NERDModule):
 #                     requests.append(('event', '!every4h', None))
 #                     requests.append(('next_step', '_nru4h', ('ts_added', time, timedelta(seconds=4*60*60))))
                 if id in ids1d:
-                    requests.append(('event', '!check_and_update_1d', None))
-                    requests.append(('next_step', '_nru1d', ('ts_added', time, timedelta(days=1))))
+                    requests.append(('*event', '!check_and_update_1d', None))
+                    requests.append(('*next_step', '_nru1d', ('ts_added', time, timedelta(days=1))))
                 if id in ids1w:
-                    requests.append(('event', '!every1w', None))
-                    requests.append(('next_step', '_nru1w', ('ts_added', time, timedelta(days=7))))
+                    requests.append(('*event', '!every1w', None))
+                    requests.append(('*next_step', '_nru1w', ('ts_added', time, timedelta(days=7))))
                 # Issue update requests
                 while g.um.get_queue_size() >= MAX_QUEUE_SIZE:
                     sleep(0.2)
