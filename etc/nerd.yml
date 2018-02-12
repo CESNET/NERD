@@ -110,12 +110,6 @@ local_bl:
     - "([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)"
     - hour: 4
       minute: 50
-  - - palevo
-    - Palevo tracker
-    - https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist
-    - "([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)"
-    - hour: 4
-      minute: 50
   - - feodo
     - Feodo tracker
     - https://feodotracker.abuse.ch/blocklist.php?download=ipblocklist
