@@ -26,6 +26,7 @@ ENTITY_TYPES = ['ip', 'asn', 'bgppref', 'ipblock', 'org']
 #      - ('append', key, value)     - append new value to array at key (rec[key].append(key))
 #      - ('add_to_set', key, value) - append new value to array at key if it isn't present in the array yet (if value not in rec[key]: rec[key].append(value))
 #      - ('extend_set', key, iterable) - append values from iterable to array at key if the value isn't present in the array yet (for value in iterable: if value not in rec[key]: rec[key].append(value))
+#      - ('rem_from_set', key, iterable) - remove all values at key which are specified in an array
 #      - ('add', key, value)        - add given numerical value to that stored at key (rec[key] += value)
 #      - ('sub', key, value)        - subtract given numerical value from that stored at key (rec[key] -= value)
 #      - ('setmax', key, value)     - set new value of the key to larger of the given value and the current value (rec[key] = max(value, rec[key]))
@@ -144,7 +145,11 @@ def perform_update(rec, updreq):
                     changed = True
             if not changed:
                 return None
-    
+
+    elif op == 'rem_from_set':
+        if key in rec:
+            rec[key] = list(set(rec[key]) - set(value))
+
     elif op == 'add':
         if key not in rec:
             rec[key] = value
@@ -498,19 +503,34 @@ class UpdateManager:
         
         # *** The record is currently not being processed by anyone. ***
         
+        # Check whether a new record should not be created in case every operation is 'weak' (starts with '*')
+        weak_op = True
+        for ndx, updreq in enumerate(update_requests):
+            op, attr, val = updreq
+            if op[0] != '*':
+                weak_op = False
+            else:
+                # Remove starting symbol '*'
+                op = op[1:]
+                update_requests[ndx] = (op, attr, val)
+
         # Fetch the record from database or create a new one
         new_rec_created = False
         rec = self.db.get(ekey[0], ekey[1])
         if rec is None:
-            now = datetime.utcnow()
-            rec = {
-                'ts_added': now,
-                'ts_last_update': now,
-            }
-            new_rec_created = True
-            # New record was created -> add "!NEW" event to attrib_updates
-            #self.log.debug("New record {} was created, injecting event '!NEW'".format(ekey))
-            update_requests.insert(0,('event','!NEW',None))
+            if weak_op:
+                update_requests.clear()
+                self.log.debug("Received only weak operations for non-existent entity {} of type {}. Aborting record creation.".format(ekey[1], ekey[0]))
+            else:
+                now = datetime.utcnow()
+                rec = {
+                    'ts_added': now,
+                    'ts_last_update': now,
+                }
+                new_rec_created = True
+                # New record was created -> add "!NEW" event to attrib_updates
+                #self.log.debug("New record {} was created, injecting event '!NEW'".format(ekey))
+                update_requests.insert(0,('event','!NEW',None))
         
         # Short-circuit if update_requests is empty (used to only create a record if it doesn't exist)
         if not update_requests:
@@ -536,6 +556,7 @@ class UpdateManager:
         # TODO vyresit loop counter, kdyz muzou prichazet asynchronne nove pozadavky
         loop_counter = 0 # counter used to stop when looping too long - probably some cycle in attribute dependencies
         
+        deletion = False
         # *** call_queue loop ***
         while True:
             # *** If any update requests are pending, process them ***
@@ -557,6 +578,15 @@ class UpdateManager:
                     if op == 'event':
                         #self.log.debug("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
                         updated = [(attr, val)]
+
+                        # Check whether the event is !DELETE, clear queues and add calls to functions hooked to the !DELETE event
+                        if attr == '!DELETE':
+                            deletion = True
+                            requests_to_process.clear()
+                            call_queue.clear()
+                            for func in self._attr2func[etype].get(attr, []):
+                                call_queue.append((func, updated))
+                            break
                     else:
                         #self.log.debug("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
                         updated = perform_update(rec, updreq)
@@ -564,7 +594,7 @@ class UpdateManager:
                             #self.log.debug("Attribute value wasn't changed.")
                             continue
                     
-                    # Add to the call_queue all functions directly hooked to the attribute/event 
+                    # Add to the call_queue all functions directly hooked to the attribute/event
                     for func in self._attr2func[etype].get(attr, []):
                         # If the function is already in the queue...
                         for f,updates in call_queue:
@@ -652,8 +682,13 @@ class UpdateManager:
         
 #        t3 = time.time()
 
-        # Put the record back to the DB
-        self.db.put(ekey[0], ekey[1], rec)
+        # Remove or update processed database record
+        if deletion:
+            self.db.delete(ekey[0], ekey[1])
+            self.log.debug("Entity '{}' of type '{}' was removed from the database.".format(ekey[1], ekey[0]))
+        else:
+            self.db.put(ekey[0], ekey[1], rec)
+
         # and delete the entity record from list of records being processed
         self._records_being_processed_lock.acquire()
         del self._records_being_processed[ekey]
