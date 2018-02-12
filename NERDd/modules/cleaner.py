@@ -20,6 +20,8 @@ class Cleaner(NERDModule):
         #self.log.setLevel("DEBUG")
 
         max_event_history = g.config.get("max_event_history")
+        ip_lifetime = g.config.get("inactive_ip_lifetime")
+        self.ip_lifetime = timedelta(days=ip_lifetime)
         self.max_event_history = timedelta(days=max_event_history)
 
         g.um.register_handler(
@@ -37,7 +39,7 @@ class Cleaner(NERDModule):
         g.um.register_handler(
             self.check_ip_expiration,
             'ip',
-            ('!check_and_update_1d', '!check_and_update_1w'),
+            ('!check_and_update_1d',),
             tuple()
         )
 
@@ -112,14 +114,9 @@ class Cleaner(NERDModule):
         diff = datetime.utcnow() - rec['ts_last_event']
         actions = []
 
-        if diff >= self.max_event_history:
+        if diff >= self.ip_lifetime:
             actions.append(('event', '!DELETE', None))
             return actions
         else:
-            event, param = updates
-            if event == "!check_and_update_1d":
-                event = "!every1d"
-            else:
-                event = "!every1w"
-            actions.append('event', event, param)
+            actions.append('event', '!every1d', None)
             return actions
