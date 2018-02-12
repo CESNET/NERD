@@ -118,5 +118,5 @@ class Cleaner(NERDModule):
             actions.append(('event', '!DELETE', None))
             return actions
         else:
-            actions.append('event', '!every1d', None)
+            actions.append(('event', '!every1d', None))
             return actions
