@@ -33,10 +33,10 @@ class WhoIS(NERDModule):
         ipblock # IP block assigned by a RIR to which this IP belongs to
 
     bgppref:
-        id      # BGP Prefix (CIDR)
-        rep     # reputation score
-        ref_cnt # reference counter
-        asn     # list of autonomous systems this prefix originates in
+        id       # BGP Prefix (CIDR)
+        rep      # reputation score
+        _ref_cnt # reference counter
+        asn      # list of autonomous systems this prefix originates in
 
     asn:
         id      # ASN
@@ -47,21 +47,21 @@ class WhoIS(NERDModule):
         bgppref # list of BGP prefixes observed in this AS
 
     ipblock:
-        id      # IP block (example: netrange: 127.0.0.1 - 127.0.0.255)
-        name    # name of the IP block
-        rir     # corresponding RIR
-        descr   # description of the IP block (CIDR or address)
-        status  # IP block allocation status
-        rep     # reputation score
-        ref_cnt # reference counter
-        org     # id of an administrating organization
+        id       # IP block (example: netrange: 127.0.0.1 - 127.0.0.255)
+        name     # name of the IP block
+        rir      # corresponding RIR
+        descr    # description of the IP block (CIDR or address)
+        status   # IP block allocation status
+        rep      # reputation score
+        _ref_cnt # reference counter
+        org      # id of an administrating organization
 
     org:
-        id      # Organization ID
-        name    # name of the organization
-        address # address of the organization
-        contact # abuse contact (email or phone)
-        ref_cnt # reference counter
+        id       # Organization ID
+        name     # name of the organization
+        address  # address of the organization
+        contact  # abuse contact (email or phone)
+        _ref_cnt # reference counter
 
     Scheme:
         IP ---N:1--- BGP prefix ---M:N--- ASN ---N:1---,
@@ -129,7 +129,7 @@ class WhoIS(NERDModule):
         )
 
         g.um.register_handler(
-            self.removeIPImpact,
+            self.onIPRemove,
             'ip',
             ('!DELETE',),
             tuple()
@@ -138,14 +138,14 @@ class WhoIS(NERDModule):
         g.um.register_handler(
             self.checkBGP,
             'bgppref',
-            ('ref_cnt',),
+            ('_ref_cnt',),
             tuple()
         )
 
         g.um.register_handler(
             self.checkIPBlock,
             'ipblock',
-            ('ref_cnt',),
+            ('_ref_cnt',),
             tuple()
         )
 
@@ -159,7 +159,7 @@ class WhoIS(NERDModule):
         g.um.register_handler(
             self.checkOrg,
             'org',
-            ('ref_cnt',),
+            ('_ref_cnt',),
             tuple()
         )
 
@@ -236,15 +236,15 @@ class WhoIS(NERDModule):
 
         return rir, False
 
-    def removeIPImpact(self, ekey, rec, updates):
+    def onIPRemove(self, ekey, rec, updates):
         etype, ip = ekey
         if etype != 'ip':
             return None
 
         if 'bgppref' in rec:
-            g.um.update(('bgppref', rec['bgppref']), [('*sub', 'ref_cnt', 1)])
+            g.um.update(('bgppref', rec['bgppref']), [('*sub', '_ref_cnt', 1)])
         if 'ipblock' in rec:
-            g.um.update(('ipblock', rec['ipblock']), [('*sub', 'ref_cnt', 1)])
+            g.um.update(('ipblock', rec['ipblock']), [('*sub', '_ref_cnt', 1)])
 
         return None
 
@@ -254,24 +254,23 @@ class WhoIS(NERDModule):
             return None
 
         actions = []
-        if rec['ref_cnt'] < 1:
+        if rec['_ref_cnt'] < 1:
             actions.append(('event', '!DELETE', None))
-            if 'asn' in rec:
-                for asn in rec['asn']:
-                    g.um.update(('asn', asn), [('*rem_from_set', 'bgppref', [bgppref])])
+            for asn in rec.get('asn', []):
+                g.um.update(('asn', asn), [('*rem_from_set', 'bgppref', [bgppref])])
 
         return actions
 
     def checkASN(self, ekey, rec, updates):
-        etype, bgppref = ekey
+        etype, asn = ekey
         if etype != 'asn':
             return None
 
         actions = []
-        if 'bgppref' not in rec or len(rec['bgppref']) < 1:
+        if len(rec.get('bgppref', [])) < 1:
             actions.append(('event', '!DELETE', None))
             if 'org' in rec:
-                g.um.update(('org', rec['org']), [('*sub', 'ref_cnt', 1)])
+                g.um.update(('org', rec['org']), [('*sub', '_ref_cnt', 1)])
 
         return actions
 
@@ -281,10 +280,10 @@ class WhoIS(NERDModule):
             return None
 
         actions = []
-        if rec['ref_cnt'] < 1:
+        if rec['_ref_cnt'] < 1:
             actions.append(('event', '!DELETE', None))
             if 'org' in rec:
-                g.um.update(('org', rec['org']), [('*sub', 'ref_cnt', 1)])
+                g.um.update(('org', rec['org']), [('*sub', '_ref_cnt', 1)])
 
         return actions
 
@@ -294,7 +293,7 @@ class WhoIS(NERDModule):
             return None
 
         actions = []
-        if rec['ref_cnt'] < 1:
+        if rec['_ref_cnt'] < 1:
             actions.append(('event', '!DELETE', None))
 
         return actions
@@ -351,7 +350,7 @@ class WhoIS(NERDModule):
                 # Create a new ASN record (if not already present) and add BGP prefix to its list.
                 g.um.update(('asn', asn), [('add_to_set', 'bgppref', prefix)])
             # Create a new BGP prefix record (if not already present) and add all ASNs to its list.
-            g.um.update(('bgppref', prefix), [('extend_set', 'asn', asn_list), ('add', 'ref_cnt', 1)])
+            g.um.update(('bgppref', prefix), [('extend_set', 'asn', asn_list), ('add', '_ref_cnt', 1)])
             # Add BGP prefix to the IP record
             actions.append(('set', 'bgppref', prefix))
 
@@ -372,7 +371,7 @@ class WhoIS(NERDModule):
         actions.append(('set', 'ipblock', inet))
 
         # Create new IP block record (if not already present).
-        g.um.update(('ipblock', inet), [('add', 'ref_cnt', 1)])
+        g.um.update(('ipblock', inet), [('add', '_ref_cnt', 1)])
         return actions
 
     def getBGPPrefInfo(self, ekey, rec, updates):
@@ -382,7 +381,6 @@ class WhoIS(NERDModule):
 
         actions = []
         actions.append(('set', 'rep', 0))
-        #actions.append(('set', 'ref_cnt', 0))
 
         return actions
 
@@ -436,7 +434,7 @@ class WhoIS(NERDModule):
         for key in data_dict.keys():
             if key == 'org':
                 # Create a new record of the organization, if not already present.
-                g.um.update(('org', rir + ':' + data_dict[key]), [('add', 'ref_cnt', 1)])
+                g.um.update(('org', rir + ':' + data_dict[key]), [('add', '_ref_cnt', 1)])
                 actions.append(('set', key, rir + ':' + data_dict[key]))
             else:
                 actions.append(('set', key, data_dict[key]))
@@ -459,7 +457,7 @@ class WhoIS(NERDModule):
 
         rir = ip_block_data['rir']
         actions.append(('set', 'rep', 0))
-        #actions.append(('set', 'ref_cnt', 0))
+
         if reserved:
             actions.append(('set', 'rir', 'Reserved:' + rir))
         else:
@@ -507,7 +505,7 @@ class WhoIS(NERDModule):
         for key in data_dict.keys():
             if key == 'org':
                 # Create a new record of the organization, if not already present.
-                g.um.update(('org', rir + ':' + data_dict[key]), [('add', 'ref_cnt', 1)])
+                g.um.update(('org', rir + ':' + data_dict[key]), [('add', '_ref_cnt', 1)])
                 actions.append(('set', key, rir + ':' + data_dict[key]))
             else:
                 actions.append(('set', key, data_dict[key]))
@@ -578,8 +576,6 @@ class WhoIS(NERDModule):
 
         for key in data_dict:
             actions.append(('set', key, data_dict[key]))
-
-        #actions.append(('set', 'ref_cnt', 0))
 
         return actions
 
