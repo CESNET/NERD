@@ -980,6 +980,32 @@ def ip_search(full = False):
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
 
+"""
+***** NERD API Bulk IP Reputation *****
+
+Receive form with POST method with field 'ips' containing
+a list of IP addresses separated with simple whitespace.
+
+Returns a list of pairs <IP reputation>, each pair on a new line.
+"""
+
+@app.route('/api/v1/ip/bulk/', methods=['POST'])
+def bulk_request():
+    ret = validate_api_request(request.headers.get("Authorization"))
+    if ret:
+        return ret
+
+    ips = request.form.get('ips', "")
+    ip_list = ips.split()
+    results = {el:0.0 for el in ip_list}
+
+    res = mongo.db.ip.find({"_id": {"$in": ip_list}}, {"_id":1, "rep":1})
+    if res:
+        for ip in res:
+            results[ip['_id']] = ip['rep']
+
+    return Response(''.join(['%s %s\n' % (key, value) for (key, value) in results.items()]), 200, mimetype='text/plain')
+
 #@app.route('/api/v1/search/ip/full')
 #def ip_search_full():
 #    return ip_search(True)
