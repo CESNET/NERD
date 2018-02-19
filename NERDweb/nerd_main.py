@@ -1002,7 +1002,7 @@ def bulk_request():
     res = mongo.db.ip.find({"_id": {"$in": ip_list}}, {"_id":1, "rep":1})
     if res:
         for ip in res:
-            results[ip['_id']] = ip['rep']
+            results[ip['_id']] = ip.get('rep', 0.0)
 
     return Response(''.join(['%s %s\n' % (key, value) for (key, value) in results.items()]), 200, mimetype='text/plain')
 
