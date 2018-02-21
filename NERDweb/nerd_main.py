@@ -454,6 +454,20 @@ def ips():
             results = []
             error = 'mongo_error'
         
+        for ip in results:
+            if "bgppref" in ip:
+                asn_list = []
+                bgppref = mongo.db.bgppref.find_one({'_id':ip['bgppref']})
+
+                for i in  bgppref['asn']:
+                    i = mongo.db.asn.find_one({'_id':i})
+                    del i['bgppref']
+                    asn_list.append(i)
+
+                del bgppref['asn']
+                ip['bgppref'] = bgppref
+                ip['asn'] = asn_list
+
         # Add metainfo about evetns for easier creation of event table in the template
         for ip in results:
             events = ip.get('events', [])
