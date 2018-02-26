@@ -886,7 +886,7 @@ def get_basic_info_dic(val):
     data = {
         'ip' : val['_id'],
         'rep' : val['rep'],
-        'hostname' : val.get('hostname', ''),
+        'hostname' : (val.get('hostname', '') or '')[::-1],
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
         'asn' : val.get('asn',[]),
@@ -926,7 +926,7 @@ def get_full_info(ipaddr=None):
     data = {
         'ip' : val['_id'],
         'rep' : val['rep'],
-        'hostname' : val.get('hostname', ''),
+        'hostname' : (val.get('hostname', '') or '')[::-1],
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
         'asn' : val.get('asn',[]),
