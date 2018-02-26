@@ -9,6 +9,8 @@ import os
 import subprocess
 import re
 import pytz
+import ipaddress
+import struct
 
 import flask
 from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session, Response
@@ -997,20 +999,35 @@ def ip_search(full = False):
 """
 ***** NERD API Bulk IP Reputation *****
 
-Receive form with POST method with field 'ips' containing
-a list of IP addresses separated with simple whitespace.
+Endpoint for bulk IP address reputaion discovering.
+IP addresses can be pass either in binary format (big endian)
+or in a text format (ASCII). Format is selected using last part of URL path (/binary or /text).
 
-Returns a list of pairs <IP reputation>, each pair on a new line.
+Returned data contains a list of reputation scores for each IP address queried in the same order IPs were passed to API. (text format)
+Returned data contains a an octet stream. Each 8 bytes represent a double precision data type. (binary format)
 """
 
-@app.route('/api/v1/ip/bulk/', methods=['POST'])
-def bulk_request():
+@app.route('/api/v1/ip/bulk/<f>', methods=['POST'])
+def bulk_request(f = 'text'):
     ret = validate_api_request(request.headers.get("Authorization"))
     if ret:
         return ret
 
-    ips = request.form.get('ips', "")
-    ip_list = ips.split()
+    ips = request.get_data()
+
+    if f == 'text':
+        ips = ips.decode("ascii")
+        ip_list = ips.split(',')
+    elif f == 'binary':
+        ip_list = []
+        for x in range(0, int(len(ips) / 4)):
+            addr = ips[x * 4 : x * 4 + 4]
+            ip_list.append(str(ipaddress.ip_address(addr)))
+    else:
+        err['err_n'] = 400
+        err['error'] = 'Unsupported input data format: ' + f
+        return Response(json.dumps(err), 400, mimetype='application/json')
+
     results = {el:0.0 for el in ip_list}
 
     res = mongo.db.ip.find({"_id": {"$in": ip_list}}, {"_id":1, "rep":1})
@@ -1018,7 +1035,14 @@ def bulk_request():
         for ip in res:
             results[ip['_id']] = ip.get('rep', 0.0)
 
-    return Response(''.join(['%s %s\n' % (key, value) for (key, value) in results.items()]), 200, mimetype='text/plain')
+    if f == 'text':
+        return Response(''.join(['%s\n' % results[val] for val in ip_list]), 200, mimetype='text/plain')
+    elif f == 'binary':
+        resp = bytearray()
+        for x in ip_list:
+            resp += struct.pack("d", results[x])
+        return Response(resp, 200, mimetype='appliacation/octet-stream')
+    
 
 #@app.route('/api/v1/search/ip/full')
 #def ip_search_full():
