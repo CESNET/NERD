@@ -458,9 +458,13 @@ def ips():
             if "bgppref" in ip:
                 asn_list = []
                 bgppref = mongo.db.bgppref.find_one({'_id':ip['bgppref']})
+                if not bgppref or 'asn' not in bgppref:
+                    continue # an inconsistence in DB, it may happen temporarily
 
                 for i in  bgppref['asn']:
                     i = mongo.db.asn.find_one({'_id':i})
+                    if not i or 'bgppref' not in i:
+                        continue
                     del i['bgppref']
                     asn_list.append(i)
 
