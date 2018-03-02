@@ -133,14 +133,11 @@ $(function () {
 <td class="id ip"><a href="{{ url_for('ip') + ip._id }}"><span>{{ip._id}}</span></a></td>
 <td class="hostname">{{ip['hostname']|reverse if ip['hostname'] else '--'}}</td>
 <td class="asn">
-  <span title="MaxMind GeoLite:<br> &nbsp; {% if ip.as_maxmind %}AS{{ip.as_maxmind.num}} - {{ip.as_maxmind.description}}{% else %}--{% endif %}<br>
-Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} - {{ip.as_rv.description}}{% else %}--{% endif %}">
-  {% if ip.as_maxmind and ip.as_rv %}
-    {% if ip.as_maxmind.num == ip.as_rv.num %}AS{{ip.as_maxmind.num}}{% else %}??{% endif %}
-  {% elif ip.as_maxmind %}
-    AS{{ip.as_maxmind.num}}
-  {% elif ip.as_rv %}
-    AS{{ip.as_rv.num}}
+  {% if 'asn' in ip%}
+    {% for asn in ip['asn']%}
+    <a href="{{ url_for('asn') + asn['_id']|string }}" title="{{asn['rir']}}:{{asn['name']}}">{{ 'AS' + asn['_id']|string }}</a>
+    <br>
+    {% endfor %}
   {% endif %}
 </span>
 </td>

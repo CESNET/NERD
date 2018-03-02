@@ -9,6 +9,8 @@ import os
 import subprocess
 import re
 import pytz
+import ipaddress
+import struct
 
 import flask
 from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session, Response
@@ -454,6 +456,24 @@ def ips():
             results = []
             error = 'mongo_error'
         
+        for ip in results:
+            if "bgppref" in ip:
+                asn_list = []
+                bgppref = mongo.db.bgppref.find_one({'_id':ip['bgppref']})
+                if not bgppref or 'asn' not in bgppref:
+                    continue # an inconsistence in DB, it may happen temporarily
+
+                for i in  bgppref['asn']:
+                    i = mongo.db.asn.find_one({'_id':i})
+                    if not i or 'bgppref' not in i:
+                        continue
+                    del i['bgppref']
+                    asn_list.append(i)
+
+                del bgppref['asn']
+                ip['bgppref'] = bgppref
+                ip['asn'] = asn_list
+
         # Add metainfo about evetns for easier creation of event table in the template
         for ip in results:
             events = ip.get('events', [])
@@ -870,7 +890,7 @@ def get_basic_info_dic(val):
     data = {
         'ip' : val['_id'],
         'rep' : val['rep'],
-        'hostname' : val.get('hostname', ''),
+        'hostname' : (val.get('hostname', '') or '')[::-1],
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
         'asn' : val.get('asn',[]),
@@ -910,7 +930,7 @@ def get_full_info(ipaddr=None):
     data = {
         'ip' : val['_id'],
         'rep' : val['rep'],
-        'hostname' : val.get('hostname', ''),
+        'hostname' : (val.get('hostname', '') or '')[::-1],
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
         'asn' : val.get('asn',[]),
@@ -979,6 +999,54 @@ def ip_search(full = False):
         err['err_n'] = 400
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
+
+"""
+***** NERD API Bulk IP Reputation *****
+
+Endpoint for bulk IP address reputaion discovering.
+IP addresses can be pass either in binary format (big endian)
+or in a text format (ASCII). Format is selected using last part of URL path (/binary or /text).
+
+Returned data contains a list of reputation scores for each IP address queried in the same order IPs were passed to API. (text format)
+Returned data contains a an octet stream. Each 8 bytes represent a double precision data type. (binary format)
+"""
+
+@app.route('/api/v1/ip/bulk/<f>', methods=['POST'])
+def bulk_request(f = 'text'):
+    ret = validate_api_request(request.headers.get("Authorization"))
+    if ret:
+        return ret
+
+    ips = request.get_data()
+
+    if f == 'text':
+        ips = ips.decode("ascii")
+        ip_list = ips.split(',')
+    elif f == 'binary':
+        ip_list = []
+        for x in range(0, int(len(ips) / 4)):
+            addr = ips[x * 4 : x * 4 + 4]
+            ip_list.append(str(ipaddress.ip_address(addr)))
+    else:
+        err['err_n'] = 400
+        err['error'] = 'Unsupported input data format: ' + f
+        return Response(json.dumps(err), 400, mimetype='application/json')
+
+    results = {el:0.0 for el in ip_list}
+
+    res = mongo.db.ip.find({"_id": {"$in": ip_list}}, {"_id":1, "rep":1})
+    if res:
+        for ip in res:
+            results[ip['_id']] = ip.get('rep', 0.0)
+
+    if f == 'text':
+        return Response(''.join(['%s\n' % results[val] for val in ip_list]), 200, mimetype='text/plain')
+    elif f == 'binary':
+        resp = bytearray()
+        for x in ip_list:
+            resp += struct.pack("d", results[x])
+        return Response(resp, 200, mimetype='appliacation/octet-stream')
+    
 
 #@app.route('/api/v1/search/ip/full')
 #def ip_search_full():

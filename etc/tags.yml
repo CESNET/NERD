@@ -140,10 +140,16 @@ tags:
     tag_color: "#333333"
     condition: bl.tor
 
+  spam:
+    name: SPAM sender
+    description: Host sends spams
+    tag_color: "#47669b"
+    condition: bl.psbl*0.14 + bl.spamcop*0.14 + bl.blocklist_de-trigger-spam*0.14 + bl.sorbs-spam*0.14 + bl.spamhaus-sbl*0.14 + bl.uceprotect*0.15 + bl.wpbl*0.15
+
 #  test:
 #    name: Test
 #    description: This is test tag
 #    tag_color: "#bc0000"
-#    condition: "caida_as_class.v == 'access' and 'ReconScanning' in events.typess "
+#    condition: "caida_as_class.v == 'access' and 'ReconScanning' in events.types "
 #    confidence: "caida_as_class.c*0.5 + hostname*0.5"
 #    info: "this ip with hostname {hostname} has been classified as {caida_as_class.v} type"

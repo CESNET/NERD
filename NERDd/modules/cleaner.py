@@ -1,8 +1,5 @@
 """
 NERD module clearing old entries from entity records.
-
-This only removes old parts of records (like metadata about evetns),
-whole records are removed by an external script.
 """
 import logging
 from datetime import datetime, timedelta
@@ -23,6 +20,8 @@ class Cleaner(NERDModule):
         #self.log.setLevel("DEBUG")
 
         max_event_history = g.config.get("max_event_history")
+        ip_lifetime = g.config.get("inactive_ip_lifetime")
+        self.ip_lifetime = timedelta(days=ip_lifetime)
         self.max_event_history = timedelta(days=max_event_history)
 
         g.um.register_handler(
@@ -36,6 +35,12 @@ class Cleaner(NERDModule):
             'ip',
             ('!every1d',),
             tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
+        )
+        g.um.register_handler(
+            self.check_ip_expiration,
+            'ip',
+            ('!check_and_update_1d',),
+            tuple()
         )
 
 
@@ -97,4 +102,21 @@ class Cleaner(NERDModule):
         
         return actions
 
+    def check_ip_expiration(self, ekey, rec, updates):
+        """
+        Handler function to issue !every1d and !every1w event in case the IP record is still valid.
+        If the IP record is no longer valid, a !DELETE event is issued.
+        """
+        etype, key = ekey
+        if etype != 'ip':
+            return None
 
+        diff = datetime.utcnow() - rec['ts_last_event']
+        actions = []
+
+        if diff >= self.ip_lifetime:
+            actions.append(('event', '!DELETE', None))
+            return actions
+        else:
+            actions.append(('event', '!every1d', None))
+            return actions
