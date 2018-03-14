@@ -20,7 +20,7 @@ db.ip.aggregate([
     {$project: {_id: 1, bgppref: 1}},
     {$group: {_id: "$bgppref", cnt: {$sum: NumberInt(1)}}}
 ]).forEach( function(x) {
-    db.bgppref.update({_id: x._id}, {$set: {_ref_cnt: x.cnt}})
+    db.bgppref.update({_id: x._id}, {$set: {_ref_cnt: NumberInt(x.cnt)}})
 });
 // Delete records with _ref_cnt = 0 (shouldn't normally happen)
 res = db.bgppref.remove({_ref_cnt: 0});
@@ -39,7 +39,7 @@ db.ip.aggregate([
     {$project: {_id: 1, ipblock: 1}},
     {$group: {_id: "$ipblock", cnt: {$sum: NumberInt(1)}}}
 ]).forEach( function(x) {
-    db.ipblock.update({_id: x._id}, {$set: {_ref_cnt: x.cnt}})
+    db.ipblock.update({_id: x._id}, {$set: {_ref_cnt: NumberInt(x.cnt)}})
 });
 // Delete records with _ref_cnt = 0 (shouldn't normally happen)
 res = db.ipblock.remove({_ref_cnt: 0});
@@ -75,7 +75,7 @@ db.asn.aggregate([
     {$unwind: "$bgppref"},
     {$group: {_id: "$bgppref", asn: {$push: "$_id"}}}
 ]).forEach( function(x) {
-    db.bgppref.update({_id: x._id}, {$set: {asn: x.asn}})
+    db.bgppref.update({_id: x._id}, {$set: {asn: x.asn.map(n => NumberInt(n))}})
 });
 // Delete records with empty list of pointers (shouldn't normally happen)
 res = db.bgppref.remove({asn: {$size: 0}});
@@ -93,14 +93,14 @@ db.asn.aggregate([
     {$project: {_id: 1, org: 1}},
     {$group: {_id: "$org", cnt: {$sum: NumberInt(1)}}}
 ]).forEach( function(x) {
-    db.org.update({_id: x._id}, {$inc: {_ref_cnt: x.cnt}})
+    db.org.update({_id: x._id}, {$inc: {_ref_cnt: NumberInt(x.cnt)}})
 });
 db.ipblock.aggregate([
     {$match: {org: {$exists: true}}},
     {$project: {_id: 1, org: 1}},
     {$group: {_id: "$org", cnt: {$sum: NumberInt(1)}}}
 ]).forEach( function(x) {
-    db.org.update({_id: x._id}, {$inc: {_ref_cnt: x.cnt}})
+    db.org.update({_id: x._id}, {$inc: {_ref_cnt: NumberInt(x.cnt)}})
 });
 // Delete records with _ref_cnt = 0 (shouldn't normally happen)
 res = db.org.remove({_ref_cnt: 0});
