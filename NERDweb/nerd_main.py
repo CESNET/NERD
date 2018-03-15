@@ -1003,34 +1003,34 @@ def ip_search(full = False):
 """
 ***** NERD API Bulk IP Reputation *****
 
-Endpoint for bulk IP address reputaion discovering.
-IP addresses can be pass either in binary format (big endian)
-or in a text format (ASCII). Format is selected using last part of URL path (/binary or /text).
+Endpoint for bulk IP address queries about the reputation score.
+IP addresses can be passed either in binary format (4 bytes, big endian, no separator) or in a text format (ASCII, each IP separated with comma).
+IP addresses are passed as raw data in POST form.
+Format is selected by querying with header field "Content-Type: text/plain" for text format or "Content-Type: application/octet-stream" for binary format.
 
-Returned data contains a list of reputation scores for each IP address queried in the same order IPs were passed to API. (text format)
-Returned data contains a an octet stream. Each 8 bytes represent a double precision data type. (binary format)
+Returned data contain a list of reputation scores for each IP address queried in the same order IPs were passed to API. (text format)
+Returned data contain an octet stream. Each 8 bytes represent a double precision data type. (binary format)
 """
 
-@app.route('/api/v1/ip/bulk/<f>', methods=['POST'])
-def bulk_request(f = 'text'):
+@app.route('/api/v1/ip/bulk/', methods=['POST'])
+def bulk_request():
     ret = validate_api_request(request.headers.get("Authorization"))
     if ret:
         return ret
 
     ips = request.get_data()
 
-    if f == 'text':
+    f = request.headers.get("Content-Type", "")
+    if f == 'text/plain':
         ips = ips.decode("ascii")
         ip_list = ips.split(',')
-    elif f == 'binary':
+    elif f == 'application/octet-stream':
         ip_list = []
         for x in range(0, int(len(ips) / 4)):
             addr = ips[x * 4 : x * 4 + 4]
             ip_list.append(str(ipaddress.ip_address(addr)))
     else:
-        err['err_n'] = 400
-        err['error'] = 'Unsupported input data format: ' + f
-        return Response(json.dumps(err), 400, mimetype='application/json')
+        return Response(json.dumps({'err_n': 400, 'error': 'Unsupported input data format: ' + f}), 400, mimetype='application/json')
 
     results = {el:0.0 for el in ip_list}
 
@@ -1039,18 +1039,13 @@ def bulk_request(f = 'text'):
         for ip in res:
             results[ip['_id']] = ip.get('rep', 0.0)
 
-    if f == 'text':
+    if f == 'text/plain':
         return Response(''.join(['%s\n' % results[val] for val in ip_list]), 200, mimetype='text/plain')
-    elif f == 'binary':
+    elif f == 'application/octet-stream':
         resp = bytearray()
         for x in ip_list:
             resp += struct.pack("d", results[x])
-        return Response(resp, 200, mimetype='appliacation/octet-stream')
-    
-
-#@app.route('/api/v1/search/ip/full')
-#def ip_search_full():
-#    return ip_search(True)
+        return Response(resp, 200, mimetype='application/octet-stream')
 
 
 # Custom error 404 handler for API
