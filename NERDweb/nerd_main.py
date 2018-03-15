@@ -841,13 +841,13 @@ def get_ip_info(ipaddr, full):
 def attach_whois_data(ipinfo, full):
     if full:
         if 'bgppref' in ipinfo.keys():
-            bgppref = mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']})
+            bgppref = clean_secret_data(mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))
             asn_list = []
 
             for i in  bgppref['asn']:
-                i = mongo.db.asn.find_one({'_id':i})
+                i = clean_secret_data(mongo.db.asn.find_one({'_id':i}))
                 if 'org' in i.keys():
-                    i['org'] = mongo.db.org.find_one({'_id':i['org']})
+                    i['org'] = clean_secret_data(mongo.db.org.find_one({'_id':i['org']}))
 
                 del i['bgppref']
                 asn_list.append(i)
@@ -857,16 +857,23 @@ def attach_whois_data(ipinfo, full):
             ipinfo['asn'] = asn_list
 
         if 'ipblock' in ipinfo.keys():
-            ipblock = mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']})
+            ipblock = clean_secret_data(mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']}))
 
             if "org" in ipblock.keys():
-                ipblock['org'] = mongo.db.org.find_one({'_id':ipblock['org']})
+                ipblock['org'] = clean_secret_data(mongo.db.org.find_one({'_id':ipblock['org']}))
 
             ipinfo['ipblock'] = ipblock
     else:
         if 'bgppref' in ipinfo.keys():
             ipinfo['asn'] = (mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))['asn']
 
+
+def clean_secret_data(data):
+    for i in list(data):
+        if i.startswith("_") and i != "_id":
+            del data[i]
+
+    return data
 
 # ***** NERD API BasicInfo *****
 def get_basic_info_dic(val):
