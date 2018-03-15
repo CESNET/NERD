@@ -68,19 +68,6 @@ ENTITY_TYPES = ['ip', 'asn', 'bgppref', 'ipblock', 'org']
 # Many of them probably won't so we can save the load from database
 # (we just need to block any other updates, which is now done by keeping the record in _records_being_processed).
 
-# TODO: Vyresit reakci na !NEW pri pridani noveho modulu.
-# Spousta modulu reaguje na !NEW, ale pri pridani takoveho modulu do systemu
-# se nepridaji nove polozky k existujicim zaznamum (protoze uz existuji),
-# ani kdyz jsou updatovatny.
-# Bude ptoreba pridat nejakou udalost !NEW_MODULE, ktera se pouzije na vsechny existujici zaznamy v databazi
-
-# TODO:
-# Handling of non-IP entities: Modules must call .update() when thay want to make some change in another entity (even of the same type)
-# Hooked functions must be registered not only on a specific attribute/event, but also entity type
-# Stav:
-#  - predelan UpdateManager (mapovani funkce<->atributy je zvlast pro kazdy typ entity)
-#  - zmenila se registracni funkce (pridan param etype) -> nutno zmenit vsechny moduly
-
 
 def get_func_name(func_or_method):
     """Get name of function or method as pretty string."""
