@@ -18,6 +18,7 @@ import socket
 import json
 import logging
 import datetime
+import pika # RabbitMQ client
 
 from common.utils import parse_rfc_time
 
@@ -222,6 +223,17 @@ class EventReceiver(NERDModule):
             self.mpctx = mp.get_context('spawn') # Create processes using 'spawn', 'fork' doesn't work well in multithreaded applications (and not at all in Windows)
             # Queue for sending events to DB-writer (max size is set, so eventRecevier gets blocked if DB-writer is too slow)
             self.event_queue = self.mpctx.Queue(maxsize=100)
+        
+        # Initialize RabbitMQ connection (if queue name is given)
+        self.rmq_queue_name = g.config.get('eventdb.forward_to_queue', None)
+        if self.rmq_queue_name:
+            rmq_creds = pika.PlainCredentials('guest', 'guest')
+            rmq_params = pika.ConnectionParameters('localhost', 5672, '/', rmq_creds)
+            rmq_conn = pika.BlockingConnection(rmq_params)
+            self.rmq_channel = rmq_conn.channel()
+            # we don't declare any queue here, it should be declared statically using rabbitmqctl or web Management
+        else:
+            self.rmq_channel = None
     
     def start(self):
         """
@@ -261,6 +273,9 @@ class EventReceiver(NERDModule):
             for i in range(self._n_dbwriters):
                 self._dbwriter_procs[i].join()
         self.log.info("Exitting.") 
+        
+        if self.rmq_channel is not None:
+            self.rmq_channel.close()
 
     def _receive_events(self):
         # Infinite loop reading events as files in given directory
@@ -276,6 +291,12 @@ class EventReceiver(NERDModule):
                 # no separate processes - store it directly
                 g.eventdb.put([event])
             #t2 = time.time()
+            
+            # Send copy of the IDEA message to RabbitMQ queue (currently used by experimental GRIP system)
+            # Does nothing if given queue doesn't exist
+            if self.rmq_channel is not None:
+                self.rmq_channel.basic_publish(exchange='', routing_key=self.rmq_queue_name, body=rawdata)
+
             try:
                 if "Test" in event["Category"]:
                     continue # Ignore testing messages
@@ -326,4 +347,4 @@ class EventReceiver(NERDModule):
             #t4 = time.time()
             #g.um.t_handlers.update({'_event_recevier': t3-t1})
             #self.log.info("Event {}: storage: {:.3f}s, process: {:.3f}s, put_to_queue: {:.3f}s".format(event["ID"], t2-t1, t3-t2, t4-t3))
-            
+                        

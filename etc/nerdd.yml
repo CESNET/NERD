@@ -12,6 +12,10 @@ eventdb:
   # Number of separate processes for inserting messages to DB
   # (zero means don't spawn a separate process)
   dbwriter_processes: 0
+  
+  # Forward all IDEA messages to this RabbitMQ queue
+  # (NERDd doesn't declare the queue, it must be defined externally by rabbitmqctl or via web management)
+  #forward_to_queue: "idea-nerd2grip"
 
 whois:
   asn_file: "/tmp/nerd-whois-asn.csv"
