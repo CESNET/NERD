@@ -13,7 +13,7 @@ import ipaddress
 import struct
 
 import flask
-from flask import Flask, request, render_template, make_response, g, jsonify, json, flash, redirect, session, Response
+from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
 from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from flask_mail import Mail, Message
@@ -112,8 +112,8 @@ app.jinja_env.filters['datetime'] = format_datetime
 def create_login_handler(method_id, id_field, name_field, email_field, return_path):
     def login_handler():
         # DEBUG: print whole environ to see what fields IdP has provided
-        if method_id == 'shibboleth':
-            print("Shibboleth login, metadata provided: "+str(request.environ))
+        #if method_id == 'shibboleth':
+        #    print("Shibboleth login, metadata provided: "+str(request.environ))
         
         # Check presence of the only mandatory field (id)
         if id_field not in request.environ:
@@ -172,7 +172,6 @@ def logout():
 
 # ***** Functions called for each request *****
 
-# TODO: use g.user and g.ac everywhere
 @app.before_request
 def store_user_info():
     """Store user info to 'g' (request-wide global variable)"""
@@ -186,14 +185,18 @@ def add_user_header(resp):
     return resp
 
 
+# ***** Override render_template to always include some variables *****
+
+def render_template(template, **kwargs):
+    return flask.render_template(template, config=config, userdb=userdb, user=g.user, ac=g.ac, **kwargs)
+
+
 # ***** Main page *****
 # TODO: rewrite as before_request (to check for this situation at any URL)
 @app.route('/')
 def main():
-    user, ac = get_user_info(session)
-    
     # User is authenticated but has no account
-    if user and ac('notregistered'):
+    if g.user and g.ac('notregistered'):
         return redirect(BASE_URL+'/noaccount')
     
     return redirect(BASE_URL+'/ips/')
@@ -205,18 +208,17 @@ class AccountRequestForm(Form):
 
 @app.route('/noaccount', methods=['GET','POST'])
 def noaccount():
-    user, ac = get_user_info(session)
-    if not user:
+    if not g.user:
         return make_response("ERROR: no user is authenticated")
-    if not ac('notregistered'):
+    if not g.ac('notregistered'):
         return redirect(BASE_URL+'/ips/')
-    if user['login_type'] != 'shibboleth':
+    if g.user['login_type'] != 'shibboleth':
         return make_response("ERROR: You've successfully authenticated to web server but there is no matching user account. This is probably a configuration error. Contact NERD administrator.")
     
     form = AccountRequestForm(request.values)
     # Prefill user's default email from his/her account info (we expect a list of emails separated by ';')
-    if not form.email.data and 'email' in user:
-        form.email.data = user['email'].split(';')[0]
+    if not form.email.data and 'email' in g.user:
+        form.email.data = g.user['email'].split(';')[0]
     
     request_sent = False
     if form.validate():
@@ -224,18 +226,18 @@ def noaccount():
         if not config.get('login.request-email', None):
             return make_response("ERROR: No destination email address configured. This is a server configuration error. Please, report this to NERD administrator if possible.")
         # Send email
-        name = user.get('name', '[name not available]')
-        id = user['id']
+        name = g.user.get('name', '[name not available]')
+        id = g.user['id']
         email = form.email.data
         msg = Message(subject="[NERD] New account request from {} ({})".format(name,id),
                       recipients=[config.get('login.request-email')],
                       reply_to=email,
-                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}".format(id,name,user.get('email',''),email),
+                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}".format(id,name,g.user.get('email',''),email),
                      )
         mailer.send(msg)
         request_sent = True
         
-    return render_template('noaccount.html', config=config, **locals())
+    return render_template('noaccount.html', **locals())
 
 
 # ***** Account info & password change *****
@@ -250,48 +252,47 @@ class PasswordChangeForm(Form):
 @app.route('/account/gen_token', endpoint='gen_token', methods=['POST'])
 @app.route('/account/set_password', endpoint='set_password', methods=['POST'])
 def account_info():
-    user, ac = get_user_info(session)
-    if not user:
+    if not g.user:
         return make_response("ERROR: no user is authenticated")
-    if user and ac('notregistered'):
+    if g.user and g.ac('notregistered'):
         return redirect(BASE_URL+'/noaccount')
 
     if request.endpoint == 'gen_token':
-        if not generate_unique_token(user):
+        if not generate_unique_token(g.user):
             return make_response("ERROR: An unexpected error during token creation occured.")
         return redirect(BASE_URL+'/account')
 
     token = {}
-    if not user['api_token']:
+    if not g.user['api_token']:
         token['value'] = 'Token not created yet.'
         token['status'] = 0
     else:
-        token['value'] = user['api_token']
+        token['value'] = g.user['api_token']
         token['status'] = 1
 
     # Handler for /account/set_password
     if request.endpoint == 'set_password':
-        if user['login_type'] != 'local':
+        if g.user['login_type'] != 'local':
             return make_response("ERROR: Password can be changed for local accounts only")
         passwd_form = PasswordChangeForm(request.form)
         if passwd_form.validate():
             htpasswd_file = os.path.join(cfg_dir, config.get('login.methods.local.htpasswd_file', '.htpasswd'))
             try:
                 # Verify old password
-                cmd = ['htpasswd', '-v', '-i', htpasswd_file, user['id']]
+                cmd = ['htpasswd', '-v', '-i', htpasswd_file, g.user['id']]
                 p = subprocess.Popen(cmd, stdin=subprocess.PIPE)#, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 p.communicate(passwd_form.old_passwd.data.encode('utf-8'))
                 if p.returncode != 0:
                     if p.returncode == 3: # Bad password
                         flash('ERROR: Bad password', 'error')
-                        return render_template('account_info.html', config=config, **locals())
+                        return render_template('account_info.html', **locals())
                     else:
                         print("ERROR: htpasswd check error '{}': retcode: {}".format(' '.join(cmd), p.returncode), file=sys.stderr)
                         return make_response('ERROR: Cannot change password: error '+str(p.returncode),  'error')
                 
                 # Set new password
                 # (-i: read password from stdin, -B: use bcrypt, -C: bcrypt cost factor (12 should be quite secure and takes approx. 0.3s on my server)
-                cmd = ['htpasswd', '-i', '-B', '-C', '12', htpasswd_file, user['id']]
+                cmd = ['htpasswd', '-i', '-B', '-C', '12', htpasswd_file, g.user['id']]
                 p = subprocess.Popen(cmd, stdin=subprocess.PIPE)#, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 p.communicate(passwd_form.new_passwd.data.encode('utf-8'))
                 if p.returncode != 0:
@@ -310,16 +311,10 @@ def account_info():
 
     # Handler for /account
     else:
-        if user['login_type'] == 'local':
+        if g.user['login_type'] == 'local':
             passwd_form = PasswordChangeForm()
     
-    return render_template('account_info.html', config=config, **locals())
-
-# def set_password():
-#     form = PasswordChangeForm(request.form)
-#     if form.validate():
-#         
-#     return redirect(BASE_URL+'/account')
+    return render_template('account_info.html', **locals())
 
 
 # ***** List of IP addresses *****
@@ -433,11 +428,9 @@ def create_query(form):
 @app.route('/ips/')
 def ips():
     title = "IP search"
-    user, ac = get_user_info(session)
-
     form = IPFilterForm(request.args, csrf_enabled=False)
     
-    if ac('ipsearch') and form.validate():
+    if g.ac('ipsearch') and form.validate():
         timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
         sortby = sort_mapping[form.sortby.data]
         
@@ -527,41 +520,24 @@ def ips():
             }
     else:
         results = None
-        if user and not ac('ipsearch'):
+        if g.user and not g.ac('ipsearch'):
             flash('Only registered users may search IPs.', 'error')
     
-    return render_template('ips.html', config=config, json=json, ctrydata=ctrydata, **locals())
+    return render_template('ips.html', json=json, ctrydata=ctrydata, **locals())
 
 
 @app.route('/_ips_count', methods=['POST'])
 def ips_count():
-    user, ac = get_user_info(session)
     #Excepts query as JSON encoded POST data.
     form_values = request.get_json()
     form = IPFilterForm(obj=form_values, csrf_enabled=False)
-    if ac('ipsearch') and form.validate():
+    if g.ac('ipsearch') and form.validate():
         query = create_query(form)
         print("query: " + str(query))
         return make_response(str(mongo.db.ip.find(query).count()))
     else:
         return make_response("ERROR")
 
-
-# ***** List of alerts *****
-
-# class AlertFilterForm(Form):
-#     limit = IntegerField('Max number of results', [])
-# 
-# @app.route('/events')
-# def events():
-#     title = "Events"
-#     limit = get_int_arg('limit', 10, min=1, max=1000)
-#     skip = get_int_arg('skip', 0, min=0)
-#     num_alerts = mongo.db.alerts.count()
-#     num_ips = mongo.db.ips.count()
-#     alerts = mongo.db.alerts.find().sort("$natural", DESCENDING).skip(skip).limit(limit)
-#     form = AlertFilterForm(limit=limit)
-#     return render_template('events.html', **locals())
 
 
 # ***** Detailed info about individual IP *****
@@ -573,12 +549,10 @@ class SingleIPForm(Form):
 @app.route('/ip/')
 @app.route('/ip/<ipaddr>')
 def ip(ipaddr=None):
-    user, ac = get_user_info(session)
-    
     form = SingleIPForm(ip=ipaddr)
     #if form.validate():
     if ipaddr:
-        if ac('ipsearch'):
+        if g.ac('ipsearch'):
             title = ipaddr
             ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
         else:
@@ -586,24 +560,23 @@ def ip(ipaddr=None):
     else:
         title = 'IP detail search'
         ipinfo = {}
-    return render_template('ip.html', config=config, ctrydata=ctrydata, ip=form.ip.data, **locals())
+    return render_template('ip.html', ctrydata=ctrydata, ip=form.ip.data, **locals())
 
 
 @app.route('/ajax/ip_events/<ipaddr>')
 def ajax_ip_events(ipaddr):
     """Return events related to given IP (as HTML snippet to be loaded via AJAX)"""
-    user, ac = get_user_info(session)
 
     if not ipaddr:
         return make_response('ERROR')
-    if not ac('ipsearch'):
+    if not g.ac('ipsearch'):
         return make_response('ERROR: Insufficient permissions')
 
     events = eventdb.get('ip', ipaddr, limit=100)
     num_events = str(len(events))
     if len(events) >= 100:
         num_events = "&ge;100, only first 100 shown"
-    return render_template('ip_events.html', config=config, json=json, **locals())
+    return render_template('ip_events.html', json=json, **locals())
 
 
 
@@ -619,8 +592,6 @@ class SingleASForm(Form):
 @app.route('/asn/')
 @app.route('/asn/<asn>')
 def asn(asn=None): # Can't be named "as" since it's a Python keyword
-    user, ac = get_user_info(session)
-    
     form = SingleASForm(asn=asn, csrf_enabled=False)
     print(asn,form.data)
     title = 'ASN detail search'
@@ -630,7 +601,7 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
     elif form.validate():
         # Passed correct ASN
         asn = int(asn.lstrip("ASas")) # strip AS at the beginning
-        if ac('assearch'):
+        if g.ac('assearch'):
             title = 'AS'+str(asn)
             rec = mongo.db.asn.find_one({'_id':asn})
         else:
@@ -639,7 +610,7 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
         # Wrong format of passed ASN
         asn = None
         rec = {}
-    return render_template('asn.html', config=config, ctrydata=ctrydata, **locals())
+    return render_template('asn.html', ctrydata=ctrydata, **locals())
 
 
 # ***** Detailed info about individual IP block *****
@@ -650,13 +621,11 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
 @app.route('/ipblock/')
 @app.route('/ipblock/<ipblock>')
 def ipblock(ipblock=None):
-    user, ac = get_user_info(session)
-    
 #     form = SingleIPForm(ip=ipaddr)
     #if form.validate():
     if not ipblock:
         return make_response("ERROR: No IP block given.")
-    if ac('ipsearch'):
+    if g.ac('ipsearch'):
         title = ipblock
         rec = mongo.db.ipblock.find_one({'_id': ipblock})
         cursor = mongo.db.ip.find({'ipblock': ipblock}, {'_id': 1})
@@ -665,7 +634,7 @@ def ipblock(ipblock=None):
             rec['ips'].append(val['_id'])
     else:
         flash('Insufficient permissions to view this.', 'error')
-    return render_template('ipblock.html', config=config, ctrydata=ctrydata, **locals())
+    return render_template('ipblock.html', ctrydata=ctrydata, **locals())
 
 
 # ***** Detailed info about individual Organization *****
@@ -673,11 +642,9 @@ def ipblock(ipblock=None):
 @app.route('/org/')
 @app.route('/org/<org>')
 def org(org=None):
-    user, ac = get_user_info(session)
-    
     if not org:
         return make_response("ERROR: No Organzation ID given.")
-    if ac('ipsearch'):
+    if g.ac('ipsearch'):
         title = org
         rec = mongo.db.org.find_one({'_id': org})
         rec['ipblocks'] = []
@@ -690,7 +657,7 @@ def org(org=None):
             rec['asns'].append(val['_id'])
     else:
         flash('Insufficient permissions to view this.', 'error')
-    return render_template('org.html', config=config, ctrydata=ctrydata, **locals())
+    return render_template('org.html', ctrydata=ctrydata, **locals())
 
 
 # ***** Detailed info about individual BGP prefix *****
@@ -700,13 +667,11 @@ def org(org=None):
 @app.route('/bgppref/')
 @app.route('/bgppref/<bgppref>')
 def bgppref(bgppref=None):
-    user, ac = get_user_info(session)
-    
     bgppref = bgppref.replace('_','/')
     
     if not org:
         return make_response("ERROR: No BGP Prefix given.")
-    if ac('ipsearch'):
+    if g.ac('ipsearch'):
         title = org
         rec = mongo.db.bgppref.find_one({'_id': bgppref})
         cursor = mongo.db.ip.find({'bgppref': bgppref}, {'_id': 1})
@@ -715,7 +680,7 @@ def bgppref(bgppref=None):
             rec['ips'].append(val['_id'])
     else:
         flash('Insufficient permissions to view this.', 'error')
-    return render_template('bgppref.html', config=config, ctrydata=ctrydata, **locals())
+    return render_template('bgppref.html', ctrydata=ctrydata, **locals())
 
 # ***** NERD status information *****
 
@@ -767,11 +732,10 @@ def get_status():
 @app.route('/iplist')
 @app.route('/iplist/')
 def iplist():
-    user, ac = get_user_info(session)
 
     form = IPFilterForm(request.args, csrf_enabled=False)
     
-    if not user or not ac('ipsearch'):
+    if not g.user or not g.ac('ipsearch'):
         return Response('ERROR: Unauthorized', 403, mimetype='text/plain')
     
     if not form.validate():
@@ -791,6 +755,9 @@ def iplist():
         return Response('ERROR: Database connection error', 503, mimetype='text/plain')
     
     return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
+
+
+# ****************************** API ******************************
 
 def validate_api_request(authorization):
     data = {
