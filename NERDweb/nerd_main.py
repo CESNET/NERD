@@ -155,6 +155,18 @@ for method_id, method_cfg in config.get('login.methods', {}).items():
         )
     )
 
+# Devel login
+# (logs in 'developer' automatically, only available if g.testing is enabled)
+@app.route('/login/devel')
+def login_devel():
+    if not config.testing:
+        return flask.abort(404)
+    session['user'] = {
+        'login_type': 'devel',
+        'id': 'devel_admin',
+    }
+    return redirect(BASE_URL+'/')
+
 
 @app.route('/logout')
 def logout():
@@ -162,7 +174,7 @@ def logout():
     if 'user' in session:
         # If there is logout-path defined for the login_type, redirect to this instead of the default
         login_type = session['user']['login_type']
-        if 'logout_path' in config['login']['methods'][login_type]:
+        if login_type != 'devel' and 'logout_path' in config['login']['methods'][login_type]:
             redir_path = config['login']['methods'][login_type]['logout_path']
         # Cancel local NERD session
         del session['user']
@@ -315,6 +327,29 @@ def account_info():
             passwd_form = PasswordChangeForm()
     
     return render_template('account_info.html', **locals())
+
+
+# ***** Admin's selection of effective groups *****
+
+# Called via AJAX, only sets parameters in session (page should be reloaded 
+# by JS after successful call of this).
+# Expects one parameter: groups=grp1,grp2,grp3
+# If no parameter is passed, selected_groups are reset to normal set of groups of the user
+@app.route('/set_effective_groups')
+def set_effective_groups():
+    # Only admin can change groups (check group membership, not ac() func since it uses effective groups which may be different)
+    if 'admin' not in g.user['groups']:
+        return Response('Unauthorized', 403, mimetype='text/plain')
+    
+    if 'groups' in request.args:
+        # Set selected groups
+        session['user']['selected_groups'] = request.args['groups'].split(',')
+    elif 'selected_groups' in session['user']:
+        # Reset selected groups
+        del session['user']['selected_groups']
+    session.modified = True
+    return Response('OK', 200, mimetype='text/plain')
+
 
 
 # ***** List of IP addresses *****
@@ -1040,6 +1075,10 @@ def page_not_found(e):
 # **********
 
 if __name__ == "__main__":
+    # Set global testing flag
     config.testing = True
+    # Disable normal ways of logging in (since they doesn't work with built-in server)
+    config['login']['methods'] = {}
+    # Run built-in server
     app.run(host="127.0.0.1", debug=True)
 

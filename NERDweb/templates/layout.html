@@ -96,6 +96,16 @@ $(function() {
 </head>
 
 <body>
+{% if config.testing -%}
+  {# Strips marking this is a development/testing version of NERD #}
+  <style>
+  .devel-strip {position: fixed; width: 100%; height: 4px; z-index: 2; background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAIAAAAiZtkUAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAA4SURBVBhXY/z/rI+BgaFh5kcgCWKk8zP+P8lnW6wH4R/uvQQkmffeMEXmAwEjhDozD0IzmCQxAAD1ZxA8+dcqXQAAAABJRU5ErkJggg==);}
+  </style>
+  <div class="devel-strip" style="top: 0px"></div>
+  <div class="devel-strip" style="bottom: 0px"></div>
+  <script>$(".devel-strip").click(function() { $(".devel-strip").hide(); });</script>
+{% endif -%}
+
 {% if ac("statusbox") %}
 {% block status %} {# TODO make as "macro" #}
 <div id="status-block">
@@ -240,6 +250,38 @@ $(function() { refresh_status(true) });
 {% endblock %}
 {% endif %}
 
+{%- if 'admin' in user['groups'] -%}
+ <div id="admin-box">
+  Admin box
+  <div id="group-select">
+   Effective groups:
+   {#<div>g: {{ user.groups }}</div>
+   <div>eg: {{ user.selected_groups }}</div>#}
+   <form id="group-select-form" autocomplete="off">
+   {% for group in userdb.get_all_groups() %}
+    <input id="group:{{group}}" name="{{group}}" type="checkbox"{{ " checked" if (group in user.get('selected_groups', user.groups)) else "" }}><label for="group:{{group}}">{{ group + ("*" if group in user.groups else "")}}</label><br>
+   {% endfor %}
+   <input id="group-select-apply" type="button" value="Apply">
+   <input id="group-select-reset" type="button" value="Reset">
+   <script>
+   $("#group-select-apply").click( function() {
+      var selected_groups = [];
+      $("#group-select-form input:checked").each( function() { selected_groups.push( $(this).attr("name")); });
+      $.get( "{{ url_for('set_effective_groups') }}", "groups=" + selected_groups.join(","))
+        .done(function(){ location.reload() })
+        .fail(function(){ alert("error"); });
+   });
+   $("#group-select-reset").click( function() {
+      $.get( "{{ url_for('set_effective_groups') }}")
+        .done(function(){ location.reload() })
+        .fail(function(){ alert("error"); });
+   });
+   </script>
+   </form>
+  </div>
+ </div>
+{%- endif -%}
+
 {% block header %}
 <div id="header">
  <div id="corner-logo">
@@ -254,6 +296,9 @@ $(function() { refresh_status(true) });
   {%- for method_name, params in config.login.methods.items() -%}
     <a href="{{ url_for('login_'+method_name) }}">{{ params.display }}</a>
   {%- endfor -%}
+  {%- if config.testing %}
+    <a href="{{ url_for('login_devel') }}">= devel autologin =</a>
+  {%- endif %}
   {% else %}
   Logged in:<a href="{{ url_for('account_info') }}" class="username">{{ user.id }}{% if user.name %} ({{ user.name }}){% endif %}</a>&bull;<a href="{{ url_for('logout') }}">Log out</a>
   {% endif %}

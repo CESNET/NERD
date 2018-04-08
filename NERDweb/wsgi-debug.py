@@ -8,7 +8,7 @@ app.debug = True
 from werkzeug.debug import DebuggedApplication
 application = DebuggedApplication(app, True)
 
-# Enable testing mode of NERDweb, in particular this disables authentication
-# (everyone is automacitally logged in as 'test' account with full privileges)
+# Enable testing mode of NERDweb.
+# This allows anyone to log in as admininstrator ("devel autologin")!
 from nerd_main import config
 config.testing = True

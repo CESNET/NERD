@@ -210,12 +210,12 @@ Alias ${NERDBaseLoc}/static/ ${NERDBaseDir}/static/
 </Directory>
 
 # Authentication using local accounts
-<Location ${NERDBaseLoc}/login/basic>
-#    AuthType basic
-#    AuthName "NERD web"
-#    AuthUserFile "/vagrant/NERD/etc/.htpasswd"
-#    Require valid-user
-    Require all granted
+<Location ${NERDBaseLoc}login/basic>
+    AuthType basic
+    AuthName "NERD web"
+    AuthUserFile "/vagrant/etc/.htpasswd"
+    Require valid-user
+#    Require all granted
 </Location>
 
 # API handlers
@@ -291,6 +291,27 @@ chown vagrant:vagrant /data
 
 EOF
 
+##### Create testing users #####
+
+$users = <<EOF
+
+echo "** Creating user accounts **"
+psql -U nerd -c "\
+  INSERT INTO users (id,groups,name,email) VALUES ('devel:devel_admin','{\"admin\",\"registered\"}','Mr. Developer','test@example.org') ON CONFLICT DO NOTHING;\
+  INSERT INTO users (id,groups,name,email) VALUES ('local:test','{\"registered\"}','Mr. Test','test@example.org') ON CONFLICT DO NOTHING;\
+"
+# Set password for local test user
+htpasswd -bc /vagrant/etc/.htpasswd test test
+
+echo
+echo "************************************************************"
+echo "Two user accounts for testing are available:"
+echo ""
+echo "* Administrator/developer - use 'Devel. autologin' option"
+echo "* Unprivileged local account - username/password: test/test"
+echo ""
+
+EOF
 
 ##########
 
@@ -315,4 +336,5 @@ Vagrant.configure(2) do |config|
   config.vm.provision :shell, inline: $warden
   config.vm.provision :shell, inline: $web
   config.vm.provision :shell, inline: $data_files
+  config.vm.provision :shell, inline: $users
 end

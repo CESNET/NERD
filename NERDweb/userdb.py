@@ -7,7 +7,7 @@ import psycopg2
 import sys
 from flask import flash
 
-__all__ = ['get_user_info']
+__all__ = ['get_user_info', 'get_all_groups']
 
 def init(config, cfg_dir):
     """
@@ -42,6 +42,15 @@ def init(config, cfg_dir):
             acl[id] = (allow, deny)
 
 
+def get_all_groups():
+    """Return all groups defined in the "acl" file."""
+    groups = set()
+    for allow,deny in acl.values():
+        groups.update(allow)
+        groups.update(deny)
+    return sorted(list(groups))
+
+
 # ***** Access control functions *****
 
 def get_user_groups(full_id):
@@ -65,6 +74,7 @@ def get_ac_func(user_groups):
             return False
     return ac
 
+
 def get_user_info(session):
     """
     Returun info about current user (or None if noone is logged in) and 
@@ -82,15 +92,9 @@ def get_user_info(session):
     if 'user' in session:
         user = session['user'].copy() # should contain 'id', 'login_type' and optionally 'name'
         user['fullid'] = user['login_type'] + ':' + user['id']
-    elif cfg.testing:
-        user = {
-            'login_type': '',
-            'id': 'test_user',
-            'fullid': 'test_user',
-        }
     else:
         # No user logged in
-        return None, lambda x: False
+        return None, lambda x: False # TODO shuoldn't here be get_ac_func([])?
     
     # Get user info from DB
     cur = db.cursor()
@@ -113,8 +117,15 @@ def get_user_info(session):
     if isinstance(user['name'], bytes):
         user['name'] = user['name'].decode('utf-8') if user['name'] else None
     
-    ac = get_ac_func(user['groups'])
+    # If the user is in "admin" group, he can select groups that take effect.
+    # The set of selected groups is stored as "selected_groups" in the session
+    # (which was copied into "user").
+    if 'admin' in user['groups'] and 'selected_groups' in user:
+        ac = get_ac_func(set(user['selected_groups']))
+    else:
+        ac = get_ac_func(user['groups'])
     return user, ac
+
 
 def authenticate_with_token(token):
     user = {}
