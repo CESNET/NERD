@@ -11,91 +11,33 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
    opacity: {{ 0.5 + conf / 2.0 }};
  {%- endif %}
 {%- endmacro %}
+{#- **************************************** -#}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <title>{{ title }} - NERD web</title>
-  <!-- jQuery, jQuery UI and other libraries -->
-  {#<link rel="stylesheet" href="https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
-  <script src="https://code.jquery.com/jquery-2.2.0.js"></script>
-  <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>#}
+  <!-- jQuery, jQuery UI -->
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
-  {#<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.min.css" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js"></script>#}
-  <script src="{{ url_for('static', filename='jquery.multiselect.js') }}"></script>
+  <!-- Multiselect -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='jquery.multiselect.css') }}">
+  <script src="{{ url_for('static', filename='jquery.multiselect.js') }}"></script>
   <!-- local stylesheets -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='flags.css') }}">
   
-<script>
-var ROOT = "{{ url_for('main') }}";
-
-function create_event_table(data) { /* data are "dataset" field of a DOM node with "data-" attributes set */
-  var cats = data.cats.split(",");
-  var dates = data.dates.split(",");
-  var table = [];
-  var table_rows = data.table.split(";");
-  for (i = 0; i < table_rows.length; i++) {
-    table.push(table_rows[i].split(","));
-  }
-  var nodes = data.nodes.split(",");
-  
-  var content = "<table><tr><th></th><th>";
-  content += cats.join("</th><th>");
-  content += "</th></tr>";
-  for (i = 0; i < dates.length; i++) {
-    content += "<tr><th>"+dates[i]+"</th><td>";
-    content += table[i].join("</td><td>");
-    content += "</td></tr>";
-  }
-  content += "</table>";
-  content += "<b>Nodes (" + nodes.length + "):</b> " + nodes.join(", ");
-  return content;
-}
-
-$(function() {
-  /* jQuery UI tooltip at:
-     - country flags (with name of the country)
-     - "events" table cells
-     - AS number
-  */
-  $( document ).tooltip({
-    items: ".country [title], .asn [title], .tag[title]",
-    track: false,
-    show: false,
-    hide: false,
-    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"},
-    content: function() { return $(this).attr('title'); } /* This is needed to allow HTML in tooltip text */
-  });
-  /* jQuery UI tooltip at "events" cell with event table */
-  $( ".events" ).tooltip({
-    items: ".events",
-    track: false,
-    show: false,
-    hide: false,
-    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"},
-    content: function() { return create_event_table(this.dataset) }, /*$(".tooltip_event_table", this).html(); },*/
-    tooltipClass: "events_tooltip"
-  });
-  /* jQuery UI tooltip at times with "timeago" */
-  $( ".time" ).tooltip({
-    items: ".time",
-    track: false,
-    show: false,
-    hide: false,
-    content: function() { return moment($(this).text()).fromNow() },
-    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
-  });
-});
-</script>
+  <!-- local scripts -->
+  <script>
+  var ROOT = "{{ url_for('main') }}";
+  </script>
+  <script scr="{{ url_for('static', filename='main.js') }}"></script>
 </head>
 
 <body>
+{#- ********** "Testing" strips ********** -#}
 {% if config.testing -%}
   {# Strips marking this is a development/testing version of NERD #}
   <style>
@@ -106,6 +48,7 @@ $(function() {
   <script>$(".devel-strip").click(function() { $(".devel-strip").hide(); });</script>
 {% endif -%}
 
+{#- ********** Status box ********** -#}
 {% if ac("statusbox") %}
 {% block status %} {# TODO make as "macro" #}
 <div id="status-block">
@@ -135,121 +78,14 @@ $(function() {
 <tr><td colspan="2"><canvas id="status-updates-plot" width="100" height="40" style="width: 100%; height: 40px"></canvas></td></tr>
 </table>
 {% if config.munin_link %}See more graphs in <a href="{{ config.munin_link }}" target="_blank">Munin</a>{% endif %}
-<script type="text/javascript" src="{{ url_for('static', filename='smoothie.js') }}"></script> {# Load library for plotting stream-data (reqs/s) #}
-<script>
-// resize the canvas to 100% width
-$("#status-updates-plot").attr("width", $("#status-updates-plot").css("width"));
-// Create reqs/s chart
-var smoothie = new SmoothieChart({millisPerPixel:200, interpolation:'linear', 
-    grid: {fillStyle:'#ffffff', millisPerLine:5000, verticalSections:4},
-    labels: {fillStyle:'#000000'},
-    minValue: 0, maxValue: 400
-});
-smoothie.streamTo(document.getElementById("status-updates-plot"));
-smoothie.stop();
-var updates_timeseries = new TimeSeries();
-smoothie.addTimeSeries(updates_timeseries, {lineWidth: 2, strokeStyle:'#00c000', fillStyle: 'rgba(0,128,0,0.25)'});
-</script>
-<script>
-var refresh_status_enable = false; // Enable/disable refresh status
-var refreshing_status = false; // Whether refresh is in progress (to avoid multiple parallel calls it they are very slow and refresh interval is small)
-
-function toggle_status_box() {
-    var div = $('#status-block > div');
-    var a = $('#status_box_toggle');
-    if (a.text() == "▲") {
-        div.hide();
-        a.text("▼");
-        refresh_status_enable = false;
-        $("#status_refresh_toggle").text("disabled");
-        smoothie.stop();
-    }
-    else {
-        div.show();
-        a.text("▲");
-    }
-}
-
-function toggle_status_refresh() {
-    if (refresh_status_enable) {
-        refresh_status_enable=false;
-        $("#status_refresh_toggle").text("disabled");
-        smoothie.stop();
-    }
-    else {
-        refresh_status_enable=true;
-        $("#status_refresh_toggle").text("enabled");
-        smoothie.start();
-    }
-}
-
-// AJAX request to get NERD status information
-function refresh_status(force=false) {
-    if (!force && (!refresh_status_enable || refreshing_status)) {
-        return;
-    }
-    refreshing_status = true;
-    $("#status-block .refresh-spinner").css('visibility', 'visible');
-    $.getJSON(
-        "{{ url_for('get_status') }}",
-        function(data) {
-            $("#status-cnt-ip").text(data.cnt_ip);
-            $("#status-cnt-bgppref").text(data.cnt_bgppref);
-            $("#status-cnt-asn").text(data.cnt_asn);
-            $("#status-cnt-ipblock").text(data.cnt_ipblock);
-            $("#status-cnt-org").text(data.cnt_org);
-            $("#status-updates").text(data.updates_processed);
-            $("#status-disk-usage").text(data.disk_usage);
-            $("#status-idea-queue").text(data.idea_queue);
-            // Set width of bar and its color
-            var bar_width = (data.idea_queue * 100 / 10000);
-            $("#status-idea-queue-bar div").css('width', bar_width + "%");
-            if (bar_width < 50) {
-                $("#status-idea-queue-bar div").css('background-color', '#0c0');
-            }
-            else if (bar_width < 75) {
-                $("#status-idea-queue-bar div").css('background-color', '#ea0');
-            }
-            else {
-                $("#status-idea-queue-bar div").css('background-color', '#c00');
-            }
-            
-            $("#status-updreq-queue").text(data.update_queue);
-            // Set width of bar and its color
-            var bar_width = (data.update_queue * 100 / 1000);
-            if (bar_width > 100) {
-                bar_width = 100;
-            }
-            $("#status-updreq-queue-bar div").css('width', bar_width + "%");
-            if (bar_width < 50) {
-                $("#status-updreq-queue-bar div").css('background-color', '#0c0');
-            }
-            else if (bar_width < 75) {
-                $("#status-updreq-queue-bar div").css('background-color', '#ea0');
-            }
-            else {
-                $("#status-updreq-queue-bar div").css('background-color', '#c00');
-            }
-            // Add data to res/s plot
-            updates_timeseries.append(new Date().getTime(), data.updates_processed);
-        }
-    )
-    .always(function() {
-        refreshing_status = false;
-        $("#status-block .refresh-spinner").css('visibility', 'hidden');
-    });
-}
-
-// Set automatic refresh every 2s
-var status_refresh_timer = window.setInterval(refresh_status, 2000);
-// Run refresh once on load
-$(function() { refresh_status(true) });
-</script>
+<script type="text/javascript" src="{{ url_for('static', filename='smoothie.js') }}"></script>{# Library for plotting stream-data (reqs/s) #}
+<script type="text/javascript" src="{{ url_for('static', filename='status-box.js') }}"></script>{# All code for status-box #}
 </div>
 </div>
 {% endblock %}
 {% endif %}
 
+{#- ********** Admin box ********** -#}
 {%- if 'admin' in user['groups'] -%}
  <div id="admin-box">
   Admin box
@@ -281,6 +117,8 @@ $(function() { refresh_status(true) });
   </div>
  </div>
 {%- endif -%}
+
+{#- ********** Main content ********** -#}
 
 {% block header %}
 <div id="header">
