@@ -57,7 +57,7 @@ function refresh_status(force=false) {
     refreshing_status = true;
     $("#status-block .refresh-spinner").css('visibility', 'visible');
     $.getJSON(
-        "{{ url_for('get_status') }}",
+        URL_GET_STATUS,
         function(data) {
             $("#status-cnt-ip").text(data.cnt_ip);
             $("#status-cnt-bgppref").text(data.cnt_bgppref);

@@ -56,5 +56,4 @@ $(function() {
     content: function() { return moment($(this).text()).fromNow() },
     position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
   });
-  alert("test");
 });
