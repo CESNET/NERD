@@ -6,5 +6,4 @@ ipsearch    registered
 assearch    registered
 mentat      mentat
 notregistered   notregistered ; registered
-rep_exp     test,admin
 internal_attrs  admin

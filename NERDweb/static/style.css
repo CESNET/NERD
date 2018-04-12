@@ -143,6 +143,40 @@ img.load-spinner {
   border-bottom: 1px solid #eee;
 }
 
+#admin-box {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, 0);
+  width: 12em;
+  padding: 0.2em 0.5em;
+  margin: 0em;
+  text-align: center;
+  border: 2px solid yellow;
+  border-top: 0px;
+  border-radius: 0px 0px 4px 4px;
+  background: #CCCC99;
+  color: #000000;
+  z-index: 5;
+}
+#admin-box:hover {
+  padding-bottom: 0.5em;
+}
+#admin-box > div {
+  display: none;
+}
+#admin-box:hover > div {
+  display: block;
+}
+
+#admin-box > div {
+  margin-top: 0.5em;
+  padding: 0.5em;
+  border: 1px solid #777;
+  background: #bbb;
+  text-align: left;
+}
+
+
 #content {
   padding: 0 0.75em 0.75em 0.75em;
   border-top: 2px solid #0061a2;
