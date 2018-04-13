@@ -49,49 +49,49 @@ tags:
 #    name: Abusive
 #    description: Abusive events (Harrasment, Sexual, Violence) from host has been reported
 #    tag_color: "#ba0596"
-#    condition: "'Abusive' in events.types or 'AbusiveSpam' in events.types or 'AbusiveHarassment' in events.types or 'AbusiveChild' in events.types or 'AbusiveSexual' in events.types or 'AbusiveViolence' in events.types"
+#    condition: "'Abusive' in events_meta.types or 'AbusiveSpam' in events_meta.types or 'AbusiveHarassment' in events_meta.types or 'AbusiveChild' in events_meta.types or 'AbusiveSexual' in events_meta.types or 'AbusiveViolence' in events_meta.types"
   malware:
     name: Malware
     description: Malware has been detected on host
-    info: 'Prevalent event cateogries: {events.types}'
+    info: 'Prevalent event cateogries: {events_meta.types}'
     tag_color: "#933744"
-    condition: "'Malware' in events.types or 'MalwareVirus' in events.types or 'MalwareWorm'
-      in events.types or 'MalwareTrojan' in events.types or 'MalwareSpyware' in events.types
-      or 'MalwareDialer' in events.types or 'MalwareRootkit' in events.types"
+    condition: "'Malware' in events_meta.types or 'MalwareVirus' in events_meta.types or 'MalwareWorm'
+      in events_meta.types or 'MalwareTrojan' in events_meta.types or 'MalwareSpyware' in events_meta.types
+      or 'MalwareDialer' in events_meta.types or 'MalwareRootkit' in events_meta.types"
   reconscanning:
     name: Scanner
     description: Host scans other hosts to gather information and discover weak points
-    info: 'Prevalent event categories: {events.types}'
+    info: 'Prevalent event categories: {events_meta.types}'
     tag_color: "#aaffff"
-    condition: "'ReconScanning' in events.types"
+    condition: "'ReconScanning' in events_meta.types"
   attemptexploit:
     name: Exploit attempts
     description: Host attempts to compromise a system by exploiting vulnerabilities
-    info: 'Prevalent event categories: {events.types}'
+    info: 'Prevalent event categories: {events_meta.types}'
     tag_color: "#A1C83D"
-    condition: "'AttemptExploit' in events.types or 'AttemptNewSignature' in events.types"
+    condition: "'AttemptExploit' in events_meta.types or 'AttemptNewSignature' in events_meta.types"
   attemptlogin:
     name: Login attempts
     description: Host performs automated login attempts
-    info: 'Prevalent event categories: {events.types}'
+    info: 'Prevalent event categories: {events_meta.types}'
     tag_color: "#6fd92e"
-    condition: "'AttemptLogin' in events.types"
+    condition: "'AttemptLogin' in events_meta.types"
 #  intrusion:
 #    name: Intrusion
 #    description: Host performed successful compromise of a system or application
 #    tag_color: "#633c89"
-#    condition: "'Intrusion' in events.types or 'IntrusionAdminCompromise' in events.types or 'Intrusion.UserCompromise' in events.types or 'AppCompromise' in events.types or 'IntrusionBotnet' in events.types"
+#    condition: "'Intrusion' in events_meta.types or 'IntrusionAdminCompromise' in events_meta.types or 'Intrusion.UserCompromise' in events_meta.types or 'AppCompromise' in events_meta.types or 'IntrusionBotnet' in events_meta.types"
   availabilitydos:
     name: "(D)DoS attacks"
     description: Host performs (or is part of) (D)DoS attacks
-    info: 'Prevalent event categories: {events.types}'
+    info: 'Prevalent event categories: {events_meta.types}'
     tag_color: "#a90000"
-    condition: "'AvailabilityDoS' in events.types or 'AvailabilityDDoS' in events.types"
+    condition: "'AvailabilityDoS' in events_meta.types or 'AvailabilityDDoS' in events_meta.types"
 #  fraud:
 #    name: Fraud Attempts
 #    description: Host performs fraud (phishing, scams, masquerade, ...)
 #    tag_color: "#ada31a"
-#    condition: "'Fraud' in events.types or 'FraudUnauthorizedUsage' in events.types or 'FraudCopyright' in events.types or 'FraudMasquerade' in events.types or 'FraudPhishing' in events.types or 'FraudScam' in events.types"
+#    condition: "'Fraud' in events_meta.types or 'FraudUnauthorizedUsage' in events_meta.types or 'FraudCopyright' in events_meta.types or 'FraudMasquerade' in events_meta.types or 'FraudPhishing' in events_meta.types or 'FraudScam' in events_meta.types"
 
   # Tags primarily based on hostname
 
@@ -150,6 +150,6 @@ tags:
 #    name: Test
 #    description: This is test tag
 #    tag_color: "#bc0000"
-#    condition: "caida_as_class.v == 'access' and 'ReconScanning' in events.types "
+#    condition: "caida_as_class.v == 'access' and 'ReconScanning' in events_meta.types "
 #    confidence: "caida_as_class.c*0.5 + hostname*0.5"
 #    info: "this ip with hostname {hostname} has been classified as {caida_as_class.v} type"
