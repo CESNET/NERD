@@ -118,7 +118,7 @@ def main():
         modules.bgp_rank.CIRCL_BGPRank(),
         modules.event_type_counter.EventTypeCounter(),
         modules.tags.Tags(),
-        modules.passive_dns.PassiveDNSRevolver ()
+        modules.passive_dns.PassiveDNSResolver ()
     ]
     
     
