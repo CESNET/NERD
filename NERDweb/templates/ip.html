@@ -1,6 +1,26 @@
 {% extends "layout.html" %}
 {% block body %}
 
+<script>
+  $( document ).ready( function () {        
+     var ipaddr = $("#ip").val ();
+     $.get ("/pdns/ip/" + ipaddr, function (response) {
+      for (var i in response)
+      {
+        $("#pdns_data").append ( "Resolve count: " + response[i].count );        
+        $("#pdns_data").append ( "<br \>");
+        $("#pdns_data").append ( "Type: " + response[i].type );
+        $("#pdns_data").append ( "<br \>");
+        $("#pdns_data").append ( "Domain: " + response[i].domain );
+        $("#pdns_data").append ( "<br \>");
+        $("#pdns_data").append ( "Time first: " + response[i].time_last );
+        $("#pdns_data").append ( "<br \>");
+        $("#pdns_data").append ( "Time last: " + response[i].time_first );
+      }
+     })
+  });
+</script>
+
 <h1>IP address</h1>
 
 {# Note: The onsubmit script overrides funcionality of Submit button to put IP address to custom URL #}
@@ -20,6 +40,10 @@
 <hr>
 
 <div class="entity-info ip">
+  Passive DNS info:
+  <div id="pdns_data">
+  </div>
+
 <p class="header"><span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">
   {{- "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span><span class="entity-id">{{ ip }}</span><span class="entity-name">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
 

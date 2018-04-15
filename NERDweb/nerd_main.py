@@ -1071,6 +1071,21 @@ def page_not_found(e):
         # Otherwise return default error page
         return e
 
+import urllib
+
+@app.route('/pdns/ip/')
+@app.route('/pdns/ip/<ipaddr>/')
+def pdns_ip(ipaddr=None):
+    if ipaddr:
+        url = "https://passivedns.cesnet.cz/pdns/ip/{}".format(ipaddr)
+        response = None
+        try:
+            response = urllib.request.urlopen(url)
+        except gaierror: # Connection error, just in case
+            return None
+        data = json.loads(response.read())
+        return Response(json.dumps(data), 200, mimetype='application/json')
+    return Response("No record in passive DNS", 400, mimetype='text/plain')
 
 # **********
 
