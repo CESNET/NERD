@@ -1071,21 +1071,20 @@ def page_not_found(e):
         # Otherwise return default error page
         return e
 
-import urllib
+import socket
+import requests
 
-@app.route('/pdns/ip/')
-@app.route('/pdns/ip/<ipaddr>/')
+@app.route('/pdns/ip/<ipaddr>/', methods=['GET'])
 def pdns_ip(ipaddr=None):
-    if ipaddr:
-        url = "https://passivedns.cesnet.cz/pdns/ip/{}".format(ipaddr)
+    if ipaddr:        
         response = None
         try:
-            response = urllib.request.urlopen(url)
-        except gaierror: # Connection error, just in case
-            return None
-        data = json.loads(response.read())
-        return Response(json.dumps(data), 200, mimetype='application/json')
-    return Response("No record in passive DNS", 400, mimetype='text/plain')
+            response = requests.get ('https://passivedns.cesnet.cz/pdns/ip/{}'.format (ipaddr))
+        except socket.gaierror: # Connection error, just in case
+            return Response(json.dumps({'status': 500, 'error': 'internal server error'}), 500, mimetype='application/json')        
+        if response.status_code == 200:
+            return Response(json.dumps(response.json()), 200, mimetype='application/json')
+    return Response(json.dumps({'status': 404, 'error': 'record not found'}), 404, mimetype='application/json')
 
 # **********
 
