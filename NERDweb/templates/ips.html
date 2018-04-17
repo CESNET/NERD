@@ -17,8 +17,11 @@
   {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
   {{ formfield(form.asn, size=7) }}
   <br>
-  {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+  {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
+  {%- if ac('nodenames') %}
+  &nbsp; &amp; &nbsp;
   {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
+  {% endif %}
   <br>
   {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
   {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;

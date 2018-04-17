@@ -160,6 +160,8 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
   {% endif %}
 {% endwith %}
 
+{#
+## uncomment this if access is allowed only to logged users ##
 {% if not user %}
 <div id="login-prompt-outer">
 <img id="login-logo" src="{{ url_for('static', filename='nerd_logo_350.png') }}" width="350" height="179" alt="NERD logo">
@@ -172,6 +174,8 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 {% else %}
 {% block body %}{% endblock %}
 {% endif %}
+#}
+{% block body %}{% endblock %}
 </div>
 
 </body>

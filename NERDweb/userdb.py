@@ -30,6 +30,7 @@ def init(config, cfg_dir):
     # and must not be in any of "groups_deny".
     # Format (one resource per line):
     # <resource_id> <comma_separated_list_of_groups_allow>[;<comma_separated_list_of_groups_deny>]
+    # (* means anyone)
     acl = {}
     with open(acl_cfg_file, 'r') as f:
         for line in f:
@@ -48,6 +49,7 @@ def get_all_groups():
     for allow,deny in acl.values():
         groups.update(allow)
         groups.update(deny)
+    groups.discard('*')
     return sorted(list(groups))
 
 
@@ -58,17 +60,19 @@ def get_user_groups(full_id):
     cur.execute("SELECT groups FROM users WHERE id = %s", (full_id,))
     row = cur.fetchone()
     if not row:
-        return set(['notregistered']) # Unknown user
+        return set() # Unknown user - no group
     return set(row[0])
 
 
 def get_ac_func(user_groups):
     """Return a function for testing access permissions of a specific user."""
+    user_groups2 = user_groups.copy()
+    user_groups2.add('*') # every user is in group '*', so acl rule containing '*' always matches
     def ac(resource):
         """"
         Access control test - check if current user has access to given resource.
         """
-        if resource in acl and acl[resource][0] & user_groups and not acl[resource][1] & user_groups:
+        if resource in acl and acl[resource][0] & user_groups2 and not acl[resource][1] & user_groups2:
             return True
         else:
             return False
@@ -94,7 +98,7 @@ def get_user_info(session):
         user['fullid'] = user['login_type'] + ':' + user['id']
     else:
         # No user logged in
-        return None, lambda x: False # TODO shuoldn't here be get_ac_func([])?
+        return None, get_ac_func(set())
     
     # Get user info from DB
     cur = db.cursor()
@@ -103,7 +107,7 @@ def get_user_info(session):
     row = cur.fetchone()
     if not row:
         # User not found in DB = user is authenticated (e.g. via shibboleth) but has no account yet
-        user['groups'] = set(['notregistered'])
+        user['groups'] = set()
         return user, get_ac_func(user['groups'])
     
     # Put all fields from DB into 'user' dict

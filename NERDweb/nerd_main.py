@@ -11,6 +11,7 @@ import re
 import pytz
 import ipaddress
 import struct
+import hashlib
 
 import flask
 from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
@@ -96,7 +97,14 @@ def format_datetime(val, format="%Y-%m-%d %H:%M:%S"):
 
 app.jinja_env.filters['datetime'] = format_datetime
 
-    
+
+# ***** Auxiliary functions *****
+
+def pseudonymize_node_name(name):
+    """Replace Node.Name (detector ID) by a hash with secret key"""
+    h = hashlib.md5((app.secret_key + name).encode('utf-8'))
+    return 'node.' + h.hexdigest()[:6]
+
 
 # ***** Login handlers *****
 # A handler function is created for each configured login method
@@ -522,7 +530,11 @@ def ips():
                 nodes.remove('?')
             except KeyError:
                 pass
-            
+
+            # Pseudonymize node names if user is not allowed to see the original names
+            if not g.ac('nodenames'):
+                nodes = [pseudonymize_node_name(name) for name in nodes]
+
             dates = sorted(dates)
             cats = sorted(cats)
             nodes = sorted(nodes)
@@ -556,7 +568,7 @@ def ips():
     else:
         results = None
         if g.user and not g.ac('ipsearch'):
-            flash('Only registered users may search IPs.', 'error')
+            flash('Insufficient permissions to search/view IPs.', 'error')
     
     return render_template('ips.html', json=json, ctrydata=ctrydata, **locals())
 
@@ -590,8 +602,25 @@ def ip(ipaddr=None):
         if g.ac('ipsearch'):
             title = ipaddr
             ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+            
+            asn_list = []
+            if "bgppref" in ipinfo:
+                bgppref = mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']})
+                if bgppref and 'asn' in bgppref:
+                    for asn in bgppref['asn']:
+                        asn = mongo.db.asn.find_one({'_id': asn})
+                        if not asn or 'bgppref' not in asn:
+                            continue
+                        #del asn['bgppref']
+                        asn_list.append(asn)
+            ipinfo['asns'] = asn_list
+            
+            # Pseudonymize node names if user is not allowed to see the original names
+            if not g.ac('nodenames'):
+                for evtrec in ipinfo.get('events', []):
+                    evtrec['node'] = pseudonymize_node_name(evtrec['node'])
         else:
-            flash('Only registered users may search IPs.', 'error')
+            flash('Insufficient permissions to search/view IPs.', 'error')
     else:
         title = 'IP detail search'
         ipinfo = {}
@@ -640,7 +669,7 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
             title = 'AS'+str(asn)
             rec = mongo.db.asn.find_one({'_id':asn})
         else:
-            flash('Only registered users may search ASNs.', 'error')
+            flash('Insufficient permissions to search/view ASNs.', 'error')
     else:
         # Wrong format of passed ASN
         asn = None
@@ -660,7 +689,7 @@ def ipblock(ipblock=None):
     #if form.validate():
     if not ipblock:
         return make_response("ERROR: No IP block given.")
-    if g.ac('ipsearch'):
+    if g.ac('ipblocksearch'):
         title = ipblock
         rec = mongo.db.ipblock.find_one({'_id': ipblock})
         cursor = mongo.db.ip.find({'ipblock': ipblock}, {'_id': 1})
@@ -668,7 +697,7 @@ def ipblock(ipblock=None):
         for val in cursor:
             rec['ips'].append(val['_id'])
     else:
-        flash('Insufficient permissions to view this.', 'error')
+        flash('Insufficient permissions to search/view IP blocks.', 'error')
     return render_template('ipblock.html', ctrydata=ctrydata, **locals())
 
 
@@ -679,7 +708,7 @@ def ipblock(ipblock=None):
 def org(org=None):
     if not org:
         return make_response("ERROR: No Organzation ID given.")
-    if g.ac('ipsearch'):
+    if g.ac('orgsearch'):
         title = org
         rec = mongo.db.org.find_one({'_id': org})
         rec['ipblocks'] = []
@@ -691,7 +720,7 @@ def org(org=None):
         for val in cursor:
             rec['asns'].append(val['_id'])
     else:
-        flash('Insufficient permissions to view this.', 'error')
+        flash('Insufficient permissions to search/view Organizations.', 'error')
     return render_template('org.html', ctrydata=ctrydata, **locals())
 
 
@@ -706,7 +735,7 @@ def bgppref(bgppref=None):
     
     if not org:
         return make_response("ERROR: No BGP Prefix given.")
-    if g.ac('ipsearch'):
+    if g.ac('bgpprefsearch'):
         title = org
         rec = mongo.db.bgppref.find_one({'_id': bgppref})
         cursor = mongo.db.ip.find({'bgppref': bgppref}, {'_id': 1})
@@ -714,7 +743,7 @@ def bgppref(bgppref=None):
         for val in cursor:
             rec['ips'].append(val['_id'])
     else:
-        flash('Insufficient permissions to view this.', 'error')
+        flash('Insufficient permissions to search/view BGP prefixes.', 'error')
     return render_template('bgppref.html', ctrydata=ctrydata, **locals())
 
 # ***** NERD status information *****

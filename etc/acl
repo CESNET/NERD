@@ -1,9 +1,21 @@
 # Format:
 # resource_id	allow_group[, allow_group, ...] [; deny_group[, deny_group, ...]]
+# (* means anyone)
 
-statusbox   admin
-ipsearch    registered
-assearch    registered
-mentat      mentat
-notregistered   notregistered ; registered
+notregistered   * ; registered
+
+# Basic access allowed to anyone
+ipsearch        *
+assearch        *
+ipblocksearch   *
+orgsearch       *
+bgpprefsearch   *
+
+nodenames       trusted
+warden_alerts   trusted
+eml_rank        trusted
+mentat          mentat
+
+# Admin tools
 internal_attrs  admin
+statusbox       admin
