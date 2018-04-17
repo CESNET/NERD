@@ -381,8 +381,8 @@ class IPFilterForm(Form):
     hostname = TextField('Hostname suffix', [validators.Optional()])
     country = TextField('Country code', [validators.Optional(), validators.length(2, 2)])
     asn = TextField('ASN', [validators.Optional(),
-        validators.Regexp('^((AS)?\d+|\?)+$', re.IGNORECASE,
-        message='Must be a number, optionally preceded by "AS", or "?".')])
+        validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
+        message='Must be a number, optionally preceded by "AS".')])
     cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
     cat_op = HiddenField('', default="or")
     node = SelectMultipleField('Node', [validators.Optional()])
@@ -442,15 +442,14 @@ def create_query(form):
         queries.append( {'$and': [{'hostname': {'$gte': hn}}, {'hostname': {'$lt': hn_end}}]} )
     if form.country.data:
         queries.append( {'geo.ctry': form.country.data.upper() } )
-    if form.asn.data:
-        if form.asn.data[0] == '?':
-            queries.append( {'$and': [{'as_maxmind.num': {'$exists': True}},
-                                      {'as_rv.num': {'$exists': True}},
-                                      {'$where': 'this.as_maxmind.num != this.as_rv.num'} # This will be probably very slow
-                                     ]} )
+    if form.asn.data and form.asn.data.strip():
+        # ASN is not stored in IP records - get list of BGP prefixes of the ASN and filter by these
+        asn = int(form.asn.data.lstrip("ASas"))
+        asrec = mongo.db.asn.find_one({'_id': asn})
+        if asrec and 'bgppref' in asrec:
+            queries.append( {'bgppref': {'$in': asrec['bgppref']}} )
         else:
-            asn = int(form.asn.data.lstrip("ASas"))
-            queries.append( {'$or': [{'as_maxmind.num': asn}, {'as_rv.num': asn}]} )
+            queries.append( {'_id': {'$exists': False}} ) # ASN not in DB, add query which is always false to get no results
     if form.cat.data:
         op = '$and' if (form.cat_op.data == "and") else '$or'
         queries.append( {op: [{'events.cat': cat} for cat in form.cat.data]} )
@@ -477,20 +476,19 @@ def ips():
         timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
         sortby = sort_mapping[form.sortby.data]
         
-        query = create_query(form)
-        # Query parameters to be used in AJAX requests
-        query_params = json.dumps(form.data)
-        
-        # Perform DB query
-        #print("Query: "+str(query))
         try:
+            query = create_query(form)
+            # Query parameters to be used in AJAX requests
+            query_params = json.dumps(form.data)
+        
+            # Perform DB query
             results = mongo.db.ip.find(query).limit(form.limit.data)
             if sortby != "none":
                 results.sort(sortby, 1 if form.asc.data else -1)
             results = list(results) # Load all data now, so we are able to get number of results in template
         except pymongo.errors.ServerSelectionTimeoutError:
             results = []
-            error = 'mongo_error'
+            error = 'database_error'
         
         for ip in results:
             if "bgppref" in ip:
@@ -604,21 +602,22 @@ def ip(ipaddr=None):
             ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
             
             asn_list = []
-            if "bgppref" in ipinfo:
-                bgppref = mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']})
-                if bgppref and 'asn' in bgppref:
-                    for asn in bgppref['asn']:
-                        asn = mongo.db.asn.find_one({'_id': asn})
-                        if not asn or 'bgppref' not in asn:
-                            continue
-                        #del asn['bgppref']
-                        asn_list.append(asn)
-            ipinfo['asns'] = asn_list
+            if ipinfo:
+                if 'bgppref' in ipinfo:
+                    bgppref = mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']})
+                    if bgppref and 'asn' in bgppref:
+                        for asn in bgppref['asn']:
+                            asn = mongo.db.asn.find_one({'_id': asn})
+                            if not asn or 'bgppref' not in asn:
+                                continue
+                            #del asn['bgppref']
+                            asn_list.append(asn)
+                ipinfo['asns'] = asn_list
             
-            # Pseudonymize node names if user is not allowed to see the original names
-            if not g.ac('nodenames'):
-                for evtrec in ipinfo.get('events', []):
-                    evtrec['node'] = pseudonymize_node_name(evtrec['node'])
+                # Pseudonymize node names if user is not allowed to see the original names
+                if not g.ac('nodenames'):
+                    for evtrec in ipinfo.get('events', []):
+                        evtrec['node'] = pseudonymize_node_name(evtrec['node'])
         else:
             flash('Insufficient permissions to search/view IPs.', 'error')
     else:
