@@ -124,8 +124,11 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 
 {% block header %}
 <div id="header">
- <div id="corner-logo">
+ <div id="corner-logo" style="position: relative">
   <img src="{{ url_for('static', filename='nerd_logo_simple_86.png') }}" width="86" height="30">
+  {%- if config.beta_label -%}
+  <div id="beta" style="color: #94c7e7; font-size: 16px; font-weight: bold; position: absolute; right: -9px; bottom: -8px; transform: rotate(-8deg); text-shadow: 0px 0px 3px #000;">BETA</div>
+  {%- endif -%}
  </div>
  <div id="navigation">
   <a href="{{ url_for('ips') }}">List of IPs</a> | <a href="{{ url_for('ip') }}">IP detail</a>

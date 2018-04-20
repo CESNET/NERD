@@ -10,6 +10,9 @@ acl_config: acl
 # >>> os.urandom(24)
 secret_key: "!!! CHANGE THIS !!!"
 
+# Show "BETA" label over logo in web header
+beta_label: true
+
 # URL of NERDweb root (without trailing slash, e.g. "/nerd")
 # All NERDweb pages are relative to this
 # Keep empty if NERDweb resides in web server's root directory
