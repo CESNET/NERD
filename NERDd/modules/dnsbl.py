@@ -85,10 +85,6 @@ class DNSBLResolver(NERDModule):
     
     Event flow specification:
       !NEW -> query_blacklists -> bl.*
-    
-    TODO: periodic re-checking (but it might cause a lot more queries and 
-      for example spamhaus allows only 300,000 queries per day for free
-      -> we'll need paid subscription)
     """
     
     def __init__(self):
@@ -157,13 +153,13 @@ class DNSBLResolver(NERDModule):
     def query_blacklists(self, ekey, rec, updates):
         """
         Query all configured blacklists and update the set of blacklists
-        the address is listed on, togerther with the time of query.
+        the address is listed on, together with the time of query.
         Updates 'bl' attribute.
         
         Arguments:
         ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
         rec -- record currently assigned to the key
-        updates -- list of all attributes whose update triggerd this call and  
+        updates -- list of all attributes whose update triggered this call and  
           their new values (or events and their parameters) as a list of 
           2-tuples: [(attr, val), (!event, param), ...]
         

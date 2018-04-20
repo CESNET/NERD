@@ -182,7 +182,7 @@ def main():
         module.stop()
     g.um.stop()
     
-    log.info("***** Finished, main thread exitting. *****")
+    log.info("***** Finished, main thread exiting. *****")
     logging.shutdown()
 
 if __name__ == "__main__":

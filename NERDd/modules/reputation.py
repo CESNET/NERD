@@ -46,7 +46,7 @@ class Reputation(NERDModule):
         - take list of events from last 14 days
         - compute a "daily reputation" for each day as:
           - nonlin(num_of_events) * nonlin(number_of_nodes)
-          - where nonlin is a nonlinear tranformation: 1 - 1/2^x
+          - where nonlin is a nonlinear transformation: 1 - 1/2^x
         - get total reputation as weighted average of all "daily" ones with
           linearly decreasing weight (weight = (14-n)/14 for n=0..13)
         """
@@ -76,7 +76,7 @@ class Reputation(NERDModule):
         for d in range(0,DATE_RANGE):
             # reputation at day 'd'
             daily_rep = nonlin(num_events[d]) * nonlin(len(set_nodes[d]))
-            # total reputation as weighted avergae with linearly decreasing weight
+            # total reputation as weighted average with linearly decreasing weight
             weight = float(DATE_RANGE - d) / DATE_RANGE
             sum_weight += weight
             rep += daily_rep * weight

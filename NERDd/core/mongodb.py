@@ -10,7 +10,7 @@ import pymongo
 from operator import itemgetter
 
 # TODO: Store IP addresses (keys) as Binary or as HEX strings, so they can be 
-# easily queried by ragnes (less-than/greater-than).
+# easily queried by ranges (less-than/greater-than).
 # Hide this from the rest of the system (it should be dotted-decimal string in the rest of the system)
 
 # Defaults (may be overridden by config values mongodb.host, mongodb.port, mongodb.dbname)

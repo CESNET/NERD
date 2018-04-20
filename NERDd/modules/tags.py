@@ -46,7 +46,7 @@ class Tags(NERDModule):
             
             condition = self.parse_condition(tag_params["condition"])
             if condition is None:
-                self.log.error("Error occured when parsing condition of tag \"{}\" -> skipping tag.".format(tag_id))
+                self.log.error("Error occurred when parsing condition of tag \"{}\" -> skipping tag.".format(tag_id))
                 continue
            
             if "info" in tag_params:
@@ -195,12 +195,12 @@ class Tags(NERDModule):
         # Create appropriate update request for each tag which may be updated
         ret = []
 
-        # Remove all obsolate tags if event !refresh_tags is set
+        # Remove all obsolete tags if event !refresh_tags is set
         if refresh_all and "tags" in rec:
             for tag_id in rec["tags"]:
                 if tag_id not in tags_for_update:
                     ret.append(('remove', 'tags.' + tag_id, None))
-                    self.log.debug("Obsolate tag {} has been deleted from record for IP {}.".format(tag_id,key))
+                    self.log.debug("Obsolete tag {} has been deleted from record for IP {}.".format(tag_id,key))
 
         for tag_id in tags_for_update:
             # Update confidence or info in entity record if these values has been changed otherwise do nothing
