@@ -18,7 +18,7 @@ from flask import Flask, request, make_response, g, jsonify, json, flash, redire
 from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from flask_mail import Mail, Message
-from wtforms import validators, TextField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
+from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -225,6 +225,7 @@ def main():
 # ***** Request for new account *****
 class AccountRequestForm(Form):
     email = TextField('Contact email', [validators.Required()], description='Used to send information about your request and in case admins need to contact you.')
+    message = TextAreaField("", [validators.Optional()])
 
 @app.route('/noaccount', methods=['GET','POST'])
 def noaccount():
@@ -249,10 +250,11 @@ def noaccount():
         name = g.user.get('name', '[name not available]')
         id = g.user['id']
         email = form.email.data
+        message = form.message.data
         msg = Message(subject="[NERD] New account request from {} ({})".format(name,id),
                       recipients=[config.get('login.request-email')],
                       reply_to=email,
-                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}".format(id,name,g.user.get('email',''),email),
+                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}\n\nMessage:\n{}".format(id,name,g.user.get('email',''),email,message),
                      )
         mailer.send(msg)
         request_sent = True
