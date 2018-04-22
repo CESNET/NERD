@@ -26,7 +26,7 @@ class PSQLEventDatabase:
 
     def __init__(self, config):
         """
-        Initialize all internal structures as neccessary.
+        Initialize all internal structures as necessary.
         """
         self.log = logging.getLogger('EventDB')
         #self.log.setLevel('DEBUG')
@@ -151,7 +151,7 @@ class PSQLEventDatabase:
                 return
             # If there was more than one message in the batch, try it again, one-by-one
             self.log.error("There was an error during inserting a batch of {} IDEA messages, performing rollback of the transaction and trying to put the messages one-by-one (expect repetition of the error message) ...".format(len(values)))
-            # Rollback all non-commited changes
+            # Rollback all non-committed changes
             self.db.rollback()
             
             # Try it again, one by one
@@ -184,6 +184,6 @@ class PSQLEventDatabase:
                     self.log.error(str(e))
                     if str(e).startswith("duplicate"):
                         self.log.error("IDEA: "+str(idea))
-                    self.db.rollback() # Rollback all non-commited changes
+                    self.db.rollback() # Rollback all non-committed changes
             self.log.error("{} messages successfully inserted.".format(cnt_success))
                 
