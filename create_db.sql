@@ -5,10 +5,12 @@ CREATE TABLE IF NOT EXISTS users (
 	name	VARCHAR,
 	email	VARCHAR,
 	org	VARCHAR,
-	api_token	VARCHAR
+	api_token	VARCHAR,
+	rl_bs	REAL,
+	rl_tps	REAL
 );
--- testing user (used when testing on localhost by directly running nerd_main.py)
-#INSERT INTO users (id,groups,name,email) VALUES ('devel:devel_user','{"admin","registered","test"}','Mr. Test','test@example.org') ON CONFLICT DO NOTHING;
+-- testing users
+INSERT INTO users (id,groups,name,email,rl_bs,rl_tps) VALUES ('devel:devel_user','{"admin","registered","test"}','Mr. Test','test@example.org',1,'Infinity') ON CONFLICT DO NOTHING;
 #INSERT INTO users (id,groups,name,api_token) VALUES ('api_user','{"registered"}','API_USER','Wj09BuhVMi') ON CONFLICT DO NOTHING;
 
 

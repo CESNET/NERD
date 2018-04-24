@@ -28,6 +28,7 @@ import common.config
 #import db
 import ctrydata
 import userdb
+import ratelimit
 from userdb import get_user_info, authenticate_with_token, generate_unique_token
 
 # ***** Load configuration *****
@@ -104,6 +105,21 @@ def pseudonymize_node_name(name):
     """Replace Node.Name (detector ID) by a hash with secret key"""
     h = hashlib.md5((app.secret_key + name).encode('utf-8'))
     return 'node.' + h.hexdigest()[:6]
+
+
+# ***** Rate limiter *****
+
+def get_rate_limit_params(userid):
+    if userid.startswith("ip:"):
+        return None
+    assert(g.user['fullid'] == userid)
+    bs = g.user['rl_bs']
+    tps = g.user['rl_tps']
+    if bs is None or tps is None:
+        return None
+    return bs, tps
+
+rate_limiter = ratelimit.RateLimiter(config, get_rate_limit_params)
 
 
 # ***** Login handlers *****
@@ -196,6 +212,43 @@ def logout():
 def store_user_info():
     """Store user info to 'g' (request-wide global variable)"""
     g.user, g.ac = get_user_info(session)
+
+@app.before_request
+def rate_limit():
+    """Check if user hasn't exceeded its rate-limit"""
+    try:
+        # Ignore requests in some paths
+        if request.path.startswith("/static/") or request.path.startswith("/login/") or request.path == "/logout":
+            return None
+        # Get user ID (username or IP address)
+        if g.user:
+            id = g.user['fullid']
+        else:
+            id = 'ip:' + request.remote_addr
+        # TODO set different cost for some endpoints
+        ok = rate_limiter.try_request(id, cost=1)
+        if not ok:
+            # Rate-limit exceeded, return error message
+            if request.path.startswith("/api"):
+                # API -> return error in JSON
+                err = {
+                    'err_n': 429,
+                    'error': "Too many requests",
+                }
+                return Response(json.dumps(err), 429, mimetype='application/json')
+            else:
+                # Web -> return HTML with more information
+                bs, tps = rate_limiter.get_user_params(id)
+                if g.user:
+                    message = "You are only allowed to make {} requests per second.".format(tps)
+                else:
+                    message = "We only allow {} requests per second per IP address for not logged in users.".format(tps)
+                return make_response(render_template('429.html', message=message), 429)
+    except Exception as e:
+        # If anything fails, log error and continue - web shouldn't stop working
+        # just because an error in the rate-limiter
+        print("RateLimit error:", e)
+    return None
 
 @app.after_request
 def add_user_header(resp):

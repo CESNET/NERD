@@ -88,8 +88,8 @@ def get_user_info(session):
       user, ac = get_user_info(session)
     
     'user' contains:
-      login_type, id, fullid, groups, name, email, org, api_id, api_secret
-      `----------v---------'  `-----------v------------------------------'
+      login_type, id, fullid, groups, name, email, org, api_token, rl-bs, rl-tps
+      `----------v---------'  `-----------v------------------------------------'
             from session            from database (find by 'fullid')
     """
     # Get ID of user logged in

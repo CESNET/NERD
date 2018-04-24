@@ -47,6 +47,21 @@ login:
   # !!! Fill this when shibboleth is enabled !!!
   request-email: ''
 
+rate-limit:
+  # Rate-limiter default parameters (applied unless overridden for specific user).
+  # Token bucket algorithm is used. Bucket size: maximum number of tokens per 
+  # user (how big burst of requests is allowed until rate-limitng applies).
+  # Tokens per second: rate of bucket refilling (maximum long-term rate of 
+  # requests)
+  # Default: 1 token/sec, bucket size of 60  
+  tokens-per-sec: 1
+  bucket-size: 60
+  # Selection of Redis instance and DB index (default: localhost:6379/1)
+  redis:
+    # host: localhost
+    # port: 6379
+    db-index: 1
+
 # (Optional) URL to find alert of an IP in Mentat ('$IP' is replaced by the IP)
 # Link is shown to users with "mentat" permission only.
 mentat_url: https://mentat-hub.cesnet.cz/mentat/alert/list?action=Search&source=$IP
