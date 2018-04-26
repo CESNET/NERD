@@ -13,8 +13,7 @@
 <hr>
 
 <div class="entity-info org">
-<p class="header"><span class="rep" style="background-color: {{ rep_css_color(rec.rep) }}">
-  {{- "%.3f"|format(rec.rep)|replace("0.",".") if rec.rep is defined else "--" }}</span><span class="entity-id">{{ rec.name if rec.name else org }}</span><span class="entity-name">{{ '('+org+')' if rec.name else '' }}</span></p>
+<p class="header"><span class="entity-id">{{ rec.name if rec.name else org }}</span><span class="entity-name">{{ '('+org+')' if rec.name else '' }}</span></p>
 
 <dl class="attrs">
 {% for attr,val in rec|dictsort %}
