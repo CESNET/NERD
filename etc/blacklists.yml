@@ -44,21 +44,21 @@ iplists:
   - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)"
   - hour: 4
     minute: 52
-  # The following blacklists should be rsynced to local files by scripts in
-  # cron, therefore they're not available until those scripts are set up and
-  # therefore they're disabled by default.
-#  - - uceprotect
-#    - UCEPROTECT Level 1
-#    - file:///data/blacklists/uceprotect-level1
-#    - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
-#    - hour: 1,9,17
-#      minute: 45
-#  - - psbl
-#    - PSBL (spam)
-#    - file:///data/blacklists/psbl.txt
-#    - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
-#    - hour: 1,9,17
-#      minute: 45
+# The following blacklists should be rsynced to local files by scripts in
+# cron, therefore they're not available until those scripts are set up and
+# therefore they're disabled by default.
+#- - uceprotect
+#  - UCEPROTECT Level 1
+#  - file:///data/blacklists/uceprotect-level1
+#  - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
+#  - hour: 1,9,17
+#    minute: 45
+#- - psbl
+#  - PSBL (spam)
+#  - file:///data/blacklists/psbl.txt
+#  - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
+#  - hour: 1,9,17
+#    minute: 45
 
 domainlists:
 - - zeus
