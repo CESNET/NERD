@@ -378,11 +378,11 @@ class UpdateManager:
 
     def get_queue_sizes(self):
         """Return current number of requests in each queue."""
-        return [q.unfinished_tasks for q in self._request_queues]
+        return [q.qsize() for q in self._request_queues]
 
     def get_queue_size(self):
         """Return current total number of requests in all queues."""
-        return sum(q.unfinished_tasks for q in self._request_queues)    
+        return sum(q.qsize() for q in self._request_queues)    
 
 
     def update(self, ekey, update_spec):
@@ -700,12 +700,11 @@ class UpdateManager:
         """
         time.sleep(10)
         while True:
+            queue_sizes = self.get_queue_sizes()
+            self.log.info("Workers and their queue size:\n" + '\n'.join(
+                "{:2} ({}): {:3}".format(w.name[9:], "alive" if w.is_alive() else "dead ", queue_sizes[i]) for i,w in enumerate(self._workers)
+            ))
             alive_workers = filter(threading.Thread.is_alive, self._workers)
-            self.log.info("Queue size: {:3}, records in processing {:3}, workers alive: {}".format(
-                self.get_queue_size(),
-                len(self._records_being_processed),
-                ','.join(map(lambda s: s.name[9:], alive_workers))) # 9 = len("UMWorker-")
-            )
             if not alive_workers:
                 break
             time.sleep(5)
