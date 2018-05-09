@@ -1,7 +1,8 @@
 """
 NERD module that queries PassiveDNS and check returned domains for their presence in blacklists 
 """
-from core.basemodule import NERDModule 
+from core.basemodule import NERDModule
+import common.config 
 import g
 
 import logging
@@ -9,6 +10,7 @@ import redis
 from datetime import datetime 
 import requests
 import json
+import os.path
 
 class Blacklist:
     def __init__(self, redis, id):
@@ -39,11 +41,19 @@ class PassiveDNSResolver(NERDModule):
     """
 
     def __init__(self):
-        self.log = logging.getLogger("redis_bl")
+        self.log = logging.getLogger("PassiveDNS")
+        self.log.setLevel("DEBUG")
+        
+        # Load configuration of blacklists to get Redis connection params
+        bl_config_file = os.path.join(g.config_base_path, g.config.get("bl_config", "blacklists.yml"))
+        self.log.debug("Loading blacklists configuration from {}".format(bl_config_file))
+        bl_config = common.config.read_config(bl_config_file)
+        
         # Connect to Redis
-        redis_host = g.config.get("redis.host", "localhost")
-        redis_port = g.config.get("redis.port", 6379)
-        redis_db_index = g.config.get("redis.db_index", 0)
+        redis_host = bl_config.get("redis.host", "localhost")
+        redis_port = bl_config.get("redis.port", 6379)
+        redis_db_index = bl_config.get("redis.db", 0)
+        self.log.debug("Connecting to Redis: {}:{}/{}".format(redis_host, redis_port, redis_db_index))
         self.redis = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db_index)
         
         # List of blacklists is get automatically from Redis
@@ -88,27 +98,30 @@ class PassiveDNSResolver(NERDModule):
         actions = []  
         response = None
         try:
-            response = requests.get('https://passivedns.cesnet.cz/pdns/ip/{}'.format(key))
-        except gaierror: # Connection error 
+            # TODO: put URL to config
+            url = 'https://passivedns.cesnet.cz/pdns/ip/' + key
+            response = requests.get(url)
+        except Exception as e: # Connection error
+            self.log.error("Can't query '{}': {}".format(url, e)) 
             return None
 
+        #self.log.debug('Passive DNS query: ' + key + ', status code: ' + str(response.status_code))
         if response.status_code != 200:
             return None   
              
         domains = [x['domain'] for x in response.json()]
+        if domains:
+            self.log.debug('Passive DNS match: {} -> {}'.format(key, domains))
         for domain in domains: # Check domain against all available blacklists 
             domain = domain[:-1] # Remove dot, beacuse domains on Passive DNS are stored in fully qualified format.
             for dbl in self.blacklists:
-                print (domain)
                 time, present = dbl.check(domain)
                 blname = dbl.id
                 if present:
-                    print ("domena je na blacklistu {}".format(blname))
-                    self.log.debug("Domain ({0}) is on {1}.".format(domain, blname))
+                    self.log.debug("Domain ({0}) is on blacklist {1}.".format(domain, blname))
                     actions.append( ('array_upsert', 'dbl', ({'n': blname, 'd': domain}, [('set', 'v', 1), ('set', 't', now), ('append', 'h', now)])) )                    
                 else:
-                    print ("domena neni na blacklistu{}".format(blname))
                     # Domain is not on blacklist
-                    self.log.debug("Domain ({0}) is not on {1}.".format(domain, blname))
+                    #self.log.debug("Domain ({0}) is not on blacklist {1}.".format(domain, blname))
                     actions.append( ('array_update', 'dbl', ({'n': blname, 'd': domain}, [('set', 'v', 0), ('set', 't', time)])) )
         return actions
