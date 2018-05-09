@@ -69,7 +69,7 @@ class DNSResolver(NERDModule):
             if result[-1] == '.':
                 result = result[:-1] # trim trailing '.'
         except Timeout as e:
-            self.log.warning("PTR query for {} timed out".format(key))
+            self.log.debug("PTR query for {} timed out".format(key))
             result = None
         except DNSException as e:
             result = None # set result to None if NXDOMAIN, Timeout or other error
