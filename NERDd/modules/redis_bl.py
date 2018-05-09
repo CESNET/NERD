@@ -8,13 +8,18 @@ if __name__ == '__main__':
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')))
 
 from core.basemodule import NERDModule
+import common.config
 import g
 
 import logging
+import os.path
 import redis
 from datetime import datetime
 
 # TODO: check for errors (redis connection error, blacklist data not present)
+
+class BlacklistNotFound(RuntimeError):
+    pass
 
 class Blacklist:
     def __init__(self, redis, id):
@@ -24,12 +29,11 @@ class Blacklist:
         self._key_time = "bl:"+id+":time"
     
     def check(self, ip):
-        # TODO - it would be fine if time needn't be loaded every time again
-        # Options:
-        # - time chached locally with notification on change (needs pub/sub, check for message needs a query);
-        # - make date part of key and reload when key doesn't exist (but again, checking if key exists needs a separate query)
-        time = self._redis.get(self._key_time).decode('ascii')
-        time = datetime.strptime(time, "%Y-%m-%dT%H:%M:%S")
+        # TODO - load both time and presence in a transaction (and/or use WATCH)
+        time = self._redis.get(self._key_time)
+        if time is None:
+            raise BlacklistNotFound() # Blacklist disappeared from Redis
+        time = datetime.strptime(time.decode('ascii'), "%Y-%m-%dT%H:%M:%S")
         present = self._redis.sismember(self._key_list, ip)
         return time, present
     
@@ -46,10 +50,17 @@ class RedisBlacklist(NERDModule):
 
     def __init__(self):
         self.log = logging.getLogger("redis_bl")
+        #self.log.setLevel("DEBUG")
+        # Load configuration of blacklists (separate from main config)
+        bl_config_file = os.path.join(g.config_base_path, g.config.get("bl_config", "blacklists.yml"))
+        self.log.debug("Loading blacklists configuration from {}".format(bl_config_file))
+        bl_config = common.config.read_config(bl_config_file)
+        
         # Connect to Redis
-        redis_host = g.config.get("redis.host", "localhost")
-        redis_port = g.config.get("redis.port", 6379)
-        redis_db_index = g.config.get("redis.db_index", 0)
+        redis_host = bl_config.get("redis.host", "localhost")
+        redis_port = bl_config.get("redis.port", 6379)
+        redis_db_index = bl_config.get("redis.db", 0)
+        self.log.debug("Connecting to Redis: {}:{}/{}".format(redis_host, redis_port, redis_db_index))
         self.redis = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db_index)
         
         # List of blacklists is get automatically from Redis
@@ -63,7 +74,7 @@ class RedisBlacklist(NERDModule):
         
         self.log.info("Loaded {} blacklists: {}".format(len(blnames), ', '.join(blnames)))
         
-        itemlist = ['bl.' + id for id in blnames]
+        itemlist = ['bl:' + id for id in blnames]
         self.log.debug("Registering {0}".format(itemlist))
         g.um.register_handler(
             self.search_ip,
@@ -92,9 +103,18 @@ class RedisBlacklist(NERDModule):
             return None
 
         actions = []
+        bl_to_remove = []
 
         for bl in self.blacklists:
-            time, present = bl.check(key)
+            try:
+                time, present = bl.check(key)
+            except BlacklistNotFound:
+                # Blacklist disappeared from Redis - remove from list of blacklists and tell admin that it's needed to reload the daemon
+                # TODO: reload automatically, but this would need to re-register the handler function with new 'changes', which is currently not supported by UpdateManager.
+                bl_to_remove.append(bl) # we can't remove from list while iterating it - do it after loop ends
+                self.log.warning("Blacklist {} not found in Redis. Configuration has probably changed - RELOAD NERD TO APPLY NEW CONFIGURATION!")
+                # TODO: Should also remove corresponding 'bl' entry from IP record?
+                continue
             blname = bl.id
             if present:
                 # IP is on blacklist
@@ -102,15 +122,18 @@ class RedisBlacklist(NERDModule):
                 actions.append( ('array_upsert', 'bl', ({'n': blname}, [('set', 'v', 1), ('set', 't', time), ('append', 'h', time)])) )
             else:
                 # IP is not on blacklist
-                self.log.debug("IP address ({0}) is not on {1}.".format(key, blname))
+                #self.log.debug("IP address ({0}) is not on {1}.".format(key, blname))
                 actions.append( ('array_update', 'bl', ({'n': blname}, [('set', 'v', 0), ('set', 't', time)])) )
 
+        # In case of error, remove blaklists not already present
+        for bl in bl_to_remove:
+            self.blacklists.remove(bl)
+            
         return actions
 
 
 if __name__ == '__main__':
     # Create minimal environment for testing
-    import common.config
     import core.update_manager
     g.config = config.HierarchicalDict({})
     g.um = object()

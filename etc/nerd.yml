@@ -9,6 +9,9 @@ mongodb:
 # Tag configuration file
 tags_config: tags.yml
 
+# Blacklists configuration file
+bl_config: blacklists.yml
+
 # Path to a directory where Warden filer stores incoming IDEA messages
 warden_filer_path: "/data/warden_filer/warden_receiver"
 

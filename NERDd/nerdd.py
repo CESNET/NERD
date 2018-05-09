@@ -51,9 +51,11 @@ def main():
     # Read NERDd-specific config (nerdd.cfg)
     log.info("Loading config file {}".format(cfg_file))
     config = common.config.read_config(cfg_file)
-    
+
+    config_base_path = os.path.dirname(os.path.abspath(cfg_file))
+
     # Read common config (nerd.cfg) and combine them together
-    common_cfg_file = os.path.join(os.path.dirname(os.path.abspath(cfg_file)), config.get('common_config'))
+    common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
     log.info("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
     
@@ -64,6 +66,7 @@ def main():
     
     import g
     g.config = config
+    g.config_base_path = config_base_path
     g.scheduler = core.scheduler.Scheduler()
     g.db = core.mongodb.MongoEntityDatabase(config)
     g.eventdb = common.eventdb_psql.PSQLEventDatabase(config)

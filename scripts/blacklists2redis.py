@@ -70,13 +70,14 @@ args = parser.parse_args()
 def vprint(*_args, **kwargs):
     # Verbose print
     if not args.quiet:
+        print("[{}] ".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), end="")
         print(*_args, **kwargs)
 
 
 def get_blacklist(id, name, url, regex, domain=False):
     # Download given blacklist and store it into Redis
     now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    vprint("[{}] Getting {} blacklist '{}' from '{}'".format(datetime.now(), "domain" if domain else "IP", id, url))
+    vprint("Getting {} blacklist '{}' from '{}'".format("domain" if domain else "IP", id, url))
     
     # Download via HTTP(S)
     if url.startswith("http://") or url.startswith("https://"):
@@ -104,7 +105,7 @@ def get_blacklist(id, name, url, regex, domain=False):
             if match:
                 ips.append(match.group(1))
     else:
-        ips = [line.strip() for line in data.split('\n') if not line.startswith('#')]
+        ips = [line.strip() for line in data.split('\n') if not line.startswith('#') and line.strip()]
     
     # TODO: Check that all parsed items are indeed IPv4 addresses in correct format    
 
@@ -117,10 +118,10 @@ def get_blacklist(id, name, url, regex, domain=False):
         pipe.set(key_prefix+"name", name)
         pipe.set(key_prefix+"time", now)
         pipe.delete(key_prefix+"list")
-        pipe.sadd(key_prefix+"list", *ips)
+        if ips:
+            pipe.sadd(key_prefix+"list", *ips)
         pipe.execute()
-        vprint("[{}] Done, {} {} stored into Redis under '{}list'".format(datetime.now(), len(ips), "domains" if domain else "IPs", key_prefix))
-        vprint("")
+        vprint("Done, {} {} stored into Redis under '{}list'".format(len(ips), "domains" if domain else "IPs", key_prefix))
     except redis.exceptions.ConnectionError as e:
         print("ERROR: Can't connect to Redis DB ({}:{}): {}".format(redis_host, redis_port, str(e)), file=sys.stderr)
 
@@ -149,7 +150,26 @@ except redis.exceptions.ConnectionError as e:
     print("ERROR: Can't connect to Redis DB ({}:{}): {}".format(redis_host, redis_port, str(e)), file=sys.stderr)
     sys.exit(1)
 
-# Download all IP blacklists that are not in Redis yet
+
+# Look up lists in Redis that are no longer in configuration and delete them
+# IP lists
+keys = r.keys('bl:*')
+redis_lists = set(key.decode().split(':')[1] for key in keys)
+config_lists = set(cfg_item[0] for cfg_item in config['iplists'])
+for id in redis_lists - config_lists:
+    vprint("IP blacklist '{}' was found in Redis, but not in current configuration. Removing from Redis.".format(id))
+    r.delete(*r.keys('bl:'+id+':*'))
+# Domain lists
+keys = r.keys('dbl:*')
+redis_lists = set(key.decode().split(':')[1] for key in keys)
+config_lists = set(cfg_item[0] for cfg_item in config['domainlists'])
+for id in redis_lists - config_lists:
+    vprint("Domain blacklist '{}' was found in Redis, but not in current configuration. Removing from Redis.".format(id))
+    r.delete(*r.keys('dbl:'+id+':*'))
+
+
+# Download all blacklists that are not in Redis yet
+# IP lists
 for id, name, url, regex, refresh_time in config['iplists']:
     # TODO: check how old the list is and re-download if it's too old (complicated since cron-spec may be very complex)
     if args.force_refresh:
@@ -159,8 +179,7 @@ for id, name, url, regex, refresh_time in config['iplists']:
         get_blacklist(id, name, url, regex)
     else:
         vprint("IP blacklist '{}' is already in Redis, nothing to do for now.".format(id))
-
-# Download all domain blacklists that are not in Redis yet
+# Domain lists
 for id, name, url, regex, refresh_time in config['domainlists']:
     # TODO: check how old the list is and re-download if it's too old (complicated since cron-spec may be very complex)
     if args.force_refresh:
@@ -193,4 +212,4 @@ if not args.one_shot:
     vprint("Starting scheduler to periodically update the blacklists ...")
     scheduler.start()
 
-vprint("All work done, exitting")
+vprint("All work done, exiting")
