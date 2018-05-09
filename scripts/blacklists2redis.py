@@ -89,8 +89,8 @@ def get_blacklist(id, name, url, regex, domain=False):
             print("ERROR: Can't download list '{}' from '{}': {}".format(id, url, str(e)))
             data = ""
     # Load from local file
-    elif self.url.startswith("file://"):
-        with open(self.url[7:], encoding='utf-8', errors='ignore') as f:
+    elif url.startswith("file://"):
+        with open(url[7:], encoding='utf-8', errors='ignore') as f:
             data = f.read()
     else:
         print("ERROR: Unknown URL scheme for blacklist {0}: {}".format(id, url), file=sys.stderr)
