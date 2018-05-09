@@ -19,6 +19,7 @@ check_process () {
 
 check_service postgresql-9.6
 check_service mongod
+check_service redis
 check_service named
 check_service httpd
 check_service postfix
