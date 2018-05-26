@@ -8,3 +8,6 @@ pycares
 shodan
 apscheduler
 bgpranking_web
+pika
+redis
+hiredis
