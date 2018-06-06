@@ -1,29 +1,6 @@
 {% extends "layout.html" %}
 {% block body %}
 
-<script>
-  $(document).ready(function () {        
-     var ipaddr = $("#ip").val ();     
-     $.getJSON ("/pdns/ip/" + ipaddr, function (response,status) {           
-        if (status == "success")
-        {
-          for (var i in response)
-          {
-            $("#pdns_data").append ( "Resolve count: " + response[i].count );        
-            $("#pdns_data").append ( "<br \>");
-            $("#pdns_data").append ( "Type: " + response[i].type );
-            $("#pdns_data").append ( "<br \>");
-            $("#pdns_data").append ( "Domain: " + response[i].domain );
-            $("#pdns_data").append ( "<br \>");
-            $("#pdns_data").append ( "Time first: " + response[i].time_last );
-            $("#pdns_data").append ( "<br \>");
-            $("#pdns_data").append ( "Time last: " + response[i].time_first );
-          } 
-        }      
-     });    
-  });
-</script>
-
 <h1>IP address</h1>
 
 {# Note: The onsubmit script overrides funcionality of Submit button to put IP address to custom URL #}
@@ -43,12 +20,14 @@
 <hr>
 
 <div class="entity-info ip">
-  Passive DNS info:
-  <div id="pdns_data">
-  </div>
 
 <p class="header"><span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">
   {{- "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span><span class="entity-id">{{ ip }}</span><span class="entity-name">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
+
+<div class="float-box pdns">
+<div class="title">Passive DNS<span class="help" title="DNS resolutions involving this IP address observed at CESNET DNS servers. Format: <rr_type> <hostname> <first seen> <last seen> <number of observations>"></span></div>
+<div id="pdns_data" class="content"><div class="loading"><img class="load-spinner-small" src="{{ url_for('static', filename='spin.gif') }}"></div></div>
+</div>
 
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
@@ -131,6 +110,32 @@
 $("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}");
 </script>
 </div>
+
+<script>
+// Load passive DNS data
+$(document).ready(function () {       
+  var url = "{{ url_for('pdns_ip', ipaddr=ip) }}";  
+  $.getJSON(url, function(response,status) {
+    if (status != "success") {
+      $("#pdns_data").text("error");
+    }
+    else if (response.length > 0) {
+      html = "";
+      for (var i in response) {
+        html += '<div class="pdns-item">';
+        html += '<span class="tag dnstype">' + response[i].type + '</span> ' + response[i].domain + '<br>';
+        html += response[i].time_first + '&nbsp;&ndash;&nbsp;' + response[i].time_last + '&nbsp;(' + response[i].count + '&times;)';
+        html += '</div>';
+      }
+      $("#pdns_data").html(html);
+    }
+    else {
+      $("#pdns_data").text("-- no records --");
+      $("#pdns_data").css("text-align", "center")
+    }
+  }).fail( function( jqXHR, textStatus, errorThrown) { $("#pdns_data").text("ERROR: " + jqXHR.responseText); } );
+});
+</script>
 
 </div>
 {% endif %}{# if not found #}

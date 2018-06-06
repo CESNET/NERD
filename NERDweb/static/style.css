@@ -45,6 +45,14 @@ p.error {
   color: #000;
 }
 
+.help:after {
+  content: '(?)';
+}
+.help {
+  opacity: 0.5;
+  margin: 0 0.5em;
+}
+
 div.loading {
   text-align: center;
   /*background-color: rgba(0, 0, 0, 0.01);*/
@@ -53,6 +61,11 @@ img.load-spinner {
   width: 2em;
   height: 2em;
   margin: 1em;
+}
+img.load-spinner-small {
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0.4em;
 }
 
 /* Flash messages */
@@ -433,6 +446,50 @@ dd dl dt:first-child {
 
 .test-cat {
   color: #aaa;
+}
+
+
+.float-box {
+  float: right;
+  min-width: 18em;
+  max-width: 30em;
+  min-height: 2em;
+  max-height: 30em;
+  border: 2px solid #0061a2;
+}
+.float-box .title {
+  text-align: center;
+  font-weight: bold;
+  background-color: #0061a2;
+  color: #fff;
+  padding: 3px;
+  position: relative;
+}
+.float-box .title .help {
+  /*float: right;*/
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  margin: 0;
+}
+.float-box .content {
+  padding: 5px;
+  overflow-y: auto;
+  text-align: right;
+}
+.tag.dnstype {
+  background: #bfd8e8; /*#80b0d0;*/ 
+  color: #000;
+  float: left;
+  box-shadow: none;
+  margin-right: 1em;
+}
+.pdns-item {
+  border-bottom: 1px dotted #444;
+  padding-bottom: 2px;
+}
+.pdns-item:last-child {
+  border-bottom: 0px;
 }
 
 #event-details {

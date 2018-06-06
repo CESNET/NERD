@@ -11,6 +11,8 @@ import re
 import pytz
 import ipaddress
 import struct
+import socket
+import requests
 
 import flask
 from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
@@ -1071,20 +1073,24 @@ def page_not_found(e):
         # Otherwise return default error page
         return e
 
-import socket
-import requests
 
-@app.route('/pdns/ip/<ipaddr>/', methods=['GET'])
+# ***** Passive DNS gateway *****
+@app.route('/pdns/ip/<ipaddr>', methods=['GET'])
 def pdns_ip(ipaddr=None):
-    if ipaddr:        
-        response = None
-        try:
-            response = requests.get ('https://passivedns.cesnet.cz/pdns/ip/{}'.format (ipaddr))
-        except socket.gaierror: # Connection error, just in case
-            return Response(json.dumps({'status': 500, 'error': 'internal server error'}), 500, mimetype='application/json')        
-        if response.status_code == 200:
-            return Response(json.dumps(response.json()), 200, mimetype='application/json')
-    return Response(json.dumps({'status': 404, 'error': 'record not found'}), 404, mimetype='application/json')
+    if not ipaddr:
+        return Response(json.dumps({'status': 404, 'error': 'not found'}), 404, mimetype='application/json')        
+    try:
+        response = requests.get('https://passivedns.cesnet.cz/pdns/ip/{}'.format(ipaddr))
+    except requests.RequestException as e: # Connection error, just in case
+        print(str(e), file=sys.stderr)
+        return Response(json.dumps({'status': 502, 'error': 'Bad Gateway - cannot get information from PDNS server'}), 502, mimetype='application/json')        
+    if response.status_code == 200:
+        return Response(json.dumps(response.json()), 200, mimetype='application/json')
+    elif response.status_code == 404: # Return "not found" as success, just with empty list
+        return Response("[]", 200, mimetype='application/json')
+    else:
+        return Response(json.dumps({'status': 502, 'error': 'Bad Gateway: ' + json.dumps(response.json())}), 502, mimetype='application/json')
+    
 
 # **********
 
