@@ -63,11 +63,20 @@
   <dt>hostname</dt>
   <dd>{{ val|reverse if val else '(null)'}}</dd>
  {% elif attr == "bl" %}
-  <dt>blacklists</dt>
+  <dt>IP blacklists</dt>
   <dd><dl>
    {% for bl_entry in val %}
     <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}">{{ bl_entry.n }}</span>
    {% endfor %}
+   {%- if not val %}none{% endif %}
+  </dl></dd>
+ {% elif attr == "dbl" %}
+  <dt>Domain blacklists<span class="help" title="Blacklisted domain names that were associated with the IP address according to Passive DNS"></dt>
+  <dd><dl>
+   {% for bl_entry in val %}
+    <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}">{{ bl_entry.n }} ({{  bl_entry.d }})</span>
+   {% endfor %}
+   {%- if not val %}none{% endif %}
   </dl></dd>
  {% elif attr == "as_maxmind" %}
   <dt>ASN (MaxMind DB)</dt><dd>{{ val.num }} {{ val.description }}</dd>
