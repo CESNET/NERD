@@ -132,8 +132,8 @@ $(document).ready(function () {
       html = "";
       for (var i in response) {
         html += '<div class="pdns-item">';
-        html += '<span class="tag dnstype">' + response[i].type + '</span> ' + response[i].domain + '<br>';
-        html += response[i].time_first + '&nbsp;&ndash;&nbsp;' + response[i].time_last + '&nbsp;(' + response[i].count + '&times;)';
+        html += '<div><span class="tag dnstype">' + response[i].type + '</span> ' + response[i].domain + '</div>';
+        html += '<div>'+response[i].time_first + '&nbsp;&ndash;&nbsp;' + response[i].time_last + '&nbsp;(' + response[i].count + '&times;)</div>';
         html += '</div>';
       }
       $("#pdns_data").html(html);

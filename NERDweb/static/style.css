@@ -500,9 +500,15 @@ dd dl dt:first-child {
 .pdns-item {
   border-bottom: 1px dotted #444;
   padding-bottom: 2px;
+  margin-bottom: 3px;
 }
 .pdns-item:last-child {
   border-bottom: 0px;
+  margin-bottom: 0px;
+}
+.pdns-item > div:last-child {
+  margin-top: 2px;
+  font-size: 0.9em;
 }
 
 #event-details {
