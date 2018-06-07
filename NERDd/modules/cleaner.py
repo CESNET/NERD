@@ -89,8 +89,8 @@ class Cleaner(NERDModule):
         cut_time = datetime.utcnow() - self.max_event_history
 
         actions = []
-        for blrec in rec['bl']:
-            name = blrec['n']
+        # IP blacklists
+        for blrec in rec.get('bl', []):
             # Create a new list without the old records
             newlist = [ts for ts in blrec['h'] if ts > cut_time]
             if len(newlist) == 0:
@@ -99,6 +99,17 @@ class Cleaner(NERDModule):
             elif len(newlist) != len(blrec['h']):
                 # If something was removed, replace the list in the record with the new one
                 actions.append( ('array_update', 'bl', ({'n': blrec['n']}, [('set', 'h', newlist)])) )
+        
+        # Domain blacklists
+        for blrec in rec.get('dbl', []):
+            # Create a new list without the old records
+            newlist = [ts for ts in blrec['h'] if ts > cut_time]
+            if len(newlist) == 0:
+                # Everything was removed -> remove whole blacklist-record
+                actions.append( ('array_remove', 'dbl', {'n': blrec['n'], 'd': blrec['d']}) )
+            elif len(newlist) != len(blrec['h']):
+                # If something was removed, replace the list in the record with the new one
+                actions.append( ('array_update', 'dbl', ({'n': blrec['n'], 'd': blrec['d']}, [('set', 'h', newlist)])) )
         
         return actions
 
