@@ -7,3 +7,5 @@ WTForms
 Flask-pymongo
 Flask-Mail
 psycopg2
+redis
+hiredis

@@ -2,7 +2,7 @@
 NERD update manager.
 
 Provides UpdateManager class - a NERD component which handles updates of entity
-records, including chain reaction of updates casued by other updates.
+records, including chain reaction of updates caused by other updates.
 """
 import sys
 import os
@@ -81,11 +81,11 @@ def get_func_name(func_or_method):
 
 def perform_update(rec, updreq):
     """
-    Update a record according to given update reqeust.
+    Update a record according to given update request.
     
     updreq - 3-tuple (op, key, value)
     
-    Return array with specifications of performed updates (pairs (upated_key,
+    Return array with specifications of performed updates (pairs (updated_key,
     new_value) or None.
     (None is returned when nothing was changed, e.g. because op=add_to_set and
     value was already present, or removal of non-existent item was requested)
@@ -245,11 +245,11 @@ class UpdateManager:
         self.db = db
         
         # Mapping of names of attributes to a list of functions that should be 
-        # called when the attrbibute is updated
+        # called when the attribute is updated
         # (One such mapping for each entity type)
         self._attr2func = {etype: {} for etype in ENTITY_TYPES}
         
-        # Set of attributes thet may be updated by a function
+        # Set of attributes that may be updated by a function
         self._func2attr = {etype: {} for etype in ENTITY_TYPES}
 
         # Mapping of functions to set of attributes the function watches, i.e.
@@ -381,11 +381,11 @@ class UpdateManager:
 
     def get_queue_sizes(self):
         """Return current number of requests in each queue."""
-        return [q.unfinished_tasks for q in self._request_queues]
+        return [q.qsize() for q in self._request_queues]
 
     def get_queue_size(self):
         """Return current total number of requests in all queues."""
-        return sum(q.unfinished_tasks for q in self._request_queues)    
+        return sum(q.qsize() for q in self._request_queues)    
 
 
     def update(self, ekey, update_spec):
@@ -409,7 +409,7 @@ class UpdateManager:
     def get_all_possible_changes(self, etype, attr):
         """
         Returns all attributes (as a set) that may be changed by a "chain reaction"
-        of changes triggered by update of given attrbiute (or event).
+        of changes triggered by update of given attribute (or event).
         
         Warning: There must be no loops in the sequence of attributes and  
         triggered functions.
@@ -444,7 +444,7 @@ class UpdateManager:
         # Also create associated auxiliary objects:
         #   call_queue - queue of functions that should be called to update the record.
         #     queue.Queue of tuples (function, list_of_update_spec), where list_of_update_spec is a list of
-        #     updates (2-tuples (key, new_value) or (event, param) which tirggered the function.
+        #     updates (2-tuples (key, new_value) or (event, param) which triggered the function.
         #   may_change - set of attributes that may be changed by planned function calls
 
 #        t1 = time.time()
@@ -546,7 +546,7 @@ class UpdateManager:
                     may_change |= self.get_all_possible_changes(etype, attr)
                     #self.log.debug("may_change: {}".format(may_change))
                 
-                # All reqests were processed, clear the list
+                # All requests were processed, clear the list
                 requests_to_process.clear()
             
             if not call_queue:
@@ -698,17 +698,16 @@ class UpdateManager:
         """
         Print status of workers and the request queue every 5 seconds.
         
-        Should be run as a separate (deamon) thread.
+        Should be run as a separate (daemon) thread.
         Exits when all workers has finished.
         """
         time.sleep(10)
         while True:
+            queue_sizes = self.get_queue_sizes()
+            self.log.info("Workers and their queue size:\n" + '\n'.join(
+                "{:2} ({}): {:3}".format(w.name[9:], "alive" if w.is_alive() else "dead ", queue_sizes[i]) for i,w in enumerate(self._workers)
+            ))
             alive_workers = filter(threading.Thread.is_alive, self._workers)
-            self.log.info("Queue size: {:3}, records in processing {:3}, workers alive: {}".format(
-                self.get_queue_size(),
-                len(self._records_being_processed),
-                ','.join(map(lambda s: s.name[9:], alive_workers))) # 9 = len("UMWorker-")
-            )
             if not alive_workers:
                 break
             time.sleep(5)
@@ -733,7 +732,7 @@ class UpdateManager:
             # to exit the program)
             req = self._request_queues[thread_index].get()
             if req is None:
-                self.log.debug("'None' received from queue {} - exitting".format(thread_index))
+                self.log.debug("'None' received from queue {} - exiting".format(thread_index))
                 self._request_queues[thread_index].task_done()
                 break
             ekey, updreq = req

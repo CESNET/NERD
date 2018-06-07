@@ -48,7 +48,7 @@ class DNSResolver(NERDModule):
         Arguments:
         ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
         rec -- record currently assigned to the key
-        updates -- list of all attributes whose update triggerd this call and  
+        updates -- list of all attributes whose update triggered this call and  
           their new values (or events and their parameters) as a list of 
           2-tuples: [(attr, val), (!event, param), ...]
         
@@ -69,7 +69,7 @@ class DNSResolver(NERDModule):
             if result[-1] == '.':
                 result = result[:-1] # trim trailing '.'
         except Timeout as e:
-            self.log.warning("PTR query for {} timed out".format(key))
+            self.log.debug("PTR query for {} timed out".format(key))
             result = None
         except DNSException as e:
             result = None # set result to None if NXDOMAIN, Timeout or other error

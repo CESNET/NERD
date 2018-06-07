@@ -36,7 +36,7 @@ def hierarchical_update(self, other):
     """
     Update HierarchicalDict with other dictionary and merge common keys.
     
-    If there is a key in both current and the other dictionary and vlaues of
+    If there is a key in both current and the other dictionary and values of
     both keys are dictionaries, they are merged together.
     Example:
       HierarchicalDict({'a': {'b': 1, 'c': 2}}).update({'a': {'b': 10, 'd': 3}})
@@ -73,7 +73,7 @@ def read_config(file):
     """
     Read configuration file and return config as a dict-like object.
     
-    The configuration file shoud contain a valid YAML
+    The configuration file should contain a valid YAML
     - Comments may be included as lines starting with '#' (optionally preceded
       by whitespaces).
 

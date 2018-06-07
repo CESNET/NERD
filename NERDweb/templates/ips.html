@@ -17,8 +17,11 @@
   {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
   {{ formfield(form.asn, size=7) }}
   <br>
-  {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+  {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
+  {%- if ac('nodenames') %}
+  &nbsp; &amp; &nbsp;
   {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
+  {% endif %}
   <br>
   {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
   {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
@@ -30,71 +33,9 @@
   <input type="submit">
 </form>
 
-<script>
-// Improve selects using "multiselect" library/plugin
-$("select#cat").multiselect({texts: {placeholder: "\xa0"}, search: true});
-$("select#node").multiselect({texts: {placeholder: "\xa0"}, search: true});
-$("select#blacklist").multiselect({texts: {placeholder: "\xa0"}, search: true});
-$("select#tag").multiselect({texts: {placeholder: "\xa0"}, search: true});
-// Set up an operation (and/or) button
-function set_up_op_button(button_id, form_elem_id, title_or, title_and) {
-  $(button_id).on("click", function() {
-    if ($(form_elem_id).val() == 'and') {
-      $(form_elem_id).val("or");
-      $(this).text("\u22c1").attr("title", title_or); // \u22c1 = Logical OR
-    } else {
-      $(form_elem_id).val("and");
-      $(this).text("\u22c0").attr("title", title_and); // \u22c0 = Logical AND
-    }
-    return false;
-  });
-  if ($(form_elem_id).val() == "or") {
-      $(button_id).text("\u22c1").attr("title", title_or);
-  } else {
-      $(button_id).text("\u22c0").attr("title", title_and);
-  }
-}
-set_up_op_button("#cat_op_button", "#cat_op", "OR: At least one of the selected categories", "AND: All selected categories")
-set_up_op_button("#node_op_button", "#node_op", "OR: At least one of the selected nodes", "AND: All selected nodes")
-set_up_op_button("#bl_op_button", "#bl_op", "OR: At least one of the selected blacklists", "AND: All selected blacklists")
-set_up_op_button("#tag_op_button", "#tag_op", "OR: At least one of the selected tags", "AND: All selected tags")
-</script>
+<script src="{{ url_for('static', filename='ips.js') }}"></script>
 
 {% if results %}
-<script>
-
-// Set-up possibility to click on a part of hostname to set it as a filer
-function set_hostname_filter(hostname) {
-  document.location = ROOT + "ips/?hostname=" + hostname;
-};
-
-$(function () {
-  $("td.hostname").each( function () {
-    hostname = $(this).text();
-    if (hostname == "--")
-      return;
-    parts = hostname.split(".");
-    $(this).html("<span>" + parts.join("</span><span>.") + "</span>");
-  });
-  $("td.hostname span")
-    .css("cursor", "pointer")
-    .click( function () {
-      set_hostname_filter( $(this).text() + $(this).nextAll().text() );
-    })
-    .hover(
-      function () { // mouseenter
-        $(this).css("text-decoration", "underline");
-        $(this).nextAll().css("text-decoration", "underline");
-        $(this).attr("title", "Set as filter");
-      },
-      function () { // mouseleave
-        $(this).css("text-decoration", "");
-        $(this).nextAll().css("text-decoration", "");
-        $(this).attr("title", "");
-      }
-    )
-});
-</script>
 
 <!-- hidden form to allow links to blacklist check at whatismyipaddress.com -->
 <form id="bl-check-form" action="http://whatismyipaddress.com/blacklist-check" method="POST" target="_blank">

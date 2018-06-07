@@ -82,6 +82,11 @@
   <dt>ASN (MaxMind DB)</dt><dd>{{ val.num }} {{ val.description }}</dd>
  {% elif attr == "as_rv" %}
   <dt>ASN (routeviews.org & bgplookingglass.com)</dt><dd>{{ val.num }} {{ val.description }}</dd>
+ {% elif attr == "asns" %}
+  <dt>Origin AS</dt>
+  {% for asinfo in val %}
+   <dd><a href="{{ url_for('asn') + asinfo._id|string }}">AS{{ asinfo._id }}</a> - {{ asinfo.name }}</dd>
+  {% endfor %}
  {% elif attr == "ipblock" %} 
   <dt>Address block ('inetnum' or 'NetRange' in whois database)</dt>
   <dd><a href="{{ url_for('ipblock') + val }}">{{ val }}</a></dd>
@@ -109,6 +114,7 @@
 {% endfor %}
 </dl>
 
+{% if ac('warden_alerts') %}
 <div id="events">
 <p id="event-details"><span class="caption">Event details</span> <span class="counts">(...)</span>
 &nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>
@@ -119,6 +125,7 @@
 $("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}");
 </script>
 </div>
+{% endif %}
 
 <script>
 // Load passive DNS data

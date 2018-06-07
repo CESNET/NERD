@@ -231,7 +231,7 @@ class WhoIS(NERDModule):
             self.log.warning('Observed reserved ASN {}. Querying still possible to: {}.'.format(asn, rir))
             return rir, True
         elif rir[0] == 'U':
-            self.log.warning('Observed unalloctaed ASN {}. Querying impossible.'.format(asn))
+            self.log.warning('Observed unallocated ASN {}. Querying impossible.'.format(asn))
             return None, True
 
         return rir, False
@@ -615,7 +615,7 @@ class WhoIS(NERDModule):
                 # TODO: check for "Query rate limit exceeded."
                 return None
 
-            #self.log.info('Data about "{}" from {} succesfully received and parsed'.format(query, host))
+            #self.log.info('Data about "{}" from {} successfully received and parsed'.format(query, host))
             return result
 
 

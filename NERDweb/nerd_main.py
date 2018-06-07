@@ -11,15 +11,15 @@ import re
 import pytz
 import ipaddress
 import struct
+import hashlib
 import socket
 import requests
-
 import flask
 from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
 from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import Form
 from flask_mail import Mail, Message
-from wtforms import validators, TextField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
+from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -29,6 +29,7 @@ import common.config
 #import db
 import ctrydata
 import userdb
+import ratelimit
 from userdb import get_user_info, authenticate_with_token, generate_unique_token
 
 # ***** Load configuration *****
@@ -104,7 +105,29 @@ def format_datetime(val, format="%Y-%m-%d %H:%M:%S"):
 
 app.jinja_env.filters['datetime'] = format_datetime
 
-    
+
+# ***** Auxiliary functions *****
+
+def pseudonymize_node_name(name):
+    """Replace Node.Name (detector ID) by a hash with secret key"""
+    h = hashlib.md5((app.secret_key + name).encode('utf-8'))
+    return 'node.' + h.hexdigest()[:6]
+
+
+# ***** Rate limiter *****
+
+def get_rate_limit_params(userid):
+    if userid.startswith("ip:"):
+        return None
+    assert(g.user['fullid'] == userid)
+    bs = g.user['rl_bs']
+    tps = g.user['rl_tps']
+    if bs is None or tps is None:
+        return None
+    return bs, tps
+
+rate_limiter = ratelimit.RateLimiter(config, get_rate_limit_params)
+
 
 # ***** Login handlers *****
 # A handler function is created for each configured login method
@@ -197,6 +220,43 @@ def store_user_info():
     """Store user info to 'g' (request-wide global variable)"""
     g.user, g.ac = get_user_info(session)
 
+@app.before_request
+def rate_limit():
+    """Check if user hasn't exceeded its rate-limit"""
+    try:
+        # Ignore requests in some paths
+        if request.path.startswith("/static/") or request.path.startswith("/login/") or request.path == "/logout":
+            return None
+        # Get user ID (username or IP address)
+        if g.user:
+            id = g.user['fullid']
+        else:
+            id = 'ip:' + request.remote_addr
+        # TODO set different cost for some endpoints
+        ok = rate_limiter.try_request(id, cost=1)
+        if not ok:
+            # Rate-limit exceeded, return error message
+            if request.path.startswith("/api"):
+                # API -> return error in JSON
+                err = {
+                    'err_n': 429,
+                    'error': "Too many requests",
+                }
+                return Response(json.dumps(err), 429, mimetype='application/json')
+            else:
+                # Web -> return HTML with more information
+                bs, tps = rate_limiter.get_user_params(id)
+                if g.user:
+                    message = "You are only allowed to make {} requests per second.".format(tps)
+                else:
+                    message = "We only allow {} requests per second per IP address for not logged in users.".format(tps)
+                return make_response(render_template('429.html', message=message), 429)
+    except Exception as e:
+        # If anything fails, log error and continue - web shouldn't stop working
+        # just because an error in the rate-limiter
+        print("RateLimit error:", e)
+    return None
+
 @app.after_request
 def add_user_header(resp):
     # Set user ID to a special header, it's used to put user ID to Apache logs
@@ -225,6 +285,7 @@ def main():
 # ***** Request for new account *****
 class AccountRequestForm(Form):
     email = TextField('Contact email', [validators.Required()], description='Used to send information about your request and in case admins need to contact you.')
+    message = TextAreaField("", [validators.Optional()])
 
 @app.route('/noaccount', methods=['GET','POST'])
 def noaccount():
@@ -249,10 +310,11 @@ def noaccount():
         name = g.user.get('name', '[name not available]')
         id = g.user['id']
         email = form.email.data
+        message = form.message.data
         msg = Message(subject="[NERD] New account request from {} ({})".format(name,id),
                       recipients=[config.get('login.request-email')],
                       reply_to=email,
-                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}".format(id,name,g.user.get('email',''),email),
+                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}\n\nMessage:\n{}".format(id,name,g.user.get('email',''),email,message),
                      )
         mailer.send(msg)
         request_sent = True
@@ -387,8 +449,8 @@ class IPFilterForm(Form):
     hostname = TextField('Hostname suffix', [validators.Optional()])
     country = TextField('Country code', [validators.Optional(), validators.length(2, 2)])
     asn = TextField('ASN', [validators.Optional(),
-        validators.Regexp('^((AS)?\d+|\?)+$', re.IGNORECASE,
-        message='Must be a number, optionally preceded by "AS", or "?".')])
+        validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
+        message='Must be a number, optionally preceded by "AS".')])
     cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
     cat_op = HiddenField('', default="or")
     node = SelectMultipleField('Node', [validators.Optional()])
@@ -450,15 +512,14 @@ def create_query(form):
         queries.append( {'$and': [{'hostname': {'$gte': hn}}, {'hostname': {'$lt': hn_end}}]} )
     if form.country.data:
         queries.append( {'geo.ctry': form.country.data.upper() } )
-    if form.asn.data:
-        if form.asn.data[0] == '?':
-            queries.append( {'$and': [{'as_maxmind.num': {'$exists': True}},
-                                      {'as_rv.num': {'$exists': True}},
-                                      {'$where': 'this.as_maxmind.num != this.as_rv.num'} # This will be probably very slow
-                                     ]} )
+    if form.asn.data and form.asn.data.strip():
+        # ASN is not stored in IP records - get list of BGP prefixes of the ASN and filter by these
+        asn = int(form.asn.data.lstrip("ASas"))
+        asrec = mongo.db.asn.find_one({'_id': asn})
+        if asrec and 'bgppref' in asrec:
+            queries.append( {'bgppref': {'$in': asrec['bgppref']}} )
         else:
-            asn = int(form.asn.data.lstrip("ASas"))
-            queries.append( {'$or': [{'as_maxmind.num': asn}, {'as_rv.num': asn}]} )
+            queries.append( {'_id': {'$exists': False}} ) # ASN not in DB, add query which is always false to get no results
     if form.cat.data:
         op = '$and' if (form.cat_op.data == "and") else '$or'
         queries.append( {op: [{'events.cat': cat} for cat in form.cat.data]} )
@@ -486,20 +547,19 @@ def ips():
         timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
         sortby = sort_mapping[form.sortby.data]
         
-        query = create_query(form)
-        # Query parameters to be used in AJAX requests
-        query_params = json.dumps(form.data)
-        
-        # Perform DB query
-        #print("Query: "+str(query))
         try:
+            query = create_query(form)
+            # Query parameters to be used in AJAX requests
+            query_params = json.dumps(form.data)
+        
+            # Perform DB query
             results = mongo.db.ip.find(query).limit(form.limit.data)
             if sortby != "none":
                 results.sort(sortby, 1 if form.asc.data else -1)
             results = list(results) # Load all data now, so we are able to get number of results in template
         except pymongo.errors.ServerSelectionTimeoutError:
             results = []
-            error = 'mongo_error'
+            error = 'database_error'
         
         for ip in results:
             if "bgppref" in ip:
@@ -539,7 +599,11 @@ def ips():
                 nodes.remove('?')
             except KeyError:
                 pass
-            
+
+            # Pseudonymize node names if user is not allowed to see the original names
+            if not g.ac('nodenames'):
+                nodes = [pseudonymize_node_name(name) for name in nodes]
+
             dates = sorted(dates)
             cats = sorted(cats)
             nodes = sorted(nodes)
@@ -573,7 +637,7 @@ def ips():
     else:
         results = None
         if g.user and not g.ac('ipsearch'):
-            flash('Only registered users may search IPs.', 'error')
+            flash('Insufficient permissions to search/view IPs.', 'error')
     
     return render_template('ips.html', json=json, ctrydata=ctrydata, **locals())
 
@@ -607,8 +671,26 @@ def ip(ipaddr=None):
         if g.ac('ipsearch'):
             title = ipaddr
             ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+            
+            asn_list = []
+            if ipinfo:
+                if 'bgppref' in ipinfo:
+                    bgppref = mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']})
+                    if bgppref and 'asn' in bgppref:
+                        for asn in bgppref['asn']:
+                            asn = mongo.db.asn.find_one({'_id': asn})
+                            if not asn or 'bgppref' not in asn:
+                                continue
+                            #del asn['bgppref']
+                            asn_list.append(asn)
+                ipinfo['asns'] = asn_list
+            
+                # Pseudonymize node names if user is not allowed to see the original names
+                if not g.ac('nodenames'):
+                    for evtrec in ipinfo.get('events', []):
+                        evtrec['node'] = pseudonymize_node_name(evtrec['node'])
         else:
-            flash('Only registered users may search IPs.', 'error')
+            flash('Insufficient permissions to search/view IPs.', 'error')
     else:
         title = 'IP detail search'
         ipinfo = {}
@@ -657,7 +739,7 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
             title = 'AS'+str(asn)
             rec = mongo.db.asn.find_one({'_id':asn})
         else:
-            flash('Only registered users may search ASNs.', 'error')
+            flash('Insufficient permissions to search/view ASNs.', 'error')
     else:
         # Wrong format of passed ASN
         asn = None
@@ -677,7 +759,7 @@ def ipblock(ipblock=None):
     #if form.validate():
     if not ipblock:
         return make_response("ERROR: No IP block given.")
-    if g.ac('ipsearch'):
+    if g.ac('ipblocksearch'):
         title = ipblock
         rec = mongo.db.ipblock.find_one({'_id': ipblock})
         cursor = mongo.db.ip.find({'ipblock': ipblock}, {'_id': 1})
@@ -685,7 +767,7 @@ def ipblock(ipblock=None):
         for val in cursor:
             rec['ips'].append(val['_id'])
     else:
-        flash('Insufficient permissions to view this.', 'error')
+        flash('Insufficient permissions to search/view IP blocks.', 'error')
     return render_template('ipblock.html', ctrydata=ctrydata, **locals())
 
 
@@ -696,7 +778,7 @@ def ipblock(ipblock=None):
 def org(org=None):
     if not org:
         return make_response("ERROR: No Organzation ID given.")
-    if g.ac('ipsearch'):
+    if g.ac('orgsearch'):
         title = org
         rec = mongo.db.org.find_one({'_id': org})
         rec['ipblocks'] = []
@@ -708,7 +790,7 @@ def org(org=None):
         for val in cursor:
             rec['asns'].append(val['_id'])
     else:
-        flash('Insufficient permissions to view this.', 'error')
+        flash('Insufficient permissions to search/view Organizations.', 'error')
     return render_template('org.html', ctrydata=ctrydata, **locals())
 
 
@@ -723,7 +805,7 @@ def bgppref(bgppref=None):
     
     if not org:
         return make_response("ERROR: No BGP Prefix given.")
-    if g.ac('ipsearch'):
+    if g.ac('bgpprefsearch'):
         title = org
         rec = mongo.db.bgppref.find_one({'_id': bgppref})
         cursor = mongo.db.ip.find({'bgppref': bgppref}, {'_id': 1})
@@ -731,7 +813,7 @@ def bgppref(bgppref=None):
         for val in cursor:
             rec['ips'].append(val['_id'])
     else:
-        flash('Insufficient permissions to view this.', 'error')
+        flash('Insufficient permissions to search/view BGP prefixes.', 'error')
     return render_template('bgppref.html', ctrydata=ctrydata, **locals())
 
 # ***** NERD status information *****

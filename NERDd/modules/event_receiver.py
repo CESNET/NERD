@@ -182,12 +182,12 @@ if __name__ == "__main__":
 
 def dbwriter(queue, config):
     """
-    Process for writing evetns to EventDB
+    Process for writing events to EventDB
     
     Pull new events from Queue and stores them to EventDB. Runs as separate
     process, because storing events is quite CPU demanding.
     """
-    # Ingnore SIGINT - process should be terminated from the main process
+    # Ignore SIGINT - process should be terminated from the main process
     import signal
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     
@@ -201,7 +201,7 @@ def dbwriter(queue, config):
     while True:
         event = queue.get()
         if event is None:
-            print("EventDB process exitting")
+            print("EventDB process exiting")
             break
         event_set.append(event)
         if len(event_set) >= 100 or queue.empty():
@@ -258,7 +258,7 @@ class EventReceiver(NERDModule):
         Stop the module - used to stop own thread.
         
         Called before program exit, may be used to finalize and stop the 
-        separate thread if it is used. Do nothing unless overriden.
+        separate thread if it is used. Do nothing unless overridden.
         """
         global running_flag
         running_flag = False

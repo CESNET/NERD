@@ -16,8 +16,10 @@
 <p>You can request creation of a new account below:</p>
 <form action="{{ url_for('noaccount') }}" method="POST">
 {{ form.csrf_token }}
-{{ form.email.label() }} {{ form.email(type="email", title=form.email.description) }}
-&nbsp; <input type="submit" value="Request account">
+Message (optional; in case you did not talk with NERD admins yet, tell us who you are and why you need the account)<br>
+{{ form.message(cols="80", rows="3") }}<br>
+{{ form.email.label() }} {{ form.email(type="email", title=form.email.description, style="margin-top: 0.5em;") }}<br>
+<input type="submit" value="Request account" style="margin-top: 0.5em;">
 </form>
 {% endif %}
 <p style="font-size: 1.0em;">Note that accounts are created for trusted people only and requests must be manually approved.
