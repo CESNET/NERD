@@ -175,7 +175,10 @@ def perform_update(rec, updreq):
     elif op == 'array_update' or op == 'array_upsert':
         query, actions = value
         if key not in rec:
-            rec[key] = []
+            if op == 'array_upsert':
+                rec[key] = []
+            else:
+                return None # Array doesn't exist and insert not requested
         array = rec[key]
         # Find the matching item in the array
         for i,item in enumerate(array):
