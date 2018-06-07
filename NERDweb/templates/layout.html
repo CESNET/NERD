@@ -111,8 +111,8 @@ $(function() {
 <div id="status-block">
 <img class="refresh-spinner" src="{{ url_for('static', filename='spin.gif') }}">
 <p><b>Status</b> (refreshing <a id="status_refresh_toggle" href="#" onclick="toggle_status_refresh(); return false;">disabled</a>)
-<a id="status_box_toggle" style="text-decoration: none; border: 1px solid black; color: black; padding: 0px 0.2em; float: right;" href="#" onclick="toggle_status_box(); return false;">▲</a></p>
-<div>
+<a id="status_box_toggle" style="text-decoration: none; border: 1px solid black; color: black; padding: 0px 0.2em; float: right;" href="#" onclick="toggle_status_box(); return false;">▼</a></p>
+<div style="display: none">
 <table>
 <tr><td>Records in DB:</td><td></td>
 <tr><td><span style="margin-left: 1em">IP</td><td><span id="status-cnt-ip">??</span></td></tr>
