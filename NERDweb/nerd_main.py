@@ -47,9 +47,15 @@ config = common.config.read_config(cfg_file)
 # Read common config (nerd.cfg) and combine them together
 common_cfg_file = os.path.join(cfg_dir, config.get('common_config'))
 config.update(common.config.read_config(common_cfg_file))
-# Read tags config and combine it with previous config
+
+# Read tags config (to separate dict)
 tags_cfg_file = os.path.join(cfg_dir, config.get('tags_config'))
-config.update(common.config.read_config(tags_cfg_file))
+config_tags = common.config.read_config(tags_cfg_file)
+
+# Read blacklists config (to separate dict)
+bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
+config_bl = common.config.read_config(bl_cfg_file)
+
 
 BASE_URL = config.get('base_url', '')
 
@@ -202,7 +208,7 @@ def add_user_header(resp):
 # ***** Override render_template to always include some variables *****
 
 def render_template(template, **kwargs):
-    return flask.render_template(template, config=config, userdb=userdb, user=g.user, ac=g.ac, **kwargs)
+    return flask.render_template(template, config=config, config_tags=config_tags['tags'], userdb=userdb, user=g.user, ac=g.ac, **kwargs)
 
 
 # ***** Main page *****
@@ -356,17 +362,23 @@ def set_effective_groups():
 
 # ***** List of IP addresses *****
 
-def get_blacklists():
-    # Get the list of all configured blacklists
-    # DNSBL
-    blacklists = [bl_name for bl_group in config.get('dnsbl.blacklists', []) for bl_name in bl_group[2].values()]
-    # Locally downloaded blacklists
-    blacklists += [bl[0] for bl in config.get('local_bl.lists', [])]
+def get_ip_blacklists():
+    # Get the list of all configured IP blacklists. Return array of (id, name).
+    # DNSBL (IP only)
+    blacklists = [(bl_name, bl_name) for bl_group in config.get('dnsbl.blacklists', []) for bl_name in bl_group[2].values()]
+    # Blacklists cached in Redis (IP and domain) 
+    blacklists += [(bl[0], bl[1]) for bl in config_bl.get('iplists', [])]
+    blacklists.sort()
+    return blacklists
+
+def get_domain_blacklists():
+    # Get the list of all configured domain blacklists. Return array of (id, name).
+    blacklists = [(bl[0], bl[1]) for bl in config_bl.get('domainlists', [])]
     blacklists.sort()
     return blacklists
 
 def get_tags():
-    tags = [ (tag_id, tag_param.get('name', tag_id)) for tag_id, tag_param in config.get('tags', {}).items()]
+    tags = [ (tag_id, tag_param.get('name', tag_id)) for tag_id, tag_param in config_tags.get('tags', {}).items()]
     tags.sort()    
     return tags
 
@@ -381,8 +393,7 @@ class IPFilterForm(Form):
     cat_op = HiddenField('', default="or")
     node = SelectMultipleField('Node', [validators.Optional()])
     node_op = HiddenField('', default="or")
-    blacklist = SelectMultipleField('Blacklist', [validators.Optional()],
-        choices=[(bl,bl) for bl in get_blacklists()])
+    blacklist = SelectMultipleField('Blacklist', [validators.Optional()])
     bl_op = HiddenField('', default="or")
     tag_op = HiddenField('', default="or")
     tag = SelectMultipleField('Tag', [validators.Optional()],
@@ -411,7 +422,10 @@ class IPFilterForm(Form):
         self.node.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_node.find().sort('_id') if item['_id']]
         # Number of occurences for blacklists (list of blacklists is taken from configuration)
         bl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_bl.find()}
-        self.blacklist.choices = [(name, '{} ({})'.format(name, bl_name2num.get(name, 0))) for name in get_blacklists()]
+        dbl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_dbl.find()}
+        bl_choices = [('i:'+id, '[IP] {} ({})'.format(name, bl_name2num.get(id, 0))) for id,name in get_ip_blacklists()]
+        dbl_choices = [('d:'+id, '[dom] {} ({})'.format(name, dbl_name2num.get(id, 0))) for id,name in get_domain_blacklists()]
+        self.blacklist.choices = bl_choices + dbl_choices
 
 
 sort_mapping = {
@@ -453,7 +467,8 @@ def create_query(form):
         queries.append( {op: [{'events.node': node} for node in form.node.data]} )
     if form.blacklist.data:
         op = '$and' if (form.bl_op.data == "and") else '$or'
-        queries.append( {op: [{'bl': {'$elemMatch': {'n': blname, 'v': 1}}} for blname in form.blacklist.data]} )
+        array = [{('dbl' if t == 'd' else 'bl'): {'$elemMatch': {'n': id, 'v': 1}}} for t,_,id in map(lambda s: s.partition(':'), form.blacklist.data)]
+        queries.append( {op: array} )
     if form.tag.data:
         op = '$and' if (form.tag_op.data == "and") else '$or'
         confidence = form.tag_conf.data if form.tag_conf.data else 0
