@@ -6,6 +6,14 @@ mongodb:
   port: 27017
   dbname: nerd
 
+# RabbitMQ settings
+rabbitmq:
+  host: localhost
+  port: 5672
+  virtual_host: /
+  username: guest
+  password: guest
+
 # Tag configuration file
 tags_config: tags.yml
 

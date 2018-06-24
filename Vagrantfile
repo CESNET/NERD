@@ -116,6 +116,49 @@ systemctl start redis.service
 
 EOF
 
+##### Install and configure RabbitMQ #####
+
+$rabbitmq = <<EOF
+
+echo "** Installing RabbitMQ **"
+# We need more recent version than in CentOS7 (>=3.7.0), so install from developer sites
+
+# Install Erlang (dependency)
+echo '[rabbitmq-erlang]
+name=rabbitmq-erlang
+baseurl=https://dl.bintray.com/rabbitmq/rpm/erlang/20/el/7
+gpgcheck=1
+gpgkey=https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
+repo_gpgcheck=0
+enabled=1
+' > /etc/yum.repos.d/rabbitmq-erlang.repo
+
+yum install -y erlang
+
+# Install RabbitMQ
+yum install -y https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.6/rabbitmq-server-3.7.6-1.el7.noarch.rpm
+
+echo "** Starting RabbitMQ **"
+systemctl enable rabbitmq-server
+systemctl start rabbitmq-server
+
+# Enable necessary plugins
+rabbitmq-plugins enable rabbitmq_management
+rabbitmq-plugins enable rabbitmq_consistent_hash_exchange
+
+# Get rabbitmqadmin tool (provided via local API by the management plugin)
+wget http://localhost:15672/cli/rabbitmqadmin -O /usr/bin/rabbitmqadmin
+chmod +x /usr/bin/rabbitmqadmin
+
+echo "** Configuring RabbitMQ for NERD **"
+
+rabbitmqadmin declare exchange name=nerd-main-task-exchange type=fanout durable=true
+rabbitmqadmin declare exchange name=nerd-task-distributor type=x-consistent-hash durable=true
+rabbitmqadmin declare binding source=nerd-main-task-exchange destination=nerd-task-distributor destination_type=exchange
+
+EOF
+
+
 ##### Install and configure BIND and download zone files #####
 
 $bind = <<EOF
@@ -334,8 +377,9 @@ SCRIPT
 
 Vagrant.configure(2) do |config|
   config.vm.box = "centos/7"
-  config.vm.network "forwarded_port", guest: 80, host: 2280
-  config.vm.network "forwarded_port", guest: 5000, host: 5000
+  config.vm.network "forwarded_port", guest: 80, host: 2280, host_ip: '127.0.0.1'
+  config.vm.network "forwarded_port", guest: 5000, host: 5000, host_ip: '127.0.0.1' # Flask internal server
+  config.vm.network "forwarded_port", guest: 15672, host: 15672, host_ip: '127.0.0.1' # RabbitMQ management web interface
   config.vm.provider "virtualbox" do |v|
     v.memory = 2048
     v.cpus = 2
@@ -346,6 +390,7 @@ Vagrant.configure(2) do |config|
   config.vm.provision :shell, inline: $mongo
   config.vm.provision :shell, inline: $postgres
   config.vm.provision :shell, inline: $redis
+  config.vm.provision :shell, inline: $rabbitmq
   config.vm.provision :shell, inline: $bind
   config.vm.provision :shell, inline: $warden
   config.vm.provision :shell, inline: $web

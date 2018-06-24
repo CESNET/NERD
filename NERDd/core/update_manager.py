@@ -17,6 +17,7 @@ import traceback
 
 import g
 import core.scheduler
+from common import task_queue
 
 ENTITY_TYPES = ['ip', 'asn', 'bgppref', 'ipblock', 'org']
 
@@ -242,7 +243,11 @@ class UpdateManager:
         self.log = logging.getLogger("UpdateManager")
         #self.log.setLevel('DEBUG')
         
+        self.process_index = 1 # TODO: pass process index here when everything is ready for real multiprocessing
+        
         self.db = db
+        
+        self.rabbit_params = config.get('rabbitmq', {})
         
         # Mapping of names of attributes to a list of functions that should be 
         # called when the attribute is updated
@@ -260,8 +265,12 @@ class UpdateManager:
         self._workers = []
         self.num_workers = g.config.get('worker_threads', 8)
         
-        # Queues for pending update requests (one for each worker)
-        self._request_queues = [queue.Queue() for _ in range(self.num_workers)]
+        # Connections to main task queue (RabbitMQ channel),
+        # one for each worker thread for consuming tasks and one global for writing new requests
+        self.task_queues = [task_queue.TaskQueue(self.rabbit_params) for _ in range(self.num_workers)]
+        self.write_task_queue = task_queue.TaskQueue(self.rabbit_params)
+        # Lock for the queue writer
+        self.write_task_queue_lock = threading.Lock()
         
         # Number of restarts of threads by watchdog
         self._watchdog_restarts = 0
@@ -269,6 +278,7 @@ class UpdateManager:
         g.scheduler.register(self.watchdog, second="*/30")
 
         # Count of update requests processed (per update type)
+        # TODO: reimplement using EventCountLogger
         self._update_counter = OrderedDict([
             ('ip_new_entity',0), # New entity (usually because of new event)
             ('ip_event',0), # New event added to existing entity
@@ -292,11 +302,13 @@ class UpdateManager:
             self.logging_scheduler.register(self.log_update_counter, second="*/2")
             self.logging_scheduler.start()
 
+        # This is here for performance debugging - measuring the time spent in each handler function
 #        self.t_handlers = Counter()
 #        self.logging_scheduler.register(self.log_t_handlers, second="*/60")
 
 
     def log_update_counter(self):
+        # TODO: won't be needed when EventCountLogger is used
         # Write update counter to file (every 2 sec)
         # Lines 1-5: (IP) total number of updates (per update type)
         # Lines 6-10: (ASN) total number of updates (per update type)
@@ -313,7 +325,7 @@ class UpdateManager:
                 f.write('{}\n'.format(cnt))
             for (_,last),(_,cnt) in zip(self._last_update_counter.items(), self._update_counter.items()):
                 f.write('{}\n'.format(cnt-last))
-            f.write("{}\n".format(self.get_queue_size()))
+            f.write("{}\n".format(0))# sum(self.get_queue_size(i) for i in range(self.num_workers)))) # Takes a long time - disabled
         os.replace(tmp_filename, filename)
         self._last_update_counter = self._update_counter.copy()
     
@@ -379,30 +391,31 @@ class UpdateManager:
                 self._attr2func[etype][attr] = [func]
 
 
-    def get_queue_sizes(self):
-        """Return current number of requests in each queue."""
-        return [q.qsize() for q in self._request_queues]
-
-    def get_queue_size(self):
-        """Return current total number of requests in all queues."""
-        return sum(q.qsize() for q in self._request_queues)    
+    def get_queue_size(self, thread_index=0):
+        """Return current total number of requests in a worker queue."""
+        return 0
+        #return self.task_queues[thread_index].get_worker_queue_length(self.process_index, thread_index)
 
 
-    def update(self, ekey, update_spec):
+    def update(self, ekey, update_requests):
         """
         Request an update of one or more attributes of an entity record.
         
-        Put given requests into an internal queue to be processed by some of the
+        Put given requests into the main queue to be processed by some of the
         worker threads. Requests may request changes of some attribute or they
         may issue events. 
         
         Arguments:
         ekey -- Entity type and key (2-tuple)
-        update_spec -- list of 3-tuples ... (see above) TODO
+        update_requests -- list of update_request 3-tuples (see the comments in the beginning of file)
         """
-        # Updates are distributed to worker queues based on a hash of entity key
-        index = hash(ekey) % self.num_workers
-        self._request_queues[index].put((ekey, update_spec))
+        # This may be called by multiple threads (by workers and maybe also other components),
+        # so locking is necessary
+        self.write_task_queue_lock.acquire()
+        try:
+            self.write_task_queue.put_update_request(ekey[0], ekey[1], update_requests)
+        finally:
+            self.write_task_queue_lock.release()
         
     
     # TODO cache results (clear cache when register_handler is called)
@@ -427,18 +440,17 @@ class UpdateManager:
         return may_change
     
     
-    def _process_update_req(self, ekey, update_requests):
+    def _process_update_req(self, etype, eid, update_requests):
         """
         Main processing function - update attributes or trigger an event.
         
         Arguments:
-        ekey -- Entity type and key (2-tuple)
-        update_requests -- list of 3-tuples as described above
+        etype - entity type 
+        eid - entity ID
+        update_requests - list of 3-tuples as described above
         
         Return True if a new record was created, False otherwise.
         """ 
-        etype = ekey[0]
-        
         # Load record corresponding to the key from database.
         # If record doesn't exist, create new.
         # Also create associated auxiliary objects:
@@ -462,11 +474,11 @@ class UpdateManager:
 
         # Fetch the record from database or create a new one
         new_rec_created = False
-        rec = self.db.get(ekey[0], ekey[1])
+        rec = self.db.get(etype, eid)
         if rec is None:
             if weak_op:
                 update_requests.clear()
-                self.log.debug("Received only weak operations for non-existent entity {} of type {}. Aborting record creation.".format(ekey[1], ekey[0]))
+                self.log.debug("Received only weak operations for non-existent entity {} of type {}. Aborting record creation.".format(etype, eid))
             else:
                 now = datetime.utcnow()
                 rec = {
@@ -475,7 +487,7 @@ class UpdateManager:
                 }
                 new_rec_created = True
                 # New record was created -> add "!NEW" event to update_request
-                #self.log.debug("New record {} was created, injecting event '!NEW'".format(ekey))
+                #self.log.debug("New record ({},{}) was created, injecting event '!NEW'".format(etype,eid))
                 update_requests.insert(0,('event','!NEW',None))
         
         # Short-circuit if update_requests is empty (used to only create a record if it doesn't exist)
@@ -503,13 +515,13 @@ class UpdateManager:
             # the call_queue and update the set of attributes that may change)
             if requests_to_process:
                 # Process update requests (perform updates, put hooked functions to call_queue and update may_change set)
-                self.log.debug("UpdateManager: New update requests for {}: {}".format(ekey, requests_to_process))
+                self.log.debug("UpdateManager: New update requests for ({},{}): {}".format(etype, eid, requests_to_process))
                 for updreq in requests_to_process:
                     op, attr, val = updreq
                     assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
                     
                     if op == 'event':
-                        #self.log.debug("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
+                        #self.log.debug("Initial update: Event ({}:{}).{} (param={})".format(etype,eid,attr,val))
                         updated = [(attr, val)]
 
                         # Check whether the event is !DELETE, clear queues and add calls to functions hooked to the !DELETE event
@@ -521,7 +533,7 @@ class UpdateManager:
                                 call_queue.append((func, updated))
                             break
                     else:
-                        #self.log.debug("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
+                        #self.log.debug("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(etype,eid,attr,op,val))
                         updated = perform_update(rec, updreq)
                         if not updated:
                             #self.log.debug("Attribute value wasn't changed.")
@@ -562,7 +574,7 @@ class UpdateManager:
             # safety check against infinite looping
             loop_counter += 1
             if loop_counter > 20:
-                self.log.warning("Too many iterations when updating {}, something went wrong! Update chain stopped.".format(ekey))
+                self.log.warning("Too many iterations when updating ({}:{}), something went wrong! Update chain stopped.".format(etype,eid))
                 break
             
             func, updates = call_queue.popleft()
@@ -577,13 +589,13 @@ class UpdateManager:
             
             # Call the event handler function.
             # Set of requested updates of the record should be returned
-            self.log.debug("Calling: {}({}, ..., {})".format(get_func_name(func), ekey, updates))
+            self.log.debug("Calling: {}(({}, {}), rec, {})".format(get_func_name(func), etype, eid, updates))
 #            t_handler1 = time.time()
             try:
-                reqs = func(ekey, rec, updates)
+                reqs = func((etype, eid), rec, updates)
             except Exception as e:
-                self.log.exception("Unhandled exception during call of {}({}, rec, {}). Traceback follows:"
-                    .format(get_func_name(func), ekey, updates) )
+                self.log.exception("Unhandled exception during call of {}(({}, {}), rec, {}). Traceback follows:"
+                    .format(get_func_name(func), etype, eid, updates) )
                 reqs = []
 #            t_handler2 = time.time()
 #            t_handlers[get_func_name(func)] = t_handler2 - t_handler1
@@ -607,21 +619,19 @@ class UpdateManager:
         # Set ts_last_update
         rec['ts_last_update'] = datetime.utcnow()
         
-        #self.log.debug("RECORD: {}: {}".format(ekey, rec))
-        
 #        t3 = time.time()
 
         # Remove or update processed database record
         if deletion:
-            self.db.delete(ekey[0], ekey[1])
-            self.log.debug("Entity '{}' of type '{}' was removed from the database.".format(ekey[1], ekey[0]))
+            self.db.delete(etype, eid)
+            self.log.debug("Entity '{}' of type '{}' was removed from the database.".format(eid, etype))
         else:
-            self.db.put(ekey[0], ekey[1], rec)
+            self.db.put(etype, eid, rec)
 
         
 #        t4 = time.time()
 #        #if t4 - t1 > 1.0:
-#        #    self.log.info("Entity {}: load: {:.3f}s, process: {:.3f}s, store: {:.3f}s".format(ekey, t2-t1, t3-t2, t4-t3))
+#        #    self.log.info("Entity ({}:{}): load: {:.3f}s, process: {:.3f}s, store: {:.3f}s".format(etype, eid, t2-t1, t3-t2, t4-t3))
 #        #    self.log.info("  handlers:" + ", ".join("{}: {:.3f}s".format(fname, t) for fname, t in t_handlers))
 #
 #        self.t_handlers.update(t_handlers)
@@ -633,7 +643,7 @@ class UpdateManager:
         """Run the worker threads."""
         self.log.info("Starting {} worker threads".format(self.num_workers))
         #self._process = multiprocessing.Process(target=self._main_loop)
-        self._workers = [ threading.Thread(target=self._worker_func, args=(i,), name="UMWorker-"+str(i)) for i in range(self.num_workers) ]
+        self._workers = [ threading.Thread(target=self._worker_func, args=(i,), name="Worker-{}-{}".format(self.process_index, i)) for i in range(self.num_workers) ]
         for worker in self._workers:
             worker.start()
     
@@ -649,12 +659,16 @@ class UpdateManager:
         # Thread for printing debug messages about worker status
         threading.Thread(target=self._dbg_worker_status_print, daemon=True).start()
         
-        # Wait until all work is done (other modules should be stopped now, but some tasks may still be added as a result of already ongoing processing (e.g. new IP adds new ASN))
-        for i in range(self.num_workers):
-            self._request_queues[i].join() 
-        # Send None to request_queue to signal workers to stop (one for each worker)
-        for i in range(self.num_workers):
-            self._request_queues[i].put(None) 
+        # Stop receiving new tasks
+        for tq in self.task_queues:
+            tq.stop_consuming()
+        
+#         # Wait until all work is done (other modules should be stopped now, but some tasks may still be added as a result of already ongoing processing (e.g. new IP adds new ASN))
+#         for i in range(self.num_workers):
+#             self._request_queues[i].join() 
+#         # Send None to request_queue to signal workers to stop (one for each worker)
+#         for i in range(self.num_workers):
+#             self._request_queues[i].put(None) 
         # Wait until all workers stopped (this should be immediate)
         for worker in self._workers:
             worker.join()
@@ -673,6 +687,7 @@ class UpdateManager:
 
 
     def watchdog(self):
+        # TODO: remove - restarting doesn't work anyway (newly started thread can't connect to RabbitMQ queue since it's still (exclusively) bind by the failed thread)
         """
         Check whether all workers are running and restart them if not.
         
@@ -703,9 +718,8 @@ class UpdateManager:
         """
         time.sleep(10)
         while True:
-            queue_sizes = self.get_queue_sizes()
             self.log.info("Workers and their queue size:\n" + '\n'.join(
-                "{:2} ({}): {:3}".format(w.name[9:], "alive" if w.is_alive() else "dead ", queue_sizes[i]) for i,w in enumerate(self._workers)
+                "{:2} ({}): {:3}".format(w.name[9:], "alive" if w.is_alive() else "dead ", self.get_queue_size(i)) for i,w in enumerate(self._workers)
             ))
             alive_workers = filter(threading.Thread.is_alive, self._workers)
             if not alive_workers:
@@ -715,48 +729,44 @@ class UpdateManager:
     
     def _worker_func(self, thread_index):
         """
-        Main processing function.
+        Main worker function.
         
-        Run as a separate thread/process. Read request queue. For each request
-        pull corresponding record from database, and call "_process_update_req"
-        function.
+        Run as a separate thread/process. Read main task queue and calls 
+        calls "_process_update_req" function to process each task.
         
         Requests are assigned to workers based on hash of entity key, so each
-        entity is always process by the same worker. Therefore, all requests
+        entity is always processed by the same worker. Therefore, all requests
         modifying a particular entity are done sequentially and no locking is 
         necessary.
         """
-        while True:
-            # Get update request from the queue
-            # (None object in the queue causes termination of the process, used 
-            # to exit the program)
-            req = self._request_queues[thread_index].get()
-            if req is None:
-                self.log.debug("'None' received from queue {} - exiting".format(thread_index))
-                self._request_queues[thread_index].task_done()
-                break
-            ekey, updreq = req
-            
-#             self.log.debug("New update request: {},{}".format(ekey, updreq))
-            
-            # Call update method (pass copy of updreq since we need it unchanged for the logging code below)
-            new_rec_created = self._process_update_req(ekey, updreq.copy())
-            
-#             self.log.debug("Task done")
-            self._request_queues[thread_index].task_done()
-            
-            # Increment corresponding update counter
-            if ekey[0] in ['ip', 'asn']:
-                if new_rec_created:
-                    self._update_counter[ekey[0]+'_new_entity'] += 1
-                elif any(u == ('add', 'events_meta.total', 1) for u in updreq):
-                    self._update_counter[ekey[0]+'_event'] += 1
-                elif any(u[1] == '!every1w' for u in updreq):
-                    self._update_counter[ekey[0]+'_regular_1w'] += 1
-                elif any(u[1] == '!every1d' for u in updreq):
-                    self._update_counter[ekey[0]+'_regular_1d'] += 1
-                else:
-                    self._update_counter[ekey[0]+'_other'] += 1
+        # Connection to main task queue
+        my_queue = self.task_queues[thread_index]
+        # Set up callback and start consuming messages
+        my_queue.set_consume_callback(self._process_task, self.process_index, thread_index)
+        my_queue.start_consuming()
+        # (blocks until stop_consuming() is called or we're forcefully disconnected from server)
+
+    def _process_task(self, etype, eid, updreq):
+        #self.log.debug("New update request: ({},{}),{}".format(etype, eid, updreq))
+
+        # Call update method (pass copy of updreq since we need it unchanged for the logging code below)
+        new_rec_created = self._process_update_req(etype, eid, updreq.copy())
+        
+        #self.log.debug("Task done")
+        
+        # Increment corresponding update counter
+        # TODO: replace this by event_count_logger
+        if etype in ['ip', 'asn']:
+            if new_rec_created:
+                self._update_counter[etype+'_new_entity'] += 1
+            elif any(u == ('add', 'events_meta.total', 1) for u in updreq):
+                self._update_counter[etype+'_event'] += 1
+            elif any(u[1] == '!every1w' for u in updreq):
+                self._update_counter[etype+'_regular_1w'] += 1
+            elif any(u[1] == '!every1d' for u in updreq):
+                self._update_counter[etype+'_regular_1d'] += 1
+            else:
+                self._update_counter[etype+'_other'] += 1
 
 
 
