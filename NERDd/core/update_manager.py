@@ -55,14 +55,14 @@ ENTITY_TYPES = ['ip', 'asn', 'bgppref', 'ipblock', 'org']
 #    - array_update: record is not changed
 #    - array_upsert: "query" is added as a new array item.
 #  If there are multiple matching events, only the first one is used.
-#  "actions" may contain actions of type "update_item" (recursion), it must not contain events.
+#  "actions" may contain actions of type "array_update"/"array_upsert" (recursion), it must not contain events.
 #  Rationale:
 #    Because of DB constraints, keys should always be fixed values. Therefore we often use 
 #    arrays of subobjects where one or more attributes of the subobject act as a key.
 #    This action type allows to work with such structures.
 #  Examples:
-#    ('update_item', 'bl', ({n: "blacklistname"} , [('set', 'v', 1), ('set', 't', req_time), ('append', 'h', req_time)]))
-#    ('update_item', 'events', ({date: "2017-07-17", cat: "ReconScanning"} , [('add', 'n', 1)]))
+#    ('array_update', 'bl', ({n: "blacklistname"} , [('set', 'v', 1), ('set', 't', req_time), ('append', 'h', req_time)]))
+#    ('array_upsert', 'events', ({date: "2017-07-17", cat: "ReconScanning"} , [('add', 'n', 1)]))
 
 
 # TODO: Let each module (or rather hook function) tell, whether it needs the whole record.
