@@ -631,6 +631,7 @@ div.idea .nodes li:first-child:last-child::before {
 /* NERD status block */
 #status-block {
   position: absolute;
+  z-index: 5;
   top: 2.7em;
   right: 0.5em;
   width: 15em;
