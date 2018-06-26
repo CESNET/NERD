@@ -138,6 +138,11 @@ yum install -y erlang
 # Install RabbitMQ
 yum install -y https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.6/rabbitmq-server-3.7.6-1.el7.noarch.rpm
 
+# Allow guest user to login remotely (allowed only from localhost by default)
+# This is necessary for Vagrant, but DON'T DO THIS IN PRODUCTION!
+# (rabbitmq.conf is not present after installation, so we just create it)
+echo "loopback_users = none" > /etc/rabbitmq/rabbitmq.conf
+
 echo "** Starting RabbitMQ **"
 systemctl enable rabbitmq-server
 systemctl start rabbitmq-server
