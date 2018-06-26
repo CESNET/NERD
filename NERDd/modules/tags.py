@@ -199,7 +199,7 @@ class Tags(NERDModule):
         if refresh_all and "tags" in rec:
             for tag_id in rec["tags"]:
                 if tag_id not in tags_for_update:
-                    ret.append(('remove', 'tags.' + tag_id, None))
+                    ret.append(('remove', 'tags.' + tag_id))
                     self.log.debug("Obsolete tag {} has been deleted from record for IP {}.".format(tag_id,key))
 
         for tag_id in tags_for_update:
@@ -224,7 +224,7 @@ class Tags(NERDModule):
                 self.log.debug("Tag {} is new for IP {} and has been added to record.".format(tag_id,key))
             # Remove tag which does not satisfy condition after attribute update
             elif "tags" in rec and tag_id in rec["tags"]:
-                ret.append(('remove', 'tags.' + tag_id, None))
+                ret.append(('remove', 'tags.' + tag_id))
                 self.log.debug("Tag {} has been deleted from record for IP {}.".format(tag_id,key))
 
         return ret

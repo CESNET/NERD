@@ -325,7 +325,7 @@ class EventReceiver(NERDModule):
                         g.um.update(
                             ('ip', ipv4),
                             [
-                                ('array_upsert', 'events', ({'date': date, 'node': node, 'cat': cat}, [('add', 'n', 1)])),
+                                ('array_upsert', 'events', {'date': date, 'node': node, 'cat': cat}, [('add', 'n', 1)]),
                                 ('add', 'events_meta.total', 1),
                                 ('set', 'ts_last_event', end_time),
                             ]

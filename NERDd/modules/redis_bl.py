@@ -119,11 +119,11 @@ class RedisBlacklist(NERDModule):
             if present:
                 # IP is on blacklist
                 self.log.debug("IP address ({0}) is on {1}.".format(key, blname))
-                actions.append( ('array_upsert', 'bl', ({'n': blname}, [('set', 'v', 1), ('set', 't', time), ('append', 'h', time)])) )
+                actions.append( ('array_upsert', 'bl', {'n': blname}, [('set', 'v', 1), ('set', 't', time), ('append', 'h', time)]) )
             else:
                 # IP is not on blacklist
                 #self.log.debug("IP address ({0}) is not on {1}.".format(key, blname))
-                actions.append( ('array_update', 'bl', ({'n': blname}, [('set', 'v', 0), ('set', 't', time)])) )
+                actions.append( ('array_update', 'bl', {'n': blname}, [('set', 'v', 0), ('set', 't', time)]) )
 
         # In case of error, remove blaklists not already present
         for bl in bl_to_remove:

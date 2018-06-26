@@ -98,7 +98,7 @@ class Cleaner(NERDModule):
                 actions.append( ('array_remove', 'bl', {'n': blrec['n']}) )
             elif len(newlist) != len(blrec['h']):
                 # If something was removed, replace the list in the record with the new one
-                actions.append( ('array_update', 'bl', ({'n': blrec['n']}, [('set', 'h', newlist)])) )
+                actions.append( ('array_update', 'bl', {'n': blrec['n']}, [('set', 'h', newlist)]) )
         
         # Domain blacklists
         for blrec in rec.get('dbl', []):
@@ -109,7 +109,7 @@ class Cleaner(NERDModule):
                 actions.append( ('array_remove', 'dbl', {'n': blrec['n'], 'd': blrec['d']}) )
             elif len(newlist) != len(blrec['h']):
                 # If something was removed, replace the list in the record with the new one
-                actions.append( ('array_update', 'dbl', ({'n': blrec['n'], 'd': blrec['d']}, [('set', 'h', newlist)])) )
+                actions.append( ('array_update', 'dbl', {'n': blrec['n'], 'd': blrec['d']}, [('set', 'h', newlist)]) )
         
         return actions
 
@@ -126,8 +126,8 @@ class Cleaner(NERDModule):
         actions = []
 
         if diff >= self.ip_lifetime:
-            actions.append(('event', '!DELETE', None))
+            actions.append(('event', '!DELETE'))
             return actions
         else:
-            actions.append(('event', '!every1d', None))
+            actions.append(('event', '!every1d'))
             return actions
