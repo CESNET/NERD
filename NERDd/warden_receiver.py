@@ -7,8 +7,6 @@ Fetches IDEA messages dropped to a specified directory and updates entity
 records accordingly.
 """
 
-import g
-
 import time
 import os
 import socket
@@ -19,11 +17,13 @@ import signal
 
 import sys
 sys.path.append("../")
+import g
 from common.utils import parse_rfc_time
 import common.config
 import common.eventdb_psql
 import core.update_manager
 import core.mongodb
+import core.scheduler
 
 running_flag = True  # read_dir function terminates when this is set to False
 logger = logging.getLogger('EventReceiver')
@@ -36,6 +36,7 @@ g.config = common.config.read_config(cfg_file)
 g.config.update(common.config.read_config(common_cfg_file))
 g.db = core.mongodb.MongoEntityDatabase(g.config)
 g.eventdb = common.eventdb_psql.PSQLEventDatabase(g.config)
+g.scheduler = core.scheduler.Scheduler()
 g.um = core.update_manager.UpdateManager(g.config, g.db)
 
 
