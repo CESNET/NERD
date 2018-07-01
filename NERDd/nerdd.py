@@ -79,7 +79,7 @@ def main():
     
     # TODO load all modules automatically (or just modules specified in config)
     #import modules.test_module
-    import modules.event_receiver
+    # TODO remove import modules.event_receiver
     import modules.updater
     import modules.cleaner
     import modules.dns
@@ -103,7 +103,7 @@ def main():
     # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
     #  or take if from configuration
     module_list = [
-        modules.event_receiver.EventReceiver(),
+        #modules.event_receiver.EventReceiver(),
         modules.updater.Updater(),
         modules.cleaner.Cleaner(),
         #modules.refresher.Refresher(),
