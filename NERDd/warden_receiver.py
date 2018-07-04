@@ -17,27 +17,24 @@ import signal
 
 import sys
 sys.path.append("../")
-import g
 from common.utils import parse_rfc_time
 import common.config
 import common.eventdb_psql
-import core.update_manager
-import core.mongodb
-import core.scheduler
+import common.task_queue
 
 running_flag = True  # read_dir function terminates when this is set to False
 logger = logging.getLogger('EventReceiver')
 
-# Configuration files paths
-cfg_file = "../etc/nerdd.yml"
 common_cfg_file = "../etc/nerd.yml"
+config = common.config.read_config(common_cfg_file)
+rabbit_config = config.get("rabbitmq")
 
-g.config = common.config.read_config(cfg_file)
-g.config.update(common.config.read_config(common_cfg_file))
-g.db = core.mongodb.MongoEntityDatabase(g.config)
-g.eventdb = common.eventdb_psql.PSQLEventDatabase(g.config)
-g.scheduler = core.scheduler.Scheduler()
-g.um = core.update_manager.UpdateManager(g.config, g.db)
+eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+
+
+task_queue = common.task_queue.TaskQueue(rabbit_config)
+log = logging.getLogger("EventReceiver")
+_drop_path = config.get('warden_filer_path')
 
 
 def read_dir(path):
@@ -178,127 +175,94 @@ def read_dir_test():
 ##############################################################################
 # Main module code
 
-def dbwriter(queue, config):
+# def V(queue, config):
+#     """
+#     Process for writing events to EventDB
+#
+#     Pull new events from Queue and stores them to EventDB. Runs as separate
+#     process, because storing events is quite CPU demanding.
+#     """
+#     # Ignore SIGINT - process should be terminated from the main process
+#     import signal
+#     signal.signal(signal.SIGINT, signal.SIG_IGN)
+#
+#     # Create instance of EventDB (PSQL wrapper)
+#     # It's easier to create it here again than copy the one from main process to this one
+#     import common.eventdb_psql
+#     eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+#
+#     event_set = []
+#
+#     while True:
+#         event = queue.get()
+#         if event is None:
+#             print("EventDB process exiting")
+#             break
+#         event_set.append(event)
+#         if len(event_set) >= 100 or queue.empty():
+#             eventdb.put(event_set)
+#             event_set = []
+
+def stop(a, b):
     """
-    Process for writing events to EventDB
+    Stop receiving events.
 
-    Pull new events from Queue and stores them to EventDB. Runs as separate
-    process, because storing events is quite CPU demanding.
+    Will be evoked on catching SIGINT signal.
     """
-    # Ignore SIGINT - process should be terminated from the main process
-    import signal
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-    # Create instance of EventDB (PSQL wrapper)
-    # It's easier to create it here again than copy the one from main process to this one
-    import common.eventdb_psql
-    eventdb = common.eventdb_psql.PSQLEventDatabase(config)
-
-    event_set = []
-
-    while True:
-        event = queue.get()
-        if event is None:
-            print("EventDB process exiting")
-            break
-        event_set.append(event)
-        if len(event_set) >= 100 or queue.empty():
-            eventdb.put(event_set)
-            event_set = []
+    global running_flag
+    running_flag = False
+    log.info("Exiting.")
 
 
-class WardenReceiver:
-    """
-    Receiver of security events. Receives events as IDEA files in given directory.
-    """
+def receive_events():
+    # Infinite loop reading events as files in given directory
+    # This loop stops on SIGINT
+    for (rawdata, event) in read_dir(_drop_path):
+        # Store the event to EventDB
+        eventdb.put([event])
 
-    def __init__(self):
-        signal.signal(signal.SIGINT, self.stop)
-        self.log = logging.getLogger("EventReceiver")
-        self._drop_path = g.config.get('warden_filer_path')
+        try:
+            if "Test" in event["Category"]:
+                continue  # Ignore testing messages
+            for src in event.get("Source", []):
+                for ipv4 in src.get("IP4", []):
+                    # TODO check IP address validity
 
-        # Initialize RabbitMQ connection (if queue name is given)
-        self.rmq_queue_name = g.config.get('eventdb.forward_to_queue', None)
-        if self.rmq_queue_name:
-            rmq_creds = pika.PlainCredentials('guest', 'guest')
-            rmq_params = pika.ConnectionParameters('localhost', 5672, '/', rmq_creds)
-            rmq_conn = pika.BlockingConnection(rmq_params)
-            self.rmq_channel = rmq_conn.channel()
-            # we don't declare any queue here, it should be declared statically using rabbitmqctl or web Management
-        else:
-            self.rmq_channel = None
+                    log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
+                    cat = '+'.join(event["Category"]).replace('.', '')
+                    # Parse and reformat detect time
+                    detect_time = parse_rfc_time(event["DetectTime"])  # Parse DetectTime
+                    date = detect_time.strftime("%Y-%m-%d")  # Get date as a string
 
-        self._receive_events()
+                    # Get end time of event
+                    if "CeaseTime" in event:
+                        end_time = parse_rfc_time(event["CeaseTime"])
+                    elif "WinEndTime" in event:
+                        end_time = parse_rfc_time(event["WinEndTime"])
+                    elif "EventTime" in event:
+                        end_time = parse_rfc_time(event["EventTime"])
+                    else:
+                        end_time = detect_time
 
-    def stop(self):
-        """
-        Stop receiving events.
+                    node = event["Node"][-1]["Name"]
 
-        Will be evoked on catching SIGINT signal.
-        """
-        global running_flag
-        running_flag = False
-        self.log.info("Exiting.")
-
-        if self.rmq_channel is not None:
-            self.rmq_channel.close()
-
-    def _receive_events(self):
-        # Infinite loop reading events as files in given directory
-        # This loop stops on SIGINT
-        for (rawdata, event) in read_dir(self._drop_path):
-            print("new event incoming, putting to database")
-            # Store the event to EventDB
-            g.eventdb.put([event])
-
-            # Send copy of the IDEA message to RabbitMQ queue (currently used by experimental GRIP system)
-            # Does nothing if given queue doesn't exist
-            if self.rmq_channel is not None:
-                print("Sending to RabbitMQ queue")
-                self.rmq_channel.basic_publish(exchange='', routing_key=self.rmq_queue_name, body=rawdata)
-
-            try:
-                if "Test" in event["Category"]:
-                    continue  # Ignore testing messages
-                for src in event.get("Source", []):
-                    for ipv4 in src.get("IP4", []):
-                        # TODO check IP address validity
-
-                        self.log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
-                        cat = '+'.join(event["Category"]).replace('.', '')
-                        # Parse and reformat detect time
-                        detect_time = parse_rfc_time(event["DetectTime"])  # Parse DetectTime
-                        date = detect_time.strftime("%Y-%m-%d")  # Get date as a string
-
-                        # Get end time of event
-                        if "CeaseTime" in event:
-                            end_time = parse_rfc_time(event["CeaseTime"])
-                        elif "WinEndTime" in event:
-                            end_time = parse_rfc_time(event["WinEndTime"])
-                        elif "EventTime" in event:
-                            end_time = parse_rfc_time(event["EventTime"])
-                        else:
-                            end_time = detect_time
-
-                        node = event["Node"][-1]["Name"]
-
-                        g.um.update(
-                            ('ip', ipv4),
-                            [
-                                ('array_upsert', 'events', {'date': date, 'node': node, 'cat': cat}, [('add', 'n', 1)]),
-                                ('add', 'events_meta.total', 1),
-                                ('set', 'ts_last_event', end_time),
-                            ]
-                        )
-
-                    for ipv6 in src.get("IP6", []):
-                        self.log.debug(
-                            "IPv6 address in Source found - skipping since IPv6 is not implemented yet.")  # The record follows:\n{}".format(str(event)), file=sys.stderr)
-            except Exception as e:
-                self.log.error("ERROR in parsing event: {}".format(str(e)))
-                pass
+                    task_queue.put_update_request('ip', ipv4,
+                                                       [
+                                                           ('array_upsert', 'events',
+                                                            {'date': date, 'node': node, 'cat': cat},
+                                                            [('add', 'n', 1)]),
+                                                           ('add', 'events_meta.total', 1),
+                                                           ('set', 'ts_last_event', end_time),
+                                                       ])
+                for ipv6 in src.get("IP6", []):
+                    log.debug(
+                        "IPv6 address in Source found - skipping since IPv6 is not implemented yet.")  # The record follows:\n{}".format(str(event)), file=sys.stderr)
+        except Exception as e:
+            log.error("ERROR in parsing event: {}".format(str(e)))
+            pass
 
 
 if __name__ == "__main__":
-    receiver = WardenReceiver()
+    signal.signal(signal.SIGINT, stop)
+    receive_events()
     print("exiting")
