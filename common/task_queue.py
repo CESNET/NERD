@@ -82,7 +82,7 @@ class TaskQueue:
         }
         # Use json_util from MongoDB's BSON to serialize some Python objects (like datetime) into JSON
         body = json.dumps(msg, default=json_util.default).encode('utf8')
-        key = etype + ':' + eid
+        key = etype + ':' + str(eid)
         
         # Send the message
         # 'mandatory' flag means that we want to guarantee it's delivered to
