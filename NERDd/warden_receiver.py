@@ -22,18 +22,24 @@ import common.config
 import common.eventdb_psql
 import common.task_queue
 
+# script global variables
+
 running_flag = True  # read_dir function terminates when this is set to False
+
 logger = logging.getLogger('EventReceiver')
 
+# config
 common_cfg_file = "../etc/nerd.yml"
 config = common.config.read_config(common_cfg_file)
 rabbit_config = config.get("rabbitmq")
 
+# event database
 eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+db_queue = list()
 
-
+# rabbitMQ
 task_queue = common.task_queue.TaskQueue(rabbit_config)
-log = logging.getLogger("EventReceiver")
+
 _drop_path = config.get('warden_filer_path')
 
 
@@ -175,35 +181,28 @@ def read_dir_test():
 ##############################################################################
 # Main module code
 
-# def V(queue, config):
-#     """
-#     Process for writing events to EventDB
-#
-#     Pull new events from Queue and stores them to EventDB. Runs as separate
-#     process, because storing events is quite CPU demanding.
-#     """
-#     # Ignore SIGINT - process should be terminated from the main process
-#     import signal
-#     signal.signal(signal.SIGINT, signal.SIG_IGN)
-#
-#     # Create instance of EventDB (PSQL wrapper)
-#     # It's easier to create it here again than copy the one from main process to this one
-#     import common.eventdb_psql
-#     eventdb = common.eventdb_psql.PSQLEventDatabase(config)
-#
-#     event_set = []
-#
-#     while True:
-#         event = queue.get()
-#         if event is None:
-#             print("EventDB process exiting")
-#             break
-#         event_set.append(event)
-#         if len(event_set) >= 100 or queue.empty():
-#             eventdb.put(event_set)
-#             event_set = []
+def put_to_db_queue(event):
+    """
+    Function for writing events to EventDB
 
-def stop(a, b):
+    Pull new events from Queue and stores them to EventDB.
+    """
+    db_queue.append(event)
+    if len(db_queue) >= 100:
+        put_set_to_database()
+
+
+def put_set_to_database():
+    """
+    Function for sending db_queue to database.
+    :return:
+    """
+    if len(db_queue) > 0:
+        eventdb.put(db_queue)
+        db_queue.clear()
+
+
+def stop(signal, frame):
     """
     Stop receiving events.
 
@@ -211,7 +210,8 @@ def stop(a, b):
     """
     global running_flag
     running_flag = False
-    log.info("Exiting.")
+    put_set_to_database()
+    logger.info("exiting")
 
 
 def receive_events():
@@ -219,8 +219,7 @@ def receive_events():
     # This loop stops on SIGINT
     for (rawdata, event) in read_dir(_drop_path):
         # Store the event to EventDB
-        eventdb.put([event])
-
+        put_to_db_queue(event)
         try:
             if "Test" in event["Category"]:
                 continue  # Ignore testing messages
@@ -228,7 +227,7 @@ def receive_events():
                 for ipv4 in src.get("IP4", []):
                     # TODO check IP address validity
 
-                    log.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
+                    logger.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
                     cat = '+'.join(event["Category"]).replace('.', '')
                     # Parse and reformat detect time
                     detect_time = parse_rfc_time(event["DetectTime"])  # Parse DetectTime
@@ -245,7 +244,6 @@ def receive_events():
                         end_time = detect_time
 
                     node = event["Node"][-1]["Name"]
-
                     task_queue.put_update_request('ip', ipv4,
                                                        [
                                                            ('array_upsert', 'events',
@@ -255,14 +253,13 @@ def receive_events():
                                                            ('set', 'ts_last_event', end_time),
                                                        ])
                 for ipv6 in src.get("IP6", []):
-                    log.debug(
+                    logger.debug(
                         "IPv6 address in Source found - skipping since IPv6 is not implemented yet.")  # The record follows:\n{}".format(str(event)), file=sys.stderr)
         except Exception as e:
-            log.error("ERROR in parsing event: {}".format(str(e)))
-            pass
+            logger.error("ERROR in parsing event: {}".format(str(e)))
 
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, stop)
     receive_events()
-    print("exiting")
+

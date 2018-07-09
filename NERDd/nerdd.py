@@ -79,7 +79,6 @@ def main():
     
     # TODO load all modules automatically (or just modules specified in config)
     #import modules.test_module
-    # TODO remove import modules.event_receiver
     import modules.updater
     import modules.cleaner
     import modules.dns
@@ -103,7 +102,6 @@ def main():
     # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
     #  or take if from configuration
     module_list = [
-        #modules.event_receiver.EventReceiver(),
         modules.updater.Updater(),
         modules.cleaner.Cleaner(),
         #modules.refresher.Refresher(),
@@ -159,8 +157,8 @@ def main():
     g.scheduler.start()
     
     
-    print("-------------------------------------------------------------------")
-    print("Reading events from "+str(config.get('warden_filer_path'))+"/incoming")
+    # print("-------------------------------------------------------------------")
+    # print("Reading events from "+str(config.get('warden_filer_path'))+"/incoming")
     print()
     print("*** Press Ctrl-C to quit ***")
     
