@@ -70,7 +70,10 @@ class TaskQueue:
     
     def __del__(self):
         if not self.channel.connection.is_closed:
-            self.channel.close()
+            try:
+                self.channel.close()
+            except pika.exceptions.ConnectionClosed: # for case it's been closed by the server
+                pass
     
     def put_update_request(self, etype, eid, requested_changes):
         """Put update request into the queue"""
