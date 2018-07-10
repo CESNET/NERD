@@ -118,9 +118,6 @@ class PSQLEventDatabase:
             
             return (id, sources, targets, detecttime, starttime, endtime, idea)
         
-        # TODO print number of messages in bunch - to check it's really being used
-        print("Inserting a batch of {:3d} messages into EventDB".format(len(ideas)), end="\r")
-        
 #         values = []
 #         for idea in ideas:
 #             val = idea2values(idea)

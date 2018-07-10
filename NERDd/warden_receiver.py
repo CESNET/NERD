@@ -26,7 +26,12 @@ import common.task_queue
 
 running_flag = True  # read_dir function terminates when this is set to False
 
+LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
+LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
+logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
+
 logger = logging.getLogger('EventReceiver')
+#logger.setLevel("DEBUG")
 
 # config
 common_cfg_file = "../etc/nerd.yml"
@@ -43,10 +48,13 @@ task_queue = common.task_queue.TaskQueue(rabbit_config)
 _drop_path = config.get('warden_filer_path')
 
 
-def read_dir(path):
+def read_dir(path, call_when_waiting=None):
     """
     Indefinitely watches given directory for new files. Each incoming file is
     read, parsed as JSON, and yield to caller (function behaves as a generator).
+    
+    call_when_waiting - function to call before going to "poll wait" when there
+        are no new files.
     """
 
     class NamedFile(object):
@@ -137,6 +145,8 @@ def read_dir(path):
         nflist = get_dir_list(sdir, owait_poll_time, owait_timeout, nfchunk)
         while running_flag and not nflist:
             # No new files, wait and try again
+            if call_when_waiting is not None:
+                call_when_waiting()
             time.sleep(poll_time)
             nflist = get_dir_list(sdir, owait_poll_time, owait_timeout, nfchunk)
 
@@ -187,6 +197,7 @@ def put_to_db_queue(event):
 
     Pull new events from Queue and stores them to EventDB.
     """
+    #logger.debug("IDEA message enqueued".format(len(db_queue)))
     db_queue.append(event)
     if len(db_queue) >= 100:
         put_set_to_database()
@@ -198,6 +209,7 @@ def put_set_to_database():
     :return:
     """
     if len(db_queue) > 0:
+        logger.debug("Writing a set of {} IDEA messages to database.".format(len(db_queue)))
         eventdb.put(db_queue)
         db_queue.clear()
 
@@ -217,17 +229,18 @@ def stop(signal, frame):
 def receive_events():
     # Infinite loop reading events as files in given directory
     # This loop stops on SIGINT
-    for (rawdata, event) in read_dir(_drop_path):
+    for (rawdata, event) in read_dir(_drop_path, call_when_waiting=put_set_to_database):
         # Store the event to EventDB
         put_to_db_queue(event)
         try:
             if "Test" in event["Category"]:
+                logger.debug("Test event ignored")
                 continue  # Ignore testing messages
             for src in event.get("Source", []):
                 for ipv4 in src.get("IP4", []):
                     # TODO check IP address validity
 
-                    logger.debug("EventReceiver: Updating IPv4 record {}".format(ipv4))
+                    logger.debug("Updating IPv4 record {}".format(ipv4))
                     cat = '+'.join(event["Category"]).replace('.', '')
                     # Parse and reformat detect time
                     detect_time = parse_rfc_time(event["DetectTime"])  # Parse DetectTime
