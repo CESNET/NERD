@@ -7,14 +7,8 @@ import logging
 import threading
 import signal
 
-def main():
+def main(cfg_file, process_index):
 
-    # Add to path the "one directory above the current file location" to find modules from "common"
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
-    
-    DEFAULT_CONFIG_FILE = "../etc/nerdd.yml"
-    
-    
     ################################################
     # Initialize logging mechanism
     
@@ -28,13 +22,15 @@ def main():
     logging.getLogger("requests").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     
-    log.info("***** NERDd start *****")
+    log.info("***** NERD worker {} start *****".format(process_index))
     
     ################################################
     # Load core components
     
+    # Add to path the "one directory above the current file location" to find modules from "common"
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+    
     import common.config
-    import common.eventdb_psql
     import core.mongodb
     import core.update_manager
     import core.scheduler
@@ -42,13 +38,7 @@ def main():
     ################################################
     # Load configuration
     
-    # TODO parse arguments using ArgParse
-    if len(sys.argv) >= 2:
-        cfg_file = sys.argv[1]
-    else:
-        cfg_file = DEFAULT_CONFIG_FILE
-    
-    # Read NERDd-specific config (nerdd.cfg)
+    # Read NERDd-specific config (nerdd.yml)
     log.info("Loading config file {}".format(cfg_file))
     config = common.config.read_config(cfg_file)
 
@@ -69,16 +59,14 @@ def main():
     g.config_base_path = config_base_path
     g.scheduler = core.scheduler.Scheduler()
     g.db = core.mongodb.MongoEntityDatabase(config)
-    g.eventdb = common.eventdb_psql.PSQLEventDatabase(config)
-    g.um = core.update_manager.UpdateManager(config, g.db)
+    g.um = core.update_manager.UpdateManager(config, g.db, process_index)
     
     
     ################################################
-    # Load all NERD modules
+    # Load all plug-in modules
     # (all modules can now use core components in "g")
     
     # TODO load all modules automatically (or just modules specified in config)
-    #import modules.test_module
     import modules.updater
     import modules.cleaner
     import modules.dns
@@ -87,7 +75,6 @@ def main():
     import modules.redis_bl
     import modules.shodan
     import modules.eml_asn_rank
-    import modules.refresher
     import modules.event_counter
     import modules.hostname
     import modules.caida_as_class
@@ -104,7 +91,6 @@ def main():
     module_list = [
         modules.updater.Updater(),
         modules.cleaner.Cleaner(),
-        #modules.refresher.Refresher(),
         modules.event_counter.EventCounter(),
         modules.dns.DNSResolver(),
         modules.geolocation.Geolocation(),
@@ -119,7 +105,7 @@ def main():
         modules.bgp_rank.CIRCL_BGPRank(),
         modules.event_type_counter.EventTypeCounter(),
         modules.tags.Tags(),
-        modules.passive_dns.PassiveDNSResolver ()
+        modules.passive_dns.PassiveDNSResolver()
     ]
     
     
@@ -129,7 +115,7 @@ def main():
     
     # Signal handler releasing the lock on SIGINT or SIGTERM
     def sigint_handler(signum, frame):
-        log.debug("Signal {} received, stopping daemon".format({signal.SIGINT: "SIGINT", signal.SIGTERM: "SIGTERM"}.get(signum, signum)))
+        log.debug("Signal {} received, stopping worker".format({signal.SIGINT: "SIGINT", signal.SIGTERM: "SIGTERM"}.get(signum, signum)))
         g.daemon_stop_lock.release()
     signal.signal(signal.SIGINT, sigint_handler)
     signal.signal(signal.SIGTERM, sigint_handler)
@@ -143,22 +129,21 @@ def main():
     # log.info("Profiler start")
     # yappi.start()
     
-    # Run update manager thread/process
+    # Run update manager thread
     log.info("***** Initialization completed, starting all modules *****")
-    g.um.start()
     g.running = True
     
-    # Run modules that have their own threads/processes
+    # Run modules that have their own threads (TODO: are there any?)
     # (if they don't, the start() should do nothing)
     for module in module_list:
         module.start()
+    
+    g.um.start()
     
     # Run scheduler
     g.scheduler.start()
     
     
-    # print("-------------------------------------------------------------------")
-    # print("Reading events from "+str(config.get('warden_filer_path'))+"/incoming")
     print()
     print("*** Press Ctrl-C to quit ***")
     
@@ -174,6 +159,7 @@ def main():
     ################################################
     # Finalization & cleanup
     
+    # Set signal handlers back to their defaults, so the second Ctrl-C closes the program immediately
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     signal.signal(signal.SIGTERM, signal.SIG_DFL)
     signal.signal(signal.SIGABRT, signal.SIG_DFL)
@@ -181,12 +167,27 @@ def main():
     log.info("Stopping running components ...")
     g.running = False
     g.scheduler.stop()
+    g.um.stop()
     for module in module_list:
         module.stop()
-    g.um.stop()
     
     log.info("***** Finished, main thread exiting. *****")
     logging.shutdown()
 
+
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    # Parse arguments
+    parser = argparse.ArgumentParser(
+        prog="worker.py",
+        description="Main worker process of the NERD system. If run multiple times in parallel, process index MUST be given by a parameter."
+    )
+    parser.add_argument('process_index', metavar='INDEX', type=int, default=0,
+        help='Index of the worker process (default: 0)')
+    parser.add_argument('-c', '--config', metavar='FILENAME', default='../etc/nerdd.yml',
+        help='Path to configuration file (default: ../etc/nerdd.yml')
+    args = parser.parse_args()
+
+    # Run main code
+    main(args.config, args.process_index)

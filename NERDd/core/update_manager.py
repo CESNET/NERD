@@ -237,7 +237,7 @@ class UpdateManager:
     TODO: detailed description
     """
 
-    def __init__(self, config, db):
+    def __init__(self, config, db, process_index):
         """
         Initialize update manager.
         
@@ -249,7 +249,7 @@ class UpdateManager:
         self.log = logging.getLogger("UpdateManager")
         #self.log.setLevel('DEBUG')
         
-        self.process_index = 1 # TODO: pass process index here when everything is ready for real multiprocessing
+        self.process_index = process_index
         
         self.db = db
         
@@ -300,7 +300,8 @@ class UpdateManager:
         self._last_update_counter = self._update_counter.copy()
 
         # Log number of update requests processed every 2 seconds
-        if ("upd_cnt_file" in g.config):
+        # (temporarily disabled)
+        if False and ("upd_cnt_file" in g.config):
             # Use a new scheduler, because the default one is stopped when
             # NERDd daemon is going to exit, but we want to keep logging
             # till the end
@@ -399,8 +400,7 @@ class UpdateManager:
 
     def get_queue_size(self, thread_index=0):
         """Return current total number of requests in a worker queue."""
-        return 0
-        #return self.task_queues[thread_index].get_worker_queue_length(self.process_index, thread_index)
+        return self.task_queues[thread_index].get_worker_queue_length(self.process_index, thread_index)
 
 
     def update(self, ekey, update_requests):
@@ -520,7 +520,7 @@ class UpdateManager:
             # the call_queue and update the set of attributes that may change)
             if requests_to_process:
                 # Process update requests (perform updates, put hooked functions to call_queue and update may_change set)
-                self.log.debug("UpdateManager: New update requests for ({},{}): {}".format(etype, eid, requests_to_process))
+                #self.log.debug("UpdateManager: New update requests for ({},{}): {}".format(etype, eid, requests_to_process))
                 for updreq in requests_to_process:
                     op = updreq[0]
                     attr = updreq[1]
@@ -589,13 +589,13 @@ class UpdateManager:
             # to expected subsequent events, postpone its call.
             if may_change & self._func_triggers[etype][func]:  # nonempty intersection of two sets
                 # Put the function call back to the end of the queue
-                self.log.debug("call_queue: Postponing call of {}({})".format(get_func_name(func), updates))
+                #self.log.debug("call_queue: Postponing call of {}({})".format(get_func_name(func), updates))
                 call_queue.append((func, updates))
                 continue
             
             # Call the event handler function.
             # Set of requested updates of the record should be returned
-            self.log.debug("Calling: {}(({}, {}), rec, {})".format(get_func_name(func), etype, eid, updates))
+            #self.log.debug("Calling: {}(({}, {}), rec, {})".format(get_func_name(func), etype, eid, updates))
 #            t_handler1 = time.time()
             try:
                 reqs = func((etype, eid), rec, updates)
@@ -648,20 +648,15 @@ class UpdateManager:
     def start(self):
         """Run the worker threads."""
         self.log.info("Starting {} worker threads".format(self.num_workers))
-        #self._process = multiprocessing.Process(target=self._main_loop)
         self._workers = [ threading.Thread(target=self._worker_func, args=(i,), name="Worker-{}-{}".format(self.process_index, i)) for i in range(self.num_workers) ]
         for worker in self._workers:
             worker.start()
     
     def stop(self):
         """
-        Stop the manager (signal all worker threads to finish and wait).
-        
-        All modules writing to the request queue should already be stopped.
-        If some request is written to the queue after a call of this function,
-        it probably won't be performed.
+        Stop the manager
         """
-        self.log.info("Telling all workers to stop ...")
+        self.log.info("Waiting for worker threads to finish their current tasks ...")
         # Thread for printing debug messages about worker status
         threading.Thread(target=self._dbg_worker_status_print, daemon=True).start()
         
@@ -669,18 +664,13 @@ class UpdateManager:
         for tq in self.task_queues:
             tq.stop_consuming()
         
-#         # Wait until all work is done (other modules should be stopped now, but some tasks may still be added as a result of already ongoing processing (e.g. new IP adds new ASN))
-#         for i in range(self.num_workers):
-#             self._request_queues[i].join() 
-#         # Send None to request_queue to signal workers to stop (one for each worker)
-#         for i in range(self.num_workers):
-#             self._request_queues[i].put(None) 
-        # Wait until all workers stopped (this should be immediate)
+        # Wait until all workers stopped
         for worker in self._workers:
             worker.join()
         
         # Stop logging scheduler
-        self.logging_scheduler.stop()
+        # TODO won't be needed when EventCountLogger is used
+        #self.logging_scheduler.stop()
         # Delete file with updates count log
         filename = g.config.get("upd_cnt_file", None)
         if filename:
@@ -693,7 +683,6 @@ class UpdateManager:
 
 
     def watchdog(self):
-        # TODO: remove - restarting doesn't work anyway (newly started thread can't connect to RabbitMQ queue since it's still (exclusively) bind by the failed thread)
         """
         Check whether all workers are running and restart them if not.
         
@@ -705,13 +694,18 @@ class UpdateManager:
                 if self._watchdog_restarts < 20:
                     self.log.error("Thread {} is dead, restarting.".format(worker.name))
                     worker.join()
+                    # Discard the unprocessed message(s) from the thread's queue
+                    self.task_queues[i].channel.basic_nack(delivery_tag=0, multiple=True, requeue=False)
+                    # Unbind TaskQueue
+                    self.task_queues[i].stop_consuming()
+                    # Start new thread
                     new_thread = threading.Thread(target=self._worker_func, args=(i,), name="UMWorker-"+str(i))
                     self._workers[i] = new_thread
                     new_thread.start()
                     self._watchdog_restarts += 1
                 else:
                     self.log.critical("Thread {} is dead, more than 20 restarts attempted, giving up...".format(worker.name))
-                    g.daemon_stop_lock.release()
+                    g.daemon_stop_lock.release() # Exit program
                     break
 
 
@@ -749,16 +743,17 @@ class UpdateManager:
         my_queue = self.task_queues[thread_index]
         # Set up callback and start consuming messages
         my_queue.set_consume_callback(self._process_task, self.process_index, thread_index)
+        print("Worker {} thread {} starting receiving tasks...".format(self.process_index, thread_index))
         my_queue.start_consuming()
         # (blocks until stop_consuming() is called or we're forcefully disconnected from server)
 
     def _process_task(self, etype, eid, updreq):
-        #self.log.debug("New update request: ({},{}),{}".format(etype, eid, updreq))
+        self.log.debug("New update request: ({},{}),{}".format(etype, eid, updreq))
 
         # Call update method (pass copy of updreq since we need it unchanged for the logging code below)
         new_rec_created = self._process_update_req(etype, eid, updreq.copy())
         
-        #self.log.debug("Task done")
+        self.log.debug("Task done")
         
         # Increment corresponding update counter
         # TODO: replace this by event_count_logger
