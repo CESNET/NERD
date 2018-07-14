@@ -67,5 +67,10 @@ dnsbl:
   # File where daily count of requests is stored (this is only prefix to which date will be appended)
   req_cnt_file: "/data/dnsbl-requests-"
 
+redis:
+    host: "localhost"  # optional, default: localhost
+    port: 6379  # optional, default: 6379
+    db: 1  # Redis DB used for statistics; optional, default: 1
+
 #shodan:
 #   apikey: ""

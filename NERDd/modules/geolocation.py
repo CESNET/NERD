@@ -12,6 +12,7 @@ http://www.maxmind.com.
 
 from core.basemodule import NERDModule
 import g
+from common.notifier import Notifier
 
 import geoip2.database
 import geoip2.errors
@@ -33,13 +34,9 @@ class Geolocation(NERDModule):
     """
     
     def __init__(self):
-        # Get DB path
-        db_path = g.config.get('geolocation.geolite2_db_path')
-        
-        # Instantiate DB reader (i.e. open GeoLite database)
-        self._reader = geoip2.database.Reader(db_path)
-        # TODO: error handlig (can't open file)
-        
+        self._load_db()
+        Notifier().subscribe("new_geolocation_db", self._load_db)
+
         g.um.register_handler(
             self.geoloc,
             'ip',
@@ -87,3 +84,10 @@ class Geolocation(NERDModule):
             ('set', 'geo.tz', tz),
         ]
         
+    def _load_db(self):
+        # Get DB path
+        db_path = g.config.get('geolocation.geolite2_db_path')
+
+        # Instantiate DB reader (i.e. open GeoLite database)
+        self._reader = geoip2.database.Reader(db_path)
+        # TODO: error handlig (can't open file)
