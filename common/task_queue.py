@@ -19,8 +19,9 @@ import sys
 import json
 import time
 import logging
+import datetime
+
 import pika
-from bson import json_util # Used to (de)serialize some Python objects (like datetime) into JSON
 
 # Exchange to write messages to
 WRITE_EXCHANGE_NAME = 'nerd-main-task-exchange'
@@ -28,6 +29,40 @@ READ_EXCHANGE_NAME = 'nerd-task-distributor'
 
 # Maximum number of pending messages per worker
 MAX_QUEUE_LENGTH = 100
+
+# Functions that allow to (de)serialize some objects we need to pass via TaskQueue.
+# Inspired by bson.json_util, but for different set of types (and much simpler).
+def conv_to_json(obj):
+    """Convert special types to JSON (use as "default" param of json.dumps)
+    
+    Supported types/objects:
+    - datetime
+    - timedelta
+    """
+    if isinstance(obj, datetime.datetime):
+        if obj.tzinfo:
+            raise NotImplementedError("Can't serialize timezone-aware datetime object (NERD policy is to use naive datetimes in UTC everywhere)")
+        return {"$datetime": obj.strftime("%Y-%m-%dT%H:%M:%S.%f")}
+    if isinstance(obj, datetime.timedelta):
+        return {"$timedelta": "{},{},{}".format(obj.days, obj.seconds, obj.microseconds)}
+    raise TypeError("%r is not JSON serializable" % obj)
+
+
+def conv_from_json(dct):
+    """Convert special JSON keys created by conv_to_json back to Python objects (use as "object_hook" param of json.loads)
+    
+    Supported types/objects:
+    - datetime
+    - timedelta
+    """
+    if "$datetime" in dct:
+        val = dct["$datetime"]
+        return datetime.datetime.strptime(val, "%Y-%m-%dT%H:%M:%S.%f")
+    if "$timedelta" in dct:
+        days, seconds, microseconds = dct["$timedelta"].split(",")
+        return datetime.timedelta(int(days), int(seconds), int(microseconds))
+    return dct
+
 
 class TaskQueue:
     def __init__(self, rabbit_config={}):
@@ -83,8 +118,7 @@ class TaskQueue:
            'eid': eid,
            'op': requested_changes
         }
-        # Use json_util from MongoDB's BSON to serialize some Python objects (like datetime) into JSON
-        body = json.dumps(msg, default=json_util.default).encode('utf8')
+        body = json.dumps(msg, default=conv_to_json).encode('utf8')
         key = etype + ':' + str(eid)
         
         # Send the message
@@ -129,13 +163,13 @@ class TaskQueue:
             # TODO check that method and properties are as expected (but what is expected?)
             # Basic check of the message body
             try:
-                msg = json.loads(body.decode('utf8'), object_hook=json_util.object_hook)
+                msg = json.loads(body.decode('utf8'), object_hook=conv_from_json)
                 etype = msg['etype']
                 eid = msg['eid']
                 op = msg['op']
-            except (json.decoder.JSONDecodeError, TypeError, KeyError):
+            except (ValueError, TypeError, KeyError) as e:
                 # Print error, acknowledge reception of the message and drop it
-                self.log.error("Erroneous message received from main task queue: '{}'".format(body))
+                self.log.error("Erroneous message received from main task queue. Error: {}, Message: '{}'".format(str(e), body))
                 self.channel.basic_ack(method.delivery_tag)
                 return
             self.consume_callback(etype, eid, op)
