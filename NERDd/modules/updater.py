@@ -104,13 +104,13 @@ class Updater(NERDModule):
                 requests = []
 #                 if True: #id in ids4h:  (Since ids4h is superset of other, this is always true)
 #                     requests.append(('event', '!every4h'))
-#                     requests.append(('next_step', '_nru4h', ('ts_added', time, timedelta(seconds=4*60*60))))
+#                     requests.append(('next_step', '_nru4h', 'ts_added', time, timedelta(seconds=4*60*60)))
                 if id in ids1d:
                     requests.append(('*event', '!check_and_update_1d' if etype=='ip' else '!every_1d'))
-                    requests.append(('*next_step', '_nru1d', ('ts_added', time, timedelta(days=1))))
+                    requests.append(('*next_step', '_nru1d', 'ts_added', time, timedelta(days=1)))
                 if id in ids1w:
                     requests.append(('*event', '!every1w'))
-                    requests.append(('*next_step', '_nru1w', ('ts_added', time, timedelta(days=7))))
+                    requests.append(('*next_step', '_nru1w', 'ts_added', time, timedelta(days=7)))
                 # Issue update requests
                 while g.um.get_queue_size() >= MAX_QUEUE_SIZE:
                     sleep(0.2)

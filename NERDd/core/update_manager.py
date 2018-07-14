@@ -475,7 +475,7 @@ class UpdateManager:
                 weak_op = False
             else:
                 # Remove starting symbol '*'
-                update_requests[ndx] = (updreq[0][1:],) + updreq[1:] # first item without first char + all other items
+                update_requests[ndx] = [updreq[0][1:]] + updreq[1:] # first item without first char + all other items
 
         # Fetch the record from database or create a new one
         new_rec_created = False
