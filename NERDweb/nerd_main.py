@@ -76,9 +76,11 @@ app.jinja_env.trim_blocks = True
 app.jinja_env.lstrip_blocks = True
 
 # Configuration of PyMongo
-app.config['MONGO_HOST'] = config.get('mongodb.host', 'localhost')
-app.config['MONGO_PORT'] = config.get('mongodb.port', 27017)
-app.config['MONGO_DBNAME'] = config.get('mongodb.dbname', 'nerd')
+app.config['MONGO_URI'] = "mongodb://{}:{}/{}".format(
+    config.get('mongodb.host', 'localhost'),
+    config.get('mongodb.port', 27017),
+    config.get('mongodb.dbname', 'nerd')
+)
 
 mongo = PyMongo(app)
 
