@@ -153,8 +153,8 @@
   {%- endfor %}
   {% endif %}
 </td>
-<td class="time">{{ip.ts_added.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
-<td class="time">{{ip.ts_last_event.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S") if ip.ts_last_event else "??"}}</td>
+<td class="time">{{ip.ts_added.replace(tzinfo=tz_utc).astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
+<td class="time">{{ip.ts_last_event.replace(tzinfo=tz_utc).astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S") if ip.ts_last_event else "??"}}</td>
 <td class="links">
 <a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan"><img src="{{ url_for('static', filename='shodan_icon.png') }}" width=16 height=16></a>
 <a href="https://censys.io/ipv4/{{ ip._id }}" title="Search on Censys"><img src="{{ url_for('static', filename='censys_icon.png') }}" width=16 height=16></a>
