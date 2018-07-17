@@ -546,6 +546,7 @@ def ips():
     form = IPFilterForm(request.args, csrf_enabled=False)
     
     if g.ac('ipsearch') and form.validate():
+        tz_utc = pytz.utc 
         timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
         sortby = sort_mapping[form.sortby.data]
         
