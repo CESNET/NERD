@@ -10,6 +10,8 @@ This product includes GeoLite2 data created by MaxMind, available from
 http://www.maxmind.com.
 """
 
+import logging
+
 from core.basemodule import NERDModule
 import g
 from common.notifier import Notifier
@@ -34,6 +36,8 @@ class Geolocation(NERDModule):
     """
     
     def __init__(self):
+        self.logger = logging.getLogger("Geolocation")
+        self.init_load = True
         self._load_db()
         Notifier().subscribe("new_geolocation_db", self._load_db)
 
@@ -88,6 +92,16 @@ class Geolocation(NERDModule):
         # Get DB path
         db_path = g.config.get('geolocation.geolite2_db_path')
 
+        self.logger.info("Received notification about a new geolocation database available.\
+                          Loading it from {}".format(db_path))
+
         # Instantiate DB reader (i.e. open GeoLite database)
-        self._reader = geoip2.database.Reader(db_path)
-        # TODO: error handlig (can't open file)
+        try:
+            self._reader = geoip2.database.Reader(db_path)
+        except Exception as e:
+            msg = "Can not open file '{}'\n {}".format(db_path, str(e))
+            if self.init_load:
+                raise Exception(msg)
+            else:
+                self.logger.exception(msg)
+        self.init_load = False

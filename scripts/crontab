@@ -5,8 +5,7 @@
 # Update metainformation about numbers of IPs with particular event Category and Node
 */30 * * * * mongo --quiet nerd /data/NERD_scripts/update_db_meta_info.js
 # Download GeoIP database every Monday at 05:05
-# TODO: It's probalby needed to somehow notify NERDd that it needs to reload the database
-05 05 * * 1 python3 update_geolocation_db.py
+05 05 * * 1 python3 /data/NERD_scripts/update_geolocation_db.py
 # rsync Uceprotect blacklist 3 times a day
 40 01,09,17 * * * rsync -azq rsync-mirrors.uceprotect.net::RBLDNSD-ALL/dnsbl-1.uceprotect.net /data/blacklists/uceprotect-level1
 # rsync PSBL blacklist 3 times a day

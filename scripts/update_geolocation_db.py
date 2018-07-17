@@ -1,17 +1,17 @@
 # this script needs to be run with root priviledges
 
-# wget -q http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz -O /data/geoip/GeoLite2-City.mmdb.gz && gunzip -f /data/geoip/GeoLite2-City.mmdb.gz
-
 import requests
-import logging
-import os
 import sys
+import gzip
+import shutil
+import os
+
 sys.path.append("../")
 from common.notifier import Notifier
-fname = '/data/geoip/GeoLite2-City.mmdb.gz'
-url = 'http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz'
 
-logger = logging.getLogger("GeolocationDbUpdater")
+file_zip_name = '/data/geoip/GeoLite2-City.mmdb.gz'
+file_name = '/data/geoip/GeoLite2-City.mmdb'
+url = 'http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz'
 
 
 def notify_nerd():
@@ -20,20 +20,22 @@ def notify_nerd():
 
 
 def download_db():
-    try:
-        # download db
-        response = requests.get(url)
-        open(fname, 'wb').write(response.content)
-    except Exception as e:
-        logger.exception(str(e))
-        exit(1)
+    response = requests.get(url)
+    open(file_zip_name, 'wb').write(response.content)
 
-    os.system("gunzip -f {}".format(fname))
+
+def unzip_file():
+    with gzip.open(file_zip_name, 'rb') as f_in:
+        with open(file_name, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+    os.remove(file_zip_name)
 
 
 if __name__ == "__main__":
     download_db()
+    unzip_file()
     notify_nerd()
+    print("Database successfully updated.")
 
 
 

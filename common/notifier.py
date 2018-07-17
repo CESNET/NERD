@@ -4,19 +4,19 @@ Simple module using redis for cross-process notifying.
 
 import redis
 import common.config as config
-from threading import Thread
+from threading import Thread, currentThread
 from time import sleep
 import logging
 
-logger = logging.getLogger("Notifier")
-config_file = config.read_config("../etc/nerdd.yml")
-redis_config = config_file.get("redis")
-
 
 class Notifier:
-    def __init__(self):
+    def __init__(self, config_file="../etc/nerdd.yml"):
+        self.logger = logging.getLogger("Notifier")
+        config_file = config.read_config(config_file)
+        redis_config = config_file.get("redis")
         self.r = redis.StrictRedis(**redis_config)
         self.publisher = self.r.pubsub()
+        self.all_threads = []
 
     def subscribe(self, channel, callback, call_with_message=False):
         """
@@ -26,10 +26,12 @@ class Notifier:
         :param call_with_message:
         :return:
         """
-        logger.info("Subscribing for channel {}".format(channel))
+        self.logger.info("Subscribing for channel {}".format(channel))
         self.publisher.subscribe(channel)
         t = Thread(target=self._wait_for_message, args=(channel, callback, call_with_message))
+        t.daemon = True
         t.start()
+        self.all_threads.append(t)
 
     def publish(self, channel, message=""):
         """
@@ -38,11 +40,21 @@ class Notifier:
         :param message:
         :return:
         """
-        logger.info("Publishing on channel {}".format(channel))
+        self.logger.info("Publishing on channel {}".format(channel))
         self.r.publish(channel, message)
 
+    def unsubscribe_all(self):
+        """
+        Use this to stop waiting for all kinds of messages.
+        :return:
+        """
+        for t in self.all_threads:
+            t.do_run = False
+            t.join()
+
     def _wait_for_message(self, channel, callback, call_with_message):
-        while True:
+        t = currentThread()
+        while getattr(t, "do_run", True):
             msg = self.publisher.get_message()
             if msg:
                 msg_type = msg["type"]
@@ -52,7 +64,6 @@ class Notifier:
                         callback(msg["data"])
                     else:
                         callback()
-                    break
             sleep(0.5)
 
 
@@ -60,6 +71,7 @@ class Notifier:
 #### TEST START #######
 #
 # from multiprocessing import Process
+#
 #
 # class ThisTester:
 #     def __init__(self, num):
@@ -72,6 +84,8 @@ class Notifier:
 #     def run(self):
 #         ps = Notifier()
 #         ps.subscribe("stop_all", self.stop)
+#         if self.i == 0:
+#             ps.unsubscribe_all()
 #         self.running = True
 #         while self.running:
 #             print(" {} ...".format(self.i))
@@ -91,11 +105,13 @@ class Notifier:
 #         p = Process(target=processs, args=(i,))
 #         p.start()
 #
-#     sleep(5)
+#     sleep(2.5)
 #     ps = Notifier()
+#     print("publishing stop_all")
 #     ps.publish("stop_all")
 #
+#
 # if __name__ == "__main__":
-#     test_this()
+#      test_this()
 
 #### TEST END #######
