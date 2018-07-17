@@ -1,6 +1,9 @@
 /* NERD web - main JS code, common for whole web */
 
 function create_event_table(data) { /* data are "dataset" field of a DOM node with "data-" attributes set */
+  if (data.table == "") {
+     return "No events";
+  }
   var cats = data.cats.split(",");
   var dates = data.dates.split(",");
   var table = [];
