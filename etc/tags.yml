@@ -135,7 +135,7 @@ tags:
     name: IP in hostname
     description: The hostname includes partial or whole IP adress
     tag_color: "#68b267"
-    condition: (ip_in_hostname in hostname_class)
+    condition: ('ip_in_hostname' in hostname_class)
 
   # Tags based on blacklists
 
