@@ -131,3 +131,8 @@ hostname_tagging:
     - ["\\b[avx]?dsl\\b", dsl]
     - ["\\bdyn(amic)?\\b", dynamic]
     - ["\\bstatic\\b", static]
+    # classic ip adress - all parts of it must be included in correct order
+    - ["^.*((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[^0-9]+){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).*$", ip_in_hostname]
+    # partial ip adress - must include 'ip'
+    - ["^(?=.*ip).*((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[^0-9]+){2,}.*$", ip_in_hostname]
+
