@@ -12,7 +12,6 @@ import os
 import socket
 import json
 import logging
-import pika  # RabbitMQ client
 import signal
 
 import sys
