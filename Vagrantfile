@@ -54,7 +54,7 @@ EOF
 
 ##### Install MongoDB #####
 $mongo = <<EOF
-echo "** Installing MongoDB **"
+echo "** Installing and configuring MongoDB **"
 
 echo '[mongodb-org-3.2]
 name=MongoDB Repository
@@ -64,6 +64,23 @@ enabled=1
 ' > /etc/yum.repos.d/mongodb-org-3.2.repo
 
 yum install -y mongodb-org
+
+# ** Set up logrotate **
+# Configure Mongod to only reopen file after receiving SIGUSR1
+sed -i '/logAppend: true/a \\ \\ logRotate: reopen' /etc/mongod.conf
+# Configure logrotate
+echo '/var/log/mongodb/mongod.log {
+    weekly
+    missingok
+    rotate 8
+    compress
+    delaycompress
+    notifempty
+    postrotate
+        /usr/bin/pkill -USR1 mongod
+    endscript
+}
+' > /etc/logrotate.d/mongodb
 
 echo "** Starting MongoDB **"
 /sbin/chkconfig mongod on
