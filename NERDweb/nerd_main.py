@@ -17,7 +17,7 @@ import requests
 import flask
 from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
 from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
-from flask_wtf import Form
+from flask_wtf import FlaskForm
 from flask_mail import Mail, Message
 from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 
@@ -94,6 +94,14 @@ app.config['MAIL_PASSWORD'] = config.get('mail.password', None)
 app.config['MAIL_DEFAULT_SENDER'] = config.get('mail.sender', 'NERD <noreply@nerd.example.com>')
 
 mailer = Mail(app)
+
+# Disable CSRF protection globally (it's OK to send search requests from anywhere)
+# FIXME: This disables it completeley, it would be better to rather disable it
+# by default but keep an option to check CSRF explicitly in selected Forms.
+# This should be possible by setting WTF_CSRF_CHECK_DEFAULT, but it doesn't
+# work for me (form.validate fails then)
+app.config['WTF_CSRF_ENABLED'] = False
+#app.config['WTF_CSRF_CHECK_DEFAULT'] = False
 
 
 eventdb = common.eventdb_psql.PSQLEventDatabase(config)
@@ -285,7 +293,7 @@ def main():
 
 
 # ***** Request for new account *****
-class AccountRequestForm(Form):
+class AccountRequestForm(FlaskForm):
     email = TextField('Contact email', [validators.Required()], description='Used to send information about your request and in case admins need to contact you.')
     message = TextAreaField("", [validators.Optional()])
 
@@ -326,7 +334,7 @@ def noaccount():
 
 # ***** Account info & password change *****
 
-class PasswordChangeForm(Form):
+class PasswordChangeForm(FlaskForm):
     old_passwd = PasswordField('Old password', [validators.InputRequired()])
     new_passwd = PasswordField('New password', [validators.InputRequired(), validators.length(8, -1, 'Password must have at least 8 characters')])
     new_passwd2 = PasswordField('Repeat password', [validators.InputRequired(), validators.EqualTo('new_passwd', message='Passwords must match')])
@@ -446,7 +454,7 @@ def get_tags():
     tags.sort()    
     return tags
 
-class IPFilterForm(Form):
+class IPFilterForm(FlaskForm):
     subnet = TextField('IP prefix', [validators.Optional()])
     hostname = TextField('Hostname suffix', [validators.Optional()])
     country = TextField('Country code', [validators.Optional(), validators.length(2, 2)])
@@ -476,7 +484,7 @@ class IPFilterForm(Form):
     limit = IntegerField('Max number of addresses', [validators.NumberRange(1, 1000)], default=20)
     
     # Choices for some lists must be loaded dynamically from DB, so they're
-    # defined when Form is initialized
+    # defined when FlaskForm is initialized
     def __init__(self, *args, **kwargs):
         super(IPFilterForm, self).__init__(*args, **kwargs)
         # Dynamically load list of Categories/Nodes and their number of occurences
@@ -543,7 +551,7 @@ def create_query(form):
 @app.route('/ips/')
 def ips():
     title = "IP search"
-    form = IPFilterForm(request.args, csrf_enabled=False)
+    form = IPFilterForm(request.args)
     
     if g.ac('ipsearch') and form.validate():
         tz_utc = pytz.utc 
@@ -649,7 +657,7 @@ def ips():
 def ips_count():
     #Excepts query as JSON encoded POST data.
     form_values = request.get_json()
-    form = IPFilterForm(obj=form_values, csrf_enabled=False)
+    form = IPFilterForm(obj=form_values)
     if g.ac('ipsearch') and form.validate():
         query = create_query(form)
         print("query: " + str(query))
@@ -661,7 +669,7 @@ def ips_count():
 
 # ***** Detailed info about individual IP *****
 
-class SingleIPForm(Form):
+class SingleIPForm(FlaskForm):
     ip = TextField('IP address', [validators.IPAddress(message="Invalid IPv4 address")])
 
 
@@ -719,7 +727,7 @@ def ajax_ip_events(ipaddr):
 
 # ***** Detailed info about individual AS *****
 
-class SingleASForm(Form):
+class SingleASForm(FlaskForm):
     asn = TextField('AS number', [validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
             message='Must be a number, optionally preceded by "AS".')])
 
@@ -729,7 +737,7 @@ class SingleASForm(Form):
 @app.route('/asn/')
 @app.route('/asn/<asn>')
 def asn(asn=None): # Can't be named "as" since it's a Python keyword
-    form = SingleASForm(asn=asn, csrf_enabled=False)
+    form = SingleASForm(asn=asn)
     print(asn,form.data)
     title = 'ASN detail search'
     if asn is None:
@@ -752,7 +760,7 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
 
 # ***** Detailed info about individual IP block *****
 
-# class SingleIPBlockForm(Form):
+# class SingleIPBlockForm(FlaskForm):
 #     ip = TextField('IP block')#, [validators.IPAddress(message="Invalid IPv4 address")])
 
 @app.route('/ipblock/')
@@ -870,7 +878,7 @@ def get_status():
 @app.route('/iplist/')
 def iplist():
 
-    form = IPFilterForm(request.args, csrf_enabled=False)
+    form = IPFilterForm(request.args)
     
     if not g.user or not g.ac('ipsearch'):
         return Response('ERROR: Unauthorized', 403, mimetype='text/plain')
@@ -928,7 +936,7 @@ def get_ip_info(ipaddr, full):
     if not ipaddr:
         return False, Response(json.dumps(data), 400, mimetype='application/json')
 
-    form = SingleIPForm(ip=ipaddr, csrf_enabled=False)
+    form = SingleIPForm(ip=ipaddr)
     if not form.validate():
         data['error'] = "Bad IP address"
         return False, Response(json.dumps(data), 400, mimetype='application/json')
@@ -1077,7 +1085,7 @@ def ip_search(full = False):
     if ret:
         return ret
 
-    form = IPFilterForm(request.args, csrf_enabled=False)
+    form = IPFilterForm(request.args)
     if not form.validate():
         err['err_n'] = 400
         err['error'] = 'Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items())
