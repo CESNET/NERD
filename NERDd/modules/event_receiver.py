@@ -228,10 +228,8 @@ class EventReceiver(NERDModule):
         self.rmq_queue_name = g.config.get('eventdb.forward_to_queue', None)
         if self.rmq_queue_name:
             rmq_creds = pika.PlainCredentials('guest', 'guest')
-            rmq_params = pika.ConnectionParameters('localhost', 5672, '/', rmq_creds)
-            rmq_conn = pika.BlockingConnection(rmq_params)
-            self.rmq_channel = rmq_conn.channel()
-            # we don't declare any queue here, it should be declared statically using rabbitmqctl or web Management
+            self.rmq_params = pika.ConnectionParameters('localhost', 5672, '/', rmq_creds)
+            self.rmq_connect(self.rmq_params)
         else:
             self.rmq_channel = None
     
@@ -277,6 +275,12 @@ class EventReceiver(NERDModule):
         if self.rmq_channel is not None:
             self.rmq_channel.close()
 
+    def rmq_connect(self, rmq_params):
+        """Connecto to RabbitM server and prepare a channel"""
+        rmq_conn = pika.BlockingConnection(rmq_params)
+        self.rmq_channel = rmq_conn.channel()
+        # we don't declare any queue here, it should be declared statically using rabbitmqctl or web Management
+
     def _receive_events(self):
         # Infinite loop reading events as files in given directory
         # (termiated by setting running_flag to False)
@@ -295,7 +299,12 @@ class EventReceiver(NERDModule):
             # Send copy of the IDEA message to RabbitMQ queue (currently used by experimental GRIP system)
             # Does nothing if given queue doesn't exist
             if self.rmq_channel is not None:
-                self.rmq_channel.basic_publish(exchange='', routing_key=self.rmq_queue_name, body=rawdata)
+                try:
+                    self.rmq_channel.basic_publish(exchange='', routing_key=self.rmq_queue_name, body=rawdata)
+                except pika.exceptions.ConnectionClosed:
+                    self.log.warning("Connection to RabbitMQ server lost, reconnecting ...")
+                    self.rmq_connect(self.rmq_params)
+                    self.rmq_channel.basic_publish(exchange='', routing_key=self.rmq_queue_name, body=rawdata)
 
             try:
                 if "Test" in event["Category"]:
