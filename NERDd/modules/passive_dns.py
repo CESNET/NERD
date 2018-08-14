@@ -42,7 +42,7 @@ class PassiveDNSResolver(NERDModule):
 
     def __init__(self):
         self.log = logging.getLogger("PassiveDNS")
-        self.log.setLevel("DEBUG")
+        #self.log.setLevel("DEBUG")
         
         # Load configuration of blacklists to get Redis connection params
         bl_config_file = os.path.join(g.config_base_path, g.config.get("bl_config", "blacklists.yml"))
@@ -119,7 +119,7 @@ class PassiveDNSResolver(NERDModule):
                 blname = dbl.id
                 if present:
                     self.log.debug("Domain ({0}) is on blacklist {1}.".format(domain, blname))
-                    actions.append( ('array_upsert', 'dbl', ({'n': blname, 'd': domain}, [('set', 'v', 1), ('set', 't', now), ('append', 'h', now)])) )                    
+                    actions.append( ('array_upsert', 'dbl', ({'n': blname, 'd': domain}, [('set', 'v', 1), ('set', 't', time), ('append', 'h', time)])) )                    
                 else:
                     # Domain is not on blacklist
                     #self.log.debug("Domain ({0}) is not on blacklist {1}.".format(domain, blname))
