@@ -91,7 +91,16 @@ class HostnameClass(NERDModule):
                 if tag not in tags:
                     tags.append(tag)
                 break
-        
+
+        # second simple implementation of ip in host check
+        ip_in_host_prob = 0
+        for octet in key.split("."):
+            print(octet)
+            if octet in hostname:
+                ip_in_host_prob += 25
+        if ip_in_host_prob >= 75:
+            tags.append("ip_in_hostname")
+
         for regex in self.regex_hostname:
             search = regex[0].search(hostname)
             if search:
