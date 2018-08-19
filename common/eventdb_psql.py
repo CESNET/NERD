@@ -9,6 +9,7 @@ from __future__ import print_function
 import json
 import logging
 import datetime
+import base64
 
 import psycopg2
 from psycopg2.extras import Json, Inet, execute_values
@@ -120,7 +121,16 @@ class PSQLEventDatabase:
         
         # TODO print number of messages in bunch - to check it's really being used
         print("Inserting a batch of {:3d} messages into EventDB".format(len(ideas)), end="\r")
-        
+
+        # get rid of \u0000 characters in Attach.Content field
+        for idea in ideas:
+            if 'Attach' in idea:
+                for attachment in idea['Attach']:
+                    if 'Content' in attachment and '\u0000' in attachment['Content']:
+                        # encode to bytes, then to b64 and back to str
+                        attachment['Content'] = str(base64.b64encode(str(attachment['Content']).encode()))
+                        attachment['ContentEncoding'] = 'base64'
+
 #         values = []
 #         for idea in ideas:
 #             val = idea2values(idea)
