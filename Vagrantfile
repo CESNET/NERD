@@ -26,7 +26,7 @@ $basic_packages = <<EOF
 
 echo "** Installing packages **"
 yum install -y https://centos7.iuscommunity.org/ius-release.rpm
-yum install -y git wget gcc vim python34 python34-devel
+yum install -y git wget gcc vim python34 python34-devel zmq zmq-devel
 
 
 EOF
