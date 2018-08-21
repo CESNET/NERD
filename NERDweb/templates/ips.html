@@ -23,6 +23,8 @@
   {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
   {% endif %}
   <br>
+
+  <br>
   {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
   {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
   {{ formfield(form.tag_conf, size=1)}}
@@ -59,6 +61,7 @@
 <th title="Autonomous system number and name">ASN</th>
 <th>Country</th>
 <th title="Total number of alerts / nodes / categories">Events</th>
+<th title="Total number of MISP events">MISP events</th>
 <!--<th>Shodan info</th>
 <th>Device type</th>-->
 {#{% if ac('rep_exp') %}<th title="Reputation (frontend-computed)">Rep.</th>{% endif %}#}
@@ -97,6 +100,9 @@
 <td class="events" data-cats="{{ip._evt_info.cats}}" data-dates="{{ip._evt_info.dates}}"
   data-nodes="{{ip._evt_info.nodes}}" data-table="{{ip._evt_info.date_cat_table}}">
   <span>{{ip.events_meta.total if ip.events_meta else 0}}</span><span>{{ip._evt_info.n_nodes}}</span><span>{{ip._evt_info.n_cats}}</span>
+</td>
+<td align="center">
+    {{ ip.misp_events|length }}
 </td>
 {#{% if ac('rep_exp') %}
 <td class="reputation" style="background-color: hsl({{100 - 100*ip.rep_frontend}}, 100%, 90%)">
