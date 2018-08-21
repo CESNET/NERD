@@ -50,6 +50,8 @@ logger = logging.getLogger('MISP_updater')
 # if some error occures in ip processing, add it to list and try to process it again at the end of the script
 error_ip = {}
 
+SIGHTING_DICT = {'0': "positive", '1': "false positive", '2': "expired attribute"}
+
 
 def get_ip_from_rec(ip_str, position=None):
     """
@@ -154,15 +156,24 @@ def create_new_event(event, role, ip_addr):
     try:
         kwargs = {'eventid': event['id'], 'values': ip_addr}
         attrib = misp_inst.search(controller='attributes', **kwargs)
-        sighting_list = misp_inst.sighting_list(int(attrib['response']['Attribute'][0]['id']))
-        sighting_dict = {'0': "positive", '1': "false positive", '2': "expired attribute"}
-        for sighting in sighting_list['response']:
-            new_event['sightings'][sighting_dict[sighting['Sighting']['type']]] += 1
-    except ConnectionError or KeyError:
+        try:
+            attrib_id = int(attrib['response']['Attribute'][0]['id'])
+        except KeyError:
+            logger.error("Unexpected response: " + str(attrib))
+            return None
+        sighting_list = misp_inst.sighting_list(attrib_id)
+        try:
+            for sighting in sighting_list['response']:
+                new_event['sightings'][SIGHTING_DICT[sighting['Sighting']['type']]] += 1
+        except KeyError:
+            logger.error("Unexpected response: " + str(attrib))
+            return None
+    except ConnectionError as e:
         # key error occurs, when cannot connect and trying to access to ['response'] key
-        logger.error("Cannot connect to MISP instance!")
+        logger.error("Cannot connect to MISP instance: " + str(e))
         error_ip[ip_addr] = role
         return None
+    
 
     # get name and colour Tags on event level
     for tag in event.get('Tag', []):
@@ -222,11 +233,15 @@ def proccess_ip(ip_addr, role):
 
 
 def main():
+    logger.info("Loading a list of all IPs in MISP ...")
+
     ip_src, ip_dst = get_all_ip()
 
     ip_all = ip_src + ip_dst
+    logger.info("Loaded {} src IPs and {} dst IPs.".format(len(ip_src), len(ip_dst)))
 
     # get all IPs with 'misp_events' attribute from NERD
+    logger.info("Searching NERD for IP records with misp_events ...")
     db_ip_misp_events = db.find('ip', {'misp_events': {'$exists': True, '$not': {'$size': 0}}})
 
     # find all IPs that are in NERD but not in MISP anymore
@@ -235,21 +250,29 @@ def main():
             db_ip_misp_events.remove(ip)
 
     # remove all 'misp_events' attributes that are in NERD but not in MISP
-    for ip in db_ip_misp_events:
-        tq.put_update_request('ip', ip, [('remove', 'misp_events')])
+    if db_ip_misp_events:
+        logger.info("{} NERD IPs don't have an entry in MISP anymore, removing corresponding misp_events keys...".format(len(db_ip_misp_events)))
+        for ip in db_ip_misp_events:
+            tq.put_update_request('ip', ip, [('remove', 'misp_events')])
+
+    logger.info("Checking and updating NERD records for all the IPs ...")
 
     # go through every source ip
     for ip_addr in ip_src:
         # cProfile.runctx("proccess_ip(ip_addr, \"src\")", {}, {'ip_addr': ip_addr, 'proccess_ip': proccess_ip})
+        #logger.debug(ip_addr)
         proccess_ip(ip_addr, "src")
-
+    
     # go through every destination ip
     for ip_addr in ip_dst:
+        #logger.debug(ip_addr)
         proccess_ip(ip_addr, "dst")
 
     # try to process IPs, which was not processed correctly
     for ip_addr, role in error_ip.items():
         proccess_ip(ip_addr, role)
+
+    logger.info("Done")
 
 
 if __name__ == "__main__":

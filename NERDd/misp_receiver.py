@@ -46,7 +46,13 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--cert", required=False, dest="cert", action="store", default=False,
                     help="Self signed certificate of MISP instance")
+parser.add_argument("-v", dest="verbose", action="store_true", 
+                    help="Verbose mode")
+
 args = parser.parse_args()
+
+if args.verbose:
+    logger.setLevel("DEBUG")
 
 # MISP instance
 misp_inst = PyMISP(misp_url, misp_key, args.cert, 'json')
@@ -326,15 +332,22 @@ def receive_events():
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
 
+    logger.info("Connecting to: " + misp_zmq)
     socket.connect(misp_zmq)
     time.sleep(1)
     socket.setsockopt(zmq.SUBSCRIBE, b'')
 
     while running_flag:
-        # wait for new message
-        message = socket.recv()
+        # wait for new message (using nonblocking receive and sleep allows to 
+        # the exit program gracefully even if no message arrives)
+        try:
+            message = socket.recv(flags=zmq.NOBLOCK)
+        except zmq.ZMQError:
+            time.sleep(2)
+            continue
 
         message = message.decode("utf-8")
+        logger.debug("Message received:\n" + message)
         # save json part of the message
         json_message = json.loads("{" + message.split("{", 1)[1])
 
