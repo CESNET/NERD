@@ -67,7 +67,7 @@ def main(cfg_file, process_index):
     # (all modules can now use core components in "g")
     
     # TODO load all modules automatically (or just modules specified in config)
-    import modules.updater
+    import modules.update_planner
     import modules.cleaner
     import modules.dns
     import modules.geolocation
@@ -89,7 +89,7 @@ def main(cfg_file, process_index):
     # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
     #  or take if from configuration
     module_list = [
-        modules.updater.Updater(),
+        modules.update_planner.UpdatePlanner(),
         modules.cleaner.Cleaner(),
         modules.event_counter.EventCounter(),
         modules.dns.DNSResolver(),
@@ -186,7 +186,7 @@ if __name__ == "__main__":
     parser.add_argument('process_index', metavar='INDEX', type=int, default=0,
         help='Index of the worker process (default: 0)')
     parser.add_argument('-c', '--config', metavar='FILENAME', default='../etc/nerdd.yml',
-        help='Path to configuration file (default: ../etc/nerdd.yml')
+        help='Path to configuration file (default: ../etc/nerdd.yml)')
     args = parser.parse_args()
 
     # Run main code
