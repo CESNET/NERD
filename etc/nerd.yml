@@ -14,6 +14,15 @@ rabbitmq:
   username: guest
   password: guest
 
+# MISP instance settings
+misp:
+  # URL of MISP instance
+  url:
+  # The MISP auth key can be found on the MISP web interface under the automation section
+  key:
+  # URL of MISP instace ZMQ module (tcp://MISP_URL:50000)
+  zmq:
+
 # Tag configuration file
 tags_config: tags.yml
 

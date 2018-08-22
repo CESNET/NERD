@@ -19,7 +19,6 @@ import NERDd.core.mongodb as mongodb
 from common.config import read_config
 import common.task_queue
 import common.config
-from misp_keys import misp_key, misp_url, misp_zmq
 import re
 
 running_flag = True
@@ -32,7 +31,7 @@ logger = logging.getLogger('MispReceiver')
 
 # config
 common_cfg_file = "../etc/nerd.yml"
-config = common.config.read_config(common_cfg_file)
+config = read_config(common_cfg_file)
 rabbit_config = config.get("rabbitmq")
 db = mongodb.MongoEntityDatabase(config)
 
@@ -54,6 +53,15 @@ args = parser.parse_args()
 if args.verbose:
     logger.setLevel("DEBUG")
 
+# load MISP instance configuration
+try:
+    misp_key = config['misp']['key']
+    misp_url = config['misp']['url']
+    misp_zmq = config['misp']['zmq']
+except KeyError:
+    logging.error("Missing configuration of MISP instance in the configuration file!")
+    sys.exit(1)
+
 # MISP instance
 misp_inst = PyMISP(misp_url, misp_key, args.cert, 'json')
 
@@ -68,7 +76,8 @@ re_attrib_id_title = re.compile("Attribute \(([0-9]+)\)")
 # get attribute's type and attribute's value from str like: "Event (6921): Network activity\/ip-src 24.25.34.2"
 re_attrib_type_value_title = re.compile("\([0-9]+\): [\w| ]+\\\/([\w|\-]+) (.*)")
 
-ip_misp_types = ["ip-src", "ip-dst", "ip-dst|port", "ip-src|port", "domain|ip"]
+IP_MISP_TYPES = ["ip-src", "ip-dst", "ip-dst|port", "ip-src|port", "domain|ip"]
+THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
 
 def stop(signal, frame):
     """
@@ -91,17 +100,6 @@ def get_sightings_for_nerd(sighting_list):
     return {'positive': counted_sightings['0'],
             'false positive': counted_sightings['1'],
             'expired attribute': counted_sightings['2']}
-
-
-def threat_level_num_to_word(threat_level):
-    """
-    Convert int definition of threat level to word
-    :param threat_level: int threat level
-    :return: word threat definition
-    """
-    # 1 == High, 2 == Medium, 3 == Low, 4 == Undefined
-    threat_level_def = ["High", "Medium", "Low", "Undefined"]
-    return threat_level_def[int(threat_level)-1]
 
 
 def check_src_and_dst_one(attrib_list, ip_addr):
@@ -156,9 +154,9 @@ def create_new_event(event, role, attrib_timestamp, sighting_list=None):
         'tag_list': [],
         'role': role,
         'info': event['info'],
-        'sightings': {'0': 0, '1': 0, '2': 0},
+        'sightings': {'positive': 0, 'false positive': 0, 'expired attribute': 0},
         'date': datetime.datetime.fromtimestamp(int(attrib_timestamp)),
-        'threat_level': threat_level_num_to_word(event['threat_level_id']),
+        'threat_level': THREAT_LEVEL_DICT[event['threat_level_id']],
         'last_change': datetime.datetime.fromtimestamp(int(event['timestamp']))
     }
 
@@ -276,16 +274,13 @@ def process_sighting_notification(sighting):
                     just_update = True
             if just_update:
                 # ip record found, just rewrite sightings
-                tq.put_update_request("ip", ip_addr, [('array_upsert', 'misp_events',
-                                                       {'misp_instance': misp_url,
-                                                        'event_id': sighting['event_id']},
-                                                       [('set', 'sightings',
-                                                         get_sightings_for_nerd(sighting_list))])])
+                tq.put_update_request("ip", ip_addr, [('array_upsert', 'misp_events', {'misp_instance': misp_url,
+                                                      'event_id': sighting['event_id']}, [('set', 'sightings',
+                                                       get_sightings_for_nerd(sighting_list))])])
                 return
         # ip address not even in NERD or not found correct 'misp_event', create new 'misp_event'
-        kwargs = {'values': ip_addr}
         # find correct attribute to pass it to event creation
-        attributes = misp_inst.search(controller='attributes', **kwargs)['response']['Attribute']
+        attributes = misp_inst.search(controller='attributes', values=ip_addr)['response']['Attribute']
         for attrib_dict in attributes:
             if attrib_dict['event_id'] == sighting['event_id']:
                 attrib = attrib_dict
@@ -293,8 +288,8 @@ def process_sighting_notification(sighting):
         else:
             return
         upsert_new_event(event, attrib, sighting_list)
-    except ConnectionError:
-        logger.error("Cannot connect to MISP instance!")
+    except ConnectionError as e:
+        logger.error("Cannot connect to MISP instance: " + str(e))
 
 
 def attrib_add_or_edit(ip_addr, event_id, attrib_id):
@@ -309,8 +304,8 @@ def attrib_add_or_edit(ip_addr, event_id, attrib_id):
     # get event from MISP, to which the attribute corresponds
     try:
         event = misp_inst.get(int(event_id))['Event']
-    except ConnectionError:
-        logger.error("Cannot connect to MISP instance!")
+    except ConnectionError as e:
+        logger.error("Cannot connect to MISP instance: " + str(e))
         return
     attrib = get_attribute_from_event(event, attrib_id)
     if attrib is None:
@@ -334,7 +329,6 @@ def receive_events():
 
     logger.info("Connecting to: " + misp_zmq)
     socket.connect(misp_zmq)
-    time.sleep(1)
     socket.setsockopt(zmq.SUBSCRIBE, b'')
 
     while running_flag:
@@ -349,6 +343,17 @@ def receive_events():
         message = message.decode("utf-8")
         logger.debug("Message received:\n" + message)
         # save json part of the message
+        # message starts with its category (misp_json_audit, misp_json_event ...) followed by dictionary of message data
+        # whole message looks like:
+        # "misp_json_audit {'Log': { 'model_id': "5822",
+        #                            'action': "edit",
+        #                            'change': "publish_timestamp (1529233674) => (1533713571), user_id (1) => (2)",
+        #                            'title': "Event (5822): Advanced Persistent Threat Activity ...",
+        #                            'xxx': "yyy",
+        #                            ...... },
+        #                   'action': "log"}
+        # so split message on '{' with the second parameter 1, which will give: "Log": {....}, 'action': "log"} so the
+        # starting bracket has to be added.
         json_message = json.loads("{" + message.split("{", 1)[1])
 
         # check message prefix, which defines actions
@@ -359,19 +364,19 @@ def receive_events():
                 event_id = json_message['Log']['model_id']
                 try:
                     event = misp_inst.get(event_id)['Event']
-                except ConnectionError:
-                    logger.error("Cannot connect to MISP instance!")
+                except ConnectionError as e:
+                    logger.error("Cannot connect to MISP instance: " + str(e))
                     continue
 
                 insert_ip_list = []
                 # find all ip attributes and save their metadata
                 for attrib in event['Attribute']:
-                    if attrib['type'] in ip_misp_types and not attrib['deleted']:
+                    if attrib['type'] in IP_MISP_TYPES and not attrib['deleted']:
                         insert_ip_list.append({'event': event, 'attrib': attrib, 'sighting': attrib.get('Sighting')})
                 # same with attributes in event's objects
                 for event_obj in event.get('Object', []):
                     for attrib in event_obj['Attribute']:
-                        if attrib['type'] in ip_misp_types:
+                        if attrib['type'] in IP_MISP_TYPES:
                             insert_ip_list.append(
                                {'event': event, 'attrib': attrib, 'sighting': attrib.get('Sighting')})
 
@@ -386,7 +391,7 @@ def receive_events():
             elif json_message['Log']['model'] == "Attribute" and json_message['Log']['action'] == "delete":
                 # delete of attribute
                 attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
-                if attrib_type in ip_misp_types:
+                if attrib_type in IP_MISP_TYPES:
                     attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
                     event_id = re_event_id_title.search(json_message['Log']['title']).group(1)
                     # remove the event from 'misp_events' array
@@ -395,7 +400,7 @@ def receive_events():
             elif json_message['Log']['model'] == "Attribute" and json_message['Log']['action'] == "edit":
                 # edit of attribute
                 attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
-                if attrib_type in ip_misp_types:
+                if attrib_type in IP_MISP_TYPES:
                     event_id = re_event_id_title.search(json_message['Log']['title']).group(1)
                     attrib_id = re_attrib_id_title.search(json_message['Log']['title']).group(1)
                     attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
@@ -406,7 +411,7 @@ def receive_events():
                 # change looks like: "to_ids () => (1), distribution () => (5), type () => (hostname)..."
                 attrib = json_message['Log']['change']
                 attrib_type = re_attrib_type_change.search(attrib).group(1)
-                if attrib_type in ip_misp_types:
+                if attrib_type in IP_MISP_TYPES:
                     event_id = re_event_id_change.search(json_message['Log']['change']).group(1)
                     attrib_id = json_message['Log']['model_id']
                     attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
@@ -416,7 +421,7 @@ def receive_events():
             # sighting edit
             sighting = json_message['Sighting']
             # was it sighting of an ip address?
-            if sighting['Attribute']['type'] in ip_misp_types:
+            if sighting['Attribute']['type'] in IP_MISP_TYPES:
                 process_sighting_notification(sighting)
 
 

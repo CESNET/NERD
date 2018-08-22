@@ -14,7 +14,6 @@ import sys
 sys.path.insert(0, '..')
 from common.config import read_config
 import NERDd.core.mongodb as mongodb
-from misp_keys import misp_key, misp_url
 from common.task_queue import TaskQueue
 
 
@@ -31,15 +30,23 @@ parser.add_argument("--cert", required=False, dest="cert", action="store", defau
                     help="Self signed certificate of MISP instance")
 args = parser.parse_args()
 
-misp_inst = PyMISP(misp_url, misp_key, args.cert, 'json')
-
 # db config
-config = read_config("../etc/nerdd.yml")
+config = read_config("../etc/nerd.yml")
 
 db = mongodb.MongoEntityDatabase(config)
 
 # task queue init
 tq = TaskQueue(config.get('rabbitmq', {}))
+
+# load MISP instance configuration
+try:
+    misp_key = config['misp']['key']
+    misp_url = config['misp']['url']
+except KeyError:
+    logging.error("Missing configuration of MISP instance in the configuration file!")
+    sys.exit(1)
+
+misp_inst = PyMISP(misp_url, misp_key, args.cert, 'json')
 
 LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
 LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
@@ -51,6 +58,7 @@ logger = logging.getLogger('MISP_updater')
 error_ip = {}
 
 SIGHTING_DICT = {'0': "positive", '1': "false positive", '2': "expired attribute"}
+THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
 
 
 def get_ip_from_rec(ip_str, position=None):
@@ -60,8 +68,7 @@ def get_ip_from_rec(ip_str, position=None):
     :param position: position of ip_address in case of composite record ("domain|ip" --> 1)
     :return: List of ip addresses
     """
-    ip_list_raw = ip_str.text.split("\n")
-    ip_list_raw.remove("")
+    ip_list_raw = ip_str.text.splitlines()
     # if position, have to split record (domain|ip)
     if position is not None:
         ip_list = []
@@ -78,7 +85,7 @@ def get_ip_from_rec(ip_str, position=None):
 def get_all_ip():
     """
     Get all IP addresses from MISP instance
-    :return: two lists of source IP addresses and destination IP addresses
+    :return: two sets of source IP addresses and destination IP addresses
     """
     # get all ip addresses from
     try:
@@ -88,27 +95,16 @@ def get_all_ip():
         dom_ip = misp_inst.get_all_attributes_txt("domain|ip")
         ip_src_port = misp_inst.get_all_attributes_txt("ip-src|port")
         ip_dst_port = misp_inst.get_all_attributes_txt("ip-dst|port")
-    except ConnectionError:
-        logger.error("Cannot connect to MISP instance!")
-        exit(1)
+    except ConnectionError as e:
+        logger.error("Cannot connect to MISP instance: " + str(e))
+        sys.exit(1)
 
     # remove duplicity with set and convert to list again, get_ip_from_rec(ip_src_port, 0) -- 0 because ip address is
     # at index 0 after split ("192.168.1.1|2715"), the same for ip_dst|port and domain|ip
-    ip_src_all = list(set(get_ip_from_rec(ip_src) + get_ip_from_rec(ip_src_port, 0)))
-    ip_dst_all = list(set(get_ip_from_rec(dom_ip, 1) + get_ip_from_rec(ip_dst_port, 0) + get_ip_from_rec(ip_dst)))
+    ip_src_all = set(get_ip_from_rec(ip_src) + get_ip_from_rec(ip_src_port, 0))
+    ip_dst_all = set(get_ip_from_rec(dom_ip, 1) + get_ip_from_rec(ip_dst_port, 0) + get_ip_from_rec(ip_dst))
 
     return ip_src_all, ip_dst_all
-
-
-def threat_level_num_to_word(threat_level):
-    if threat_level == "1":
-        return "High"
-    elif threat_level == "2":
-        return "Medium"
-    elif threat_level == "3":
-        return "Low"
-    elif threat_level == "4":
-        return "Undefined"
 
 
 def check_src_dst(attrib_list, ip_addr):
@@ -148,14 +144,13 @@ def create_new_event(event, role, ip_addr):
         'info': event['info'],
         'sightings': {'positive': 0, 'false positive': 0, 'expired attribute': 0},
         'date': datetime.datetime.fromtimestamp(int(event['publish_timestamp'])),
-        'threat_level': threat_level_num_to_word(event['threat_level_id']),
+        'threat_level': THREAT_LEVEL_DICT[event['threat_level_id']],
         'last_change': datetime.datetime.fromtimestamp(int(event['timestamp']))
     }
 
     # get sighting count, find the right attribute, carrying this ip address and its sighting list
     try:
-        kwargs = {'eventid': event['id'], 'values': ip_addr}
-        attrib = misp_inst.search(controller='attributes', **kwargs)
+        attrib = misp_inst.search(controller='attributes', eventid=event['id'], values=ip_addr)
         try:
             attrib_id = int(attrib['response']['Attribute'][0]['id'])
         except KeyError:
@@ -173,22 +168,19 @@ def create_new_event(event, role, ip_addr):
         logger.error("Cannot connect to MISP instance: " + str(e))
         error_ip[ip_addr] = role
         return None
-    
 
     # get name and colour Tags on event level
     for tag in event.get('Tag', []):
         if not tag['name'].startswith("tlp"):
             new_event['tag_list'].append({'name': tag['name'], 'colour': tag['colour']})
+        else:
+            # tlp:white
+            new_event['tlp'] = tag['name'][4:0]
 
-    # get TLP from event, example: tlp:red
-    for tag in event.get('Tag', []):
-        if tag['name'][0:3] == "tlp":
-            new_event['tlp'] = tag['name'][4:]
-            break
     return new_event
 
 
-def proccess_ip(ip_addr, role):
+def process_ip(ip_addr, role):
     """
     Find all events corresponding to the ip_addr and insert them to NERD
     :param ip_addr: actual ip_address
@@ -197,14 +189,15 @@ def proccess_ip(ip_addr, role):
     """
     # check ip record in DB
     db_entity = db.get("ip", ip_addr)
-
+    misp_events_response = misp_inst.search(controller='events', values=ip_addr)
     try:
-        kwargs = {'values': ip_addr}
-        misp_events = misp_inst.search(controller='events', **kwargs)['response']
-        # misp_events = misp_inst.search_all(ip_addr)['response']
-    except ConnectionError or KeyError:
-        # key error occurs, when cannot connect and trying to access to ['response'] key
-        logger.error("Cannot connect to MISP instance!")
+        misp_events = misp_events_response['response']
+    except KeyError:
+        logger.error("Unexpected response: " + str(misp_events_response))
+        error_ip[ip_addr] = role
+        return None
+    except ConnectionError as e:
+        logger.error("Cannot connect to MISP instance: " + str(e))
         error_ip[ip_addr] = role
         return None
 
@@ -216,19 +209,15 @@ def proccess_ip(ip_addr, role):
             events.append(new_event)
 
     if events:
-        # compare 'misp_events' attrib from NERD and compare it with events list, if same do not insert, else insert
-        if db_entity:
-            pairs = zip(db_entity.get('misp_events', {}), events)
-            # if misp_events and events are not the same, then insert
-            if not [(x, y) for x, y in pairs if x != y]:
-                # construct new update request
+        if db_entity is not None:
+            # compare 'misp_events' attrib from NERD with events list, if not same --> insert, else do not insert
+            if db_entity.get('misp_events', {}) != events:
+                # construct new update request and send it
                 update_requests = [('set', 'misp_events', events)]
-                # send new update request
                 tq.put_update_request('ip', ip_addr, update_requests)
         else:
-            # ip address not even in NERD --> insert it, construct new update request
+            # ip address not even in NERD --> insert it
             update_requests = [('set', 'misp_events', events)]
-            # send new update request
             tq.put_update_request('ip', ip_addr, update_requests)
 
 
@@ -237,7 +226,7 @@ def main():
 
     ip_src, ip_dst = get_all_ip()
 
-    ip_all = ip_src + ip_dst
+    ip_all = ip_src.union(ip_dst)
     logger.info("Loaded {} src IPs and {} dst IPs.".format(len(ip_src), len(ip_dst)))
 
     # get all IPs with 'misp_events' attribute from NERD
@@ -245,9 +234,7 @@ def main():
     db_ip_misp_events = db.find('ip', {'misp_events': {'$exists': True, '$not': {'$size': 0}}})
 
     # find all IPs that are in NERD but not in MISP anymore
-    for ip in db_ip_misp_events:
-        if ip in ip_all:
-            db_ip_misp_events.remove(ip)
+    db_ip_misp_events = set(db_ip_misp_events) - ip_all
 
     # remove all 'misp_events' attributes that are in NERD but not in MISP
     if db_ip_misp_events:
@@ -261,16 +248,16 @@ def main():
     for ip_addr in ip_src:
         # cProfile.runctx("proccess_ip(ip_addr, \"src\")", {}, {'ip_addr': ip_addr, 'proccess_ip': proccess_ip})
         #logger.debug(ip_addr)
-        proccess_ip(ip_addr, "src")
+        process_ip(ip_addr, "src")
     
     # go through every destination ip
     for ip_addr in ip_dst:
         #logger.debug(ip_addr)
-        proccess_ip(ip_addr, "dst")
+        process_ip(ip_addr, "dst")
 
     # try to process IPs, which was not processed correctly
     for ip_addr, role in error_ip.items():
-        proccess_ip(ip_addr, role)
+        process_ip(ip_addr, role)
 
     logger.info("Done")
 
