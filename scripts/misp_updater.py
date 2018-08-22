@@ -189,15 +189,15 @@ def process_ip(ip_addr, role):
     """
     # check ip record in DB
     db_entity = db.get("ip", ip_addr)
-    misp_events_response = misp_inst.search(controller='events', values=ip_addr)
     try:
+        misp_events_response = misp_inst.search(controller='events', values=ip_addr)
         misp_events = misp_events_response['response']
-    except KeyError:
-        logger.error("Unexpected response: " + str(misp_events_response))
-        error_ip[ip_addr] = role
-        return None
     except ConnectionError as e:
         logger.error("Cannot connect to MISP instance: " + str(e))
+        error_ip[ip_addr] = role
+        return None
+    except KeyError:
+        logger.error("Unexpected response: " + str(misp_events_response))
         error_ip[ip_addr] = role
         return None
 
