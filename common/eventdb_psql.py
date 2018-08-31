@@ -9,6 +9,7 @@ from __future__ import print_function
 import json
 import logging
 import datetime
+import base64
 
 import psycopg2
 from psycopg2.extras import Json, Inet, execute_values
@@ -118,6 +119,16 @@ class PSQLEventDatabase:
             
             return (id, sources, targets, detecttime, starttime, endtime, idea)
         
+        # Handle \u0000 characters in Attach.Content field.
+        # The \u0000 char can't be stored in PSQL - encode the attachment into base64
+        for idea in ideas:
+            for attachment in idea.get('Attach', []):
+                if 'Content' in attachment and 'ContentEncoding' not in attachment and '\u0000' in attachment['Content']:
+                    self.log.info("Attachment of IDEA message {} contains '\\u0000' char - converting attachment to base64.".format(idea.get('ID', '???')))
+                    # encode to bytes, then to b64 and back to str
+                    attachment['Content'] = str(base64.b64encode(str(attachment['Content']).encode('utf-8')))
+                    attachment['ContentEncoding'] = 'base64'
+
 #         values = []
 #         for idea in ideas:
 #             val = idea2values(idea)
