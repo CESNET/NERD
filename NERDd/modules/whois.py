@@ -396,7 +396,7 @@ class WhoIS(NERDModule):
         actions = []
         actions.append(('set', 'rep', 0))
         if reserved:
-            actions.append(('set', 'rir', 'Reserved:' + rir))
+            actions.append(('set', 'rir', ('Reserved:' + rir) if rir else 'none'))
         else:
             actions.append(('set', 'rir', rir))
 
