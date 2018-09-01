@@ -25,12 +25,14 @@ from wtforms import validators, TextField, TextAreaField, FloatField, IntegerFie
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 import common.eventdb_psql
 import common.config
+from shodan_rpc_client import ShodanRpcClient
 
 #import db
 import ctrydata
 import userdb
 import ratelimit
 from userdb import get_user_info, authenticate_with_token, generate_unique_token
+import pika
 
 # ***** Load configuration *****
 
@@ -1198,7 +1200,15 @@ def pdns_ip(ipaddr=None):
         return Response("[]", 200, mimetype='application/json')
     else:
         return Response(json.dumps({'status': 502, 'error': 'Bad Gateway: ' + json.dumps(response.json())}), 502, mimetype='application/json')
-    
+
+
+@app.route('/api/shodan-info/<ipaddr>', methods=['GET'])
+def get_shodan_response(ipaddr=None):
+    print("got an incoming request {}".format(ipaddr))
+    shodan_client = ShodanRpcClient()
+    data = json.loads(shodan_client.call(ipaddr))
+    # print("sending response \n{}".format(json.dumps(data, indent=2)))
+    return render_template('shodan_response.html', data=data)
 
 # **********
 
