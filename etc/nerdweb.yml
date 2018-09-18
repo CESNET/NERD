@@ -6,8 +6,7 @@ acl_config: acl
 
 # Secret key used by Flask for various security purposes
 # Set this to an arbitrary long-enough string, use e.g.:
-# >>> import os
-# >>> os.urandom(24)
+# head -c 24 /dev/urandom | base64
 secret_key: "!!! CHANGE THIS !!!"
 
 # Show "BETA" label over logo in web header
