@@ -1110,14 +1110,67 @@ def ip_search(full = False):
         for res in results:
             attach_whois_data(res, full)
             lres.append(get_basic_info_dic(res))
-        return Response(json.dumps(lres), 200, mimetype='text/plain')
+        return Response(json.dumps(lres), 200, mimetype='application/json')
 
     elif output == "list":
-        return Response('\n'.join(res['_id'] for res in results), 200, mimetype='application/json')
+        return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
     else:
         err['err_n'] = 400
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
+
+
+# ***** NERD bad prefix list *****
+# Return list of the worst BGP prefixes by their reutation score
+
+# class BadPrefixForm(FlaskForm):
+#     t = FloatField('Reputation score threshold', [validators.Optional(), validators.NumberRange(0, 1, 'Must be a number between 0 and 1')], default=0.01)
+#     limit = IntegerField('Max number of results', [validators.Optional()], default=100)
+
+@app.route('/api/v1/bad_prefixes')
+def bad_prefixes():
+    err = {}
+    ret = validate_api_request(request.headers.get("Authorization"))
+    if ret:
+        return ret
+
+    # Parse parameters (threshold, limit)
+#     form = BadPrefixForm(request.args)
+#     if not form.validate():
+#         err['err_n'] = 400
+#         err['error'] = 'Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items())
+#         return Response(json.dumps(err), 400, mimetype='application/json')
+#     t = form.t.data
+#     limit = form.limit.data
+    try:
+        t = float(request.args.get('t', 0.01))
+        limit = int(request.args.get('limit', 100))
+    except ValueError:
+        err['err_n'] = 400
+        err['error'] = 'Bad parameters'
+        return Response(json.dumps(err), 400, mimetype='application/json')
+    
+    # Get the list of prefixes from database
+    try:
+        cursor = mongo.db.bgppref.find({"rep": {"$gt": t}}, {"rep": 1}).sort("rep", -1).limit(limit)
+        results = list(cursor)
+    except pymongo.errors.ServerSelectionTimeoutError:
+        err['err_n'] = 503
+        err['error'] = 'Database connection error'
+        return Response(json.dumps(data), 503, mimetype='application/json')
+
+    # Prepare output
+    output = request.args.get('o', "json")
+    if output == "json":
+        res_list = [{'prefix': res['_id'], 'rep': res['rep']} for res in results]
+        return Response(json.dumps(res_list), 200, mimetype='application/json')
+    elif output == "text":
+        return Response('\n'.join(res['_id']+'\t'+str(res['rep']) for res in results), 200, mimetype='text/plain')
+    else:
+        err['err_n'] = 400
+        err['error'] = 'Unrecognized value of output parameter: ' + output
+        return Response(json.dumps(err), 400, mimetype='application/json')
+
 
 """
 ***** NERD API Bulk IP Reputation *****
