@@ -126,10 +126,16 @@ class PSQLEventDatabase:
         # The \u0000 char can't be stored in PSQL - encode the attachment into base64
         for idea in ideas:
             for attachment in idea.get('Attach', []):
+                # TEMPORARY/FIXME:
+                # one detector sends 'data' instead of 'Content', fix it:
+                if 'data' in attachment and not 'Content' in attachment:
+                    attachment['Content'] = attachment['data']
+                    del attachment['data']
+
                 if 'Content' in attachment and 'ContentEncoding' not in attachment and '\u0000' in attachment['Content']:
                     self.log.info("Attachment of IDEA message {} contains '\\u0000' char - converting attachment to base64.".format(idea.get('ID', '???')))
                     # encode to bytes, then to b64 and back to str
-                    attachment['Content'] = str(base64.b64encode(str(attachment['Content']).encode('utf-8')))
+                    attachment['Content'] = base64.b64encode(str(attachment['Content']).encode('utf-8')).decode('ascii')
                     attachment['ContentEncoding'] = 'base64'
 
 #         values = []
