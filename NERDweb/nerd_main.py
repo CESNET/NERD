@@ -1102,7 +1102,7 @@ def ip_search(full = False):
     except pymongo.errors.ServerSelectionTimeoutError:
         err['err_n'] = 503
         err['error'] = 'Database connection error'
-        return Response(json.dumps(data), 503, mimetype='application/json')
+        return Response(json.dumps(err), 503, mimetype='application/json')
 
     output = request.args.get('o', "json")
     if output == "json":
@@ -1119,6 +1119,64 @@ def ip_search(full = False):
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
 
+
+# ***** Get summary info about IPs in given prefix *****
+# Return:
+#  - average reputation score of the prefix (sum of rep of present addresses divided by prefix size)
+#  - number of IPs in the DB in the prefix
+#  - list of the IPs
+# FIXME: currently only /24 prefixes are supported
+
+@app.route('/api/v1/prefix/<prefix>/<length>')
+def prefix(prefix, length):
+    err = {}
+    ret = validate_api_request(request.headers.get("Authorization"))
+    if ret:
+        return ret
+    
+    # Check parameters
+    try:
+        network = ipaddress.IPv4Network(prefix + '/' + length, strict=False)
+    except ValueError:
+        err['err_n'] = 400
+        err['error'] = 'Bad parameters: invalid prefix'
+        return Response(json.dumps(err), 400, mimetype='application/json')
+#     if network.prefixlen < 16:
+#         err['err_n'] = 400
+#         err['error'] = 'Bad parameters: the shortest supported prefix is /16')
+#         return Response(json.dumps(err), 400, mimetype='application/json')
+    if network.prefixlen not in (16, 24):
+        err['err_n'] = 400
+        err['error'] = 'Bad parameters: only /16 and /24 prefixes are currently supported'
+        return Response(json.dumps(err), 400, mimetype='application/json')
+    
+    # Get list of all IPs from DB matching the prefix
+    str_prefix = str(network.network_address) # get network address and remove ".0" from the end
+    str_prefix = '.'.join(str_prefix.split('.')[:(3 if network.prefixlen == 24 else 2)])
+    str_prefix_end = str_prefix[:-1] + chr(ord(str_prefix[-1])+1)
+    query = {'$and': [{'_id': {'$gte': str_prefix}}, {'_id': {'$lt': str_prefix_end}}]}
+    try:
+        results = mongo.db.ip.find(query)
+        results = list(results)
+    except pymongo.errors.ServerSelectionTimeoutError:
+        err['err_n'] = 503
+        err['error'] = 'Database connection error'
+        return Response(json.dumps(err), 503, mimetype='application/json')
+    
+    # Create a summary record
+    sum_rep = 0.0
+    ips = []
+    for rec in results:
+        sum_rep += rec.get('rep', 0.0)
+        ips.append(rec['_id'])
+
+    result = {
+        'rep': sum_rep / network.num_addresses,
+        'num_ips': len(results),
+        'ips': ips,
+    }
+    return Response(json.dumps(result), 200, mimetype='application/json')
+    
 
 # ***** NERD bad prefix list *****
 # Return list of the worst BGP prefixes by their reutation score
@@ -1157,7 +1215,7 @@ def bad_prefixes():
     except pymongo.errors.ServerSelectionTimeoutError:
         err['err_n'] = 503
         err['error'] = 'Database connection error'
-        return Response(json.dumps(data), 503, mimetype='application/json')
+        return Response(json.dumps(err), 503, mimetype='application/json')
 
     # Prepare output
     output = request.args.get('o', "json")
