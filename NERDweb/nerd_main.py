@@ -296,6 +296,7 @@ def main():
 class AccountRequestForm(FlaskForm):
     email = TextField('Contact email', [validators.Required()], description='Used to send information about your request and in case admins need to contact you.')
     message = TextAreaField("", [validators.Optional()])
+    action = HiddenField('action')
 
 @app.route('/noaccount', methods=['GET','POST'])
 def noaccount():
@@ -312,7 +313,7 @@ def noaccount():
         form.email.data = g.user['email'].split(';')[0]
     
     request_sent = False
-    if form.validate():
+    if form.validate() and form.action.data == 'request_account':
         # Check presence of config login.request-email
         if not config.get('login.request-email', None):
             return make_response("ERROR: No destination email address configured. This is a server configuration error. Please, report this to NERD administrator if possible.")

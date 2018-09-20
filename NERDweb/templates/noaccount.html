@@ -18,7 +18,8 @@
 {{ form.csrf_token }}
 Message (optional; in case you did not talk with NERD admins yet, tell us who you are and why you need the account)<br>
 {{ form.message(cols="80", rows="3") }}<br>
-{{ form.email.label() }} {{ form.email(type="email", title=form.email.description, style="margin-top: 0.5em;") }}<br>
+{{ form.email.label() }} {{ form.email(type="email", title=form.email.description, style="margin-top: 0.5em;") }}
+{{ form.action(value="request_account") }}<br>
 <input type="submit" value="Request account" style="margin-top: 0.5em;">
 </form>
 {% endif %}
