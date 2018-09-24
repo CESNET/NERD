@@ -165,6 +165,7 @@ class PSQLEventDatabase:
         except Exception as e:
             self.log.error(str(e))
             if len(values) == 1:
+                self.db.rollback()
                 return
             # If there was more than one message in the batch, try it again, one-by-one
             self.log.error("There was an error during inserting a batch of {} IDEA messages, performing rollback of the transaction and trying to put the messages one-by-one (expect repetition of the error message) ...".format(len(values)))
