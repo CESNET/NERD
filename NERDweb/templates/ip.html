@@ -159,7 +159,7 @@ $(document).ready(function () {
   url = "{{ url_for('get_shodan_response', ipaddr=ip) }}";
   $.get(url, function (data) {
       $("#shodan-info").html(data);
-  });
+  }).fail( function( jqXHR, textStatus, errorThrown) { $("#shodan-info").text("ERROR: " + jqXHR.responseText); } );
 });
 </script>
 

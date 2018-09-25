@@ -32,7 +32,6 @@ import ctrydata
 import userdb
 import ratelimit
 from userdb import get_user_info, authenticate_with_token, generate_unique_token
-import pika
 
 # ***** Load configuration *****
 
@@ -1207,7 +1206,6 @@ def get_shodan_response(ipaddr=None):
     print("got an incoming request {}".format(ipaddr))
     shodan_client = ShodanRpcClient()
     data = json.loads(shodan_client.call(ipaddr))
-    # print("sending response \n{}".format(json.dumps(data, indent=2)))
     return render_template('shodan_response.html', data=data)
 
 # **********

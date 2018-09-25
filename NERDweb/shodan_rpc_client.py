@@ -1,8 +1,6 @@
 import pika
 import uuid
-import codecs
 
-reader = codecs.getreader("utf-8")
 
 class ShodanRpcClient(object):
     def __init__(self):
