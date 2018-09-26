@@ -9,6 +9,7 @@ from __future__ import print_function
 import json
 import logging
 import datetime
+import base64
 
 import psycopg2
 from psycopg2.extras import Json, Inet, execute_values
@@ -120,7 +121,23 @@ class PSQLEventDatabase:
         
         # TODO print number of messages in bunch - to check it's really being used
         print("Inserting a batch of {:3d} messages into EventDB".format(len(ideas)), end="\r")
-        
+
+        # Handle \u0000 characters in Attach.Content field.
+        # The \u0000 char can't be stored in PSQL - encode the attachment into base64
+        for idea in ideas:
+            for attachment in idea.get('Attach', []):
+                # TEMPORARY/FIXME:
+                # one detector sends 'data' instead of 'Content', fix it:
+                if 'data' in attachment and not 'Content' in attachment:
+                    attachment['Content'] = attachment['data']
+                    del attachment['data']
+
+                if 'Content' in attachment and 'ContentEncoding' not in attachment and '\u0000' in attachment['Content']:
+                    self.log.info("Attachment of IDEA message {} contains '\\u0000' char - converting attachment to base64.".format(idea.get('ID', '???')))
+                    # encode to bytes, then to b64 and back to str
+                    attachment['Content'] = base64.b64encode(str(attachment['Content']).encode('utf-8')).decode('ascii')
+                    attachment['ContentEncoding'] = 'base64'
+
 #         values = []
 #         for idea in ideas:
 #             val = idea2values(idea)
@@ -148,6 +165,7 @@ class PSQLEventDatabase:
         except Exception as e:
             self.log.error(str(e))
             if len(values) == 1:
+                self.db.rollback()
                 return
             # If there was more than one message in the batch, try it again, one-by-one
             self.log.error("There was an error during inserting a batch of {} IDEA messages, performing rollback of the transaction and trying to put the messages one-by-one (expect repetition of the error message) ...".format(len(values)))

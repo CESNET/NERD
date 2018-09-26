@@ -3,7 +3,7 @@
 
 {% if user %}
 <div id="login-prompt-outer">
-<img id="login-logo" src="{{ url_for('static', filename='nerd_logo_350.png') }}" width="350" height="179" alt="NERD logo">
+<img id="login-logo" src="{{ url_for('static', filename='nerd_logo_350.png') }}" width="233" height="119" alt="NERD logo">
 <div id="login-box" class="account-request">
 <h1>No account</h1>
 <p>You have authenticated as "{{ user.id }}" ({{ user.name }}), but there is no account registered for this name (yet).</p>
@@ -13,17 +13,24 @@
 <p>You will be notified to {{ form.email.data }} when the account is created.</p>
 </div>
 {% else %}
-<p>You can request creation of a new account below:</p>
+<p>You can request creation of a new account below.</p>
+<div style="background: #ffffaa; font-size: 1.25em; padding: 0.5em 1em; text-align: left; max-width: 90%; margin: 0 auto 1em auto">Note: An account is currently only needed to:<br>
+<ul>
+<li>Access the <a href="https://github.com/CESNET/NERD/wiki/RESTful-API">API</a><br>
+<li>Enable privileged access to see some sensitive information (i.e. more details about detected events). This is available only to trusted partners from CSIRT community.<br>
+</ul>
+If none of the above applies to you, there's no need to have an account and you can keep using NERD anonymously.
+</div>
 <form action="{{ url_for('noaccount') }}" method="POST">
 {{ form.csrf_token }}
-Message (optional; in case you did not talk with NERD admins yet, tell us who you are and why you need the account)<br>
+Message (optional; in case you did not talk with NERD admins yet, tell us who you are and why do you need the account)<br>
 {{ form.message(cols="80", rows="3") }}<br>
-{{ form.email.label() }} {{ form.email(type="email", title=form.email.description, style="margin-top: 0.5em;") }}<br>
+{{ form.email.label() }} {{ form.email(type="email", title=form.email.description, style="margin-top: 0.5em;") }}
+{{ form.action(value="request_account") }}<br>
 <input type="submit" value="Request account" style="margin-top: 0.5em;">
 </form>
 {% endif %}
-<p style="font-size: 1.0em;">Note that accounts are created for trusted people only and requests must be manually approved.
-It is expected that you have already talked to NERD admins before requesting an account.</p>
+<p style="font-size: 1.0em;">Note that an account request have to be manually approved.</p>
 </div>
 </div>
 

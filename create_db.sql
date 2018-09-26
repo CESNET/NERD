@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 -- testing users
 INSERT INTO users (id,groups,name,email,rl_bs,rl_tps) VALUES ('devel:devel_user','{"admin","registered","test"}','Mr. Test','test@example.org',1,'Infinity') ON CONFLICT DO NOTHING;
-#INSERT INTO users (id,groups,name,api_token) VALUES ('api_user','{"registered"}','API_USER','Wj09BuhVMi') ON CONFLICT DO NOTHING;
+-- INSERT INTO users (id,groups,name,api_token) VALUES ('api_user','{"registered"}','API_USER','TOKEN') ON CONFLICT DO NOTHING;
 
 
 ------ event database (IDEA messages) ------
