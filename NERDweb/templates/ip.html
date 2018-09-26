@@ -24,6 +24,14 @@
 <p class="header"><span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">
   {{- "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span><span class="entity-id">{{ ip }}</span><span class="entity-name">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
 
+<div class="float-box shodan">
+  <div class="title">Shodan<span class="side-link">(<a href="https://www.shodan.io/search?query={{ ip }}">more info</a>)</span></div>
+  <div id="shodan-info" class="content">
+    {#  this is filled by javascript  #}
+    <div class="loading"><img class="load-spinner-small" src="{{ url_for('static', filename='spin.gif') }}"></div>
+  </div>
+</div>
+
 <div class="float-box pdns">
 <div class="title">Passive DNS<span class="help" title="DNS resolutions involving this IP address observed at CESNET DNS servers. Format: <rr_type> <hostname> <first seen> <last seen> <number of observations>"></span></div>
 <div id="pdns_data" class="content"><div class="loading"><img class="load-spinner-small" src="{{ url_for('static', filename='spin.gif') }}"></div></div>
@@ -127,14 +135,8 @@ $("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}");
 </div>
 {% endif %}
 
-<h2>Shodan info</h2>
-<div id="shodan-info">
-    {#  this is filled by javascript  #}
-    <div class="loading"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}"></div>
-</div>
-
 <script>
-// Load passive DNS data
+// Load passive DNS and Shodan data
 $(document).ready(function () {       
   var url = "{{ url_for('pdns_ip', ipaddr=ip) }}";  
   $.getJSON(url, function(response,status) {
@@ -156,6 +158,7 @@ $(document).ready(function () {
       $("#pdns_data").css("text-align", "center")
     }
   }).fail( function( jqXHR, textStatus, errorThrown) { $("#pdns_data").text("ERROR: " + jqXHR.responseText); } );
+  
   url = "{{ url_for('get_shodan_response', ipaddr=ip) }}";
   $.get(url, function (data) {
       $("#shodan-info").html(data);
