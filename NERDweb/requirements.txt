@@ -9,3 +9,4 @@ Flask-Mail
 psycopg2
 redis
 hiredis
+cachetools

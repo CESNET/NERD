@@ -1,0 +1,8 @@
+{% if not data.error %}
+    <dt>Ports:</dt>
+    {% for val in data.ports %}
+        <dd>{{ val }}</dd>
+    {% endfor %}
+{% else %}
+    <p>Error while requesting shodan api: {{ data.error }}</p>
+{% endif %}
