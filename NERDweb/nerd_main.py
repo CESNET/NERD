@@ -794,14 +794,15 @@ def org(org=None):
     if g.ac('orgsearch'):
         title = org
         rec = mongo.db.org.find_one({'_id': org})
-        rec['ipblocks'] = []
-        rec['asns'] = []
-        cursor = mongo.db.ipblock.find({'org': org}, {'_id': 1})
-        for val in cursor:
-            rec['ipblocks'].append(val['_id'])
-        cursor = mongo.db.asn.find({'org': org}, {'_id': 1})
-        for val in cursor:
-            rec['asns'].append(val['_id'])
+        if rec is not None:
+            rec['ipblocks'] = []
+            rec['asns'] = []
+            cursor = mongo.db.ipblock.find({'org': org}, {'_id': 1})
+            for val in cursor:
+                rec['ipblocks'].append(val['_id'])
+            cursor = mongo.db.asn.find({'org': org}, {'_id': 1})
+            for val in cursor:
+                rec['asns'].append(val['_id'])
     else:
         flash('Insufficient permissions to search/view Organizations.', 'error')
     return render_template('org.html', ctrydata=ctrydata, **locals())
@@ -816,15 +817,16 @@ def org(org=None):
 def bgppref(bgppref=None):
     bgppref = bgppref.replace('_','/')
     
-    if not org:
+    if not bgppref:
         return make_response("ERROR: No BGP Prefix given.")
     if g.ac('bgpprefsearch'):
-        title = org
+        title = bgppref
         rec = mongo.db.bgppref.find_one({'_id': bgppref})
-        cursor = mongo.db.ip.find({'bgppref': bgppref}, {'_id': 1})
-        rec['ips'] = []
-        for val in cursor:
-            rec['ips'].append(val['_id'])
+        if rec is not None:
+            cursor = mongo.db.ip.find({'bgppref': bgppref}, {'_id': 1})
+            rec['ips'] = []
+            for val in cursor:
+                rec['ips'].append(val['_id'])
     else:
         flash('Insufficient permissions to search/view BGP prefixes.', 'error')
     return render_template('bgppref.html', ctrydata=ctrydata, **locals())
@@ -1315,7 +1317,7 @@ def pdns_ip(ipaddr=None):
 
 @app.route('/api/shodan-info/<ipaddr>', methods=['GET'])
 def get_shodan_response(ipaddr=None):
-    print("got an incoming request {}".format(ipaddr))
+    #print("(Shodan) got an incoming request {}".format(ipaddr))
     shodan_client = ShodanRpcClient()
     data = json.loads(shodan_client.call(ipaddr))
     return render_template('shodan_response.html', data=data)
