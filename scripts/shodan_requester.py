@@ -27,9 +27,14 @@ def get_shodan_data(ip):
             cache[ip] = resp.content
             data = resp.content
         else:
-            print("Error response for url: {}\n{}".format(url, resp.content))
-            response_dict = json.loads(resp.text)
+            if resp.status_code != 404:
+                print("Error response for url: {}\n{}".format(url, resp.content))
+            try:
+                response_dict = json.loads(resp.text)
+            except Exception:
+                return json.dumps({"error": "Shodan returned invalid response"})
             data = json.dumps({"error": response_dict["error"] if "error" in response_dict else "Unknown error"})
+
     return data
 
 def on_request(ch, method, props, body):
