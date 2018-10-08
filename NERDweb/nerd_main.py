@@ -226,10 +226,40 @@ def logout():
 
 # ***** Functions called for each request *****
 
+API_RESPONSE_403 = Response(
+    json.dumps({'err_n' : 403, 'error' : "Unauthorized"}), # TODO: recognize different error states? (e.g. "user not authenticated" and "not authorized to use this endpoint")
+    403,
+    mimetype='application/json'
+)
+
 @app.before_request
 def store_user_info():
     """Store user info to 'g' (request-wide global variable)"""
-    g.user, g.ac = get_user_info(session)
+    if request.path.startswith("/api/v1/"):
+        # API authentication using token
+        auth = request.headers.get("Authorization")
+        if not auth:
+            return API_RESPONSE_403
+
+        # Extract token from Authorization header. Two formats may be used:
+        #   Authorization: asdf1234qwer
+        #   Authorization: token asdf1234qwer
+        vals = auth.split()
+        if len(vals) == 1:
+            token = vals[0]
+        elif len(vals) == 2 and vals[0] == "token":
+            token = vals[1]
+        else:
+            return API_RESPONSE_403
+
+        g.user, g.ac = authenticate_with_token(token)
+        if not g.user:
+            return API_RESPONSE_403
+
+    else:
+        # Normal authentication using session cookie
+        g.user, g.ac = get_user_info(session)
+
 
 @app.before_request
 def rate_limit():
@@ -271,8 +301,10 @@ def rate_limit():
 @app.after_request
 def add_user_header(resp):
     # Set user ID to a special header, it's used to put user ID to Apache logs
-    if g.user:
+    try:
         resp.headers['X-UserID'] = g.user['fullid']
+    except (AttributeError, KeyError, TypeError):
+        pass
     return resp
 
 
@@ -908,27 +940,22 @@ def iplist():
 
 # ****************************** API ******************************
 
-def validate_api_request(authorization):
+@app.route('/api/v1/user_info')
+def api_user_info():
+    """Return account information if user is successfully authenticated"""
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
     data = {
-        'err_n' : 403,
-        'error' : "Unauthorized",
+        'userid': g.user.get('fullid'),
+        'name': g.user.get('name', ''),
+#         'email': g.user.get('email', ''),
+#         'org': g.user.get('org', ''),
+        'groups': list(g.user.get('groups', [])),
+        'rate-limit-bucket-size': g.user.get('rl-bs') or rate_limiter.def_bucket_size,
+        'rate-limit-tokens-per-sec': g.user.get('rl-tps') or rate_limiter.def_tokens_per_sec,
     }
+    return Response(json.dumps(data), 200, mimetype='application/json')
 
-    auth = request.headers.get("Authorization")
-    if not auth:
-        return Response(json.dumps(data), 403, mimetype='application/json')
-
-    if auth.find(' ') != -1:
-        vals = auth.split()
-        user, ac = authenticate_with_token(vals[1])
-        if vals[0] != "token" or not user or not ac('ipsearch'):
-            return Response(json.dumps(data), 403, mimetype='application/json')
-    else:
-        user, ac = authenticate_with_token(auth)
-        if not user or not ac('ipsearch'):
-            return Response(json.dumps(data), 403, mimetype='application/json')
-
-    return None
 
 def get_ip_info(ipaddr, full):
     data = {
@@ -1026,9 +1053,8 @@ def get_basic_info_dic(val):
 
 @app.route('/api/v1/ip/<ipaddr>')
 def get_basic_info(ipaddr=None):
-    ret = validate_api_request(request.headers.get("Authorization"))
-    if ret:
-        return ret
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
 
     ret, val = get_ip_info(ipaddr, False)
     if not ret:
@@ -1042,9 +1068,8 @@ def get_basic_info(ipaddr=None):
 
 @app.route('/api/v1/ip/<ipaddr>/full')
 def get_full_info(ipaddr=None):
-    ret = validate_api_request(request.headers.get("Authorization"))
-    if ret:
-        return ret
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
 
     ret, val = get_ip_info(ipaddr, True)
     if not ret:
@@ -1084,10 +1109,8 @@ def get_full_info(ipaddr=None):
 @app.route('/api/v1/search/ip/')
 def ip_search(full = False):
     err = {}
-
-    ret = validate_api_request(request.headers.get("Authorization"))
-    if ret:
-        return ret
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
 
     form = IPFilterForm(request.args)
     if not form.validate():
@@ -1134,9 +1157,8 @@ def ip_search(full = False):
 @app.route('/api/v1/prefix/<prefix>/<length>')
 def prefix(prefix, length):
     err = {}
-    ret = validate_api_request(request.headers.get("Authorization"))
-    if ret:
-        return ret
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
     
     # Check parameters
     try:
@@ -1192,9 +1214,8 @@ def prefix(prefix, length):
 @app.route('/api/v1/bad_prefixes')
 def bad_prefixes():
     err = {}
-    ret = validate_api_request(request.headers.get("Authorization"))
-    if ret:
-        return ret
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
 
     # Parse parameters (threshold, limit)
 #     form = BadPrefixForm(request.args)
@@ -1248,9 +1269,8 @@ Returned data contain an octet stream. Each 8 bytes represent a double precision
 
 @app.route('/api/v1/ip/bulk/', methods=['POST'])
 def bulk_request():
-    ret = validate_api_request(request.headers.get("Authorization"))
-    if ret:
-        return ret
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
 
     ips = request.get_data()
 
@@ -1300,8 +1320,8 @@ def page_not_found(e):
 # ***** Passive DNS gateway *****
 @app.route('/pdns/ip/<ipaddr>', methods=['GET'])
 def pdns_ip(ipaddr=None):
-    if not ipaddr:
-        return Response(json.dumps({'status': 404, 'error': 'not found'}), 404, mimetype='application/json')        
+    if not g.ac('pdns'):
+        return API_RESPONSE_403
     try:
         response = requests.get('https://passivedns.cesnet.cz/pdns/ip/{}'.format(ipaddr))
     except requests.RequestException as e: # Connection error, just in case
@@ -1312,11 +1332,13 @@ def pdns_ip(ipaddr=None):
     elif response.status_code == 404: # Return "not found" as success, just with empty list
         return Response("[]", 200, mimetype='application/json')
     else:
-        return Response(json.dumps({'status': 502, 'error': 'Bad Gateway: ' + json.dumps(response.json())}), 502, mimetype='application/json')
+        return Response(json.dumps({'status': 502, 'error': 'Bad Gateway. Received response ({}): {}'.format(response.status_code, response.text)}), 502, mimetype='application/json')
 
 
 @app.route('/api/shodan-info/<ipaddr>', methods=['GET'])
 def get_shodan_response(ipaddr=None):
+    if not g.ac('shodan'):
+        return API_RESPONSE_403
     #print("(Shodan) got an incoming request {}".format(ipaddr))
     shodan_client = ShodanRpcClient()
     data = json.loads(shodan_client.call(ipaddr))

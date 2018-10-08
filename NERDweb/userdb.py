@@ -7,7 +7,7 @@ import psycopg2
 import sys
 from flask import flash
 
-__all__ = ['get_user_info', 'get_all_groups']
+__all__ = ['get_user_info', 'get_all_groups', 'authenticate_with_token', 'generate_unique_token']
 
 def init(config, cfg_dir):
     """
@@ -79,6 +79,8 @@ def get_ac_func(user_groups):
     return ac
 
 
+# TODO - split authentication and authorization/get_user_information
+
 def get_user_info(session):
     """
     Returun info about current user (or None if noone is logged in) and 
@@ -101,6 +103,7 @@ def get_user_info(session):
         return None, get_ac_func(set())
     
     # Get user info from DB
+    # TODO: get only what is normally needed (id, groups, name (to show in web header), rl-*)
     cur = db.cursor()
     cur.execute("SELECT * FROM users WHERE id = %s", (user['fullid'],))
     col_names = [col.name for col in cur.description]
@@ -132,13 +135,14 @@ def get_user_info(session):
 
 
 def authenticate_with_token(token):
+    """Like get_user_info, but authentication uses API token"""
     user = {}
     cur = db.cursor()
     cur.execute("SELECT * FROM users WHERE api_token = %s", (token,))
     col_names = [col.name for col in cur.description]
     row = cur.fetchone()
     if not row:
-        return None, lambda x: False
+        return None, lambda x: False # user not found
 
     col_names[0] = 'fullid' # rename column 'id' to 'fullid', other columns can be mapped directly as they are in DB
     user.update(zip(col_names, row))
