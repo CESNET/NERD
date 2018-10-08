@@ -10,7 +10,7 @@ rmq_creds = pika.PlainCredentials('guest', 'guest')
 rmq_params = pika.ConnectionParameters('localhost', 5672, '/', rmq_creds)
 connection = pika.BlockingConnection(rmq_params)
 channel = connection.channel()
-channel.queue_declare(queue='shodan_rpc_queue')
+channel.queue_declare(queue='shodan_rpc_queue', arguments={'x-message-ttl' : 30000}) # set ttl of messages to 30 sec
 
 # dictionary in format: { 'ipaddr': {ttl: time, data: data}}
 cache = TTLCache(maxsize=128, ttl=3600)
