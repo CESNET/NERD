@@ -3,7 +3,6 @@ NERD module
 """
 from core.basemodule import NERDModule
 import g
-import threading
 
 import logging
 import numpy as np
@@ -20,9 +19,21 @@ class FMP(NERDModule):
         for key, value in self.paths.items():
             if not os.path.exists(value):
                 os.makedirs(value)
-                os.makedirs(value + "result/")
+                os.makedirs(os.path.join(value, "results/"))
 
         np.set_printoptions(formatter={'float_kind': lambda x: "{:7.4f}".format(x)})
+        self.watched_bl = {
+            'tor' : 0,
+            'blocklist-de-ssh' : 1,
+            'uceprotect' : 2,
+            'sorbs-dul' : 3,
+            'sorbs-noserver' : 4,
+            'sorbs-spam' : 5,
+            'spamcop' : 6,
+            'spamhaus-pbl' : 7,
+            'spamhaus-pbl-isp' : 8,
+            'spamhaus-xbl-cbl': 9
+        }
 
         # Register all necessary handlers.
         g.um.register_handler(
@@ -38,10 +49,8 @@ class FMP(NERDModule):
             return None
 
         actions = []
-        watched_bl = set(['tor', 'blocklist-de-ssh', 'uceprotect', 'sorbs-dul', 'sorbs-noserver', 'sorbs-spam', 'spamcop', 'spamhaus-pbl', 'spamhaus-pbl-isp', 'spamhaus-xbl-cbl'])
 
-        feat_v = np.array([])
-        feat_v = np.resize(feat_v, 21)
+        feat_v = np.zeros(21)
         attacked = 0
 
         i = 0;
@@ -71,20 +80,17 @@ class FMP(NERDModule):
         # Last alert age
         feat_v[i] = (datetime.utcnow() - rec['ts_last_event']).total_seconds() / 86400
         if feat_v[i] > 7.0:
-            feat_v[i] = inf
+            feat_v[i] = float("inf")
         i += 1
 
         # Blacklists
         if 'bl' in rec:
             present_blacklists = rec['bl']
-            for bl in watched_bl:
-                for present_bl in present_blacklists:
-                    if present_bl['n'] == bl:
-                        feat_v[i] = 1
-                        break
-                i += 1
-        else:
-            i += len(watched_bl)
+            for bl in present_blacklists:
+                if bl in self.watched_bl.keys() and bl['v'] == "1":
+                    feat_v[i + self.watched_bl[bl]] = 1
+
+        i += len(self.watched_bl)
 
         # Hostname exists
         if 'hostname' in rec:
@@ -133,13 +139,13 @@ class FMP(NERDModule):
         prefix = logTime + ',' + ip + ','
         suffix = ",{:.4f}".format(fmp)
 
-        f = open(path + fileSuffix, 'a')
+        f = open(os.path.join(path, fileSuffix), 'a')
         fcntl.flock(f, fcntl.LOCK_EX)
         f.write(prefix + re.sub(r"[ \]\[]", r"", np.array2string(fv, max_line_width=1000, separator=',')) + suffix + '\n')
         fcntl.flock(f, fcntl.LOCK_UN)
         f.close()
 
-        f = open(path + 'result/' + fileSuffix, 'a')
+        f = open(os.path.join(path, 'results', fileSuffix), 'a')
         fcntl.flock(f, fcntl.LOCK_EX)
         f.write(prefix + attacked_bin + '\n')
         fcntl.flock(f, fcntl.LOCK_UN)
