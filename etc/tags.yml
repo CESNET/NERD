@@ -131,6 +131,11 @@ tags:
     # dynamic + dsl -> 0.95
     condition: "('dynamic' in hostname_class)*0.9 + ('dsl' in hostname_class and 'dynamic'
       in hostname_class)*0.05"
+  ip_in_hostname:
+    name: IP in hostname
+    description: The hostname includes partial or whole IP adress
+    tag_color: "#68b267"
+    condition: ('ip_in_hostname' in hostname_class)
 
   # Tags based on blacklists
 
