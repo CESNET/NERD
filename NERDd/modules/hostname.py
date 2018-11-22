@@ -94,11 +94,10 @@ class HostnameClass(NERDModule):
 
         # second simple implementation of ip in host check
         ip_in_host_prob = 0
-        for octet in key.split("."):
-            print(octet)
+        for octet in set(key.split(".")):
             if octet in hostname:
                 ip_in_host_prob += 25
-        if ip_in_host_prob >= 75:
+        if ip_in_host_prob >= 50:
             tags.append("ip_in_hostname")
 
         for regex in self.regex_hostname:
@@ -110,10 +109,11 @@ class HostnameClass(NERDModule):
                     ip_adress_matched = all([group in key for group in search.groups() if group])
                     if not ip_adress_matched:
                         continue
+
                 self.log.debug("Hostname ({}) matches regex {} and has been classified as {}.".format(hostname, regex[0].pattern, tag))
                 if tag not in tags:
                     tags.append(tag)
-        
+
         if tags:
             return [('set', 'hostname_class', tags)]
         else:
