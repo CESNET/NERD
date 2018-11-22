@@ -11,6 +11,8 @@ import re
 import os
 import fcntl
 
+import xgboost as xgb
+
 class FMP(NERDModule):
     def __init__(self):
         self.log = logging.getLogger("FMPmodule")
@@ -19,7 +21,19 @@ class FMP(NERDModule):
         for key, value in self.paths.items():
             if not os.path.exists(value):
                 os.makedirs(value)
+            if not os.path.exists(os.path.join(value, "results/")):
                 os.makedirs(os.path.join(value, "results/"))
+
+        self.modelsPaths = g.config.get("fmp.models", {"general" : "/data/fmp/models/general.bin"})
+        self.models = {}
+
+        # Can segfault in case of non-existing file
+        for key, value in self.modelsPaths.items():
+            if os.path.exists(value):
+                self.models[key] = xgb.Booster({'nthread': 4})
+                self.models[key].load_model(value)
+            else:
+                self.log.warning('Unable to find model file "{}"" for type "{}".'.format(value, key))
 
         np.set_printoptions(formatter={'float_kind': lambda x: "{:7.4f}".format(x)})
         self.watched_bl = {
@@ -37,50 +51,49 @@ class FMP(NERDModule):
 
         # Register all necessary handlers.
         g.um.register_handler(
-            self.updateFMP,
+            self.updateFMPGeneral,
             'ip',
             ('!every1d',),
             ('fmp',)
         )
 
-    def updateFMP(self, ekey, rec, updates):
+    def updateFMPGeneral(self, ekey, rec, updates):
         etype, ip = ekey
-        if etype != 'ip':
+        if etype != 'ip' or 'general' not in self.models.keys():
             return None
 
         actions = []
-
-        feat_v = np.zeros(21)
+        featV = np.zeros(21)
         attacked = 0
 
         i = 0;
         if 'events_meta' in rec:
             metadata = rec['events_meta']
             # Alerts 1d
-            feat_v[i] = attacked = metadata.get('total1', 0)
+            featV[i] = attacked = metadata.get('total1', 0)
             i += 1
             # Alerts 7d
-            feat_v[i] = metadata.get('total7', 0)
+            featV[i] = metadata.get('total7', 0)
             i += 1
             # Nodes 1d
-            feat_v[i] = metadata.get('nodes_1d', 0)
+            featV[i] = metadata.get('nodes_1d', 0)
             i += 1
             # Nodes 7d
-            feat_v[i] = metadata.get('nodes_7d', 0)
+            featV[i] = metadata.get('nodes_7d', 0)
             i += 1
             # Alerts EWMA
-            feat_v[i] = metadata.get('ewma', 0)
+            featV[i] = metadata.get('ewma', 0)
             i += 1
             # Binary Alerts EWMA
-            feat_v[i] = metadata.get('bin_ewma', 0)
+            featV[i] = metadata.get('bin_ewma', 0)
             i += 1
         else:
             i += 6
 
         # Last alert age
-        feat_v[i] = (datetime.utcnow() - rec['ts_last_event']).total_seconds() / 86400
-        if feat_v[i] > 7.0:
-            feat_v[i] = float("inf")
+        featV[i] = (datetime.utcnow() - rec['ts_last_event']).total_seconds() / 86400
+        if featV[i] > 7.0:
+            featV[i] = float("inf")
         i += 1
 
         # Blacklists
@@ -88,13 +101,13 @@ class FMP(NERDModule):
             present_blacklists = rec['bl']
             for bl in present_blacklists:
                 if bl in self.watched_bl.keys() and bl['v'] == "1":
-                    feat_v[i + self.watched_bl[bl]] = 1
+                    featV[i + self.watched_bl[bl]] = 1
 
         i += len(self.watched_bl)
 
         # Hostname exists
         if 'hostname' in rec:
-            feat_v[i] = 1
+            featV[i] = 1
             i += 1
 
             if 'tags' in rec:
@@ -102,21 +115,21 @@ class FMP(NERDModule):
 
                 # Static / dynamic IP
                 if 'staticIP' in tags:
-                    feat_v[i] = 1
+                    featV[i] = 1
                 elif 'dynamicIP' in tags:
-                    feat_v[i] = -1
+                    featV[i] = -1
 
                 i += 1
 
                 # DSL
                 if 'dsl' in tags:
-                    feat_v[i] = 1
+                    featV[i] = 1
 
                 i += 1
 
                 # IP in hostname
                 if 'ip_in_hostname' in tags:
-                    feat_v[i] = 1
+                    featV[i] = 1
 
                 i += 1
             else:
@@ -124,10 +137,11 @@ class FMP(NERDModule):
         else:
             i += 4
 
-        # TODO: load data model, process feature vector
-        #actions.append(('set', 'fmp.general', '...'))
+        dtest = xgb.DMatrix(np.array([featV]))
+        fmp = float(self.models['general'].predict(dtest))
+        actions.append(('set', 'fmp.general', fmp))
 
-        self.logFMP(ip, feat_v, 0.5, attacked, self.paths['general'])
+        self.logFMP(ip, featV, fmp, attacked, self.paths['general'])
 
         return actions
 
@@ -135,7 +149,7 @@ class FMP(NERDModule):
         curTime = datetime.utcnow()
         logTime = curTime.strftime("%Y-%m-%dT%H:%M:%S")
         fileSuffix = curTime.strftime("%Y_%m_%d")
-        attacked_bin = '1' if attacked > 0 else '0'
+        attackedBin = '1' if attacked > 0 else '0'
         prefix = logTime + ',' + ip + ','
         suffix = ",{:.4f}".format(fmp)
 
@@ -147,6 +161,6 @@ class FMP(NERDModule):
 
         f = open(os.path.join(path, 'results', fileSuffix), 'a')
         fcntl.flock(f, fcntl.LOCK_EX)
-        f.write(prefix + attacked_bin + '\n')
+        f.write(prefix + attackedBin + '\n')
         fcntl.flock(f, fcntl.LOCK_UN)
         f.close()
