@@ -119,7 +119,7 @@ class FMP(NERDModule):
         if 'bl' in rec:
             present_blacklists = rec['bl']
             for bl in present_blacklists:
-                if bl['n'] in self.watched_bl.keys() and bl['v'] == "1":
+                if bl['n'] in self.watched_bl.keys() and bl['v'] == 1:
                     index = i + self.watched_bl[bl['n']]
                     transFeatV[index] = featV[index] = 1
 
@@ -157,7 +157,7 @@ class FMP(NERDModule):
         else:
             i += 4
 
-        # Insert tranformed feature vector to the trained model.
+        # Insert transformed feature vector to the trained model.
         dtest = xgb.DMatrix(np.array([transFeatV]))
         fmp = float(self.models['general'].predict(dtest))
 
