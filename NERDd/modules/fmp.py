@@ -64,6 +64,7 @@ class FMP(NERDModule):
 
         actions = []
         featV = np.zeros(21)
+        transFeatV = np.zeros(21)
         attacked = 0
 
         i = 0;
@@ -90,24 +91,29 @@ class FMP(NERDModule):
         else:
             i += 6
 
+        np.log1p(featV[:i], out=transFeatV[:i])
+
         # Last alert age
         featV[i] = (datetime.utcnow() - rec['ts_last_event']).total_seconds() / 86400
         if featV[i] > 7.0:
             featV[i] = float("inf")
+
+        transFeatV[i] = np.exp(-featV[i])
         i += 1
 
         # Blacklists
         if 'bl' in rec:
             present_blacklists = rec['bl']
             for bl in present_blacklists:
-                if bl in self.watched_bl.keys() and bl['v'] == "1":
-                    featV[i + self.watched_bl[bl]] = 1
+                if bl['n'] in self.watched_bl.keys() and bl['v'] == "1":
+                    index = i + self.watched_bl[bl['n']]
+                    transFeatV[index] = featV[index] = 1
 
         i += len(self.watched_bl)
 
         # Hostname exists
-        if 'hostname' in rec:
-            featV[i] = 1
+        if 'hostname' in rec and rec['hostname'] != None:
+            transFeatV[i] = featV[i] = 1
             i += 1
 
             if 'tags' in rec:
@@ -115,21 +121,21 @@ class FMP(NERDModule):
 
                 # Static / dynamic IP
                 if 'staticIP' in tags:
-                    featV[i] = 1
+                    transFeatV[i] = featV[i] = 1
                 elif 'dynamicIP' in tags:
-                    featV[i] = -1
+                    transFeatV[i] = featV[i] = -1
 
                 i += 1
 
                 # DSL
                 if 'dsl' in tags:
-                    featV[i] = 1
+                    transFeatV[i] = featV[i] = 1
 
                 i += 1
 
                 # IP in hostname
                 if 'ip_in_hostname' in tags:
-                    featV[i] = 1
+                    transFeatV[i] = featV[i] = 1
 
                 i += 1
             else:
@@ -137,7 +143,7 @@ class FMP(NERDModule):
         else:
             i += 4
 
-        dtest = xgb.DMatrix(np.array([featV]))
+        dtest = xgb.DMatrix(np.array([transFeatV]))
         fmp = float(self.models['general'].predict(dtest))
         actions.append(('set', 'fmp.general', fmp))
 
