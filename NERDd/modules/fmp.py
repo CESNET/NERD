@@ -1,5 +1,5 @@
 """
-NERD module 
+NERD module for computing FMP scores of network entities.
 """
 from core.basemodule import NERDModule
 import g
@@ -14,28 +14,42 @@ import fcntl
 import xgboost as xgb
 
 class FMP(NERDModule):
+    """
+    FMP module assembles feature vectors relevant to general and specific FMP scores of network entities.
+    Assembled feature vectors are logged and inserted to the trained data model which yields FMP score.
+    The FMP score is also logged along with the feature vector.
+    The FMP module logs the information whether an attack was observed from an entity in the last 24 hours for the purpose of retraining data models in the future.
+    """
     def __init__(self):
         self.log = logging.getLogger("FMPmodule")
         #self.log.setLevel('DEBUG')
+
+        # Load paths for logging purposes of feature vectors from configuration.
         self.paths = g.config.get("fmp.paths", {"general" : "/data/fmp/general/"})
         for key, value in self.paths.items():
+            # Create directories if they do not exist.
             if not os.path.exists(value):
                 os.makedirs(value)
             if not os.path.exists(os.path.join(value, "results/")):
                 os.makedirs(os.path.join(value, "results/"))
 
+        # Load paths where trained data models are stored.
         self.modelsPaths = g.config.get("fmp.models", {"general" : "/data/fmp/models/general.bin"})
         self.models = {}
 
-        # Can segfault in case of non-existing file
+        # Load trained data models.
         for key, value in self.modelsPaths.items():
+            # Can segfault if file does not exist.
             if os.path.exists(value):
                 self.models[key] = xgb.Booster({'nthread': 4})
                 self.models[key].load_model(value)
             else:
-                self.log.warning('Unable to find model file "{}"" for type "{}".'.format(value, key))
+                self.log.warning('Unable to find model file "{}" for type "{}".'.format(value, key))
 
+        # Set print format of feature vectors.
         np.set_printoptions(formatter={'float_kind': lambda x: "{:7.4f}".format(x)})
+
+        # Define sequence of blacklists in feature vectors.
         self.watched_bl = {
             'tor' : 0,
             'blocklist-de-ssh' : 1,
@@ -143,30 +157,46 @@ class FMP(NERDModule):
         else:
             i += 4
 
+        # Insert tranformed feature vector to the trained model.
         dtest = xgb.DMatrix(np.array([transFeatV]))
         fmp = float(self.models['general'].predict(dtest))
+
+        # Update fmp.general in the IP record.
         actions.append(('set', 'fmp.general', fmp))
 
+        # Log the feature vector and the information whether the IP address was reported in the last 24 hours.
         self.logFMP(ip, featV, fmp, attacked, self.paths['general'])
 
         return actions
 
     def logFMP(self, ip, fv, fmp, attacked, path):
+        # Acquire current UTC time.
         curTime = datetime.utcnow()
         logTime = curTime.strftime("%Y-%m-%dT%H:%M:%S")
         fileSuffix = curTime.strftime("%Y_%m_%d")
+
+        # Create strings to be inserted into log files.
         attackedBin = '1' if attacked > 0 else '0'
         prefix = logTime + ',' + ip + ','
         suffix = ",{:.4f}".format(fmp)
 
-        f = open(os.path.join(path, fileSuffix), 'a')
-        fcntl.flock(f, fcntl.LOCK_EX)
-        f.write(prefix + re.sub(r"[ \]\[]", r"", np.array2string(fv, max_line_width=1000, separator=',')) + suffix + '\n')
-        fcntl.flock(f, fcntl.LOCK_UN)
-        f.close()
+        # Log feature vector and current FMP score.
+        try:
+            f = open(os.path.join(path, fileSuffix), 'a')
+            fcntl.flock(f, fcntl.LOCK_EX)
+            f.write(prefix + re.sub(r"[ \]\[]", r"", np.array2string(fv, max_line_width=1000, separator=',')) + suffix + '\n')
+            fcntl.flock(f, fcntl.LOCK_UN)
+            f.close()
+        except IOError:
+            self.log.warning('Unable to log feature vector "{}" to "{}".'.format(fv, os.path.join(path, fileSuffix)))
 
-        f = open(os.path.join(path, 'results', fileSuffix), 'a')
-        fcntl.flock(f, fcntl.LOCK_EX)
-        f.write(prefix + attackedBin + '\n')
-        fcntl.flock(f, fcntl.LOCK_UN)
-        f.close()
+
+        # Log the information whether the entity was reported in the last 24 hours.
+        try:
+            f = open(os.path.join(path, 'results', fileSuffix), 'a')
+            fcntl.flock(f, fcntl.LOCK_EX)
+            f.write(prefix + attackedBin + '\n')
+            fcntl.flock(f, fcntl.LOCK_UN)
+            f.close()
+        except IOError:
+            self.log.warning('Unable to log "{}" to "{}".'.format(fv, os.path.join(path, 'results', fileSuffix)))
