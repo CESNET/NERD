@@ -6,14 +6,26 @@ import os.path
 import psycopg2
 import sys
 from flask import flash
+import redis
 
 __all__ = ['get_user_info', 'get_all_groups', 'authenticate_with_token', 'generate_unique_token']
+
+
+# Basic user info is cached in Redis (to avoid the need of searching in PSQL on every request)
+# (currently used only in API)
+# Redis format:
+#   token:<token> -> hash(id, groups, rl_bs, rl_tps)
+# groups are stored as string - comma separated names of groups
+# rl_bs and rl_tps are stored only if not None
+
+CACHE_EXPIRATION = 600 # expire records after 10 minutes
+
 
 def init(config, cfg_dir):
     """
     Initialize user database wrapper.
     """
-    global users, acl, cfg, db
+    global users, acl, cfg, db, redis
     cfg = config
     
     acl_cfg_file = os.path.join(cfg_dir, config.get('acl_config'))
@@ -23,6 +35,15 @@ def init(config, cfg_dir):
                           user=config.get('userdb.dbuser', 'nerd'),
                           password=config.get('userdb.dbpassword', None))
     db.autocommit = True # don't use transactions, every action have immediate effect
+    
+    # Redis connection
+    if config.get("user-cache.enabled", False):
+        redis_host = config.get("user-cache.redis.host", "localhost")
+        redis_port = config.get("user-cache.redis.port", 6379)
+        redis_db_index = config.get("user-cache.redis.db_index", 2)
+        redis = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db_index)
+    else:
+        redis = None 
     
     # Load "acl" file
     # Mapping of "resource_id" to two sets of groups: "groups_allow", "groups_deny".
@@ -135,24 +156,76 @@ def get_user_info(session):
 
 
 def authenticate_with_token(token):
-    """Like get_user_info, but authentication uses API token"""
-    user = {}
-    cur = db.cursor()
-    cur.execute("SELECT * FROM users WHERE api_token = %s", (token,))
-    col_names = [col.name for col in cur.description]
-    row = cur.fetchone()
-    if not row:
-        return None, lambda x: False # user not found
+    """
+    Like get_user_info, but authentication uses API token.
+    
+    Return objects 'user', 'ac'.
+    The 'user' contains the following keys: fullid, groups, rl_bs, rl_tps
+    """
+    user = None
+    
+    # Try to load cached user info
+    if redis is not None:
+        key = 'token:'+token
+        try:
+            cached_info = redis.hgetall(key)
+            #print("Info loaded from cache:", repr(cached_info))
+            if cached_info:
+                # Convert binary string to unicode strings
+                cached_info = {k.decode(): v.decode() for k,v in cached_info.items()}
+                user = {
+                    'fullid': cached_info['id'],
+                    'groups': set(cached_info['groups'].split(',')),
+                    'rl_bs': float(cached_info['rl_bs']) if 'rl_bs' in cached_info else None,
+                    'rl_tps': float(cached_info['rl_tps']) if 'rl_tps' in cached_info else None,
+                }
+                redis.expire(key, CACHE_EXPIRATION)
+        except Exception as e:
+            print("ERROR when reading user info from Redis cache:", e, file=sys.stderr)
+            raise
 
-    col_names[0] = 'fullid' # rename column 'id' to 'fullid', other columns can be mapped directly as they are in DB
-    user.update(zip(col_names, row))
-    user['groups'] = set(user['groups'])
+    # If it wasn't sucessful, load info from PSQL
+    if not user:
+        cur = db.cursor()
+        cur.execute("SELECT id,groups,rl_bs,rl_tps FROM users WHERE api_token = %s", (token,))
+        row = cur.fetchone()
+        if not row:
+            return None, lambda x: False # user not found
+
+#         col_names = ['fullid','groups','rl_bs','rl_tps']
+#         user = {}
+#         user.update(zip(col_names, row))
+#         user['groups'] = set(user['groups'])
+        fullid, groups, rl_bs, rl_tps = row[0], row[1], row[2], row[3]
+        user = {
+            'fullid': fullid,
+            'groups': set(groups),
+            'rl_bs': rl_bs,
+            'rl_tps': rl_tps,
+        }
+
+        # Store info into Redis cache
+        if redis is not None:
+            key = 'token:'+token
+            try:
+                if rl_bs is not None and rl_tps is not None:
+                    redis.hmset(key, {'id': fullid, 'groups': ','.join(groups), 'rl_bs': rl_bs, 'rl_tps': rl_tps})
+                else:
+                    redis.hmset(key, {'id': fullid, 'groups': ','.join(groups)})
+                redis.expire(key, CACHE_EXPIRATION)
+            except Exception as e:
+                print("ERROR when writing user info to Redis cache:", e, file=sys.stderr)
+    
     ac = get_ac_func(user['groups'])
     return user, ac
 
+
 def generate_unique_token(user):
+    """Generate and set new API token for the user"""
     while True:
+        # Generate a random token
         token = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
+        # Check if the same tkoen already exists for some user
         cur = db.cursor()
         try:
             cur.execute("SELECT id FROM users WHERE api_token = %s", (token,))
@@ -161,10 +234,19 @@ def generate_unique_token(user):
             return False
         row = cur.fetchone()
         if not row:
+            # Store the token to the user database
             try:
                 cur.execute("UPDATE users SET api_token = %s WHERE id = %s", (token, user['fullid'],))
             except psycopg2.Error as e:
                 print(e.pgerror, file=sys.stderr)
                 return False
+            
+            # Invalidate potential entry in user cache
+            if redis is not None:
+                key = 'token:'+token
+                try:
+                    redis.expire(key, 0)
+                except Exception as e:
+                    print("ERROR when invalidating user info in Redis cache after a token change:", e, file=sys.stderr)
 
             return True
