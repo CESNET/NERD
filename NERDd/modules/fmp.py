@@ -13,6 +13,32 @@ import fcntl
 
 import xgboost as xgb
 
+# Currently supported features:
+#   0 alerts_1d
+#   1 alerts_7d
+#   2 nodes_1d
+#   3 nodes_7d
+#   4 alerts_ewma
+#   5 binalerts_ewma
+#   6 last_alert_age
+# [blacklists]
+#   7 tor
+#   8 blocklist-de-ssh
+#   9 uceprotect
+#  10 sorbs-dul
+#  11 sorbs-noserver
+#  12 sorbs-spam
+#  13 spamcop
+#  14 spamhaus-pbl
+#  15 spamhaus-pbl-isp
+#  16 spamhaus-xbl-cbl
+# [tags]
+#  17 hostname_exists
+#  18 dynamic_static
+#  19 dsl
+#  20 ip_in_hostname
+
+
 class FMP(NERDModule):
     """
     FMP module assembles feature vectors relevant to general and specific FMP scores of network entities.
@@ -47,7 +73,7 @@ class FMP(NERDModule):
                 self.log.warning('Unable to find model file "{}" for type "{}".'.format(value, key))
 
         # Set print format of feature vectors.
-        np.set_printoptions(formatter={'float_kind': lambda x: "{:7.4f}".format(x)})
+        np.set_printoptions(formatter={'float_kind': lambda x: "{:.4f}".format(x)})
 
         # Define sequence of blacklists in feature vectors.
         self.watched_bl = {
@@ -184,7 +210,13 @@ class FMP(NERDModule):
         try:
             f = open(os.path.join(path, fileSuffix), 'a')
             fcntl.flock(f, fcntl.LOCK_EX)
-            f.write(prefix + re.sub(r"[ \]\[]", r"", np.array2string(fv, max_line_width=1000, separator=',')) + suffix + '\n')
+            f.write(prefix +
+                ','.join(
+                    [str(int(f)) for f in fv[0:4]] +  # first 4 features are integers
+                    ['{:.4f}'.format(f) for f in fv[4:7]] +  # next 3 featerues are floats
+                    [str(int(f)) for f in fv[7:]]  # the rest are integers
+                )
+                + suffix + '\n')
             fcntl.flock(f, fcntl.LOCK_UN)
             f.close()
         except IOError:
