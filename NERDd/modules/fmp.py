@@ -15,8 +15,8 @@ import xgboost as xgb
 
 # Currently supported features:
 #   0 alerts_1d
-#   1 alerts_7d
-#   2 nodes_1d
+#   1 nodes_1d
+#   2 alerts_7d
 #   3 nodes_7d
 #   4 alerts_ewma
 #   5 binalerts_ewma
@@ -113,11 +113,11 @@ class FMP(NERDModule):
             # Alerts 1d
             featV[i] = attacked = metadata.get('total1', 0)
             i += 1
-            # Alerts 7d
-            featV[i] = metadata.get('total7', 0)
-            i += 1
             # Nodes 1d
             featV[i] = metadata.get('nodes_1d', 0)
+            i += 1
+            # Alerts 7d
+            featV[i] = metadata.get('total7', 0)
             i += 1
             # Nodes 7d
             featV[i] = metadata.get('nodes_7d', 0)
