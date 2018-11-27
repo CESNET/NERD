@@ -235,6 +235,9 @@ API_RESPONSE_403 = Response(
 @app.before_request
 def store_user_info():
     """Store user info to 'g' (request-wide global variable)"""
+    if request.path.endswith("/test"):
+        return
+
     if request.path.startswith("/api/v1/"):
         # API authentication using token
         auth = request.headers.get("Authorization")
@@ -947,7 +950,7 @@ def api_user_info():
         return API_RESPONSE_403
     data = {
         'userid': g.user.get('fullid'),
-        'name': g.user.get('name', ''),
+#        'name': g.user.get('name', ''),
 #         'email': g.user.get('email', ''),
 #         'org': g.user.get('org', ''),
         'groups': list(g.user.get('groups', [])),
@@ -972,7 +975,10 @@ def get_ip_info(ipaddr, full):
         data['error'] = "Bad IP address"
         return False, Response(json.dumps(data), 400, mimetype='application/json')
 
-    ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+    if full:
+        ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+    else:
+        ipinfo = mongo.db.ip.find_one({'_id':form.ip.data}, {'rep': 1, 'hostname': 1, 'bgppref': 1, 'ipblock': 1, 'geo': 1, 'bl': 1, 'tags': 1})
     if not ipinfo:
         data['err_n'] = 404
         data['error'] = "IP address not found"
@@ -983,13 +989,13 @@ def get_ip_info(ipaddr, full):
 
 def attach_whois_data(ipinfo, full):
     if full:
-        if 'bgppref' in ipinfo.keys():
+        if 'bgppref' in ipinfo:
             bgppref = clean_secret_data(mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))
             asn_list = []
 
             for i in  bgppref['asn']:
                 i = clean_secret_data(mongo.db.asn.find_one({'_id':i}))
-                if 'org' in i.keys():
+                if 'org' in i:
                     i['org'] = clean_secret_data(mongo.db.org.find_one({'_id':i['org']}))
 
                 del i['bgppref']
@@ -999,16 +1005,16 @@ def attach_whois_data(ipinfo, full):
             ipinfo['bgppref'] = bgppref
             ipinfo['asn'] = asn_list
 
-        if 'ipblock' in ipinfo.keys():
+        if 'ipblock' in ipinfo:
             ipblock = clean_secret_data(mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']}))
 
-            if "org" in ipblock.keys():
+            if "org" in ipblock:
                 ipblock['org'] = clean_secret_data(mongo.db.org.find_one({'_id':ipblock['org']}))
 
             ipinfo['ipblock'] = ipblock
     else:
-        if 'bgppref' in ipinfo.keys():
-            ipinfo['asn'] = (mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))['asn']
+        if 'bgppref' in ipinfo:
+            ipinfo['asn'] = (mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']}, {'asn': 1}))['asn']
 
 
 def clean_secret_data(data):
@@ -1026,7 +1032,7 @@ def get_basic_info_dic(val):
 
     bl_l = []
     for l in val.get('bl', []):
-        bl_l.append(l['n'])
+        bl_l.append(l['n']) # TODO: shoudn't there be a check for v=1?
 
     tags_l = []
     for l in val.get('tags', []):
@@ -1039,7 +1045,7 @@ def get_basic_info_dic(val):
 
     data = {
         'ip' : val['_id'],
-        'rep' : val['rep'],
+        'rep' : val.get('rep', 0.0),
         'hostname' : (val.get('hostname', '') or '')[::-1],
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
@@ -1064,6 +1070,47 @@ def get_basic_info(ipaddr=None):
 
     return Response(json.dumps(binfo), 200, mimetype='application/json')
 
+
+# ***** NERD API Reputation only *****
+
+@app.route('/api/v1/ip/<ipaddr>/rep')
+def get_ip_rep(ipaddr=None):
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
+
+    # Check validity of ipaddr
+    try:
+        ipaddress.IPv4Address(ipaddr)
+    except ValueError:
+        data = {'err_n': 400, 'error': 'Bad IP address'}
+        return Response(json.dumps(data), 400, mimetype='application/json')
+
+    # Load 'rep' field of the IP from MongoDB
+    ipinfo = mongo.db.ip.find_one({'_id': ipaddr}, {'rep': 1})
+    if not ipinfo:
+        data = {'err_n': 404, 'error': 'IP address not found', 'ip': ipaddr}
+        return Response(json.dumps(data), 404, mimetype='application/json')
+
+    # Return simple JSON
+    data = {
+        'ip': ipinfo['_id'],
+        'rep': ipinfo.get('rep', 0.0),
+    }
+    return Response(json.dumps(data), 200, mimetype='application/json')
+
+
+@app.route('/api/v1/ip/<ipaddr>/test') # No query to database - for performance comparison
+def get_ip_rep_test(ipaddr=None):
+    #if not g.ac('ipsearch'):
+    #    return API_RESPONSE_403
+
+    # Return simple JSON
+    data = {
+        'ip': ipaddr,
+        'rep': 0.0,
+    }
+    return Response(json.dumps(data), 200, mimetype='application/json')
+
 # ***** NERD API FullInfo *****
 
 @app.route('/api/v1/ip/<ipaddr>/full')
@@ -1077,7 +1124,7 @@ def get_full_info(ipaddr=None):
 
     data = {
         'ip' : val['_id'],
-        'rep' : val['rep'],
+        'rep' : val.get('rep', 0.0),
         'hostname' : (val.get('hostname', '') or '')[::-1],
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
@@ -1085,21 +1132,20 @@ def get_full_info(ipaddr=None):
         'geo' : val['geo'],
         'ts_added' : val['ts_added'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_update' : val['ts_last_update'].strftime("%Y-%m-%dT%H:%M:%S"),
-        'ts_last_event' : val['ts_last_event'].strftime("%Y-%m-%dT%H:%M:%S"),
+        'ts_last_event' : val['ts_last_event'].strftime("%Y-%m-%dT%H:%M:%S") if 'ts_last_event' in val else None,
         'bl' : [ {
                 'name': bl['n'],
                 'last_check': bl['t'].strftime("%Y-%m-%dT%H:%M:%S"),
                 'last_result': True if bl['v'] else False,
                 'history': [t.strftime("%Y-%m-%dT%H:%M:%S") for t in bl['h']]
-            } for bl in val['bl'] ],
-        'events' : val['events'],
+            } for bl in val.get('bl', []) ],
+        'events' : val.get('events', []),
         'events_meta' : {
-            'total': val['events_meta']['total'],
-            'total1': val['events_meta']['total1'],
-            'total7': val['events_meta']['total7'],
-            'total30': val['events_meta']['total30'],
-        }
-        ,
+            'total': val.get('events_meta', {}).get('total', 0.0),
+            'total1': val.get('events_meta', {}).get('total1', 0.0),
+            'total7': val.get('events_meta', {}).get('total7', 0.0),
+            'total30': val.get('events_meta', {}).get('total30', 0.0),
+        },
     }
 
     return Response(json.dumps(data), 200, mimetype='application/json')
