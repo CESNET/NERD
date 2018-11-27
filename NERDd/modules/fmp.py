@@ -64,13 +64,14 @@ class FMP(NERDModule):
         self.models = {}
 
         # Load trained data models.
-        for key, value in self.modelsPaths.items():
-            # Can segfault if file does not exist.
-            if os.path.exists(value):
-                self.models[key] = xgb.Booster({'nthread': 4})
-                self.models[key].load_model(value)
+        for fmptype, filename in self.modelsPaths.items():
+            # xgb.load_model can segfault if file does not exist, so check it in advance
+            if os.path.exists(filename):
+                self.models[fmptype] = xgb.Booster({'nthread': 4})
+                self.models[fmptype].load_model(filename)
+                self.log.info("Successfully loaded xgBoost model '{}' from file {}".format(fmptype, filename))
             else:
-                self.log.warning('Unable to find model file "{}" for type "{}".'.format(value, key))
+                self.log.warning('Unable to find model file "{}" for type "{}".'.format(filename, fmptype))
 
         # Set print format of feature vectors.
         np.set_printoptions(formatter={'float_kind': lambda x: "{:.4f}".format(x)})
