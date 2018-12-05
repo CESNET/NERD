@@ -129,7 +129,7 @@
 {% if ac('warden_alerts') %}
 <div id="events">
 <p id="event-details"><span class="caption">Event details</span> <span class="counts">(...)</span>
-&nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>
+{#&nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>#}
 {%- if config.mentat_url and ac('mentat') %}<span class="mentat-link">Search in <a href="{{config.mentat_url.replace('$IP', ip)}}">Mentat</a></span>{% endif %}
 </p>
 <div class="loading"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}"></div>

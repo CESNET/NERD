@@ -35,6 +35,7 @@ def main():
     
     import common.config
     import common.eventdb_psql
+    import common.eventdb_mentat
     import core.mongodb
     import core.update_manager
     import core.scheduler
@@ -69,9 +70,25 @@ def main():
     g.config_base_path = config_base_path
     g.scheduler = core.scheduler.Scheduler()
     g.db = core.mongodb.MongoEntityDatabase(config)
-    g.eventdb = common.eventdb_psql.PSQLEventDatabase(config)
     g.um = core.update_manager.UpdateManager(config, g.db)
     
+    # EventDB may be local PSQL (default), external Mentat instance or None
+    EVENTDB_TYPE = config.get('eventdb', 'psql')
+    if EVENTDB_TYPE == 'psql':
+        import common.eventdb_psql
+        g.eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+    elif EVENTDB_TYPE == 'mentat':
+        import common.eventdb_mentat
+        g.eventdb = common.eventdb_mentat.MentatEventDBProxy(config)
+    else:
+        class DummyEventDB:
+            def get(*args, **kwargs):
+                return []
+            def put(*args, **kwargs):
+                return None
+        g.eventdb = DummyEventDB()
+        log.error("Unknown 'eventdb' configured, events won't be stored")    
+
     
     ################################################
     # Load all NERD modules

@@ -12,6 +12,16 @@ tags_config: tags.yml
 # Blacklists configuration file
 bl_config: blacklists.yml
 
+# EventDB type (where to store/read events):
+# Local PostgreSQL database (default) (needs config in 'eventdb_psql' in nerdd.yml)
+eventdb: psql
+# External Mentat instance (no storage by NERD, load via Mentat API) (needs config in 'eventdb_mentat')
+# eventdb: mentat
+
+# eventdb_mentat:
+#   url: https://example.com/mentat/
+#   api_key: asdf1234
+
 # Path to a directory where Warden filer stores incoming IDEA messages
 warden_filer_path: "/data/warden_filer/warden_receiver"
 

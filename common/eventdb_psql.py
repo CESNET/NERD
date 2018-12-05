@@ -33,9 +33,9 @@ class PSQLEventDatabase:
         #self.log.setLevel('DEBUG')
         
         # Create database connection
-        self.db = psycopg2.connect(database=config.get('eventdb.dbname', 'nerd'),
-                                   user=config.get('eventdb.dbuser', 'nerd'),
-                                   password=config.get('eventdb.dbpassword', None))
+        self.db = psycopg2.connect(database=config.get('eventdb_psql.dbname', 'nerd'),
+                                   user=config.get('eventdb_psql.dbuser', 'nerd'),
+                                   password=config.get('eventdb_psql.dbpassword', None))
 
     def __del__(self):
         """

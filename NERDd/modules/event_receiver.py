@@ -182,7 +182,7 @@ if __name__ == "__main__":
 
 def dbwriter(queue, config):
     """
-    Process for writing events to EventDB
+    Process for writing events to PSQL EventDB
     
     Pull new events from Queue and stores them to EventDB. Runs as separate
     process, because storing events is quite CPU demanding.
@@ -216,16 +216,20 @@ class EventReceiver(NERDModule):
     def __init__(self):
         self.log = logging.getLogger("EventReceiver")
         self._drop_path = g.config.get('warden_filer_path')
-        # Number of separate DB-writer processes to spawn
-        self._n_dbwriters = g.config.get('eventdb.dbwriter_processes', 0)
-        if self._n_dbwriters > 0:
-            # Create multiprocessing context
-            self.mpctx = mp.get_context('spawn') # Create processes using 'spawn', 'fork' doesn't work well in multithreaded applications (and not at all in Windows)
-            # Queue for sending events to DB-writer (max size is set, so eventRecevier gets blocked if DB-writer is too slow)
-            self.event_queue = self.mpctx.Queue(maxsize=100)
+        # Number of separate DB-writer processes to spawn (only if PSQL-type of eventdb is set)
+        if g.config.get('eventdb', 'psql') == 'psql':
+            self.write_to_eventdb = True
+            self._n_dbwriters = g.config.get('eventdb_psql.dbwriter_processes', 0)
+            if self._n_dbwriters > 0:
+                # Create multiprocessing context
+                self.mpctx = mp.get_context('spawn') # Create processes using 'spawn', 'fork' doesn't work well in multithreaded applications (and not at all in Windows)
+                # Queue for sending events to DB-writer (max size is set, so eventRecevier gets blocked if DB-writer is too slow)
+                self.event_queue = self.mpctx.Queue(maxsize=100)
+        else:
+            self.write_to_eventdb = False
         
         # Initialize RabbitMQ connection (if queue name is given)
-        self.rmq_queue_name = g.config.get('eventdb.forward_to_queue', None)
+        self.rmq_queue_name = g.config.get('eventdb_psql.forward_to_queue', None)
         if self.rmq_queue_name:
             rmq_creds = pika.PlainCredentials('guest', 'guest')
             self.rmq_params = pika.ConnectionParameters('localhost', 5672, '/', rmq_creds)
@@ -243,7 +247,7 @@ class EventReceiver(NERDModule):
         self._recv_thread = Thread(target=self._receive_events)
         self._recv_thread.daemon = True
         self._recv_thread.start()
-        if self._n_dbwriters > 0:
+        if self.write_to_eventdb and self._n_dbwriters > 0:
             # Run EventDB writing processes
             self._dbwriter_procs = []
             for i in range(self._n_dbwriters):
@@ -264,7 +268,7 @@ class EventReceiver(NERDModule):
         self._recv_thread.join()
         
         # Signal EventDB process to stop (send None to queue)
-        if self._n_dbwriters > 0:
+        if self.write_to_eventdb and self._n_dbwriters > 0:
             self.log.info("Waiting for EventDB-writing process to finish ...")
             for i in range(self._n_dbwriters):
                 self.event_queue.put(None)
@@ -287,13 +291,14 @@ class EventReceiver(NERDModule):
         for (rawdata, event) in read_dir(self._drop_path):
             #t1 = time.time()
             # Store the event to EventDB
-            if self._n_dbwriters > 0:
-                # pass it to the Queue for separate DB-writing process
-                #print("EventDB Writer queue length: {:3d}".format(self.event_queue.qsize()), end="\r")
-                self.event_queue.put(event)
-            else:
-                # no separate processes - store it directly
-                g.eventdb.put([event])
+            if self.write_to_eventdb:
+                if self._n_dbwriters > 0:
+                    # pass it to the Queue for separate DB-writing process
+                    #print("EventDB Writer queue length: {:3d}".format(self.event_queue.qsize()), end="\r")
+                    self.event_queue.put(event)
+                else:
+                    # no separate processes - store it directly
+                    g.eventdb.put([event])
             #t2 = time.time()
             
             # Send copy of the IDEA message to RabbitMQ queue (currently used by experimental GRIP system)

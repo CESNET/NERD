@@ -8,7 +8,7 @@ inactive_ip_lifetime: 14
 # Number of days to store meta-data about events in IP records
 max_event_history: 90
 
-eventdb:
+eventdb_psql:
   # Number of separate processes for inserting messages to DB
   # (zero means don't spawn a separate process)
   dbwriter_processes: 0

@@ -23,7 +23,6 @@ from wtforms import validators, TextField, TextAreaField, FloatField, IntegerFie
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
-import common.eventdb_psql
 import common.config
 from shodan_rpc_client import ShodanRpcClient
 
@@ -57,6 +56,19 @@ config_tags = common.config.read_config(tags_cfg_file)
 # Read blacklists config (to separate dict)
 bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
 config_bl = common.config.read_config(bl_cfg_file)
+
+
+# Create event database driver (according to config)
+EVENTDB_TYPE = config.get('eventdb', 'psql')
+if EVENTDB_TYPE == 'psql':
+    import common.eventdb_psql
+    eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+elif EVENTDB_TYPE == 'mentat':
+    import common.eventdb_mentat
+    eventdb = common.eventdb_mentat.MentatEventDBProxy(config)
+else:
+    EVENTDB_TYPE = 'none'
+    print("ERROR: unknown 'eventdb' configured, it will not be possible to show raw events in GUI", file=sys.stderr)
 
 
 BASE_URL = config.get('base_url', '')
@@ -103,9 +115,6 @@ mailer = Mail(app)
 # work for me (form.validate fails then)
 app.config['WTF_CSRF_ENABLED'] = False
 #app.config['WTF_CSRF_CHECK_DEFAULT'] = False
-
-
-eventdb = common.eventdb_psql.PSQLEventDatabase(config)
 
 
 # ***** Jinja2 filters *****
@@ -754,7 +763,22 @@ def ajax_ip_events(ipaddr):
     if not g.ac('ipsearch'):
         return make_response('ERROR: Insufficient permissions')
 
-    events = eventdb.get('ip', ipaddr, limit=100)
+    events = []
+    error = None
+    
+    # PSQL database
+    if EVENTDB_TYPE == 'psql':
+        events = eventdb.get('ip', ipaddr, limit=100)
+    # Mentat
+    elif EVENTDB_TYPE == 'mentat':
+        try:
+            events = eventdb.get('ip', ipaddr, limit=100)
+        except (common.eventdb_mentat.NotConfigured,common.eventdb_mentat.GatewayError) as e:
+            error = 'ERROR: ' + str(e)
+    # no database to read events from
+    else:
+        error = 'Event database disabled'
+
     num_events = str(len(events))
     if len(events) >= 100:
         num_events = "&ge;100, only first 100 shown"
