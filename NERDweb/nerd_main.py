@@ -706,7 +706,7 @@ def ips_count():
     form = IPFilterForm(obj=form_values)
     if g.ac('ipsearch') and form.validate():
         query = create_query(form)
-        print("query: " + str(query))
+        #print("query: " + str(query))
         return make_response(str(mongo.db.ip.find(query).count()))
     else:
         return make_response("ERROR")
@@ -799,7 +799,7 @@ class SingleASForm(FlaskForm):
 @app.route('/asn/<asn>')
 def asn(asn=None): # Can't be named "as" since it's a Python keyword
     form = SingleASForm(asn=asn)
-    print(asn,form.data)
+    #print(asn,form.data)
     title = 'ASN detail search'
     if asn is None:
         # No ASN passed
@@ -834,10 +834,12 @@ def ipblock(ipblock=None):
     if g.ac('ipblocksearch'):
         title = ipblock
         rec = mongo.db.ipblock.find_one({'_id': ipblock})
-        cursor = mongo.db.ip.find({'ipblock': ipblock}, {'_id': 1})
-        rec['ips'] = []
-        for val in cursor:
-            rec['ips'].append(val['_id'])
+        if rec is not None:
+            cursor = mongo.db.ip.find({'ipblock': ipblock}, {'_id': 1})
+            rec['ips'] = []
+            if cursor is not None:
+                for val in cursor:
+                    rec['ips'].append(val['_id'])
     else:
         flash('Insufficient permissions to search/view IP blocks.', 'error')
     return render_template('ipblock.html', ctrydata=ctrydata, **locals())
