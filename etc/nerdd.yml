@@ -67,5 +67,9 @@ dnsbl:
   # File where daily count of requests is stored (this is only prefix to which date will be appended)
   req_cnt_file: "/data/dnsbl-requests-"
 
+fmp:
+  paths: {"general" : "/data/fmp/general/"}
+  models: {"general" : "/data/fmp/models/model_access_nerd_xg200_7.bin"}
+
 #shodan:
 #   apikey: ""

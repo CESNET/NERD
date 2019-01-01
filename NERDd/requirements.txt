@@ -13,3 +13,5 @@ bgpranking_web
 pika
 redis
 hiredis
+numpy
+xgboost
