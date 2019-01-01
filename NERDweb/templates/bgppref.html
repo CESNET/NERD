@@ -13,7 +13,8 @@
 <hr>
 
 <div class="entity-info bgppref">
-<p class="header"><span class="entity-id">{{ bgppref }}</span></p>
+<p class="header"><span class="rep" style="background-color: {{ rep_css_color(rec.rep*100 if rec.rep*100 < 1.0 else 1.0) }}">
+  {{- "%.6f"|format(rec.rep)|replace("0.",".") if rec.rep is defined else "--" }}</span><span class="entity-id">{{ bgppref }}</span></p>
 
 <dl class="attrs">
 {% for attr,val in rec|dictsort %}

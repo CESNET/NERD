@@ -1,0 +1,14 @@
+{% if not data.error -%}
+<p>Ports:{% for val in data.ports|sort %}<span class="tag port">{{ val }}</span>{%- endfor -%}</p>
+{% if data.os -%}
+<p>OS: <span class="tag">{{ data.os }}</span></p>
+{% endif -%}
+{% if data.tags -%}
+<p>Tags: {% for val in data.tags|sort %}<span class="tag">{{ val }}</span>{%- endfor -%}</p>
+{% endif -%}
+
+{%- elif "No information available" in data.error -%}
+<div style="text-align: center">-- no information available --</div>
+{%- else -%}
+Error while requesting shodan api: {{ data.error }}
+{%- endif %}

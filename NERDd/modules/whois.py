@@ -610,9 +610,11 @@ class WhoIS(NERDModule):
 
             result = parse_func(resp, args)
             if result == None or len(result) == 0:
-                self.log.warning('Attempt to parse data from {} with query: "{}" either failed or provided no useful information.'.format(host, query))
-                self.log.debug(resp)
-                # TODO: check for "Query rate limit exceeded."
+                if "Query rate limit exceeded" in resp:
+                    self.log.warning('Query rate limit exceeded at {} (failed query: "{}")'.format(host, query))
+                else:
+                    self.log.warning('Attempt to parse data from {} with query: "{}" either failed or provided no useful information.'.format(host, query))
+                    self.log.debug(resp)
                 return None
 
             #self.log.info('Data about "{}" from {} successfully received and parsed'.format(query, host))

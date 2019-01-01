@@ -464,11 +464,14 @@ dd dl dt:first-child {
 
 .float-box {
   float: right;
+  clear: right;
   min-width: 18em;
   max-width: 30em;
   min-height: 2em;
   max-height: 30em;
   border: 2px solid #0061a2;
+  margin-bottom: 0.75em;
+  overflow-y: auto;
 }
 .float-box .title {
   text-align: center;
@@ -485,11 +488,26 @@ dd dl dt:first-child {
   right: 3px;
   margin: 0;
 }
+.float-box .title .side-link {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  /*margin: 0 0.5em;*/
+  opacity: 0.5;
+}
+.float-box .title .side-link a {
+  color: inherit;
+}
 .float-box .content {
   padding: 5px;
-  overflow-y: auto;
+}
+.float-box .content p {
+  margin: 0.25em 0;
+}
+.float-box.pdns .content {
   text-align: right;
 }
+
 .tag.dnstype {
   background: #bfd8e8; /*#80b0d0;*/ 
   color: #000;

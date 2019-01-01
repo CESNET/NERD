@@ -23,8 +23,8 @@ from wtforms import validators, TextField, TextAreaField, FloatField, IntegerFie
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
-import common.eventdb_psql
 import common.config
+from shodan_rpc_client import ShodanRpcClient
 
 #import db
 import ctrydata
@@ -56,6 +56,19 @@ config_tags = common.config.read_config(tags_cfg_file)
 # Read blacklists config (to separate dict)
 bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
 config_bl = common.config.read_config(bl_cfg_file)
+
+
+# Create event database driver (according to config)
+EVENTDB_TYPE = config.get('eventdb', 'psql')
+if EVENTDB_TYPE == 'psql':
+    import common.eventdb_psql
+    eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+elif EVENTDB_TYPE == 'mentat':
+    import common.eventdb_mentat
+    eventdb = common.eventdb_mentat.MentatEventDBProxy(config)
+else:
+    EVENTDB_TYPE = 'none'
+    print("ERROR: unknown 'eventdb' configured, it will not be possible to show raw events in GUI", file=sys.stderr)
 
 
 BASE_URL = config.get('base_url', '')
@@ -102,9 +115,6 @@ mailer = Mail(app)
 # work for me (form.validate fails then)
 app.config['WTF_CSRF_ENABLED'] = False
 #app.config['WTF_CSRF_CHECK_DEFAULT'] = False
-
-
-eventdb = common.eventdb_psql.PSQLEventDatabase(config)
 
 
 # ***** Jinja2 filters *****
@@ -225,10 +235,43 @@ def logout():
 
 # ***** Functions called for each request *****
 
+API_RESPONSE_403 = Response(
+    json.dumps({'err_n' : 403, 'error' : "Unauthorized"}), # TODO: recognize different error states? (e.g. "user not authenticated" and "not authorized to use this endpoint")
+    403,
+    mimetype='application/json'
+)
+
 @app.before_request
 def store_user_info():
     """Store user info to 'g' (request-wide global variable)"""
-    g.user, g.ac = get_user_info(session)
+    if request.path.endswith("/test"):
+        return
+
+    if request.path.startswith("/api/v1/"):
+        # API authentication using token
+        auth = request.headers.get("Authorization")
+        if not auth:
+            return API_RESPONSE_403
+
+        # Extract token from Authorization header. Two formats may be used:
+        #   Authorization: asdf1234qwer
+        #   Authorization: token asdf1234qwer
+        vals = auth.split()
+        if len(vals) == 1:
+            token = vals[0]
+        elif len(vals) == 2 and vals[0] == "token":
+            token = vals[1]
+        else:
+            return API_RESPONSE_403
+
+        g.user, g.ac = authenticate_with_token(token)
+        if not g.user:
+            return API_RESPONSE_403
+
+    else:
+        # Normal authentication using session cookie
+        g.user, g.ac = get_user_info(session)
+
 
 @app.before_request
 def rate_limit():
@@ -270,8 +313,10 @@ def rate_limit():
 @app.after_request
 def add_user_header(resp):
     # Set user ID to a special header, it's used to put user ID to Apache logs
-    if g.user:
+    try:
         resp.headers['X-UserID'] = g.user['fullid']
+    except (AttributeError, KeyError, TypeError):
+        pass
     return resp
 
 
@@ -296,6 +341,7 @@ def main():
 class AccountRequestForm(FlaskForm):
     email = TextField('Contact email', [validators.Required()], description='Used to send information about your request and in case admins need to contact you.')
     message = TextAreaField("", [validators.Optional()])
+    action = HiddenField('action')
 
 @app.route('/noaccount', methods=['GET','POST'])
 def noaccount():
@@ -312,7 +358,7 @@ def noaccount():
         form.email.data = g.user['email'].split(';')[0]
     
     request_sent = False
-    if form.validate():
+    if form.validate() and form.action.data == 'request_account':
         # Check presence of config login.request-email
         if not config.get('login.request-email', None):
             return make_response("ERROR: No destination email address configured. This is a server configuration error. Please, report this to NERD administrator if possible.")
@@ -660,7 +706,7 @@ def ips_count():
     form = IPFilterForm(obj=form_values)
     if g.ac('ipsearch') and form.validate():
         query = create_query(form)
-        print("query: " + str(query))
+        #print("query: " + str(query))
         return make_response(str(mongo.db.ip.find(query).count()))
     else:
         return make_response("ERROR")
@@ -717,7 +763,22 @@ def ajax_ip_events(ipaddr):
     if not g.ac('ipsearch'):
         return make_response('ERROR: Insufficient permissions')
 
-    events = eventdb.get('ip', ipaddr, limit=100)
+    events = []
+    error = None
+    
+    # PSQL database
+    if EVENTDB_TYPE == 'psql':
+        events = eventdb.get('ip', ipaddr, limit=100)
+    # Mentat
+    elif EVENTDB_TYPE == 'mentat':
+        try:
+            events = eventdb.get('ip', ipaddr, limit=100)
+        except (common.eventdb_mentat.NotConfigured,common.eventdb_mentat.GatewayError) as e:
+            error = 'ERROR: ' + str(e)
+    # no database to read events from
+    else:
+        error = 'Event database disabled'
+
     num_events = str(len(events))
     if len(events) >= 100:
         num_events = "&ge;100, only first 100 shown"
@@ -738,7 +799,7 @@ class SingleASForm(FlaskForm):
 @app.route('/asn/<asn>')
 def asn(asn=None): # Can't be named "as" since it's a Python keyword
     form = SingleASForm(asn=asn)
-    print(asn,form.data)
+    #print(asn,form.data)
     title = 'ASN detail search'
     if asn is None:
         # No ASN passed
@@ -773,10 +834,12 @@ def ipblock(ipblock=None):
     if g.ac('ipblocksearch'):
         title = ipblock
         rec = mongo.db.ipblock.find_one({'_id': ipblock})
-        cursor = mongo.db.ip.find({'ipblock': ipblock}, {'_id': 1})
-        rec['ips'] = []
-        for val in cursor:
-            rec['ips'].append(val['_id'])
+        if rec is not None:
+            cursor = mongo.db.ip.find({'ipblock': ipblock}, {'_id': 1})
+            rec['ips'] = []
+            if cursor is not None:
+                for val in cursor:
+                    rec['ips'].append(val['_id'])
     else:
         flash('Insufficient permissions to search/view IP blocks.', 'error')
     return render_template('ipblock.html', ctrydata=ctrydata, **locals())
@@ -792,14 +855,15 @@ def org(org=None):
     if g.ac('orgsearch'):
         title = org
         rec = mongo.db.org.find_one({'_id': org})
-        rec['ipblocks'] = []
-        rec['asns'] = []
-        cursor = mongo.db.ipblock.find({'org': org}, {'_id': 1})
-        for val in cursor:
-            rec['ipblocks'].append(val['_id'])
-        cursor = mongo.db.asn.find({'org': org}, {'_id': 1})
-        for val in cursor:
-            rec['asns'].append(val['_id'])
+        if rec is not None:
+            rec['ipblocks'] = []
+            rec['asns'] = []
+            cursor = mongo.db.ipblock.find({'org': org}, {'_id': 1})
+            for val in cursor:
+                rec['ipblocks'].append(val['_id'])
+            cursor = mongo.db.asn.find({'org': org}, {'_id': 1})
+            for val in cursor:
+                rec['asns'].append(val['_id'])
     else:
         flash('Insufficient permissions to search/view Organizations.', 'error')
     return render_template('org.html', ctrydata=ctrydata, **locals())
@@ -814,15 +878,16 @@ def org(org=None):
 def bgppref(bgppref=None):
     bgppref = bgppref.replace('_','/')
     
-    if not org:
+    if not bgppref:
         return make_response("ERROR: No BGP Prefix given.")
     if g.ac('bgpprefsearch'):
-        title = org
+        title = bgppref
         rec = mongo.db.bgppref.find_one({'_id': bgppref})
-        cursor = mongo.db.ip.find({'bgppref': bgppref}, {'_id': 1})
-        rec['ips'] = []
-        for val in cursor:
-            rec['ips'].append(val['_id'])
+        if rec is not None:
+            cursor = mongo.db.ip.find({'bgppref': bgppref}, {'_id': 1})
+            rec['ips'] = []
+            for val in cursor:
+                rec['ips'].append(val['_id'])
     else:
         flash('Insufficient permissions to search/view BGP prefixes.', 'error')
     return render_template('bgppref.html', ctrydata=ctrydata, **locals())
@@ -904,27 +969,22 @@ def iplist():
 
 # ****************************** API ******************************
 
-def validate_api_request(authorization):
+@app.route('/api/v1/user_info')
+def api_user_info():
+    """Return account information if user is successfully authenticated"""
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
     data = {
-        'err_n' : 403,
-        'error' : "Unauthorized",
+        'userid': g.user.get('fullid'),
+#        'name': g.user.get('name', ''),
+#         'email': g.user.get('email', ''),
+#         'org': g.user.get('org', ''),
+        'groups': list(g.user.get('groups', [])),
+        'rate-limit-bucket-size': g.user.get('rl-bs') or rate_limiter.def_bucket_size,
+        'rate-limit-tokens-per-sec': g.user.get('rl-tps') or rate_limiter.def_tokens_per_sec,
     }
+    return Response(json.dumps(data), 200, mimetype='application/json')
 
-    auth = request.headers.get("Authorization")
-    if not auth:
-        return Response(json.dumps(data), 403, mimetype='application/json')
-
-    if auth.find(' ') != -1:
-        vals = auth.split()
-        user, ac = authenticate_with_token(vals[1])
-        if vals[0] != "token" or not user or not ac('ipsearch'):
-            return Response(json.dumps(data), 403, mimetype='application/json')
-    else:
-        user, ac = authenticate_with_token(auth)
-        if not user or not ac('ipsearch'):
-            return Response(json.dumps(data), 403, mimetype='application/json')
-
-    return None
 
 def get_ip_info(ipaddr, full):
     data = {
@@ -941,7 +1001,10 @@ def get_ip_info(ipaddr, full):
         data['error'] = "Bad IP address"
         return False, Response(json.dumps(data), 400, mimetype='application/json')
 
-    ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+    if full:
+        ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+    else:
+        ipinfo = mongo.db.ip.find_one({'_id':form.ip.data}, {'rep': 1, 'hostname': 1, 'bgppref': 1, 'ipblock': 1, 'geo': 1, 'bl': 1, 'tags': 1})
     if not ipinfo:
         data['err_n'] = 404
         data['error'] = "IP address not found"
@@ -952,13 +1015,13 @@ def get_ip_info(ipaddr, full):
 
 def attach_whois_data(ipinfo, full):
     if full:
-        if 'bgppref' in ipinfo.keys():
+        if 'bgppref' in ipinfo:
             bgppref = clean_secret_data(mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))
             asn_list = []
 
             for i in  bgppref['asn']:
                 i = clean_secret_data(mongo.db.asn.find_one({'_id':i}))
-                if 'org' in i.keys():
+                if 'org' in i:
                     i['org'] = clean_secret_data(mongo.db.org.find_one({'_id':i['org']}))
 
                 del i['bgppref']
@@ -968,16 +1031,16 @@ def attach_whois_data(ipinfo, full):
             ipinfo['bgppref'] = bgppref
             ipinfo['asn'] = asn_list
 
-        if 'ipblock' in ipinfo.keys():
+        if 'ipblock' in ipinfo:
             ipblock = clean_secret_data(mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']}))
 
-            if "org" in ipblock.keys():
+            if "org" in ipblock:
                 ipblock['org'] = clean_secret_data(mongo.db.org.find_one({'_id':ipblock['org']}))
 
             ipinfo['ipblock'] = ipblock
     else:
-        if 'bgppref' in ipinfo.keys():
-            ipinfo['asn'] = (mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))['asn']
+        if 'bgppref' in ipinfo:
+            ipinfo['asn'] = (mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']}, {'asn': 1}))['asn']
 
 
 def clean_secret_data(data):
@@ -995,7 +1058,7 @@ def get_basic_info_dic(val):
 
     bl_l = []
     for l in val.get('bl', []):
-        bl_l.append(l['n'])
+        bl_l.append(l['n']) # TODO: shoudn't there be a check for v=1?
 
     tags_l = []
     for l in val.get('tags', []):
@@ -1008,7 +1071,7 @@ def get_basic_info_dic(val):
 
     data = {
         'ip' : val['_id'],
-        'rep' : val['rep'],
+        'rep' : val.get('rep', 0.0),
         'hostname' : (val.get('hostname', '') or '')[::-1],
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
@@ -1022,9 +1085,8 @@ def get_basic_info_dic(val):
 
 @app.route('/api/v1/ip/<ipaddr>')
 def get_basic_info(ipaddr=None):
-    ret = validate_api_request(request.headers.get("Authorization"))
-    if ret:
-        return ret
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
 
     ret, val = get_ip_info(ipaddr, False)
     if not ret:
@@ -1034,13 +1096,53 @@ def get_basic_info(ipaddr=None):
 
     return Response(json.dumps(binfo), 200, mimetype='application/json')
 
+
+# ***** NERD API Reputation only *****
+
+@app.route('/api/v1/ip/<ipaddr>/rep')
+def get_ip_rep(ipaddr=None):
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
+
+    # Check validity of ipaddr
+    try:
+        ipaddress.IPv4Address(ipaddr)
+    except ValueError:
+        data = {'err_n': 400, 'error': 'Bad IP address'}
+        return Response(json.dumps(data), 400, mimetype='application/json')
+
+    # Load 'rep' field of the IP from MongoDB
+    ipinfo = mongo.db.ip.find_one({'_id': ipaddr}, {'rep': 1})
+    if not ipinfo:
+        data = {'err_n': 404, 'error': 'IP address not found', 'ip': ipaddr}
+        return Response(json.dumps(data), 404, mimetype='application/json')
+
+    # Return simple JSON
+    data = {
+        'ip': ipinfo['_id'],
+        'rep': ipinfo.get('rep', 0.0),
+    }
+    return Response(json.dumps(data), 200, mimetype='application/json')
+
+
+@app.route('/api/v1/ip/<ipaddr>/test') # No query to database - for performance comparison
+def get_ip_rep_test(ipaddr=None):
+    #if not g.ac('ipsearch'):
+    #    return API_RESPONSE_403
+
+    # Return simple JSON
+    data = {
+        'ip': ipaddr,
+        'rep': 0.0,
+    }
+    return Response(json.dumps(data), 200, mimetype='application/json')
+
 # ***** NERD API FullInfo *****
 
 @app.route('/api/v1/ip/<ipaddr>/full')
 def get_full_info(ipaddr=None):
-    ret = validate_api_request(request.headers.get("Authorization"))
-    if ret:
-        return ret
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
 
     ret, val = get_ip_info(ipaddr, True)
     if not ret:
@@ -1048,7 +1150,7 @@ def get_full_info(ipaddr=None):
 
     data = {
         'ip' : val['_id'],
-        'rep' : val['rep'],
+        'rep' : val.get('rep', 0.0),
         'hostname' : (val.get('hostname', '') or '')[::-1],
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
@@ -1056,21 +1158,20 @@ def get_full_info(ipaddr=None):
         'geo' : val['geo'],
         'ts_added' : val['ts_added'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_update' : val['ts_last_update'].strftime("%Y-%m-%dT%H:%M:%S"),
-        'ts_last_event' : val['ts_last_event'].strftime("%Y-%m-%dT%H:%M:%S"),
+        'ts_last_event' : val['ts_last_event'].strftime("%Y-%m-%dT%H:%M:%S") if 'ts_last_event' in val else None,
         'bl' : [ {
                 'name': bl['n'],
                 'last_check': bl['t'].strftime("%Y-%m-%dT%H:%M:%S"),
                 'last_result': True if bl['v'] else False,
                 'history': [t.strftime("%Y-%m-%dT%H:%M:%S") for t in bl['h']]
-            } for bl in val['bl'] ],
-        'events' : val['events'],
+            } for bl in val.get('bl', []) ],
+        'events' : val.get('events', []),
         'events_meta' : {
-            'total': val['events_meta']['total'],
-            'total1': val['events_meta']['total1'],
-            'total7': val['events_meta']['total7'],
-            'total30': val['events_meta']['total30'],
-        }
-        ,
+            'total': val.get('events_meta', {}).get('total', 0.0),
+            'total1': val.get('events_meta', {}).get('total1', 0.0),
+            'total7': val.get('events_meta', {}).get('total7', 0.0),
+            'total30': val.get('events_meta', {}).get('total30', 0.0),
+        },
     }
 
     return Response(json.dumps(data), 200, mimetype='application/json')
@@ -1080,10 +1181,8 @@ def get_full_info(ipaddr=None):
 @app.route('/api/v1/search/ip/')
 def ip_search(full = False):
     err = {}
-
-    ret = validate_api_request(request.headers.get("Authorization"))
-    if ret:
-        return ret
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
 
     form = IPFilterForm(request.args)
     if not form.validate():
@@ -1102,7 +1201,7 @@ def ip_search(full = False):
     except pymongo.errors.ServerSelectionTimeoutError:
         err['err_n'] = 503
         err['error'] = 'Database connection error'
-        return Response(json.dumps(data), 503, mimetype='application/json')
+        return Response(json.dumps(err), 503, mimetype='application/json')
 
     output = request.args.get('o', "json")
     if output == "json":
@@ -1110,14 +1209,123 @@ def ip_search(full = False):
         for res in results:
             attach_whois_data(res, full)
             lres.append(get_basic_info_dic(res))
-        return Response(json.dumps(lres), 200, mimetype='text/plain')
+        return Response(json.dumps(lres), 200, mimetype='application/json')
 
     elif output == "list":
-        return Response('\n'.join(res['_id'] for res in results), 200, mimetype='application/json')
+        return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
     else:
         err['err_n'] = 400
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
+
+
+# ***** Get summary info about IPs in given prefix *****
+# Return:
+#  - average reputation score of the prefix (sum of rep of present addresses divided by prefix size)
+#  - number of IPs in the DB in the prefix
+#  - list of the IPs
+# FIXME: currently only /24 prefixes are supported
+
+@app.route('/api/v1/prefix/<prefix>/<length>')
+def prefix(prefix, length):
+    err = {}
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
+    
+    # Check parameters
+    try:
+        network = ipaddress.IPv4Network(prefix + '/' + length, strict=False)
+    except ValueError:
+        err['err_n'] = 400
+        err['error'] = 'Bad parameters: invalid prefix'
+        return Response(json.dumps(err), 400, mimetype='application/json')
+#     if network.prefixlen < 16:
+#         err['err_n'] = 400
+#         err['error'] = 'Bad parameters: the shortest supported prefix is /16')
+#         return Response(json.dumps(err), 400, mimetype='application/json')
+    if network.prefixlen not in (16, 24):
+        err['err_n'] = 400
+        err['error'] = 'Bad parameters: only /16 and /24 prefixes are currently supported'
+        return Response(json.dumps(err), 400, mimetype='application/json')
+    
+    # Get list of all IPs from DB matching the prefix
+    str_prefix = str(network.network_address) # get network address and remove ".0" from the end
+    str_prefix = '.'.join(str_prefix.split('.')[:(3 if network.prefixlen == 24 else 2)])
+    str_prefix_end = str_prefix[:-1] + chr(ord(str_prefix[-1])+1)
+    query = {'$and': [{'_id': {'$gte': str_prefix}}, {'_id': {'$lt': str_prefix_end}}]}
+    try:
+        results = mongo.db.ip.find(query)
+        results = list(results)
+    except pymongo.errors.ServerSelectionTimeoutError:
+        err['err_n'] = 503
+        err['error'] = 'Database connection error'
+        return Response(json.dumps(err), 503, mimetype='application/json')
+    
+    # Create a summary record
+    sum_rep = 0.0
+    ips = []
+    for rec in results:
+        sum_rep += rec.get('rep', 0.0)
+        ips.append(rec['_id'])
+
+    result = {
+        'rep': sum_rep / network.num_addresses,
+        'num_ips': len(results),
+        'ips': ips,
+    }
+    return Response(json.dumps(result), 200, mimetype='application/json')
+    
+
+# ***** NERD bad prefix list *****
+# Return list of the worst BGP prefixes by their reutation score
+
+# class BadPrefixForm(FlaskForm):
+#     t = FloatField('Reputation score threshold', [validators.Optional(), validators.NumberRange(0, 1, 'Must be a number between 0 and 1')], default=0.01)
+#     limit = IntegerField('Max number of results', [validators.Optional()], default=100)
+
+@app.route('/api/v1/bad_prefixes')
+def bad_prefixes():
+    err = {}
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
+
+    # Parse parameters (threshold, limit)
+#     form = BadPrefixForm(request.args)
+#     if not form.validate():
+#         err['err_n'] = 400
+#         err['error'] = 'Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items())
+#         return Response(json.dumps(err), 400, mimetype='application/json')
+#     t = form.t.data
+#     limit = form.limit.data
+    try:
+        t = float(request.args.get('t', 0.01))
+        limit = int(request.args.get('limit', 100))
+    except ValueError:
+        err['err_n'] = 400
+        err['error'] = 'Bad parameters'
+        return Response(json.dumps(err), 400, mimetype='application/json')
+    
+    # Get the list of prefixes from database
+    try:
+        cursor = mongo.db.bgppref.find({"rep": {"$gt": t}}, {"rep": 1}).sort("rep", -1).limit(limit)
+        results = list(cursor)
+    except pymongo.errors.ServerSelectionTimeoutError:
+        err['err_n'] = 503
+        err['error'] = 'Database connection error'
+        return Response(json.dumps(err), 503, mimetype='application/json')
+
+    # Prepare output
+    output = request.args.get('o', "json")
+    if output == "json":
+        res_list = [{'prefix': res['_id'], 'rep': res['rep']} for res in results]
+        return Response(json.dumps(res_list), 200, mimetype='application/json')
+    elif output == "text":
+        return Response('\n'.join(res['_id']+'\t'+str(res['rep']) for res in results), 200, mimetype='text/plain')
+    else:
+        err['err_n'] = 400
+        err['error'] = 'Unrecognized value of output parameter: ' + output
+        return Response(json.dumps(err), 400, mimetype='application/json')
+
 
 """
 ***** NERD API Bulk IP Reputation *****
@@ -1133,9 +1341,8 @@ Returned data contain an octet stream. Each 8 bytes represent a double precision
 
 @app.route('/api/v1/ip/bulk/', methods=['POST'])
 def bulk_request():
-    ret = validate_api_request(request.headers.get("Authorization"))
-    if ret:
-        return ret
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
 
     ips = request.get_data()
 
@@ -1185,8 +1392,8 @@ def page_not_found(e):
 # ***** Passive DNS gateway *****
 @app.route('/pdns/ip/<ipaddr>', methods=['GET'])
 def pdns_ip(ipaddr=None):
-    if not ipaddr:
-        return Response(json.dumps({'status': 404, 'error': 'not found'}), 404, mimetype='application/json')        
+    if not g.ac('pdns'):
+        return API_RESPONSE_403
     try:
         response = requests.get('https://passivedns.cesnet.cz/pdns/ip/{}'.format(ipaddr))
     except requests.RequestException as e: # Connection error, just in case
@@ -1197,8 +1404,17 @@ def pdns_ip(ipaddr=None):
     elif response.status_code == 404: # Return "not found" as success, just with empty list
         return Response("[]", 200, mimetype='application/json')
     else:
-        return Response(json.dumps({'status': 502, 'error': 'Bad Gateway: ' + json.dumps(response.json())}), 502, mimetype='application/json')
-    
+        return Response(json.dumps({'status': 502, 'error': 'Bad Gateway. Received response ({}): {}'.format(response.status_code, response.text)}), 502, mimetype='application/json')
+
+
+@app.route('/api/shodan-info/<ipaddr>', methods=['GET'])
+def get_shodan_response(ipaddr=None):
+    if not g.ac('shodan'):
+        return API_RESPONSE_403
+    #print("(Shodan) got an incoming request {}".format(ipaddr))
+    shodan_client = ShodanRpcClient()
+    data = json.loads(shodan_client.call(ipaddr))
+    return render_template('shodan_response.html', data=data)
 
 # **********
 

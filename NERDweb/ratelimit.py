@@ -156,6 +156,7 @@ if __name__ == '__main__':
     
     print("Going to use Redis at localhost:6379, DB index {}.".format(config['rate-limit.redis.db_index']))
     print("!! Check that this Redis DB is not used for anything else !!")
+    print("   (Hint: Run 'redis-cli -n {}' and enter 'keys *')".format(config['rate-limit.redis.db_index']))
     i = input("Can we continue? [y/N] ")
     if i.lower() != 'y':
         sys.exit(0)
@@ -172,7 +173,7 @@ if __name__ == '__main__':
         if id:
             last_id = id
             result, tokens = rl._check_and_set_tokens(id)
-            print("Request sucessful" if result else "Too many queries")
+            print("Request sucessful" if result else "Too many requests")
             print("Remaining tokens:", tokens)
         else:
             tokens = rl.get_tokens(last_id)

@@ -334,7 +334,7 @@ $data_files = <<EOF
 echo "** Downloading GeoIP database **"
 mkdir -p /data/geoip
 wget -q http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz -O /data/geoip/GeoLite2-City.mmdb.gz
-gunzip /data/geoip/GeoLite2-City.mmdb.gz
+gunzip -f /data/geoip/GeoLite2-City.mmdb.gz
 
 echo "** Copying CAIDA AS-type mapping file **"
 # Copy caida file (if present)
@@ -402,6 +402,7 @@ Vagrant.configure(2) do |config|
   config.vm.network "forwarded_port", guest: 80, host: 2280, host_ip: '127.0.0.1'
   config.vm.network "forwarded_port", guest: 5000, host: 5000, host_ip: '127.0.0.1' # Flask internal server
   config.vm.network "forwarded_port", guest: 15672, host: 15672, host_ip: '127.0.0.1' # RabbitMQ management web interface
+  config.vm.network "forwarded_port", guest: 15672, host: 15672
   config.vm.provider "virtualbox" do |v|
     v.memory = 2048
     v.cpus = 2

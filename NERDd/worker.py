@@ -31,6 +31,7 @@ def main(cfg_file, process_index):
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
     
     import common.config
+    import common.eventdb_mentat
     import core.mongodb
     import core.update_manager
     import core.scheduler
@@ -61,6 +62,23 @@ def main(cfg_file, process_index):
     g.db = core.mongodb.MongoEntityDatabase(config)
     g.um = core.update_manager.UpdateManager(config, g.db, process_index)
     
+    # EventDB may be local PSQL (default), external Mentat instance or None
+    EVENTDB_TYPE = config.get('eventdb', 'psql')
+    if EVENTDB_TYPE == 'psql':
+        import common.eventdb_psql
+        g.eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+    elif EVENTDB_TYPE == 'mentat':
+        import common.eventdb_mentat
+        g.eventdb = common.eventdb_mentat.MentatEventDBProxy(config)
+    else:
+        class DummyEventDB:
+            def get(*args, **kwargs):
+                return []
+            def put(*args, **kwargs):
+                return None
+        g.eventdb = DummyEventDB()
+        log.error("Unknown 'eventdb' configured, events won't be stored")    
+
     
     ################################################
     # Load all plug-in modules
@@ -84,6 +102,7 @@ def main(cfg_file, process_index):
     import modules.reputation
     import modules.whois
     import modules.passive_dns
+    import modules.fmp
     
     # Instantiate modules
     # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
@@ -105,7 +124,8 @@ def main(cfg_file, process_index):
         modules.bgp_rank.CIRCL_BGPRank(),
         modules.event_type_counter.EventTypeCounter(),
         modules.tags.Tags(),
-        modules.passive_dns.PassiveDNSResolver()
+        modules.passive_dns.PassiveDNSResolver(),
+        modules.fmp.FMP()
     ]
     
     

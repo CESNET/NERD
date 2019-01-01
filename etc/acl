@@ -11,6 +11,9 @@ ipblocksearch   *
 orgsearch       *
 bgpprefsearch   *
 
+pdns            *
+shodan          *
+
 nodenames       trusted
 warden_alerts   trusted
 eml_rank        trusted

@@ -8,7 +8,7 @@ inactive_ip_lifetime: 14
 # Number of days to store meta-data about events in IP records
 max_event_history: 90
 
-eventdb:
+eventdb_psql:
   # Number of separate processes for inserting messages to DB
   # (zero means don't spawn a separate process)
   dbwriter_processes: 0
@@ -66,6 +66,10 @@ dnsbl:
   max_requests: 150000
   # File where daily count of requests is stored (this is only prefix to which date will be appended)
   req_cnt_file: "/data/dnsbl-requests-"
+
+fmp:
+  paths: {"general" : "/data/fmp/general/"}
+  models: {"general" : "/data/fmp/models/model_access_nerd_xg200_7.bin"}
 
 #shodan:
 #   apikey: ""
