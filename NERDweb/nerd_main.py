@@ -647,11 +647,6 @@ def ips():
                 dates.add(evtrec['date'])
                 cats.add(evtrec['cat'])
                 nodes.add(evtrec['node'])
-                # TEMPORARY: add set of nodes from old event format
-                try:
-                    nodes.update(ip['events_meta']['nodes'][evtrec['date']])
-                except KeyError:
-                    pass
             try:
                 nodes.remove('?')
             except KeyError:
@@ -667,9 +662,10 @@ def ips():
             
             # Show only last 5 days
             MAX_DAYS = 5
+            ellipsis = False
             if len(dates) > MAX_DAYS:
                 dates = dates[-MAX_DAYS:]
-                dates.insert(0, '...')
+                ellipsis = True
             
             # Table len(dates) x len(cats) -> number
             date_cat_table = [ [0 for _ in cats] for _ in dates ] 
@@ -679,7 +675,9 @@ def ips():
                 except ValueError:
                     pass # date not found in dates because we cut it
             
-            if len(dates) > 0 and dates[0] == '...':
+            # Insert ellipsis at the beginning of the table to show there are more data in older dates
+            if ellipsis:
+                dates.insert(0, '...')
                 date_cat_table.insert(0, ['...' for _ in cats])
             
             # Store info into IP record
