@@ -22,3 +22,4 @@ mentat          mentat
 # Admin tools
 internal_attrs  admin
 statusbox       admin
+fmp             admin
