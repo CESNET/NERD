@@ -1002,7 +1002,7 @@ def get_ip_info(ipaddr, full):
     if full:
         ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
     else:
-        ipinfo = mongo.db.ip.find_one({'_id':form.ip.data}, {'rep': 1, 'hostname': 1, 'bgppref': 1, 'ipblock': 1, 'geo': 1, 'bl': 1, 'tags': 1})
+        ipinfo = mongo.db.ip.find_one({'_id':form.ip.data}, {'rep': 1, 'fmp': 1, 'hostname': 1, 'bgppref': 1, 'ipblock': 1, 'geo': 1, 'bl': 1, 'tags': 1})
     if not ipinfo:
         data['err_n'] = 404
         data['error'] = "IP address not found"
@@ -1070,6 +1070,7 @@ def get_basic_info_dic(val):
     data = {
         'ip' : val['_id'],
         'rep' : val.get('rep', 0.0),
+        'fmp' : val.get('fmp', {'general': 0.0}),
         'hostname' : (val.get('hostname', '') or '')[::-1],
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
@@ -1095,7 +1096,7 @@ def get_basic_info(ipaddr=None):
     return Response(json.dumps(binfo), 200, mimetype='application/json')
 
 
-# ***** NERD API Reputation only *****
+# ***** NERD API Reputation/FMP only *****
 
 @app.route('/api/v1/ip/<ipaddr>/rep')
 def get_ip_rep(ipaddr=None):
@@ -1121,6 +1122,33 @@ def get_ip_rep(ipaddr=None):
         'rep': ipinfo.get('rep', 0.0),
     }
     return Response(json.dumps(data), 200, mimetype='application/json')
+
+
+@app.route('/api/v1/ip/<ipaddr>/fmp')
+def get_ip_fmp(ipaddr=None):
+    if not g.ac('ipsearch'):
+        return API_RESPONSE_403
+
+    # Check validity of ipaddr
+    try:
+        ipaddress.IPv4Address(ipaddr)
+    except ValueError:
+        data = {'err_n': 400, 'error': 'Bad IP address'}
+        return Response(json.dumps(data), 400, mimetype='application/json')
+
+    # Load 'fmp' field of the IP from MongoDB
+    ipinfo = mongo.db.ip.find_one({'_id': ipaddr}, {'fmp': 1})
+    if not ipinfo:
+        data = {'err_n': 404, 'error': 'IP address not found', 'ip': ipaddr}
+        return Response(json.dumps(data), 404, mimetype='application/json')
+
+    # Return simple JSON
+    data = {
+        'ip': ipinfo['_id'],
+        'fmp': ipinfo.get('fmp', {'general': 0.0}),
+    }
+    return Response(json.dumps(data), 200, mimetype='application/json')
+
 
 
 @app.route('/api/v1/ip/<ipaddr>/test') # No query to database - for performance comparison
@@ -1149,6 +1177,7 @@ def get_full_info(ipaddr=None):
     data = {
         'ip' : val['_id'],
         'rep' : val.get('rep', 0.0),
+        'fmp' : val.get('fmp', {'general': 0.0}),
         'hostname' : (val.get('hostname', '') or '')[::-1],
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
