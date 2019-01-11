@@ -9,8 +9,8 @@ import g
 
 import datetime
 
-EWMA_ALPHA = 0.25 # a parameter (there's no strong reason for the values selected, I just feel that 0.25 gives reasonable weights for the 7 day long period)
-EWMA_WEIGHTS = [(EWMA_ALPHA * (1 - EWMA_ALPHA)**i) for i in range(7)][::-1]
+EWMA_ALPHA = 0.25 # a parameter (there's no strong reason for the value selected, I just feel that 0.25 gives reasonable weights for the 7 day long period)
+EWMA_WEIGHTS = [(EWMA_ALPHA * (1 - EWMA_ALPHA)**i) for i in range(7)]
 
 # TODO - (re)compute sets of nodes for 1, 7 and 30 days as well (or do it in frontend?)
 
