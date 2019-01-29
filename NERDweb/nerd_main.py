@@ -598,6 +598,7 @@ def create_query(form):
 def ips():
     title = "IP search"
     form = IPFilterForm(request.args)
+    cfg_max_event_history = config.get('max_event_history', '?')
     
     if g.ac('ipsearch') and form.validate():
         tz_utc = pytz.utc 
