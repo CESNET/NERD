@@ -716,15 +716,21 @@ class UpdateManager:
         Should be run as a separate (daemon) thread.
         Exits when all workers has finished.
         """
-        time.sleep(10)
+        ttl = 10 # Wait for 10 seconds until printing starts
         while True:
-            self.log.info("Workers and their queue size:\n" + '\n'.join(
-                "{:2} ({}): {:3}".format(w.name[9:], "alive" if w.is_alive() else "dead ", self.get_queue_size(i)) for i,w in enumerate(self._workers)
-            ))
-            alive_workers = filter(threading.Thread.is_alive, self._workers)
+            # Check if all workers are dead every second
+            time.sleep(1)
+            ttl -= 1
+            alive_workers = [w for w in self._workers if w.is_alive()]
             if not alive_workers:
-                break
-            time.sleep(5)
+                return
+            
+            if ttl == 0:
+                # Print info and reset counter to 5 seconds
+                self.log.info("{} worker threads alive, their queue sizes:\n".format(len(alive_workers)) + '\n'.join(
+                    "{:2}: {:3}".format(w.name[9:], self.get_queue_size(i)) for i,w in enumerate(alive_workers)
+                ))
+                ttl = 5
             
     
     def _worker_func(self, thread_index):
