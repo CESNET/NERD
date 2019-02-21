@@ -43,7 +43,7 @@ class CIRCL_BGPRank(NERDModule):
         Set a 'circl_bgprank' attribute as a result of BGP Ranking query on the ASN.
 
         Arguments:
-        ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
+        ekey -- two-tuple of entity type and key, e.g. ('asn', 1234)
         rec -- record currently assigned to the key
         updates -- list of all attributes whose update triggered this call and
           their new values (or events and their parameters) as a list of
