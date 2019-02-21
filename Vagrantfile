@@ -20,157 +20,44 @@
 # backwards compatibility). Please don't change it unless you know what
 # you're doing.
 
-##### Install some basic yum packages #####
-
-$basic_packages = <<EOF
-
-echo "** Installing packages **"
-yum install -y https://centos7.iuscommunity.org/ius-release.rpm
-yum install -y git wget gcc vim python34 python34-devel
 
 
-EOF
-
-##### Install various Python packages needed by NERD #####
-
-$python_packages = <<EOF
-
-echo "** Installing pip and Python packages **"
-wget -q https://bootstrap.pypa.io/get-pip.py
-python3.4 get-pip.py
-rm -f get-pip.py
-pip3 install -r /vagrant/NERDd/requirements.txt
-pip3 install -r /vagrant/NERDweb/requirements.txt
-
-# Patch bgpranking_web to work in Python 3
-echo 'import sys
-if sys.version_info[0] == 2:
-    from api import *
-else:
-    from .api import *
-' > /usr/lib/python3.4/site-packages/bgpranking_web/__init__.py
-
-EOF
-
-##### Install MongoDB #####
+##### MongoDB #####
 $mongo = <<EOF
-echo "** Installing and configuring MongoDB **"
-
-echo '[mongodb-org-3.2]
-name=MongoDB Repository
-baseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/3.2/x86_64/
-gpgcheck=0
-enabled=1
-' > /etc/yum.repos.d/mongodb-org-3.2.repo
-
-yum install -y mongodb-org
-
-# ** Set up logrotate **
-# Configure Mongod to only reopen file after receiving SIGUSR1
-sed -i '/logAppend: true/a \\ \\ logRotate: reopen' /etc/mongod.conf
-# Configure logrotate
-echo '/var/log/mongodb/mongod.log {
-    weekly
-    missingok
-    rotate 8
-    compress
-    delaycompress
-    notifempty
-    postrotate
-        /usr/bin/pkill -USR1 mongod
-    endscript
-}
-' > /etc/logrotate.d/mongodb
-
-echo "** Starting MongoDB **"
-/sbin/chkconfig mongod on
-systemctl start mongod.service
+echo "** Configuring MongoDB **"
 
 echo "** Setting up MongoDB for NERD (create indexes) **"
 mongo nerd /vagrant/mongo_prepare_db.js
 
 EOF
 
-##### Install and configure PostgreSQL #####
+##### PostgreSQL #####
 
 $postgres = <<EOF
 
-echo "** Installing PostgreSQL **"
-yum install -y https://download.postgresql.org/pub/repos/yum/9.6/redhat/rhel-7-x86_64/pgdg-centos96-9.6-3.noarch.rpm
-yum install -y postgresql96-server postgresql96-devel
-PATH=$PATH:/usr/pgsql-9.6/bin
-export PATH
+echo "** Configuring PostgreSQL database **"
 
-echo "** Configuring and starting PostgreSQL **"
-#adduser postgres
-mkdir -p /data/pgsql
-chown -R postgres /data/pgsql
-sudo -u postgres /usr/pgsql-9.6/bin/initdb -D /data/pgsql
-sed -i "s,PGDATA=.*$,PGDATA=/data/pgsql," /lib/systemd/system/postgresql-9.6.service
+# Create a database for NERD in PostgreSQL
+sudo -u postgres /usr/pgsql-9.6/bin/createuser nerd
+sudo -u postgres  /usr/pgsql-9.6/bin/createdb --owner nerd nerd
 
-systemctl enable postgresql-9.6.service
-systemctl start postgresql-9.6.service
-
-echo "** Creating a database for NERD in PostgreSQL **"
-/usr/pgsql-9.6/bin/createuser -U postgres nerd
-/usr/pgsql-9.6/bin/createdb -U postgres --owner nerd nerd
-
+# TODO separate user database (mandatory for web) and event database (which is optional)
 # initialize database (create tables etc.)
-/usr/pgsql-9.6/bin/psql -d nerd -U nerd -f /vagrant/create_db.sql
+sudo -u nerd /usr/pgsql-9.6/bin/psql -d nerd -f /vagrant/create_db.sql
+
+# TODO install pgadmin4
+# Install pgAdmin4 and set it up to run via WSGI under Apache
+# yum install -y pgadmin4
+# Run initial setup to set the admin user account
+# see https://computingforgeeks.com/how-to-install-pgadmin-4-on-centos-7-fedora-29-fedora-28/
+# python /usr/lib/python2.7/site-packages/pgadmin4-web/setup.py
+
 
 EOF
 
-##### Install and configure Redis #####
-
-$redis = <<EOF
-
-echo "** Installing Redis **"
-yum install -y redis
-
-echo "** Starting Redis **"
-systemctl enable redis.service
-systemctl start redis.service
-
-EOF
-
-##### Install and configure RabbitMQ #####
+##### RabbitMQ #####
 
 $rabbitmq = <<EOF
-
-echo "** Installing RabbitMQ **"
-# We need more recent version than in CentOS7 (>=3.7.0), so install from developer sites
-
-# Install Erlang (dependency)
-echo '[rabbitmq-erlang]
-name=rabbitmq-erlang
-baseurl=https://dl.bintray.com/rabbitmq/rpm/erlang/20/el/7
-gpgcheck=1
-gpgkey=https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
-repo_gpgcheck=0
-enabled=1
-' > /etc/yum.repos.d/rabbitmq-erlang.repo
-
-yum install -y erlang
-
-# Install RabbitMQ
-yum install -y https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.6/rabbitmq-server-3.7.6-1.el7.noarch.rpm
-
-# Allow guest user to login remotely (allowed only from localhost by default)
-# This is necessary for Vagrant, but DON'T DO THIS IN PRODUCTION!
-# (rabbitmq.conf is not present after installation, so we just create it)
-echo "loopback_users = none" > /etc/rabbitmq/rabbitmq.conf
-
-echo "** Starting RabbitMQ **"
-systemctl enable rabbitmq-server
-systemctl start rabbitmq-server
-
-# Enable necessary plugins
-rabbitmq-plugins enable rabbitmq_management
-rabbitmq-plugins enable rabbitmq_consistent_hash_exchange
-
-# Get rabbitmqadmin tool (provided via local API by the management plugin)
-wget http://localhost:15672/cli/rabbitmqadmin -O /usr/bin/rabbitmqadmin
-chmod +x /usr/bin/rabbitmqadmin
 
 echo "** Configuring RabbitMQ for NERD **"
 
@@ -259,6 +146,7 @@ pip3 install mod_wsgi
 rm -f /usr/lib64/httpd/modules/mod_wsgi.so
 ln -s /usr/lib64/python3.4/site-packages/mod_wsgi/server/mod_wsgi-py34.cpython-34m.so /usr/lib64/httpd/modules/mod_wsgi.so
 
+# TODO copy this from a file
 echo "** Configuring Apache **"
 echo '
 # NERD (Flask app)
@@ -369,12 +257,22 @@ chown vagrant:vagrant /data
 
 EOF
 
+##### Supervisor #####
+
+$supervisor = <<EOF
+
+cp /vagrant/install/supervisord.conf /etc/nerd/supervisord.conf
+mkdir -p /etc/nerd/supervisord.conf.d/
+
+
+EOF
+
 ##### Create testing users #####
 
 $users = <<EOF
 
 echo "** Creating user accounts **"
-psql -U nerd -c "\
+sudo -u nerd psql -c "\
   INSERT INTO users (id,groups,name,email) VALUES ('devel:devel_admin','{\"admin\",\"registered\"}','Mr. Developer','test@example.org') ON CONFLICT DO NOTHING;\
   INSERT INTO users (id,groups,name,email) VALUES ('local:test','{\"registered\"}','Mr. Test','test@example.org') ON CONFLICT DO NOTHING;\
 "
@@ -394,29 +292,25 @@ EOF
 ##########
 
 
-$start = <<SCRIPT
-SCRIPT
-
 Vagrant.configure(2) do |config|
   config.vm.box = "centos/7"
-  config.vm.network "forwarded_port", guest: 80, host: 2280, host_ip: '127.0.0.1'
-  config.vm.network "forwarded_port", guest: 5000, host: 5000, host_ip: '127.0.0.1' # Flask internal server
+  config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: '127.0.0.1' # Main web server (NERDweb)
   config.vm.network "forwarded_port", guest: 15672, host: 15672, host_ip: '127.0.0.1' # RabbitMQ management web interface
-  config.vm.network "forwarded_port", guest: 15672, host: 15672
+  config.vm.network "forwarded_port", guest: 9001, host: 9001, host_ip: '127.0.0.1' # Supervisor web interface
   config.vm.provider "virtualbox" do |v|
     v.memory = 2048
     v.cpus = 2
   end
 
-  config.vm.provision :shell, inline: $basic_packages
-  config.vm.provision :shell, inline: $python_packages
+  config.vm.provision :shell, path: "install/install_basic_dependencies.sh"
+  config.vm.provision :shell, path: "install/prepare_environment.sh"
   config.vm.provision :shell, inline: $mongo
   config.vm.provision :shell, inline: $postgres
-  config.vm.provision :shell, inline: $redis
   config.vm.provision :shell, inline: $rabbitmq
   config.vm.provision :shell, inline: $bind
   config.vm.provision :shell, inline: $warden
   config.vm.provision :shell, inline: $web
   config.vm.provision :shell, inline: $data_files
+  config.vm.provision :shell, inline: $supervisor
   config.vm.provision :shell, inline: $users
 end
