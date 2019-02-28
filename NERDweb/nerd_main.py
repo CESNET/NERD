@@ -24,7 +24,7 @@ from wtforms import validators, TextField, TextAreaField, FloatField, IntegerFie
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 import common.config
-from common.utils import ipstr2int, int2ipstr
+from common.utils import ipstr2int, int2ipstr, parse_rfc_time
 from shodan_rpc_client import ShodanRpcClient
 
 #import db
@@ -795,6 +795,20 @@ def ajax_ip_events(ipaddr):
     # no database to read events from
     else:
         error = 'Event database disabled'
+
+    for event in events:
+        start = end = None
+        try:
+            if event.get("EventTime") and event.get("CeaseTime"):
+                start = parse_rfc_time(event['EventTime'])
+                end = parse_rfc_time(event['CeaseTime'])
+            elif event.get("WinStartTime") and event.get("WinEndTime"):
+                start = parse_rfc_time(event['WinStartTime'])
+                end = parse_rfc_time(event['WinEndTime'])
+        except ValueError:
+            pass # Invalid format of some time specification
+        if start and end:
+            event["_duration"] = (end - start).total_seconds()
 
     num_events = str(len(events))
     if len(events) >= 100:
