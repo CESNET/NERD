@@ -109,7 +109,7 @@ def main():
     import modules.event_counter
     import modules.hostname
     import modules.caida_as_class
-    import modules.bgp_rank
+    #import modules.bgp_rank
     import modules.event_type_counter
     import modules.tags
     import modules.reputation
@@ -136,7 +136,7 @@ def main():
         modules.reputation.Reputation(),
         modules.hostname.HostnameClass(),
         modules.caida_as_class.CaidaASclass(),
-        modules.bgp_rank.CIRCL_BGPRank(),
+        #modules.bgp_rank.CIRCL_BGPRank(), # Disabled by default, as it seems the service has been discontinued
         modules.event_type_counter.EventTypeCounter(),
         modules.tags.Tags(),
         modules.passive_dns.PassiveDNSResolver(),
