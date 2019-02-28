@@ -24,6 +24,7 @@ from wtforms import validators, TextField, TextAreaField, FloatField, IntegerFie
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 import common.config
+from common.utils import ipstr2int, int2ipstr
 from shodan_rpc_client import ShodanRpcClient
 
 #import db
@@ -500,8 +501,14 @@ def get_tags():
     tags.sort()    
     return tags
 
+def subnet_validator(form, field):
+    try:
+        ipaddress.IPv4Network(field.data, strict=False)
+    except ValueError:
+        raise validators.ValidationError()
+
 class IPFilterForm(FlaskForm):
-    subnet = TextField('IP prefix', [validators.Optional()])
+    subnet = TextField('IP prefix', [validators.Optional(), subnet_validator])
     hostname = TextField('Hostname suffix', [validators.Optional()])
     country = TextField('Country code', [validators.Optional(), validators.length(2, 2)])
     asn = TextField('ASN', [validators.Optional(),
@@ -559,9 +566,11 @@ def create_query(form):
     # Prepare 'find' part of the query
     queries = []
     if form.subnet.data:
-        subnet = form.subnet.data
-        subnet_end = subnet[:-1] + chr(ord(subnet[-1])+1)
-        queries.append( {'$and': [{'_id': {'$gte': subnet}}, {'_id': {'$lt': subnet_end}}]} )
+        subnet = ipaddress.IPv4Network(form.subnet.data, strict=False)
+        form.subnet.data = str(subnet) # Convert to canonical form (e.g. 1.2.3.4/16 -> 1.2.0.0/16)
+        subnet_start = int(subnet.network_address) # IP addresses are stored as int
+        subnet_end = int(subnet.broadcast_address)
+        queries.append( {'$and': [{'_id': {'$gte': subnet_start}}, {'_id': {'$lt': subnet_end}}]} )
     if form.hostname.data:
         hn = form.hostname.data[::-1] # Hostnames are stored reversed in DB to allow search by suffix as a range search
         hn_end = hn[:-1] + chr(ord(hn[-1])+1)
@@ -618,8 +627,12 @@ def ips():
         except pymongo.errors.ServerSelectionTimeoutError:
             results = []
             error = 'database_error'
-        
+
+        # Convert _id from int to dotted-decimal string        
         for ip in results:
+            ip['_id'] = int2ipstr(ip['_id'])
+        
+        for ip in results:    
             if "bgppref" in ip:
                 asn_list = []
                 bgppref = mongo.db.bgppref.find_one({'_id':ip['bgppref']})
@@ -721,12 +734,17 @@ class SingleIPForm(FlaskForm):
 @app.route('/ip/')
 @app.route('/ip/<ipaddr>')
 def ip(ipaddr=None):
+    # Validate IP address
     form = SingleIPForm(ip=ipaddr)
-    #if form.validate():
+    if not form.validate():
+        flash('Invalid IPv4 address', 'error')
+        ipaddr = None
+
     if ipaddr:
         if g.ac('ipsearch'):
             title = ipaddr
-            ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+            ipnum = ipstr2int(ipaddr)
+            ipinfo = mongo.db.ip.find_one({'_id': ipnum})
             
             asn_list = []
             if ipinfo:
@@ -750,7 +768,7 @@ def ip(ipaddr=None):
     else:
         title = 'IP detail search'
         ipinfo = {}
-    return render_template('ip.html', ctrydata=ctrydata, ip=form.ip.data, **locals())
+    return render_template('ip.html', ctrydata=ctrydata, ip=ipaddr, **locals())
 
 
 @app.route('/ajax/ip_events/<ipaddr>')
@@ -838,7 +856,7 @@ def ipblock(ipblock=None):
             rec['ips'] = []
             if cursor is not None:
                 for val in cursor:
-                    rec['ips'].append(val['_id'])
+                    rec['ips'].append(int2ipstr(val['_id']))
     else:
         flash('Insufficient permissions to search/view IP blocks.', 'error')
     return render_template('ipblock.html', ctrydata=ctrydata, **locals())
@@ -886,7 +904,7 @@ def bgppref(bgppref=None):
             cursor = mongo.db.ip.find({'bgppref': bgppref}, {'_id': 1})
             rec['ips'] = []
             for val in cursor:
-                rec['ips'].append(val['_id'])
+                rec['ips'].append(int2ipstr(val['_id']))
     else:
         flash('Insufficient permissions to search/view BGP prefixes.', 'error')
     return render_template('bgppref.html', ctrydata=ctrydata, **locals())
@@ -963,7 +981,7 @@ def iplist():
     except pymongo.errors.ServerSelectionTimeoutError:
         return Response('ERROR: Database connection error', 503, mimetype='text/plain')
     
-    return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
+    return Response('\n'.join(int2ipstr(res['_id']) for res in results), 200, mimetype='text/plain')
 
 
 # ****************************** API ******************************
@@ -1000,14 +1018,18 @@ def get_ip_info(ipaddr, full):
         data['error'] = "Bad IP address"
         return False, Response(json.dumps(data), 400, mimetype='application/json')
 
+    ipint = ipstr2int(form.ip.data) # Convert string IP to int
+
     if full:
-        ipinfo = mongo.db.ip.find_one({'_id':form.ip.data})
+        ipinfo = mongo.db.ip.find_one({'_id':ipint})
     else:
-        ipinfo = mongo.db.ip.find_one({'_id':form.ip.data}, {'rep': 1, 'fmp': 1, 'hostname': 1, 'bgppref': 1, 'ipblock': 1, 'geo': 1, 'bl': 1, 'tags': 1})
+        ipinfo = mongo.db.ip.find_one({'_id':ipint}, {'rep': 1, 'fmp': 1, 'hostname': 1, 'bgppref': 1, 'ipblock': 1, 'geo': 1, 'bl': 1, 'tags': 1})
     if not ipinfo:
         data['err_n'] = 404
         data['error'] = "IP address not found"
         return False, Response(json.dumps(data), 404, mimetype='application/json')
+
+    ipinfo['_id'] = int2ipstr(ipinfo['_id']) # Convert int IP to string
 
     attach_whois_data(ipinfo, full)
     return True, ipinfo
@@ -1111,15 +1133,17 @@ def get_ip_rep(ipaddr=None):
         data = {'err_n': 400, 'error': 'Bad IP address'}
         return Response(json.dumps(data), 400, mimetype='application/json')
 
+    ipint = ipstr2int(ipaddr)
+
     # Load 'rep' field of the IP from MongoDB
-    ipinfo = mongo.db.ip.find_one({'_id': ipaddr}, {'rep': 1})
+    ipinfo = mongo.db.ip.find_one({'_id': ipint}, {'rep': 1})
     if not ipinfo:
         data = {'err_n': 404, 'error': 'IP address not found', 'ip': ipaddr}
         return Response(json.dumps(data), 404, mimetype='application/json')
 
     # Return simple JSON
     data = {
-        'ip': ipinfo['_id'],
+        'ip': int2ipstr(ipinfo['_id']),
         'rep': ipinfo.get('rep', 0.0),
     }
     return Response(json.dumps(data), 200, mimetype='application/json')
@@ -1137,15 +1161,17 @@ def get_ip_fmp(ipaddr=None):
         data = {'err_n': 400, 'error': 'Bad IP address'}
         return Response(json.dumps(data), 400, mimetype='application/json')
 
+    ipint = ipstr2int(ipaddr)
+
     # Load 'fmp' field of the IP from MongoDB
-    ipinfo = mongo.db.ip.find_one({'_id': ipaddr}, {'fmp': 1})
+    ipinfo = mongo.db.ip.find_one({'_id': ipint}, {'fmp': 1})
     if not ipinfo:
         data = {'err_n': 404, 'error': 'IP address not found', 'ip': ipaddr}
         return Response(json.dumps(data), 404, mimetype='application/json')
 
     # Return simple JSON
     data = {
-        'ip': ipinfo['_id'],
+        'ip': int2ipstr(ipinfo['_id']),
         'fmp': ipinfo.get('fmp', {'general': 0.0}),
     }
     return Response(json.dumps(data), 200, mimetype='application/json')
@@ -1231,6 +1257,10 @@ def ip_search(full = False):
         err['error'] = 'Database connection error'
         return Response(json.dumps(err), 503, mimetype='application/json')
 
+    # Convert _id from int to dotted-decimal string        
+    for res in results:
+        res['_id'] = int2ipstr(res['_id'])
+
     output = request.args.get('o', "json")
     if output == "json":
         lres = []
@@ -1252,7 +1282,6 @@ def ip_search(full = False):
 #  - average reputation score of the prefix (sum of rep of present addresses divided by prefix size)
 #  - number of IPs in the DB in the prefix
 #  - list of the IPs
-# FIXME: currently only /24 prefixes are supported
 
 @app.route('/api/v1/prefix/<prefix>/<length>')
 def prefix(prefix, length):
@@ -1267,20 +1296,15 @@ def prefix(prefix, length):
         err['err_n'] = 400
         err['error'] = 'Bad parameters: invalid prefix'
         return Response(json.dumps(err), 400, mimetype='application/json')
-#     if network.prefixlen < 16:
-#         err['err_n'] = 400
-#         err['error'] = 'Bad parameters: the shortest supported prefix is /16')
-#         return Response(json.dumps(err), 400, mimetype='application/json')
-    if network.prefixlen not in (16, 24):
+    if network.prefixlen < 16:
         err['err_n'] = 400
-        err['error'] = 'Bad parameters: only /16 and /24 prefixes are currently supported'
+        err['error'] = 'Bad parameters: the shortest supported prefix is /16'
         return Response(json.dumps(err), 400, mimetype='application/json')
     
     # Get list of all IPs from DB matching the prefix
-    str_prefix = str(network.network_address) # get network address and remove ".0" from the end
-    str_prefix = '.'.join(str_prefix.split('.')[:(3 if network.prefixlen == 24 else 2)])
-    str_prefix_end = str_prefix[:-1] + chr(ord(str_prefix[-1])+1)
-    query = {'$and': [{'_id': {'$gte': str_prefix}}, {'_id': {'$lt': str_prefix_end}}]}
+    int_prefix_start = int(network.network_address)
+    int_prefix_end = int(network.broadcast_address)
+    query = {'$and': [{'_id': {'$gte': int_prefix_start}}, {'_id': {'$lt': int_prefix_end}}]}
     try:
         results = mongo.db.ip.find(query)
         results = list(results)
@@ -1294,7 +1318,7 @@ def prefix(prefix, length):
     ips = []
     for rec in results:
         sum_rep += rec.get('rep', 0.0)
-        ips.append(rec['_id'])
+        ips.append(int2ipstr(rec['_id']))
 
     result = {
         'rep': sum_rep / network.num_addresses,
@@ -1377,12 +1401,12 @@ def bulk_request():
     f = request.headers.get("Content-Type", "")
     if f == 'text/plain':
         ips = ips.decode("ascii")
-        ip_list = ips.split(',')
+        ip_list = [ipstr2int(ipstr) for ipstr in ips.split(',')]
     elif f == 'application/octet-stream':
         ip_list = []
         for x in range(0, int(len(ips) / 4)):
-            addr = ips[x * 4 : x * 4 + 4]
-            ip_list.append(str(ipaddress.ip_address(addr)))
+            addr, = struct.unpack('!I', ips[x * 4 : x * 4 + 4])
+            ip_list.append(addr)
     else:
         return Response(json.dumps({'err_n': 400, 'error': 'Unsupported input data format: ' + f}), 400, mimetype='application/json')
 
