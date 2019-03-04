@@ -570,7 +570,7 @@ def create_query(form):
         form.subnet.data = str(subnet) # Convert to canonical form (e.g. 1.2.3.4/16 -> 1.2.0.0/16)
         subnet_start = int(subnet.network_address) # IP addresses are stored as int
         subnet_end = int(subnet.broadcast_address)
-        queries.append( {'$and': [{'_id': {'$gte': subnet_start}}, {'_id': {'$lt': subnet_end}}]} )
+        queries.append( {'$and': [{'_id': {'$gte': subnet_start}}, {'_id': {'$lte': subnet_end}}]} )
     if form.hostname.data:
         hn = form.hostname.data[::-1] # Hostnames are stored reversed in DB to allow search by suffix as a range search
         hn_end = hn[:-1] + chr(ord(hn[-1])+1)
