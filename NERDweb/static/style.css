@@ -422,12 +422,26 @@ td.links img {
 
 .notfound {
   font-size: 1.25em;
+  font-weight: bold;
+  color: #600;
 }
+.notfound2 {
+  font-size: 0.9em;
+  color: #666;
+}
+
+
 .entity-info {
   /*margin: 1em 0 0 0;*/
   background-color: #fff;
   padding: 0.5em 1em 0.5em 1em;  
 }
+.entity-info:after { /* expand the div to include all inner floats */
+    content: "";
+    clear: both;
+    display: block;
+}
+
 .entity-info .header {
   margin: 0.5em 0;
   padding: 0.3em 0.1em;
@@ -531,6 +545,10 @@ dd dl dt:first-child {
 .pdns-item > div:last-child {
   margin-top: 2px;
   font-size: 0.9em;
+}
+
+#events {
+  clear: both;
 }
 
 #event-details {

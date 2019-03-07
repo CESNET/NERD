@@ -12,17 +12,16 @@
 
 {% if not ip or not ac('ipsearch') %}
   {# Print nothing if no IP was passed #}
-{% elif not ipinfo %}
-  <hr>
-  <p class="msg info notfound">IP '{{ form.ip.data }}' not in database.</p>
 {% else %}
 
 <hr>
 
 <div class="entity-info ip">
 
-<p class="header"><span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">
-  {{- "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span><span class="entity-id">{{ ip }}</span><span class="entity-name">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
+<p class="header">
+{% if ipinfo %}<span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">{{ "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span>{% endif %}
+<span class="entity-id">{{ ip }}</span><span class="entity-name">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span>
+</p>
 
 {% if ac('shodan') %}
 <div class="float-box shodan">
@@ -40,6 +39,11 @@
 <div id="pdns_data" class="content"><div class="loading"><img class="load-spinner-small" src="{{ url_for('static', filename='spin.gif') }}"></div></div>
 </div>
 {% endif %}
+
+{% if not ipinfo %}
+<p class="notfound">Record not found in database</p>
+<p class="notfound2">No malicious activity related to the IP address has been reported in last {{ config.inactive_ip_lifetime }} days.</p>
+{% else %}
 
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
@@ -126,6 +130,8 @@
 {% endfor %}
 </dl>
 
+{% endif %}{# if ipinfo #}
+
 {% if ac('warden_alerts') %}
 <div id="events">
 <p id="event-details"><span class="caption">Event details</span> <span class="counts">(...)</span>
@@ -178,6 +184,6 @@ $(document).ready(function () {
 </script>
 
 </div>
-{% endif %}{# if not found #}
+{% endif %}{# if not ip #}
 
 {% endblock %}
