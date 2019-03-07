@@ -783,13 +783,16 @@ def ajax_ip_events(ipaddr):
     events = []
     error = None
     
+    # Get only data from last 14 days
+    from_date = datetime.utcnow() - timedelta(days=config.get('inactive_ip_lifetime', 14))
+    
     # PSQL database
     if EVENTDB_TYPE == 'psql':
-        events = eventdb.get('ip', ipaddr, limit=100)
+        events = eventdb.get('ip', ipaddr, limit=100, dt_from=from_date)
     # Mentat
     elif EVENTDB_TYPE == 'mentat':
         try:
-            events = eventdb.get('ip', ipaddr, limit=100)
+            events = eventdb.get('ip', ipaddr, limit=100, dt_from=from_date)
         except (common.eventdb_mentat.NotConfigured,common.eventdb_mentat.GatewayError) as e:
             error = 'ERROR: ' + str(e)
     # no database to read events from
