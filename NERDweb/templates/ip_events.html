@@ -25,7 +25,10 @@
 
 <div class="others">
 {% if idea.Description %}
-  <div class="descr">{{ idea.pop('Description') }}</div>
+  <div class="idea-descr" title="Description">{{ idea.pop('Description') }}</div>
+{% endif %}
+{% if idea.Note %}
+  <div class="idea-note" title="Note">{{ idea.pop('Note') }}</div>
 {% endif %}
 {% if idea.Source %}
   <div class="source">Source(s):

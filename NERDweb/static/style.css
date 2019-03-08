@@ -631,11 +631,16 @@ div.idea .others {
   flex-grow: 5;
   padding: 0 0.5em;
 }
-div.idea .others .descr {
+div.idea .others .idea-descr,
+div.idea .others .idea-note {
   padding: 0.2em 0.5em;
   margin-bottom: 0.2em;
   background: #bdf;
 }
+div.idea .others .idea-descr {
+  font-weight: bold;
+}
+
 div.idea.test {
   background: #eee;
   border-color: #ccc;
@@ -644,7 +649,8 @@ div.idea.test {
 div.idea.test .nodes {
   border-left-color: #ccc;
 }
-div.idea.test .descr,
+div.idea.test .idea-descr,
+div.idea.test .idea-note,
 div.idea.test .cat_and_time {
   background-color: #ccc;
 }
