@@ -18,10 +18,19 @@
 
 <div class="entity-info ip">
 
-<p class="header">
+<div class="header">
+<div class="links">
+Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" title="Search on Shodan" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"></a><a href="https://censys.io/ipv4/{{ ip }}" title="Search on Censys" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"></a><span class="divider"></span><a href="http://multirbl.valli.org/lookup/{{ ip }}.html" title="Blacklist Check at valli.org" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"></a><a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"></a><span class="divider"></span><a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip }}" title="Search at Talos Intelligence Reputation Center" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"></a><a href="https://senderscore.org/lookup.php?lookup={{ ip }}" title="Search at Sender Score" target="_blank"><img src="{{ url_for('static', filename='senderscore_icon.png') }}"></a>
+</div>
 {% if ipinfo %}<span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">{{ "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span>{% endif %}
 <span class="entity-id">{{ ip }}</span><span class="entity-name">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span>
-</p>
+</div>
+
+<!-- hidden form to allow links to blacklist check at whatismyipaddress.com -->
+<form id="bl-check-form" action="https://whatismyipaddress.com/blacklist-check" method="POST" target="_blank">
+<input type="hidden" id="bl-check-form-ip" name="LOOKUPADDRESS" value="">
+<input type="hidden" name="Lookup+Hostname" value="Check+Blacklists">
+</form>
 
 {% if ac('shodan') %}
 <div class="float-box shodan">

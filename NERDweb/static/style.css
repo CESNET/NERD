@@ -466,6 +466,23 @@ td.links img {
   color: #444;
   margin-left: 1em;
 }
+.entity-info .header .links {
+  float: right;
+  font-size: 1.2em;
+  color: #777;
+}
+.entity-info .header .links img {
+  width: 1em;
+  height: 1em;
+  margin: 0 0.2em;
+}
+.entity-info .header .links span.divider {
+  width: 0;
+  height: 1em;
+  margin: 0 0.3em;
+  border-left: 1px dotted #444;
+}
+
 
 dl.attrs dt {
   font-weight: bold;
