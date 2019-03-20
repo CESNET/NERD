@@ -38,7 +38,7 @@
 {% if results %}
 
 <!-- hidden form to allow links to blacklist check at whatismyipaddress.com -->
-<form id="bl-check-form" action="http://whatismyipaddress.com/blacklist-check" method="POST" target="_blank">
+<form id="bl-check-form" action="https://whatismyipaddress.com/blacklist-check" method="POST" target="_blank">
 <input type="hidden" id="bl-check-form-ip" name="LOOKUPADDRESS" value="">
 <input type="hidden" name="Lookup+Hostname" value="Check+Blacklists">
 </form>
@@ -58,7 +58,7 @@
 <th>Hostname</th>
 <th title="Autonomous system number and name">ASN</th>
 <th>Country</th>
-<th title="Total number of alerts / nodes / categories">Events</th>
+<th title="Total number of alerts / nodes / categories in last {{ cfg_max_event_history }} days">Events</th>
 <!--<th>Shodan info</th>
 <th>Device type</th>-->
 <th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.</th>
@@ -157,9 +157,14 @@
 <td class="time">{{ip.ts_added.replace(tzinfo=tz_utc).astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
 <td class="time">{{ip.ts_last_event.replace(tzinfo=tz_utc).astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S") if ip.ts_last_event else "--"}}</td>
 <td class="links">
-<a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan"><img src="{{ url_for('static', filename='shodan_icon.png') }}" width=16 height=16></a>
-<a href="https://censys.io/ipv4/{{ ip._id }}" title="Search on Censys"><img src="{{ url_for('static', filename='censys_icon.png') }}" width=16 height=16></a>
-<a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}" width=16 height=16></a>
+<a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"></a>
+<a href="https://censys.io/ipv4/{{ ip._id }}" title="Search on Censys" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"></a>
+<a href="http://multirbl.valli.org/lookup/{{ ip._id }}.html" title="Blacklist Check at valli.org" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"></a>
+<a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"></a>
+<a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip._id }}" title="Search at Talos Intelligence Reputation Center" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"></a>
+<a href="https://senderscore.org/lookup.php?lookup={{ ip._id }}" title="Search at Sender Score" target="_blank"><img src="{{ url_for('static', filename='senderscore_icon.png') }}"></a>
+
+
 </td>
 </tr>
 {% endfor %}

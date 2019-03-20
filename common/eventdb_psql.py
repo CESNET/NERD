@@ -47,7 +47,7 @@ class PSQLEventDatabase:
             pass
 
 
-    def get(self, etype, key, limit=None):
+    def get(self, etype, key, limit=None, dt_from=None):
         """
         Return all events where given IP is among Sources.
         
@@ -55,6 +55,7 @@ class PSQLEventDatabase:
         etype   entity type (str), must be 'ip'
         key     entity identifier (str), e.g. '192.0.2.42'
         limit   max number of returned events
+        dt_from minimal value of DetectTime (datetime)
         
         Return a list of IDEA messages (strings).
         
@@ -64,8 +65,15 @@ class PSQLEventDatabase:
             raise BadEntityType("etype must be 'ip'")
         
         cur = self.db.cursor()
-        #cur.execute("SELECT idea FROM events WHERE %s = ANY(sources) ORDER BY detecttime DESC LIMIT %s", (key, limit))
-        cur.execute("SELECT e.idea FROM events_sources as es INNER JOIN events as e ON es.message_id = e.id WHERE es.source_ip = %s ORDER BY es.detecttime DESC LIMIT %s", (Inet(key), limit))
+        if dt_from is None:
+            sql = "SELECT e.idea FROM events_sources as es INNER JOIN events as e ON es.message_id = e.id WHERE es.source_ip = %s ORDER BY es.detecttime DESC LIMIT %s"
+            data = (Inet(key), limit)
+        elif isinstance(dt_from, datetime.datetime):
+            sql = "SELECT e.idea FROM events_sources as es INNER JOIN events as e ON es.message_id = e.id WHERE es.source_ip = %s AND es.detecttime >= %s ORDER BY es.detecttime DESC LIMIT %s"
+            data = (Inet(key), dt_from, limit)
+        else:
+            raise TypeError("dt_from must be datetime instance")
+        cur.execute(sql, data)
         self.db.commit() # Every query automatically opens a transaction, close it.
         
         result = cur.fetchall()

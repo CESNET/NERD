@@ -4,6 +4,20 @@ NERD: auxiliary/utilitiy functions and classes
 import re
 import datetime
 
+ipv4_re = re.compile('^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$')
+
+def ipstr2int(s):
+    res = ipv4_re.match(s)
+    if res is None:
+        raise ValueError('Invalid IPv4 format')
+    a1, a2, a3, a4 = res.groups()
+    # Check if octets are between 0 and 255 is ommited for better performance
+    return int(a1) << 24 | int(a2) << 16 | int(a3) << 8 | int(a4)
+        
+def int2ipstr(i):
+    return '.'.join((str(i >> 24), str((i >> 16) & 0xff), str((i >> 8) & 0xff), str(i & 0xff)))
+
+
 # Regex for RFC 3339 time format
 timestamp_re = re.compile(r"^([0-9]{4})-([0-9]{2})-([0-9]{2})[Tt ]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.([0-9]+))?([Zz]|(?:[+-][0-9]{2}:[0-9]{2}))$")
 

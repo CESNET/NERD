@@ -4,6 +4,9 @@
 {%- macro printstr(string, pre='', post='') -%}{# Print given string, with pre/post put before/after the list; print nothing if string is not defined #}
   {{- pre + string + post if string else '' }}
 {%- endmacro %}
+{%- macro duration(seconds, raw_sec=True) -%}
+  {% if seconds >= 3600 %}{{ (seconds/3600)|int }}h {% endif %}{% if seconds >= 60 %}{{ ((seconds%3600)/60)|int }}m {% endif %}{{ (seconds%60)|int }}s{% if seconds >= 60 %} ({{seconds|int}}s){% endif %}
+{%- endmacro %}
 
 {%- macro display_idea(idea) -%}
 {%- set nodes = idea.pop('Node',['N/A']) %}
@@ -11,13 +14,21 @@
 {% set x = idea.pop('ID') -%}
 <div class="idea{{ ' test' if 'Test' in idea['Category'] else ''}}">
 <div class="cat_and_time">
- <span class="category" title="Category">{{ idea.pop('Category',['N/A'])|join('+') }}</span><br>
- <span class="time" title="DetectTime">{{ idea.pop('DetectTime','N/A') }}</span>
+ <div class="category" title="Category">{{ idea.pop('Category',['N/A'])|join('+') }}</div>
+ <div class="time detecttime" title="DetectTime">{{ idea.pop('DetectTime','N/A') }}</div>
+ {%- if idea.EventTime %}<div class="time eventtime" title="EventTime">{{ idea.pop('EventTime') }}</div>{% endif -%}
+ {%- if idea.WinStartTime %}<div class="time winstarttime" title="WinStartTime">{{ idea.pop('WinStartTime') }}</div>{% endif -%}
+ {%- if idea.CeaseTime %}<div class="time ceasetime" title="CeaseTime">{{ idea.pop('CeaseTime') }}</div>{% endif -%}
+ {%- if idea.WinEndTime %}<div class="time winendtime" title="WinEndTime">{{ idea.pop('WinEndTime') }}</div>{% endif -%}
+ {%- if idea._duration is defined %}<div class="time duration" title="duration">{{ duration(idea.pop('_duration')) }}</div>{% endif -%}
 </div>
 
 <div class="others">
 {% if idea.Description %}
-  <div class="descr">{{ idea.pop('Description') }}</div>
+  <div class="idea-descr" title="Description">{{ idea.pop('Description') }}</div>
+{% endif %}
+{% if idea.Note %}
+  <div class="idea-note" title="Note">{{ idea.pop('Note') }}</div>
 {% endif %}
 {% if idea.Source %}
   <div class="source">Source(s):

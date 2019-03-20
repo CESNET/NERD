@@ -1,5 +1,11 @@
 # NERD config - common part (for both NERDd and NERDweb)
 ---
+# Number of days to store IP address in the database since the last observed event related to the IP
+inactive_ip_lifetime: 14
+
+# Number of days to store meta-data about events in IP records
+max_event_history: 90
+
 # MongoDB settings
 mongodb:
   host: localhost

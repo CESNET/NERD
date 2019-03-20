@@ -51,7 +51,7 @@ class MentatEventDBProxy:
         if not self.api_key:
             self.log.error("Mentat API used but api_key not configured ('eventdb_mentat.api_key' config entry is missing)")
 
-    def get(self, etype, key, limit=None):
+    def get(self, etype, key, limit=None, dt_from=None):
         """
         Return all events where given IP is among Sources.
         
@@ -59,6 +59,7 @@ class MentatEventDBProxy:
         etype   entity type (str), must be 'ip'
         key     entity identifier (str), e.g. '192.0.2.42'
         limit   max number of returned events
+        dt_from minimal value of DetectTime (datetime) 
         
         Return a list of IDEA messages (strings).
         
@@ -74,6 +75,8 @@ class MentatEventDBProxy:
         url = self.base_url + "api/events/search?submit=Search"
         url += "&source_addrs="+key
         url += "&limit=" + (str(limit) if limit is not None else "100")
+        if dt_from:
+            url += "&dt_from=" + dt_from.strftime("%Y-%m-%d %H:%M:%S")
         data = {"api_key": self.api_key}
         # Send request
         try:
