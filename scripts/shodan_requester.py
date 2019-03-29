@@ -67,7 +67,7 @@ else:
 
 
 channel.basic_qos(prefetch_count=1)
-channel.basic_consume(on_request, queue='shodan_rpc_queue')
+channel.basic_consume(queue='shodan_rpc_queue', on_message_callback=on_request)
 
 print("*** Shodan request handler started, awaiting RPC requests ***")
 channel.start_consuming()

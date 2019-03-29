@@ -95,6 +95,7 @@ class TaskQueue:
         # TODO handle possible errors (like server not running)
         self.channel = self.conn.channel()
         # Declare the exchange (type is 'x-consistent-hash', a plugin have to be installed)
+        # (it should be declared statically during installation)
         #self.channel.exchange_declare(WRITE_EXCHANGE_NAME, 'x-consistent-hash', durable=True)
         # Enable delivery confirmation (to allow detection of no consumers or full queue)
         self.channel.confirm_delivery()
@@ -104,10 +105,14 @@ class TaskQueue:
         
     
     def __del__(self):
-        if not self.channel.connection.is_closed:
+        self.close_connection()
+    
+    def close_connection(self):
+        if not self.conn.is_closed:
             try:
                 self.channel.close()
-            except pika.exceptions.ConnectionClosed: # for case it's been closed by the server
+                self.conn.close()
+            except pika.exceptions.AMQPError: # for case it's been already closed by the server
                 pass
     
     def put_update_request(self, etype, eid, requested_changes):
@@ -129,7 +134,7 @@ class TaskQueue:
         err_printed = False
         while True:
             try:
-                self.channel.publish(WRITE_EXCHANGE_NAME, key, body, mandatory=True)
+                self.channel.basic_publish(WRITE_EXCHANGE_NAME, key, body, mandatory=True)
                 if err_printed == 1:
                     self.log.warning("It's OK now, the message was sucessfully sent")
                 elif err_printed == 2:
@@ -147,8 +152,9 @@ class TaskQueue:
                     self.log.info("Can't deliver a message (refused, worker queue is probably full), will retry every second")
                     err_printed = 2
                 time.sleep(1)
-            except pika.exceptions.ConnectionClosed:
-                self.log.warning("Connection to RabbitMQ server lost, reconnecting ...")
+            except pika.exceptions.AMQPChannelError as e:
+                self.log.warning("RabbitMQ connection error: {}\nReconnecting...".format(e))
+                self.close_connection()
                 self.connect()
 
 
@@ -183,9 +189,9 @@ class TaskQueue:
         while True:
             try:
                 self.channel.queue_declare(q_name, durable=True, arguments=params)
-                self.channel.queue_bind(q_name, READ_EXCHANGE_NAME, "10") # see docs of "Consistent Hash Exchange Type" plug-in to understand that magic number
+                self.channel.queue_bind(q_name, READ_EXCHANGE_NAME, routing_key="1") # "1" is relative weight of this worker (all get the same weight), see docs of "Consistent Hash Exchange Type" plug-in for more info
                 # Set callback function to consume messages
-                self.channel.basic_consume(_aux_callback, q_name, exclusive=True)
+                self.channel.basic_consume(queue=q_name, on_message_callback=_aux_callback, exclusive=True)
                 break
             except pika.exceptions.ConnectionClosed:
                 self.log.warning("Connection to RabbitMQ server lost, reconnecting ...")
@@ -223,5 +229,5 @@ class TaskQueue:
         # We need to re-declare the same queue (with passive=True, so it actually just check its existence),
         # the reply will contain the number of messsages queued
         params = {'x-max-length': MAX_QUEUE_LENGTH, 'x-overflow': 'reject-publish'}
-        res = self.channel.queue_declare(q_name, durable=True, arguments=params, passive=True)
+        res = self.channel.queue_declare(queue=q_name, durable=True, arguments=params, passive=True)
         return res.method.message_count
