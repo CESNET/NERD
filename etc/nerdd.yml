@@ -6,14 +6,10 @@ eventdb_psql:
   # Number of separate processes for inserting messages to DB
   # (zero means don't spawn a separate process)
   dbwriter_processes: 0
-  
-  # Forward all IDEA messages to this RabbitMQ queue
-  # (NERDd doesn't declare the queue, it must be defined externally by rabbitmqctl or via web management)
-  #forward_to_queue: "idea-nerd2grip"
 
 whois:
-  asn_file: "/tmp/nerd-whois-asn.csv"
-  ipv4_file: "/tmp/nerd-whois-ipv4.csv"
+  asn_file: "/data/nerd-whois-asn.csv"
+  ipv4_file: "/data/nerd-whois-ipv4.csv"
 
 # Event type counter module determines which types of attacks exceed threshold during given time period
 event_type_counter:
@@ -29,7 +25,7 @@ caida:
 
   # File where list with ASes, source of classification and their type is stored
   # (Module is disabled if this is commented out)
-  #caida_file: "/data/caida-as2types.txt"
+  caida_file: "/data/caida-as2types.txt"
 
   # Source with confidence of right classification (default is 1 if source or confidence not present)
   sources:

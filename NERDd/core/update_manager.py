@@ -487,7 +487,7 @@ class UpdateManager:
             else:
                 now = datetime.utcnow()
                 rec = {
-                    '_id': ekey[1],
+                    '_id': eid,
                     'ts_added': now,
                     'ts_last_update': now,
                 }

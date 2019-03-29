@@ -19,7 +19,7 @@ def init(config, cfg_dir):
     acl_cfg_file = os.path.join(cfg_dir, config.get('acl_config'))
 
     # Create database connection
-    db = psycopg2.connect(database=config.get('userdb.dbname', 'nerd'),
+    db = psycopg2.connect(database=config.get('userdb.dbname', 'nerd_users'),
                           user=config.get('userdb.dbuser', 'nerd'),
                           password=config.get('userdb.dbpassword', None))
     db.autocommit = True # don't use transactions, every action have immediate effect

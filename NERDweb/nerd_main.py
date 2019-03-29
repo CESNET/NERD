@@ -35,7 +35,7 @@ from userdb import get_user_info, authenticate_with_token, generate_unique_token
 
 # ***** Load configuration *****
 
-DEFAULT_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../etc/nerdweb.yml"))
+DEFAULT_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "/etc/nerd/nerdweb.yml"))
 
 # TODO parse arguments using ArgParse
 if len(sys.argv) >= 2:

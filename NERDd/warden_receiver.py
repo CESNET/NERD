@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
 """
-NERD standalone script for receiving IDEA messages about detected security events.
+NERD standalone script (primary module) for receiving IDEA messages about 
+detected security events.
 
 Fetches IDEA messages dropped to a specified directory and updates entity
 records accordingly.
+
+This module can safely run in multiple instances.
 """
 
 import time
@@ -13,9 +16,11 @@ import socket
 import json
 import logging
 import signal
-
 import sys
-sys.path.append("../")
+
+# Add to path the "one directory above the current file location" to find modules from "common"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+
 from common.utils import parse_rfc_time
 import common.config
 import common.eventdb_psql
@@ -25,27 +30,18 @@ import common.task_queue
 
 running_flag = True  # read_dir function terminates when this is set to False
 
+db_queue = [] # queue of events waiting to be written do DB in a batch
+
 LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
 LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
 logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
 
-logger = logging.getLogger('EventReceiver')
-#logger.setLevel("DEBUG")
+log = logging.getLogger('EventReceiver')
+#log.setLevel("DEBUG")
 
-# config
-common_cfg_file = "../etc/nerd.yml"
-config = common.config.read_config(common_cfg_file)
-rabbit_config = config.get("rabbitmq")
 
-# event database
-eventdb = common.eventdb_psql.PSQLEventDatabase(config)
-db_queue = list()
-
-# rabbitMQ
-task_queue = common.task_queue.TaskQueue(rabbit_config)
-
-_drop_path = config.get('warden_filer_path')
-
+###############################################################################
+# Code for reading directory of "filer protocol"
 
 def read_dir(path, call_when_waiting=None):
     """
@@ -110,11 +106,7 @@ def read_dir(path, call_when_waiting=None):
             return "%s(%s)" % (type(self).__name__, self.path)
 
         def _ensure_path(self, p):
-            try:
-                os.mkdir(p)
-            except OSError:
-                if not os.path.isdir(p):
-                    raise
+            os.makedirs(p, exist_ok=True)
             return p
 
         def get_incoming(self):
@@ -171,7 +163,7 @@ def read_dir(path, call_when_waiting=None):
                 else:
                     nf.remove()
             except Exception as e:
-                logger.exception("Exception during loading event, file={}".format(str(nf)))
+                log.exception("Exception during loading event, file={}".format(str(nf)))
                 nf.moveto(sdir.errors)
                 # count_local += 1
 
@@ -196,7 +188,7 @@ def put_to_db_queue(event):
 
     Pull new events from Queue and stores them to EventDB.
     """
-    #logger.debug("IDEA message enqueued".format(len(db_queue)))
+    #log.debug("IDEA message enqueued".format(len(db_queue)))
     db_queue.append(event)
     if len(db_queue) >= 100:
         put_set_to_database()
@@ -207,8 +199,10 @@ def put_set_to_database():
     Function for sending db_queue to database.
     :return:
     """
+    if eventdb is None:
+        return
     if len(db_queue) > 0:
-        logger.debug("Writing a set of {} IDEA messages to database.".format(len(db_queue)))
+        log.debug("Writing a set of {} IDEA messages to database.".format(len(db_queue)))
         eventdb.put(db_queue)
         db_queue.clear()
 
@@ -222,24 +216,25 @@ def stop(signal, frame):
     global running_flag
     running_flag = False
     put_set_to_database()
-    logger.info("exiting")
+    log.info("exiting")
 
 
-def receive_events():
+def receive_events(filer_path, eventdb, task_queue):
     # Infinite loop reading events as files in given directory
     # This loop stops on SIGINT
-    for (rawdata, event) in read_dir(_drop_path, call_when_waiting=put_set_to_database):
+    for (rawdata, event) in read_dir(filer_path, call_when_waiting=put_set_to_database):
         # Store the event to EventDB
-        put_to_db_queue(event)
+        if eventdb is not None:
+            put_to_db_queue(event)
         try:
             if "Test" in event["Category"]:
-                logger.debug("Test event ignored")
+                log.debug("Test event ignored")
                 continue  # Ignore testing messages
             for src in event.get("Source", []):
                 for ipv4 in src.get("IP4", []):
                     # TODO check IP address validity
 
-                    logger.debug("Updating IPv4 record {}".format(ipv4))
+                    log.debug("Updating IPv4 record {}".format(ipv4))
                     cat = '+'.join(event["Category"]).replace('.', '')
                     # Parse and reformat detect time
                     detect_time = parse_rfc_time(event["DetectTime"])  # Parse DetectTime
@@ -257,21 +252,53 @@ def receive_events():
 
                     node = event["Node"][-1]["Name"]
                     task_queue.put_update_request('ip', ipv4,
-                                                       [
-                                                           ('array_upsert', 'events',
-                                                            {'date': date, 'node': node, 'cat': cat},
-                                                            [('add', 'n', 1)]),
-                                                           ('add', 'events_meta.total', 1),
-                                                           ('set', 'ts_last_event', end_time),
-                                                       ])
+                        [
+                            ('array_upsert', 'events',
+                             {'date': date, 'node': node, 'cat': cat},
+                             [('add', 'n', 1)]),
+                            ('add', 'events_meta.total', 1),
+                            ('set', 'ts_last_event', end_time),
+                        ]
+                    )
                 for ipv6 in src.get("IP6", []):
-                    logger.debug(
+                    log.debug(
                         "IPv6 address in Source found - skipping since IPv6 is not implemented yet.")  # The record follows:\n{}".format(str(event)), file=sys.stderr)
         except Exception as e:
-            logger.error("ERROR in parsing event: {}".format(str(e)))
+            log.error("ERROR in parsing event '{}': {}".format(event.get('ID', 'no-ID'), str(e)))
 
 
 if __name__ == "__main__":
+    import argparse
+
+    # Parse arguments
+    parser = argparse.ArgumentParser(
+        prog="warden_receiver.py",
+        description="Primary module of the NERD system to read events from Warden system (as stored into a directory by a warden_filer)."
+    )
+    parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
+        help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
+    args = parser.parse_args()
+
+    # Read config
+    log.info("Loading config file {}".format(args.config))
+    config = common.config.read_config(args.config)
+    
+    config_base_path = os.path.dirname(os.path.abspath(args.config))
+    common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
+    log.info("Loading config file {}".format(common_cfg_file))
+    config.update(common.config.read_config(common_cfg_file))
+    
+    rabbit_config = config.get("rabbitmq")
+    filer_path = config.get('warden_filer_path')
+
+    # Instantiate PSQLEventDatabase if enabled
+    eventdb = None # By default, events are not stored anywhere (they are either read from Mentat or not stored at all)
+    if config.get('eventdb', None) == 'psql':
+        eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+    
+    # Create main task queue
+    task_queue = common.task_queue.TaskQueue(rabbit_config)
+    
     signal.signal(signal.SIGINT, stop)
-    receive_events()
+    receive_events(filer_path, eventdb, task_queue)
 

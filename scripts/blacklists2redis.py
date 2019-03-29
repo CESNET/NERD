@@ -59,7 +59,7 @@ parser = argparse.ArgumentParser(description="Download blacklists and put them i
 parser.add_argument("-c", metavar="FILE", dest='cfg_file', default="/etc/nerd/blacklists.yml",
                     help="Path to configuration file (defualt: /etc/nerd/blacklists.yml)")
 parser.add_argument("-f", "--force-refresh", action="store_true",
-                    help="Force redownload of all blacklists upon start even if they aleready exist in Redis.")
+                    help="Force redownload of all blacklists upon start even if they already exist in Redis.")
 parser.add_argument("-o", "--one-shot", action="store_true",
                     help="Only download lists not already present in Redis (or all if -f is specified) and exit.")
 parser.add_argument("-q", "--quiet", action="store_true",

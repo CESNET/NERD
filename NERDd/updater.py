@@ -92,15 +92,15 @@ if __name__ == "__main__":
         description='Periodically issues update events for entities with NRU (next regular update) fields.'
     )
     parser.add_argument('-c', '--config', metavar='FILENAME', dest='cfg_file',
-                    help='Path to configuration file. (default: ../etc/nerdd.yml)', 
-                    default='../etc/nerdd.yml'
+                    help='Path to configuration file. (default: /etc/nerd/nerdd.yml)', 
+                    default='/etc/nerd/nerdd.yml'
     )
     parser.add_argument('-l', '--limit', metavar='N', dest='limit', type=int,
                     help='Maximum number of entities fetched from the database for which the events would be issued. (default: 100000)', 
                     default=100000
     )
     parser.add_argument('-p', '--period', metavar='N', dest='period', type=int,
-                    help='Number of seconds between two event issues. (default: 100000)', 
+                    help='Number of seconds between two event issues. (default: 10)', 
                     default=10
     )
 

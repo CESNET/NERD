@@ -1,16 +1,23 @@
+#!/bin/sh
+# Install all packages needed to run NERD and run all the services
+
+echo "=============== Install basic dependencies ==============="
+
 echo "** Installing basic RPM packages **"
-yum install -y https://centos7.iuscommunity.org/ius-release.rpm
-yum install -y git wget gcc vim python34 python34-devel
-# TODO install Python3.6 or 3.7 from sources (3.4 won't be supported soon)
+#yum install -y https://centos7.iuscommunity.org/ius-release.rpm
+yum install -y epel-release
+yum install -y git wget gcc vim python36 python36-devel python36-setuptools python-setuptools
 
 echo "** Installing pip and Python packages **"
-wget -q https://bootstrap.pypa.io/get-pip.py
-python3.4 get-pip.py
-python2.7 get-pip.py
-rm -f get-pip.py
-# TODO FIXME this is specific to vagrant
-pip3 install -r /vagrant/NERDd/requirements.txt
-pip3 install -r /vagrant/NERDweb/requirements.txt
+easy_install-2.7 --prefix /usr pip # Py2 is needed for Supervisor (until stable Supervisor 4 is out, which should work under Py3)
+easy_install-3.6 --prefix /usr pip
+# for some reason, this creates file /usr/bin/pip3.7 instead of pip3.6 (but everything works OK)
+
+# Allow to run python3.6 as python3
+ln -s /usr/bin/python3.6 /usr/bin/python3
+
+pip3 install -r /tmp/nerd_install/pip_requirements_nerdd.txt
+pip3 install -r /tmp/nerd_install/pip_requirements_nerdweb.txt
 
 # Patch bgpranking_web to work in Python 3
 echo "Patching bgpranking_web package to work in Python 3"
@@ -29,13 +36,6 @@ else:
 ' > "$path/bgpranking_web/__init__.py"
 fi
 
-# TODO, put there installation (and basic configuration which is needed in every NERD deployment):
-# (keep starting up and configuration of deployment-specific parameters for later)
-# - Mongo
-# - Redis
-# - Rabbit
-
-
 
 echo "** Installing MongoDB **"
 
@@ -52,7 +52,9 @@ yum install -y mongodb-org
 
 # ** Set up logrotate **
 # Configure Mongod to only reopen file after receiving SIGUSR1
-sed -i '/logAppend: true/a \ \ logRotate: reopen' /etc/mongod.conf
+if ! grep '^\s*logRotate: reopen' /etc/mongod.conf ; then
+  sed -i '/logAppend: true/a \ \ logRotate: reopen' /etc/mongod.conf
+fi
 # Configure logrotate
 echo '/var/log/mongodb/mongod.log {
     weekly
@@ -104,7 +106,10 @@ yum install -y https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.
 # Allow guest user to login remotely (allowed only from localhost by default)
 # This is necessary for Vagrant, but DON'T DO THIS IN PRODUCTION!
 # (rabbitmq.conf is not present after installation, so we just create it)
-echo "loopback_users = none" > /etc/rabbitmq/rabbitmq.conf
+if [ -d /vagrant ] ; then
+  echo "It seems we run in Vagrant, allowing RabbitMQ guest user to login remotely."
+  echo "loopback_users = none" > /etc/rabbitmq/rabbitmq.conf
+fi
 
 echo "** Starting RabbitMQ **"
 systemctl enable rabbitmq-server
@@ -115,7 +120,7 @@ rabbitmq-plugins enable rabbitmq_management
 rabbitmq-plugins enable rabbitmq_consistent_hash_exchange
 
 # Get rabbitmqadmin tool (provided via local API by the management plugin)
-wget http://localhost:15672/cli/rabbitmqadmin -O /usr/bin/rabbitmqadmin
+wget -q http://localhost:15672/cli/rabbitmqadmin -O /usr/bin/rabbitmqadmin
 chmod +x /usr/bin/rabbitmqadmin
 
 
@@ -125,25 +130,29 @@ pip2 install supervisor
 
 
 
-# TODO: move to another file (only needed for web or if local EventDB is enabled)
 echo "** Installing PostgreSQL **"
-yum install -y https://download.postgresql.org/pub/repos/yum/9.6/redhat/rhel-7-x86_64/pgdg-centos96-9.6-3.noarch.rpm
-yum install -y postgresql96-server postgresql96-devel
+yum install -y https://download.postgresql.org/pub/repos/yum/11/redhat/rhel-7-x86_64/pgdg-centos11-11-2.noarch.rpm
+yum install -y postgresql11-server postgresql11-devel
 
-# Initialize database (creates DB files in /var/lib/pgsql/9.6/data/)
-sudo -u postgres /usr/pgsql-9.6/bin/postgresql96-setup initdb
+# Initialize database (creates DB files in /var/lib/pgsql/11/data/)
+if ! [ -e /var/lib/pgsql/11/data/PG_VERSION ] ; then
+  /usr/pgsql-11/bin/postgresql-11-setup initdb
+fi
 
 # Non.default DB path:
 # mkdir -p /data/pgsql
 # chown -R postgres /data/pgsql
-# sudo -u postgres /usr/pgsql-9.6/bin/initdb -D /data/pgsql
-# sed -i "s,PGDATA=.*$,PGDATA=/data/pgsql," /lib/systemd/system/postgresql-9.6.service
+# sudo -u postgres /usr/pgsql-11/bin/initdb -D /data/pgsql
+# sed -i "s,PGDATA=.*$,PGDATA=/data/pgsql," /lib/systemd/system/postgresql-11.service
 
-# TODO edit /db/pgsql/pg_hba.conf to trust all local connections? It would allow to use "psql -U user" instead of "sudo -u USER psql"
+# Edit /db/pgsql/pg_hba.conf to trust all local connections
+# It allows to use "psql -U user" instead of "sudo -u USER psql"
+# and it allows easier connection from web server
+sed -i -E '/^local|127\.0\.0\.1\/32|::1\/128/ s/[^ ]+$/trust/' /var/lib/pgsql/11/data/pg_hba.conf
 
 # Start PostgreSQL
-systemctl enable postgresql-9.6.service
-systemctl start postgresql-9.6.service
+systemctl enable postgresql-11.service
+systemctl restart postgresql-11.service
 
 
 echo "** All main dependencies installed **"

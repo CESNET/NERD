@@ -31,8 +31,7 @@ class Tags(NERDModule):
         self.log = logging.getLogger("Tags")
         #self.log.setLevel("DEBUG")
         
-        cfg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../etc/")
-        tags_config_file = os.path.join(cfg_dir, g.config.get("tags_config")) 
+        tags_config_file = os.path.join(g.config_base_path, g.config.get("tags_config")) 
         self.config = common.config.read_config(tags_config_file)
         self.tags_config = self.config.get("tags", {})
         self.tags = {}

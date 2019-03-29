@@ -205,8 +205,8 @@ if __name__ == "__main__":
     )
     parser.add_argument('process_index', metavar='INDEX', type=int, default=0,
         help='Index of the worker process (default: 0)')
-    parser.add_argument('-c', '--config', metavar='FILENAME', default='../etc/nerdd.yml',
-        help='Path to configuration file (default: ../etc/nerdd.yml)')
+    parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
+        help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
     args = parser.parse_args()
 
     # Run main code

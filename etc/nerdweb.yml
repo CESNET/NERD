@@ -15,7 +15,7 @@ beta_label: true
 # URL of NERDweb root (without trailing slash, e.g. "/nerd")
 # All NERDweb pages are relative to this
 # Keep empty if NERDweb resides in web server's root directory
-base_url: ""
+base_url: "/nerd"
 
 data_disk_path: "/data"
 

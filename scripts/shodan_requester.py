@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import requests
 import pika
 from argparse import ArgumentParser
@@ -47,14 +48,26 @@ def on_request(ch, method, props, body):
                      body=response)
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
+# Get API key, either directly from parameter or from a file
+arg_parser = ArgumentParser()
+group = arg_parser.add_mutually_exclusive_group(required=True)
+group.add_argument('-k', '--api-key', help='Shodan API key')
+group.add_argument('-f', '--api-key-file', default='/etc/nerd/shodan_key', help='Path to a file with shodan API key stored')
+args = arg_parser.parse_args()
 
-argument_parser = ArgumentParser()
-argument_parser.add_argument('-k', '--api-key', help='Shodan API key', required=True)
-args = argument_parser.parse_args()
-api_key = args.api_key
+if args.api_key:
+    api_key = args.api_key
+else:
+    try:
+        with open(args.api_key_file, "r") as f:
+            api_key = f.read().strip()
+    except IOError as e:
+        print("Can't open file with Shodan API key. Please, put the key into '{}'".format(args.api_key_file), file=sys.stderr)
+        sys.exit(1)
+
 
 channel.basic_qos(prefetch_count=1)
 channel.basic_consume(on_request, queue='shodan_rpc_queue')
 
-print(" [x] Awaiting RPC requests")
+print("*** Shodan request handler started, awaiting RPC requests ***")
 channel.start_consuming()

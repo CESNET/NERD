@@ -26,10 +26,12 @@ tags_config: tags.yml
 # Blacklists configuration file
 bl_config: blacklists.yml
 
-# EventDB type (where to store/read events):
-# Local PostgreSQL database (default) (needs config in 'eventdb_psql' in nerdd.yml)
+# EventDB type (where to store/read events), may be one of:
+#  'psql' - (default) Local PostgreSQL database (needs config in 'eventdb_psql' in nerdd.yml)
+#  'mentat' - External Mentat instance (no storage by NERD, load via Mentat API) (needs config in 'eventdb_mentat')
+#  'none' - Only process events into metadata, do not store them anywhere
 eventdb: psql
-# External Mentat instance (no storage by NERD, load via Mentat API) (needs config in 'eventdb_mentat')
+
 # eventdb: mentat
 
 # eventdb_mentat:
