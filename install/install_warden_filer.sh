@@ -34,9 +34,9 @@ fi
 
 echo "** Prepraring directory structure for Warden filer recevier **"
 # directory for incoming IDEA files
-# TODO: is it needed, shouldn't warden_filer create it automatically?
-#mkdir -p /data/warden_filer/warden_receiver/{incoming,temp,errors}
-#chown -R nerd:nerd /data/warden_filer
+mkdir -p /data/warden_filer/warden_receiver/{incoming,temp,errors}
+chown -R nerd:nerd /data/warden_filer
+chmod -R 775 /data/warden_filer
 
 
 echo "** Prepraring template configuration file **"
