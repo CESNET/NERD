@@ -236,11 +236,19 @@ def logout():
 
 # ***** Functions called for each request *****
 
-API_RESPONSE_403 = Response(
-    json.dumps({'err_n' : 403, 'error' : "Unauthorized"}), # TODO: recognize different error states? (e.g. "user not authenticated" and "not authorized to use this endpoint")
-    403,
-    mimetype='application/json'
+API_RESPONSE_403_NOAUTH = Response(
+    json.dumps({'err_n' : 403, 'error' : "Unauthorized (no authorization header)"}),
+    403, mimetype='application/json'
 )
+API_RESPONSE_403_TOKEN = Response(
+    json.dumps({'err_n' : 403, 'error' : "Unauthorized (invalid token)"}),
+    403, mimetype='application/json'
+)
+API_RESPONSE_403 = Response(
+    json.dumps({'err_n' : 403, 'error' : "Unauthorized (not authorized to use this endpoint)"}),
+    403, mimetype='application/json'
+)
+
 
 @app.before_request
 def store_user_info():
@@ -252,7 +260,7 @@ def store_user_info():
         # API authentication using token
         auth = request.headers.get("Authorization")
         if not auth:
-            return API_RESPONSE_403
+            return API_RESPONSE_403_NOAUTH
 
         # Extract token from Authorization header. Two formats may be used:
         #   Authorization: asdf1234qwer
@@ -263,11 +271,11 @@ def store_user_info():
         elif len(vals) == 2 and vals[0] == "token":
             token = vals[1]
         else:
-            return API_RESPONSE_403
+            return API_RESPONSE_403_TOKEN
 
         g.user, g.ac = authenticate_with_token(token)
         if not g.user:
-            return API_RESPONSE_403
+            return API_RESPONSE_403_TOKEN
 
     else:
         # Normal authentication using session cookie
