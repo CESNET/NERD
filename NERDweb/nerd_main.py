@@ -1059,42 +1059,85 @@ def get_ip_info(ipaddr, full):
     attach_whois_data(ipinfo, full)
     return True, ipinfo
 
+
+def conv_dates(rec):
+    """Convert datetimes in a record to YYYY-MM-DDTMM:HH:SS string"""
+    for key in ('ts_added', 'ts_last_update'):
+        if key in rec and isinstance(rec[key], datetime):
+            rec[key] = rec[key].strftime("%Y-%m-%dT%H:%M:%S")
+
+
 def attach_whois_data(ipinfo, full):
-    if full:
+    if not full:
+        # Only attach ASN number(s)
         if 'bgppref' in ipinfo:
-            bgppref = clean_secret_data(mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))
+            bgppref_rec = mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']}, {'asn': 1})
+            if bgppref_rec is None:
+                print("ERROR: Can't find BGP prefix '{}' in database (trying to enrich IP {})".format(ipinfo['bgppref'], ipinfo['_id']))
+                return
+            if 'asn' in bgppref_rec:
+                ipinfo['asn'] = bgppref_rec['asn']
+        return
+    
+    # Full - attach full records of related BGP prefix, ASNs, IP block, Org
+    # IP->BGPpref
+    if 'bgppref' in ipinfo:
+        bgppref_rec = clean_secret_data(mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))
+        if bgppref_rec is None:
+            print("ERROR: Can't find BGP prefix '{}' in database (trying to enrich IP {})".format(ipinfo['bgppref'], ipinfo['_id']))
+        else:
+            # BGPpref->ASN(s)
             asn_list = []
+            for asn in bgppref_rec['asn']:
+                asn_rec = clean_secret_data(mongo.db.asn.find_one({'_id':asn}))
+                if asn_rec is None:
+                    print("ERROR: Can't find ASN '{}' in database (trying to enrich IP {}, bgppref {})".format(asn, ipinfo['_id'], bgppref_rec['_id']))
+                else:
+                    # ASN->Org
+                    if 'org' in asn_rec:
+                        org_rec = clean_secret_data(mongo.db.org.find_one({'_id':asn_rec['org']}))
+                        if org_rec is None:
+                            print("ERROR: Can't find Org '{}' in database (trying to enrich IP {}, bgppref {}, ASN {})".format(asn_rec['org'], ipinfo['_id'], bgppref_rec['_id'], asn))
+                        else:
+                            conv_dates(org_rec)
+                            asn_rec['org'] = org_rec
 
-            for i in  bgppref['asn']:
-                i = clean_secret_data(mongo.db.asn.find_one({'_id':i}))
-                if 'org' in i:
-                    i['org'] = clean_secret_data(mongo.db.org.find_one({'_id':i['org']}))
+                    del asn_rec['bgppref']
+                    conv_dates(asn_rec)
+                    asn_list.append(asn_rec)
 
-                del i['bgppref']
-                asn_list.append(i)
-
-            del bgppref['asn']
-            ipinfo['bgppref'] = bgppref
+            del bgppref_rec['asn']
+            conv_dates(bgppref_rec)
+            ipinfo['bgppref'] = bgppref_rec
             ipinfo['asn'] = asn_list
 
-        if 'ipblock' in ipinfo:
-            ipblock = clean_secret_data(mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']}))
+    # IP->ipblock
+    if 'ipblock' in ipinfo:
+        ipblock_rec = clean_secret_data(mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']}))
+        if ipblock_rec is None:
+            print("ERROR: Can't find IP block '{}' in database (trying to enrich IP {})".format(ipinfo['ipblock'], ipinfo['_id']))
+        else:
+            # ipblock->org
+            if "org" in ipblock_rec:
+                org_rec = clean_secret_data(mongo.db.org.find_one({'_id':ipblock_rec['org']}))
+                if org_rec is None:
+                    print("ERROR: Can't find Org '{}' in database (trying to enrich IP {}, ipblock '{}')".format(ipblock_rec['org'], ipinfo['_id'], ipblock_rec['_id']))
+                else:
+                    conv_dates(org_rec)
+                    ipblock_rec['org'] = org_rec
 
-            if "org" in ipblock:
-                ipblock['org'] = clean_secret_data(mongo.db.org.find_one({'_id':ipblock['org']}))
-
-            ipinfo['ipblock'] = ipblock
-    else:
-        if 'bgppref' in ipinfo:
-            ipinfo['asn'] = (mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']}, {'asn': 1}))['asn']
+            conv_dates(ipblock_rec)
+            ipinfo['ipblock'] = ipblock_rec
 
 
 def clean_secret_data(data):
-    for i in list(data):
-        if i.startswith("_") and i != "_id":
-            del data[i]
-
+    """Remove all keys starting with '_' (except '_id') from dict."""
+    if data is not None:
+        for i in list(data):
+            if i.startswith("_") and i != "_id":
+                del data[i]
     return data
+
 
 # ***** NERD API BasicInfo *****
 def get_basic_info_dic(val):
@@ -1234,7 +1277,7 @@ def get_full_info(ipaddr=None):
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
         'asn' : val.get('asn',[]),
-        'geo' : val['geo'],
+        'geo' : val.get('geo', None),
         'ts_added' : val['ts_added'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_update' : val['ts_last_update'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_event' : val['ts_last_event'].strftime("%Y-%m-%dT%H:%M:%S") if 'ts_last_event' in val else None,
