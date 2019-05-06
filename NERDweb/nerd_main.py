@@ -560,6 +560,9 @@ class IPFilterForm(FlaskForm):
         dbl_choices = [('d:'+id, '[dom] {} ({})'.format(name, dbl_name2num.get(id, 0))) for id,name in get_domain_blacklists()]
         self.blacklist.choices = bl_choices + dbl_choices
 
+class IPFilterFormUnlimited(IPFilterForm):
+    """Subclass of IPFilterForm with no default limit on number of results (used by API)"""
+    limit = IntegerField('Max number of addresses', [validators.Optional()], default=0) # 0 means no limit
 
 sort_mapping = {
     'none': 'none',
@@ -985,7 +988,7 @@ def get_status():
 @app.route('/iplist/')
 def iplist():
 
-    form = IPFilterForm(request.args)
+    form = IPFilterFormUnlimited(request.args)
     
     if not g.user or not g.ac('ipsearch'):
         return Response('ERROR: Unauthorized', 403, mimetype='text/plain')
@@ -997,16 +1000,15 @@ def iplist():
     
     query = create_query(form)
     
-    # Perform DB query
     try:
-        results = mongo.db.ip.find(query).limit(form.limit.data)
+        # Perform DB query
+        results = mongo.db.ip.find(query, {'_id': 1}).limit(form.limit.data)
         if sortby != "none":
             results.sort(sortby, 1 if form.asc.data else -1)
-        results = list(results) # Load all data now, so we are able to get number of results in template
+        return Response(''.join(int2ipstr(res['_id'])+'\n' for res in results), 200, mimetype='text/plain')
     except pymongo.errors.ServerSelectionTimeoutError:
         return Response('ERROR: Database connection error', 503, mimetype='text/plain')
     
-    return Response('\n'.join(int2ipstr(res['_id']) for res in results), 200, mimetype='text/plain')
 
 
 # ****************************** API ******************************
@@ -1306,17 +1308,32 @@ def ip_search(full = False):
     if not g.ac('ipsearch'):
         return API_RESPONSE_403
 
-    form = IPFilterForm(request.args)
+    # Get output format
+    output = request.args.get('o', "json")
+    if output not in ('json', 'list'):
+        err['err_n'] = 400
+        err['error'] = 'Unrecognized value of output parameter: ' + output
+        return Response(json.dumps(err), 400, mimetype='application/json')
+
+    list_output = (output == "list")
+
+    # Validate parameters
+    if list_output:
+        form = IPFilterFormUnlimited(request.args) # no limit when only asking for list of IPs
+    else:
+        form = IPFilterForm(request.args) # otherwise limit must be between 1 and 1000 (TODO: allow more?)
+
     if not form.validate():
         err['err_n'] = 400
         err['error'] = 'Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items())
         return Response(json.dumps(err), 400, mimetype='application/json')
 
+    # Perform DB query
     sortby = sort_mapping[form.sortby.data]
     query = create_query(form)
     
     try:
-        results = mongo.db.ip.find(query).limit(form.limit.data)
+        results = mongo.db.ip.find(query, {'_id': 1} if list_output else {}).limit(form.limit.data)  # note: limit=0 means no limit
         if sortby != "none":
             results.sort(sortby, 1 if form.asc.data else -1)
         results = list(results)
@@ -1325,24 +1342,19 @@ def ip_search(full = False):
         err['error'] = 'Database connection error'
         return Response(json.dumps(err), 503, mimetype='application/json')
 
+    # Return results
+    if list_output:
+        return Response(''.join(int2ipstr(res['_id'])+'\n' for res in results), 200, mimetype='text/plain')
+
     # Convert _id from int to dotted-decimal string        
     for res in results:
         res['_id'] = int2ipstr(res['_id'])
 
-    output = request.args.get('o', "json")
-    if output == "json":
-        lres = []
-        for res in results:
-            attach_whois_data(res, full)
-            lres.append(get_basic_info_dic(res))
-        return Response(json.dumps(lres), 200, mimetype='application/json')
-
-    elif output == "list":
-        return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
-    else:
-        err['err_n'] = 400
-        err['error'] = 'Unrecognized value of output parameter: ' + output
-        return Response(json.dumps(err), 400, mimetype='application/json')
+    lres = []
+    for res in results:
+        attach_whois_data(res, full)
+        lres.append(get_basic_info_dic(res))
+    return Response(json.dumps(lres), 200, mimetype='application/json')
 
 
 # ***** Get summary info about IPs in given prefix *****
