@@ -20,7 +20,7 @@ class ShodanRpcClient(object):
             self.response = body
 
     def call(self, ip):
-        print("(shodan_rpc_client) Request for {} received".format(str(ip)))
+        #print("(shodan_rpc_client) Request for {} received".format(str(ip)))
         self.response = None
         self.corr_id = str(uuid.uuid4())
         self.channel.basic_publish(exchange='',
@@ -30,7 +30,7 @@ class ShodanRpcClient(object):
                                          correlation_id=self.corr_id,
                                    ),
                                    body=str(ip))
-        print("(shodan_rpc_client) Request sent to RabbitMQ, waiting for response...")
+        #print("(shodan_rpc_client) Request sent to RabbitMQ, waiting for response...")
         
         while self.response is None:
             self.connection.process_data_events()
