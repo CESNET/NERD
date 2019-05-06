@@ -193,8 +193,9 @@ class TaskQueue:
                 # Set callback function to consume messages
                 self.channel.basic_consume(queue=q_name, on_message_callback=_aux_callback, exclusive=True)
                 break
-            except pika.exceptions.ConnectionClosed:
-                self.log.warning("Connection to RabbitMQ server lost, reconnecting ...")
+            except pika.exceptions.AMQPChannelError as e:
+                self.log.warning("RabbitMQ connection error: {}\nReconnecting...".format(e))
+                self.close_connection()
                 self.connect()
 
     def start_consuming(self):
@@ -203,8 +204,9 @@ class TaskQueue:
             try:
                 self.channel.start_consuming()
                 break
-            except pika.exceptions.ConnectionClosed:
-                self.log.warning("Connection to RabbitMQ server lost, reconnecting ...")
+            except pika.exceptions.AMQPChannelError as e:
+                self.log.warning("RabbitMQ connection error: {}\nReconnecting...".format(e))
+                self.close_connection()
                 self.connect()
 
     def stop_consuming(self):
@@ -218,8 +220,9 @@ class TaskQueue:
             try:
                 self.channel.stop_consuming()
                 break
-            except pika.exceptions.ConnectionClosed:
-                self.log.warning("Connection to RabbitMQ server lost, reconnecting ...")
+            except pika.exceptions.AMQPChannelError as e:
+                self.log.warning("RabbitMQ connection error: {}\nReconnecting...".format(e))
+                self.close_connection()
                 self.connect()
 
     
