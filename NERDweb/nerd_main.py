@@ -236,11 +236,19 @@ def logout():
 
 # ***** Functions called for each request *****
 
-API_RESPONSE_403 = Response(
-    json.dumps({'err_n' : 403, 'error' : "Unauthorized"}), # TODO: recognize different error states? (e.g. "user not authenticated" and "not authorized to use this endpoint")
-    403,
-    mimetype='application/json'
+API_RESPONSE_403_NOAUTH = Response(
+    json.dumps({'err_n' : 403, 'error' : "Unauthorized (no authorization header)"}),
+    403, mimetype='application/json'
 )
+API_RESPONSE_403_TOKEN = Response(
+    json.dumps({'err_n' : 403, 'error' : "Unauthorized (invalid token)"}),
+    403, mimetype='application/json'
+)
+API_RESPONSE_403 = Response(
+    json.dumps({'err_n' : 403, 'error' : "Unauthorized (not authorized to use this endpoint)"}),
+    403, mimetype='application/json'
+)
+
 
 @app.before_request
 def store_user_info():
@@ -252,7 +260,7 @@ def store_user_info():
         # API authentication using token
         auth = request.headers.get("Authorization")
         if not auth:
-            return API_RESPONSE_403
+            return API_RESPONSE_403_NOAUTH
 
         # Extract token from Authorization header. Two formats may be used:
         #   Authorization: asdf1234qwer
@@ -263,11 +271,11 @@ def store_user_info():
         elif len(vals) == 2 and vals[0] == "token":
             token = vals[1]
         else:
-            return API_RESPONSE_403
+            return API_RESPONSE_403_TOKEN
 
         g.user, g.ac = authenticate_with_token(token)
         if not g.user:
-            return API_RESPONSE_403
+            return API_RESPONSE_403_TOKEN
 
     else:
         # Normal authentication using session cookie
@@ -552,6 +560,9 @@ class IPFilterForm(FlaskForm):
         dbl_choices = [('d:'+id, '[dom] {} ({})'.format(name, dbl_name2num.get(id, 0))) for id,name in get_domain_blacklists()]
         self.blacklist.choices = bl_choices + dbl_choices
 
+class IPFilterFormUnlimited(IPFilterForm):
+    """Subclass of IPFilterForm with no default limit on number of results (used by API)"""
+    limit = IntegerField('Max number of addresses', [validators.Optional()], default=0) # 0 means no limit
 
 sort_mapping = {
     'none': 'none',
@@ -977,7 +988,7 @@ def get_status():
 @app.route('/iplist/')
 def iplist():
 
-    form = IPFilterForm(request.args)
+    form = IPFilterFormUnlimited(request.args)
     
     if not g.user or not g.ac('ipsearch'):
         return Response('ERROR: Unauthorized', 403, mimetype='text/plain')
@@ -989,16 +1000,15 @@ def iplist():
     
     query = create_query(form)
     
-    # Perform DB query
     try:
-        results = mongo.db.ip.find(query).limit(form.limit.data)
+        # Perform DB query
+        results = mongo.db.ip.find(query, {'_id': 1}).limit(form.limit.data)
         if sortby != "none":
             results.sort(sortby, 1 if form.asc.data else -1)
-        results = list(results) # Load all data now, so we are able to get number of results in template
+        return Response(''.join(int2ipstr(res['_id'])+'\n' for res in results), 200, mimetype='text/plain')
     except pymongo.errors.ServerSelectionTimeoutError:
         return Response('ERROR: Database connection error', 503, mimetype='text/plain')
     
-    return Response('\n'.join(int2ipstr(res['_id']) for res in results), 200, mimetype='text/plain')
 
 
 # ****************************** API ******************************
@@ -1051,42 +1061,85 @@ def get_ip_info(ipaddr, full):
     attach_whois_data(ipinfo, full)
     return True, ipinfo
 
+
+def conv_dates(rec):
+    """Convert datetimes in a record to YYYY-MM-DDTMM:HH:SS string"""
+    for key in ('ts_added', 'ts_last_update'):
+        if key in rec and isinstance(rec[key], datetime):
+            rec[key] = rec[key].strftime("%Y-%m-%dT%H:%M:%S")
+
+
 def attach_whois_data(ipinfo, full):
-    if full:
+    if not full:
+        # Only attach ASN number(s)
         if 'bgppref' in ipinfo:
-            bgppref = clean_secret_data(mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))
+            bgppref_rec = mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']}, {'asn': 1})
+            if bgppref_rec is None:
+                print("ERROR: Can't find BGP prefix '{}' in database (trying to enrich IP {})".format(ipinfo['bgppref'], ipinfo['_id']))
+                return
+            if 'asn' in bgppref_rec:
+                ipinfo['asn'] = bgppref_rec['asn']
+        return
+    
+    # Full - attach full records of related BGP prefix, ASNs, IP block, Org
+    # IP->BGPpref
+    if 'bgppref' in ipinfo:
+        bgppref_rec = clean_secret_data(mongo.db.bgppref.find_one({'_id':ipinfo['bgppref']}))
+        if bgppref_rec is None:
+            print("ERROR: Can't find BGP prefix '{}' in database (trying to enrich IP {})".format(ipinfo['bgppref'], ipinfo['_id']))
+        else:
+            # BGPpref->ASN(s)
             asn_list = []
+            for asn in bgppref_rec['asn']:
+                asn_rec = clean_secret_data(mongo.db.asn.find_one({'_id':asn}))
+                if asn_rec is None:
+                    print("ERROR: Can't find ASN '{}' in database (trying to enrich IP {}, bgppref {})".format(asn, ipinfo['_id'], bgppref_rec['_id']))
+                else:
+                    # ASN->Org
+                    if 'org' in asn_rec:
+                        org_rec = clean_secret_data(mongo.db.org.find_one({'_id':asn_rec['org']}))
+                        if org_rec is None:
+                            print("ERROR: Can't find Org '{}' in database (trying to enrich IP {}, bgppref {}, ASN {})".format(asn_rec['org'], ipinfo['_id'], bgppref_rec['_id'], asn))
+                        else:
+                            conv_dates(org_rec)
+                            asn_rec['org'] = org_rec
 
-            for i in  bgppref['asn']:
-                i = clean_secret_data(mongo.db.asn.find_one({'_id':i}))
-                if 'org' in i:
-                    i['org'] = clean_secret_data(mongo.db.org.find_one({'_id':i['org']}))
+                    del asn_rec['bgppref']
+                    conv_dates(asn_rec)
+                    asn_list.append(asn_rec)
 
-                del i['bgppref']
-                asn_list.append(i)
-
-            del bgppref['asn']
-            ipinfo['bgppref'] = bgppref
+            del bgppref_rec['asn']
+            conv_dates(bgppref_rec)
+            ipinfo['bgppref'] = bgppref_rec
             ipinfo['asn'] = asn_list
 
-        if 'ipblock' in ipinfo:
-            ipblock = clean_secret_data(mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']}))
+    # IP->ipblock
+    if 'ipblock' in ipinfo:
+        ipblock_rec = clean_secret_data(mongo.db.ipblock.find_one({'_id':ipinfo['ipblock']}))
+        if ipblock_rec is None:
+            print("ERROR: Can't find IP block '{}' in database (trying to enrich IP {})".format(ipinfo['ipblock'], ipinfo['_id']))
+        else:
+            # ipblock->org
+            if "org" in ipblock_rec:
+                org_rec = clean_secret_data(mongo.db.org.find_one({'_id':ipblock_rec['org']}))
+                if org_rec is None:
+                    print("ERROR: Can't find Org '{}' in database (trying to enrich IP {}, ipblock '{}')".format(ipblock_rec['org'], ipinfo['_id'], ipblock_rec['_id']))
+                else:
+                    conv_dates(org_rec)
+                    ipblock_rec['org'] = org_rec
 
-            if "org" in ipblock:
-                ipblock['org'] = clean_secret_data(mongo.db.org.find_one({'_id':ipblock['org']}))
-
-            ipinfo['ipblock'] = ipblock
-    else:
-        if 'bgppref' in ipinfo:
-            ipinfo['asn'] = (mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']}, {'asn': 1}))['asn']
+            conv_dates(ipblock_rec)
+            ipinfo['ipblock'] = ipblock_rec
 
 
 def clean_secret_data(data):
-    for i in list(data):
-        if i.startswith("_") and i != "_id":
-            del data[i]
-
+    """Remove all keys starting with '_' (except '_id') from dict."""
+    if data is not None:
+        for i in list(data):
+            if i.startswith("_") and i != "_id":
+                del data[i]
     return data
+
 
 # ***** NERD API BasicInfo *****
 def get_basic_info_dic(val):
@@ -1226,7 +1279,7 @@ def get_full_info(ipaddr=None):
         'ipblock' : val.get('ipblock', ''),
         'bgppref' : val.get('bgppref', ''),
         'asn' : val.get('asn',[]),
-        'geo' : val['geo'],
+        'geo' : val.get('geo', None),
         'ts_added' : val['ts_added'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_update' : val['ts_last_update'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_event' : val['ts_last_event'].strftime("%Y-%m-%dT%H:%M:%S") if 'ts_last_event' in val else None,
@@ -1255,17 +1308,32 @@ def ip_search(full = False):
     if not g.ac('ipsearch'):
         return API_RESPONSE_403
 
-    form = IPFilterForm(request.args)
+    # Get output format
+    output = request.args.get('o', "json")
+    if output not in ('json', 'list'):
+        err['err_n'] = 400
+        err['error'] = 'Unrecognized value of output parameter: ' + output
+        return Response(json.dumps(err), 400, mimetype='application/json')
+
+    list_output = (output == "list")
+
+    # Validate parameters
+    if list_output:
+        form = IPFilterFormUnlimited(request.args) # no limit when only asking for list of IPs
+    else:
+        form = IPFilterForm(request.args) # otherwise limit must be between 1 and 1000 (TODO: allow more?)
+
     if not form.validate():
         err['err_n'] = 400
         err['error'] = 'Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items())
         return Response(json.dumps(err), 400, mimetype='application/json')
 
+    # Perform DB query
     sortby = sort_mapping[form.sortby.data]
     query = create_query(form)
     
     try:
-        results = mongo.db.ip.find(query).limit(form.limit.data)
+        results = mongo.db.ip.find(query, {'_id': 1} if list_output else {}).limit(form.limit.data)  # note: limit=0 means no limit
         if sortby != "none":
             results.sort(sortby, 1 if form.asc.data else -1)
         results = list(results)
@@ -1274,24 +1342,19 @@ def ip_search(full = False):
         err['error'] = 'Database connection error'
         return Response(json.dumps(err), 503, mimetype='application/json')
 
+    # Return results
+    if list_output:
+        return Response(''.join(int2ipstr(res['_id'])+'\n' for res in results), 200, mimetype='text/plain')
+
     # Convert _id from int to dotted-decimal string        
     for res in results:
         res['_id'] = int2ipstr(res['_id'])
 
-    output = request.args.get('o', "json")
-    if output == "json":
-        lres = []
-        for res in results:
-            attach_whois_data(res, full)
-            lres.append(get_basic_info_dic(res))
-        return Response(json.dumps(lres), 200, mimetype='application/json')
-
-    elif output == "list":
-        return Response('\n'.join(res['_id'] for res in results), 200, mimetype='text/plain')
-    else:
-        err['err_n'] = 400
-        err['error'] = 'Unrecognized value of output parameter: ' + output
-        return Response(json.dumps(err), 400, mimetype='application/json')
+    lres = []
+    for res in results:
+        attach_whois_data(res, full)
+        lres.append(get_basic_info_dic(res))
+    return Response(json.dumps(lres), 200, mimetype='application/json')
 
 
 # ***** Get summary info about IPs in given prefix *****
