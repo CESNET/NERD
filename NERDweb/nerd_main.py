@@ -1333,7 +1333,7 @@ def ip_search(full = False):
     query = create_query(form)
     
     try:
-        results = mongo.db.ip.find(query, {'_id': 1} if list_output else {}).limit(form.limit.data)  # note: limit=0 means no limit
+        results = mongo.db.ip.find(query, {'_id': 1} if list_output else None).limit(form.limit.data)  # note: limit=0 means no limit
         if sortby != "none":
             results.sort(sortby, 1 if form.asc.data else -1)
         results = list(results)
