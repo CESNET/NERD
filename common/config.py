@@ -82,7 +82,7 @@ def read_config(file):
     hierarchical keys (e.g. 'abc.x.y'). See doc of "hierarchical_get" function
     for more information.
     """
-    return HierarchicalDict(yaml.load(open(file)))
+    return HierarchicalDict(yaml.safe_load(open(file)))
 
 # ***** Unit tests *****
 # TODO 'update' is tested only, test 'get' as well
