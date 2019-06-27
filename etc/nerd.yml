@@ -44,13 +44,6 @@ warden_filer_path: "/data/warden_filer/warden_receiver"
 # File to log total number of updates processed (written every 2s)
 upd_cnt_file: "/data/nerd_updates_processed"
 
-# Number of worker threads, i.e. how many record updates can be processed in parallel
-# This may be higher than number of CPUs, because this is not primarily intended
-# to utilize computational power of multiple CPUs (which Python cannot do well
-# anyway due to the GIL), but to mask long I/O operations (e.g. queries to
-# external services via network)
-worker_threads: 16
-
 dnsbl:
   # List of blacklists to query (the rest of "dnsbl" config is in nerdd.yml)
   blacklists:

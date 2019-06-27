@@ -36,8 +36,7 @@ LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
 LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
 logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
 
-log = logging.getLogger('EventReceiver')
-#log.setLevel("DEBUG")
+log = logging.getLogger('WardenReceiver')
 
 
 ###############################################################################
@@ -219,9 +218,10 @@ def stop(signal, frame):
     log.info("exiting")
 
 
-def receive_events(filer_path, eventdb, task_queue):
+def receive_events(filer_path, eventdb, task_queue_writer):
     # Infinite loop reading events as files in given directory
     # This loop stops on SIGINT
+    log.info("Reading IDEA files from {}/incoming".format(filer_path))
     for (rawdata, event) in read_dir(filer_path, call_when_waiting=put_set_to_database):
         # Store the event to EventDB
         if eventdb is not None:
@@ -251,7 +251,7 @@ def receive_events(filer_path, eventdb, task_queue):
                         end_time = detect_time
 
                     node = event["Node"][-1]["Name"]
-                    task_queue.put_update_request('ip', ipv4,
+                    task_queue_writer.put_task('ip', ipv4,
                         [
                             ('array_upsert', 'events',
                              {'date': date, 'node': node, 'cat': cat},
@@ -273,11 +273,15 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(
         prog="warden_receiver.py",
-        description="Primary module of the NERD system to read events from Warden system (as stored into a directory by a warden_filer)."
+        description="Primary module of the NERD system to read events from Warden system (as stored into a directory by warden_filer)."
     )
     parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
         help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
     args = parser.parse_args()
+
+    if args.verbose:
+        log.setLevel('DEBUG')
 
     # Read config
     log.info("Loading config file {}".format(args.config))
@@ -291,14 +295,19 @@ if __name__ == "__main__":
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
 
+    # Get number of processes from config
+    num_processes = config.get('worker_processes')
+    assert (isinstance(num_processes,int) and num_processes > 0), "Number of processes ('num_processes' in config) must be a positive integer"
+
     # Instantiate PSQLEventDatabase if enabled
     eventdb = None # By default, events are not stored anywhere (they are either read from Mentat or not stored at all)
     if config.get('eventdb', None) == 'psql':
         eventdb = common.eventdb_psql.PSQLEventDatabase(config)
     
     # Create main task queue
-    task_queue = common.task_queue.TaskQueue(rabbit_config)
-    
+    task_queue_writer = common.task_queue.TaskQueueWriter(rabbit_config, workers=num_processes)
+    task_queue_writer.connect()
+
     signal.signal(signal.SIGINT, stop)
-    receive_events(filer_path, eventdb, task_queue)
+    receive_events(filer_path, eventdb, task_queue_writer)
 

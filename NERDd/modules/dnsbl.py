@@ -103,9 +103,13 @@ class DNSBLResolver(NERDModule):
 
         # Limit number of requests per day to avoid getting blocked by blacklist
         # providers
+        # TODO FIXME: storing counts to file can't be used in parallel version, it must be replaced with EventCountLogger
         if g.config.get('dnsbl.max_requests', None) and g.config.get('dnsbl.req_cnt_file', None):
             self.max_req_count = int(g.config.get('dnsbl.max_requests'))
             self.req_cnt_file = g.config.get('dnsbl.req_cnt_file')
+            if self.req_cnt_file:
+                self.log.warning("req_cnt_file is not supported in the parallel version, limit on number of requests per day won't work!")
+                self.req_cnt_file = None
             self.log.info("Maximal number of DNSBL requests per day set to {}.".format(self.max_req_count))
         else:
             self.max_req_count = float('inf')

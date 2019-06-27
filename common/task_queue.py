@@ -8,15 +8,15 @@ There are two queues for each worker process:
   workers mustn't be stopped by waiting for the queue.
 
 These queues are presented as a single one by this wrapper.
-The ??? get() ??? method first looks into the "priority" queue and only if there
-is no task waiting, it read the normal one.
+The TaskQueueReader first looks into the "priority" queue and only if there
+is no task waiting, it reads the normal one.
 
 Tasks are distributed to worker processes (and threads) by hash of the entity
 which is to be modified. The destination queue is decided by the message source,
 so each source must know how many worker processes are there.
 
 
-Exchange and queues must be declared externally! (TODO at least check their presence here - but chcing presence means to attempt to declare them)
+Exchange and queues must be declared externally! (TODO at least check their presence here - but checking presence means to attempt to declare them)
 
 
 Related configuration keys and their defaults:
@@ -51,10 +51,11 @@ LOG_LEVEL = logging.INFO
 # Exchange and queue names
 # They must be pre-declared ('direct' exchange type) and binded.
 # Numbers from 0 to number_of_workers-1 are used as routing/binding keys.
+# TODO: are exchanges needed? Shouldn't we use default exchange and just set queue-name as the routing key?
 DEFAULT_EXCHANGE = 'nerd-main-task-exchange'
 DEFAULT_PRIORITY_EXCHANGE = 'nerd-priority-task-exchange'
-DEFAULT_QUEUE = 'worker-{}'
-DEFAULT_PRIORITY_QUEUE = 'worker-{}-pri'
+DEFAULT_QUEUE = 'nerd-worker-{}'
+DEFAULT_PRIORITY_QUEUE = 'nerd-worker-{}-pri'
 
 # Hash function used to distribute tasks to worker processes. Takes string, returns int.
 # (last 4 bytes of MD5)
@@ -225,7 +226,7 @@ class TaskQueueWriter:
         self.exchange_pri = priority_exchange
 
         self.rmq_writer = RabbitMQWriter(rabbit_config)
-    
+
     def connect(self):
         """
         Connect to the server.
@@ -564,27 +565,28 @@ class RabbitMQReader:
 
 
 class TaskQueueReader:
-    def __init__(self, callback, worker_index=0, rabbit_config={}, queue=DEFAULT_QUEUE, priority_queue=DEFAULT_PRIORITY_QUEUE):
+    def __init__(self, callback, worker_index=0, rabbit_config={}, queue=DEFAULT_QUEUE, priority_queue=DEFAULT_PRIORITY_QUEUE, auto_acknowledge=False):
         """
         Helper object for reading from the main TaskQueue (RabbitMQ).
         
-        callback - function called when a message is received,
-                   prototype: func(etype, eid, op)
-        worker_index - index of this worker (filled into DEFAULT_QUEUE using .format() method)
-        rabbit_config - dict containing RabbitMQ configuration
+        :param callback: Function called when a message is received, prototype: func(msg_id, etype, eid, ops)
+        :param worker_index: index of this worker (filled into DEFAULT_QUEUE string using .format() method)
+        :param rabbit_config: dict containing RabbitMQ configuration
             (keys: host, port, virtual_host, username, password)
-        queue - name of RabbitMQ queue to read from
-        priority_queue - name of RabbitMQ queue to read from (priority messages)
+        :param queue: Name of RabbitMQ queue to read from (should contain "{}" to fill in worker_index)
+        :param priority_queue: Name of RabbitMQ queue to read from (priority messages) (should contain "{}" to fill in worker_index)
         """
-        self.log = logging.getLogger('TaskQueue')
+        self.log = logging.getLogger('TaskQueueReader')
         self.log.setLevel(LOG_LEVEL)
         
         self.callback = callback
         self.running = False
-        
+
+        self.auto_ack = auto_acknowledge
+
         self.queue = queue.format(worker_index)
         self.queuep = priority_queue.format(worker_index)
-        
+
         # Receive messages into a temporary queue (max length should be equal to prefetch_count set in RabbitMQReader)
         self.cache = collections.deque()
         self.cachep = collections.deque()
@@ -612,7 +614,17 @@ class TaskQueueReader:
         self._thread.start()
         self.rmqr.start()
         self.log.info("TaskQueueReader started")
-        
+
+    def ack_msg(self, msg_id):
+        """
+        Acknowledge processing of message with given ID.
+
+        :param msg_id: ID of the message, as received in the registered callback
+        """
+        if self.auto_ack:
+            raise RuntimeError("TaskQueueReader: You can't call ack_msg() when auto_acknowledge is enabled.")
+        # Signalize to RabbitMQ that the message was processed
+        self.rmqr.ack(msg_id)
 
 
     def stop(self):
@@ -670,7 +682,8 @@ class TaskQueueReader:
                 self.rmqr.ack(tag)
                 return
             # Pass message to user's callback function
-            self.callback(etype, eid, op)
-            # Signalize the message was processed
-            self.rmqr.ack(tag)
+            self.callback(tag, etype, eid, op)
+            # If automatic acknowledge is enabled, signalize it was processed immediately after callback returns
+            if self.auto_ack:
+                self.rmqr.ack(tag)
 

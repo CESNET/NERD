@@ -22,8 +22,6 @@ def main(cfg_file, process_index):
     logging.getLogger("requests").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     
-    log.info("***** NERD worker {} start *****".format(process_index))
-    
     ################################################
     # Load core components
     
@@ -40,17 +38,26 @@ def main(cfg_file, process_index):
     # Load configuration
     
     # Read NERDd-specific config (nerdd.yml)
-    log.info("Loading config file {}".format(cfg_file))
+    log.debug("Loading config file {}".format(cfg_file))
     config = common.config.read_config(cfg_file)
 
     config_base_path = os.path.dirname(os.path.abspath(cfg_file))
 
     # Read common config (nerd.cfg) and combine them together
     common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
-    log.info("Loading config file {}".format(common_cfg_file))
+    log.debug("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
-    
-    
+
+
+    # Get number of processes from config
+    num_processes = config.get('worker_processes')
+
+    assert (isinstance(num_processes, int) and num_processes > 0), "Number of processes ('num_processes' in config) must be a positive integer"
+    assert (isinstance(process_index, int) and process_index >= 0), "Process index can't be negative"
+    assert (process_index < num_processes), "Process index must be less than total number of processes"
+
+    log.info("***** NERD worker {}/{} start *****".format(process_index, num_processes))
+
     ################################################
     # Create instances of core components
     # Save them to "g" ("global") module so they can be easily accessed from everywhere
@@ -60,7 +67,7 @@ def main(cfg_file, process_index):
     g.config_base_path = config_base_path
     g.scheduler = core.scheduler.Scheduler()
     g.db = core.mongodb.MongoEntityDatabase(config)
-    g.um = core.update_manager.UpdateManager(config, g.db, process_index)
+    g.um = core.update_manager.UpdateManager(config, g.db, process_index, num_processes)
     
     # EventDB may be local PSQL (default), external Mentat instance or None
     EVENTDB_TYPE = config.get('eventdb', 'psql')
@@ -164,9 +171,6 @@ def main(cfg_file, process_index):
     g.scheduler.start()
     
     
-    print()
-    print("*** Press Ctrl-C to quit ***")
-    
     # Wait until someone wants to stop the program by releasing this Lock.
     # It may be a user by pressing Ctrl-C or some program module.
     # (try to acquire the lock again, effectively waiting until it's released by signal handler or another thread)
@@ -201,10 +205,10 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(
         prog="worker.py",
-        description="Main worker process of the NERD system. If run multiple times in parallel, process index MUST be given by a parameter."
+        description="Main worker process of the NERD system. There are usually multiple workers running in parallel."
     )
-    parser.add_argument('process_index', metavar='INDEX', type=int, default=0,
-        help='Index of the worker process (default: 0)')
+    parser.add_argument('process_index', metavar='INDEX', type=int,
+        help='Index of the worker process')
     parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
         help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
     args = parser.parse_args()

@@ -26,7 +26,7 @@ def stop(signal, frame):
     scheduler.shutdown()
 
 
-def issue_events(db, task_queue, log, fetch_limit):
+def issue_events(db, task_queue_writer, log, fetch_limit):
     """
     Periodically issue events for entities with NRU (next regular update) fields.
     Modules may hook their functions to the corresponding event and the entity type.
@@ -80,7 +80,7 @@ def issue_events(db, task_queue, log, fetch_limit):
                 requests.append(('*event', '!every1w'))
                 requests.append(('*next_step', '_nru1w', 'ts_added', time, timedelta(days=7)))
             # Issue update requests
-            task_queue.put_update_request(etype, id, requests)
+            task_queue_writer.put_task(etype, id, requests)
 
     last_fetch_time = time
 
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         description='Periodically issues update events for entities with NRU (next regular update) fields.'
     )
     parser.add_argument('-c', '--config', metavar='FILENAME', dest='cfg_file',
-                    help='Path to configuration file. (default: /etc/nerd/nerdd.yml)', 
+                    help='Path to backend configuration file. (default: /etc/nerd/nerdd.yml)',
                     default='/etc/nerd/nerdd.yml'
     )
     parser.add_argument('-l', '--limit', metavar='N', dest='limit', type=int,
@@ -103,32 +103,49 @@ if __name__ == "__main__":
                     help='Number of seconds between two event issues. (default: 10)', 
                     default=10
     )
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
 
     # Parse arguments
     args = parser.parse_args()
-    
-    # Determine final path to nerd.yml file and read the configuration
-    config_base_path = os.path.dirname(os.path.abspath(args.cfg_file))
-    config_base = common.config.read_config(args.cfg_file)
-    common_cfg_file = os.path.join(config_base_path, config_base.get('common_config'))
-    config = common.config.read_config(common_cfg_file)
-
-    # Configure RabbitMQ
-    rabbit_config = config.get("rabbitmq")
-    task_queue = common.task_queue.TaskQueue(rabbit_config)
 
     # Configure logging
     LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
     LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
-    logging.basicConfig(level=logging.WARNING, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
+    logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
     log = logging.getLogger("Updater")
+
+    logging.getLogger("apscheduler.scheduler").setLevel("WARNING")
+    logging.getLogger("apscheduler.executors.default").setLevel("WARNING")
+    if args.verbose:
+        log.setLevel('DEBUG')
+        logging.getLogger("apscheduler.scheduler").setLevel("INFO")
+        logging.getLogger("apscheduler.executors.default").setLevel("INFO")
+
+
+
+    # Determine final path to nerdd.yml file and read the configuration
+    log.debug("Loading config file {}".format(args.cfg_file))
+    config = common.config.read_config(args.cfg_file)
+    config_base_path = os.path.dirname(os.path.abspath(args.cfg_file))
+    common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
+    log.debug("Loading config file {}".format(common_cfg_file))
+    config.update(common.config.read_config(common_cfg_file))
+
+    # Get number of processes from config
+    num_processes = config.get('worker_processes')
+    assert (isinstance(num_processes, int) and num_processes > 0), "Number of processes ('num_processes' in config) must be a positive integer"
+
+    # Configure RabbitMQ
+    rabbit_config = config.get("rabbitmq")
+    task_queue_writer = common.task_queue.TaskQueueWriter(rabbit_config, workers=num_processes)
+    task_queue_writer.connect()
 
     # Configure database
     db = NERDd.core.mongodb.MongoEntityDatabase(config)
 
     # Create scheduler
     scheduler = BlockingScheduler(timezone="UTC")
-    scheduler.add_job(lambda: issue_events(db, task_queue, log, args.limit), trigger='cron', second='*/' + str(args.period))
+    scheduler.add_job(lambda: issue_events(db, task_queue_writer, log, args.limit), trigger='cron', second='*/' + str(args.period))
 
     # Register SIGINT handler to stop the updater
     signal.signal(signal.SIGINT, stop)
