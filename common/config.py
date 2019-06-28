@@ -27,10 +27,11 @@ def hierarchical_get(self, key, default=NoDefault):
             d = d[first_key]
         return d[key]
     except KeyError:
-        if default is NoDefault:
-            raise MissingConfigError("Mandatory configuration element is missing: " + key)
-        else:
-            return default
+        pass # not found - continue below
+    if default is NoDefault:
+        raise MissingConfigError("Mandatory configuration element is missing: " + key)
+    else:
+        return default
 
 def hierarchical_update(self, other):
     """
