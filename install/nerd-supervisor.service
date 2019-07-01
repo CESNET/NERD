@@ -1,7 +1,7 @@
 [Unit]
 Description=supervisord instance for controlling NERD components
 Documentation=http://supervisord.org
-After=network.target mongod.service redis.service rabbitmq-server.service named.service
+After=network.target mongod.service redis.service rabbitmq-server.service named.service postgresql-11.service
 
 [Service]
 Type=forking

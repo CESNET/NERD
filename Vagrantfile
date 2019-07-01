@@ -46,7 +46,9 @@ sudo -u nerd psql nerd_users -c "
   INSERT INTO users (id,groups,name,email) VALUES ('local:test','{\"registered\"}','Mr. Test','test@example.org') ON CONFLICT DO NOTHING;\
 "
 # Set password for local test user
-htpasswd -bc /vagrant/etc/.htpasswd test test
+htpasswd -bc /etc/nerd/htpasswd test test
+chown apache:nerd /etc/nerd/htpasswd
+chmod 660 /etc/nerd/htpasswd
 
 echo
 echo "************************************************************"
@@ -84,7 +86,7 @@ Vagrant.configure(2) do |config|
   config.vm.provision "file", source: "scripts", destination: "/tmp/nerd_install/nerd/scripts"
   config.vm.provision "file", source: "etc", destination: "/tmp/nerd_install/etc"
   # Convert line-endings in files copied from windows
-  config.vm.provision "shell", inline: "yum install -y dos2unix ; find /tmp/nerd_install/ -type f -exec dos2unix -q {} ';'"
+  config.vm.provision "shell", inline: "yum install -y -q dos2unix ; find /tmp/nerd_install/ -type f -exec dos2unix -q {} ';'"
   config.vm.provision "shell", inline: "chmod +x /tmp/nerd_install/*.sh /tmp/nerd_install/nerd/scripts/*.sh"
 
   # Prepare users, directories, etc.

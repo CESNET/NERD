@@ -9,7 +9,7 @@
 echo "=============== Install & configure Munin ==============="
 
 
-yum -y install munin munin-node
+yum -y -q install munin munin-node
 
 # ** Configure munin-node **
 # Allow connections from localhost only

@@ -30,7 +30,7 @@ echo "** Set up supervisord systemd unit **"
 
 cp /tmp/nerd_install/nerd-supervisor.service /etc/systemd/system/nerd-supervisor.service
 systemctl daemon-reload
-systemctl enable nerd-supervisor
+#systemctl enable nerd-supervisor
 #systemctl restart nerd-supervisor
 
 echo "** TO RUN NERD, START ITS SUPERVISOR: systemctl start nerd-supervisor"

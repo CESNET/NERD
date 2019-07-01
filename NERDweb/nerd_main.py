@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
-from __future__ import print_function
 import sys
-import random
 import json
-import time
 from datetime import datetime, timedelta
 import os
 import subprocess
@@ -12,7 +9,6 @@ import pytz
 import ipaddress
 import struct
 import hashlib
-import socket
 import requests
 import flask
 from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response

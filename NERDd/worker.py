@@ -70,21 +70,22 @@ def main(cfg_file, process_index):
     g.um = core.update_manager.UpdateManager(config, g.db, process_index, num_processes)
     
     # EventDB may be local PSQL (default), external Mentat instance or None
-    EVENTDB_TYPE = config.get('eventdb', 'psql')
-    if EVENTDB_TYPE == 'psql':
-        import common.eventdb_psql
-        g.eventdb = common.eventdb_psql.PSQLEventDatabase(config)
-    elif EVENTDB_TYPE == 'mentat':
-        import common.eventdb_mentat
-        g.eventdb = common.eventdb_mentat.MentatEventDBProxy(config)
-    else:
-        class DummyEventDB:
-            def get(*args, **kwargs):
-                return []
-            def put(*args, **kwargs):
-                return None
-        g.eventdb = DummyEventDB()
-        log.error("Unknown 'eventdb' configured, events won't be stored")    
+    # (commented out, it's currently only used in warden_receiver, which not a part of worker)
+    # EVENTDB_TYPE = config.get('eventdb', 'psql')
+    # if EVENTDB_TYPE == 'psql':
+    #     import common.eventdb_psql
+    #     g.eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+    # elif EVENTDB_TYPE == 'mentat':
+    #     import common.eventdb_mentat
+    #     g.eventdb = common.eventdb_mentat.MentatEventDBProxy(config)
+    # else:
+    #     class DummyEventDB:
+    #         def get(*args, **kwargs):
+    #             return []
+    #         def put(*args, **kwargs):
+    #             return None
+    #     g.eventdb = DummyEventDB()
+    #     log.error("Unknown 'eventdb' configured, events won't be stored")
 
     
     ################################################
@@ -108,7 +109,7 @@ def main(cfg_file, process_index):
     import modules.tags
     import modules.reputation
     import modules.whois
-    import modules.passive_dns
+    #import modules.passive_dns
     import modules.fmp
     
     # Instantiate modules
@@ -131,7 +132,7 @@ def main(cfg_file, process_index):
         #modules.bgp_rank.CIRCL_BGPRank(), # Disabled by default, as it seems the service has been discontinued
         modules.event_type_counter.EventTypeCounter(),
         modules.tags.Tags(),
-        modules.passive_dns.PassiveDNSResolver(),
+        #modules.passive_dns.PassiveDNSResolver(),
         modules.fmp.FMP()
     ]
     

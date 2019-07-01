@@ -7,7 +7,8 @@
 echo "=============== Configure Apache ==============="
 
 # (in case base_loc is server root, httpd needs "/", while nerd needs "")
-base_loc_httpd="/"
+base_loc_httpd="/" # location without trailing slash (except when "/")
+base_loc_httpd_slash="/" # location with trailing slash
 base_loc_nerd=""
 debug=0
 
@@ -26,8 +27,9 @@ shift $((OPTIND-1))
 
 # If base_loc is set and not root directory (which is default and treated specially)
 if [ -n "$1" -a "$1" != "/" ] ; then
-  base_loc_httpd=$1
-  base_loc_nerd=$1
+  base_loc_httpd="$1"
+  base_loc_httpd_slash="$1/"
+  base_loc_nerd="$1"
 fi
 
 echo "Base location: $base_loc_httpd"
@@ -36,7 +38,7 @@ if [ "$debug" = 1 ] ; then
 fi
 
 echo "** Installing Apache and WSGI **"
-yum install -y httpd httpd-devel mod_wsgi
+yum --disableplugin=fastestmirror install -q -y httpd httpd-devel mod_wsgi
 pip3 install mod_wsgi
 
 # Replace the stock mod_wsgi.so with the one from Python36
@@ -56,6 +58,7 @@ else
 fi
 # Set up base loc in both apache conf and NERD conf
 sed -i -E "s|^Define\s+NERDBaseLoc\s+.*$|Define NERDBaseLoc $base_loc_httpd|" /etc/httpd/conf.d/nerd.conf
+sed -i -E "s|^Define\s+NERDBaseLocS\s+.*$|Define NERDBaseLocS $base_loc_httpd_slash|" /etc/httpd/conf.d/nerd.conf
 sed -i -E "s|^base_url:.*$|base_url: \"$base_loc_nerd\"|" /etc/nerd/nerdweb.yml
 
 # Set up random "secret" number for Flask

@@ -41,7 +41,9 @@ loc=("lacnic" "ripe" "arin" "afrinic" "apnic");\
 rirs=("lacnic" "ripencc" "arin" "afrinic" "apnic");\
 for i in ${!rirs[*]};\
 do \
-wget -q "ftp://ftp."${loc[$i]}".net/pub/stats/"${rirs[$i]}"/delegated-"${rirs[$i]}"-extended-latest";\
+url="ftp://ftp."${loc[$i]}".net/pub/stats/"${rirs[$i]}"/delegated-"${rirs[$i]}"-extended-latest";\
+echo "$url";\
+wget -q "$url";\
 cat "delegated-"${rirs[$i]}"-extended-latest" | grep "ipv4" | awk \'BEGIN { FS = "|"} ; {print $4","$5","$1}\' | tail -n +2 >> csv_tmp;\
 rm -f "delegated-"${rirs[$i]}"-extended-latest";\
 done'
