@@ -12,22 +12,47 @@
 
 {% if not ip or not ac('ipsearch') %}
   {# Print nothing if no IP was passed #}
-{% elif not ipinfo %}
-  <hr>
-  <p class="msg info notfound">IP '{{ form.ip.data }}' not in database.</p>
 {% else %}
 
 <hr>
 
 <div class="entity-info ip">
 
-<p class="header"><span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">
-  {{- "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span><span class="entity-id">{{ ip }}</span><span class="entity-name">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span></p>
+<div class="header">
+<div class="links">
+Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" title="Search on Shodan" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"></a><a href="https://censys.io/ipv4/{{ ip }}" title="Search on Censys" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"></a><span class="divider"></span><a href="http://multirbl.valli.org/lookup/{{ ip }}.html" title="Blacklist Check at valli.org" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"></a><a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"></a><span class="divider"></span><a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip }}" title="Search at Talos Intelligence Reputation Center" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"></a><a href="https://senderscore.org/lookup.php?lookup={{ ip }}" title="Search at Sender Score" target="_blank"><img src="{{ url_for('static', filename='senderscore_icon.png') }}"></a>
+</div>
+{% if ipinfo %}<span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">{{ "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span>{% endif %}
+<span class="entity-id">{{ ip }}</span><span class="entity-name">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span>
+</div>
 
+<!-- hidden form to allow links to blacklist check at whatismyipaddress.com -->
+<form id="bl-check-form" action="https://whatismyipaddress.com/blacklist-check" method="POST" target="_blank">
+<input type="hidden" id="bl-check-form-ip" name="LOOKUPADDRESS" value="">
+<input type="hidden" name="Lookup+Hostname" value="Check+Blacklists">
+</form>
+
+{% if ac('shodan') %}
+<div class="float-box shodan">
+  <div class="title">Shodan<span class="side-link">(<a href="https://www.shodan.io/search?query={{ ip }}">more info</a>)</span></div>
+  <div id="shodan-info" class="content">
+    {#  this is filled by javascript  #}
+    <div class="loading"><img class="load-spinner-small" src="{{ url_for('static', filename='spin.gif') }}"></div>
+  </div>
+</div>
+{% endif %}
+
+{% if ac('pdns') %}
 <div class="float-box pdns">
 <div class="title">Passive DNS<span class="help" title="DNS resolutions involving this IP address observed at CESNET DNS servers. Format: <rr_type> <hostname> <first seen> <last seen> <number of observations>"></span></div>
 <div id="pdns_data" class="content"><div class="loading"><img class="load-spinner-small" src="{{ url_for('static', filename='spin.gif') }}"></div></div>
 </div>
+{% endif %}
+
+{% if not ipinfo %}
+<p class="notfound">Record not found in database</p>
+<p class="notfound2">No malicious activity related to the IP address has been reported in last {{ config.inactive_ip_lifetime }} days.</p>
+{% else %}
 
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
@@ -138,22 +163,29 @@
 {% endfor %}
 </dl>
 
+{% endif %}{# if ipinfo #}
+
 {% if ac('warden_alerts') %}
 <div id="events">
 <p id="event-details"><span class="caption">Event details</span> <span class="counts">(...)</span>
-&nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>
+{#&nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>#}
 {%- if config.mentat_url and ac('mentat') %}<span class="mentat-link">Search in <a href="{{config.mentat_url.replace('$IP', ip)}}">Mentat</a></span>{% endif %}
 </p>
 <div class="loading"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}"></div>
 <script>
-$("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}");
+$("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}", function( response, status, xhr ) {
+  if ( status == "error" ) {
+    $("#events div.loading").html( "Error: " + xhr.status + " " + xhr.statusText );
+  }
+});
 </script>
 </div>
 {% endif %}
 
 <script>
-// Load passive DNS data
-$(document).ready(function () {       
+// Load passive DNS and Shodan data
+$(document).ready(function () {
+{% if ac('pdns') %}
   var url = "{{ url_for('pdns_ip', ipaddr=ip) }}";  
   $.getJSON(url, function(response,status) {
     if (status != "success") {
@@ -174,10 +206,17 @@ $(document).ready(function () {
       $("#pdns_data").css("text-align", "center")
     }
   }).fail( function( jqXHR, textStatus, errorThrown) { $("#pdns_data").text("ERROR: " + jqXHR.responseText); } );
+{% endif %}
+{% if ac('shodan') %}  
+  url = "{{ url_for('get_shodan_response', ipaddr=ip) }}";
+  $.get(url, function (data) {
+      $("#shodan-info").html(data);
+  }).fail( function( jqXHR, textStatus, errorThrown) { $("#shodan-info").text("ERROR: " + jqXHR.responseText); } );
+{% endif %}
 });
 </script>
 
 </div>
-{% endif %}{# if not found #}
+{% endif %}{# if not ip #}
 
 {% endblock %}

@@ -5,16 +5,19 @@
 
 {% if not ipblock or not ac('ipsearch') %}
   {# Print nothing if no IP-block was passed or insufficient permissions #}
-{% elif not rec %}
-  <hr>
-  <p class="msg info notfound">IP block '{{ ipblock }}' not in database.</p>
 {% else %}
 
 <hr>
 
 <div class="entity-info ipblock">
-<p class="header"><span class="rep" style="background-color: {{ rep_css_color(rec.rep) }}">
-  {{- "%.3f"|format(rec.rep)|replace("0.",".") if rec.rep is defined else "--" }}</span><span class="entity-id">{{ ipblock }}</span><span class="entity-name">{{ rec.name if rec.name else '' }}</span></p>
+<p class="header">
+{% if rec %}<span class="rep" style="background-color: {{ rep_css_color(rec.rep) }}">{{ "%.3f"|format(rec.rep)|replace("0.",".") if rec.rep is defined else "--" }}</span>{% endif %}
+<span class="entity-id">{{ ipblock }}</span><span class="entity-name">{{ rec.name if rec.name else '' }}</span>
+</p>
+
+{% if not rec %}
+<p class="notfound">Record not found in database</p>
+{% else %}
 
 <dl class="attrs">
 {% for attr,val in rec|dictsort %}
@@ -37,5 +40,6 @@
 </dl>
 </div>
 {% endif %}{# if not found #}
+{% endif %}{# if nothing specified #}
 
 {% endblock %}

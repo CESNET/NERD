@@ -6,6 +6,7 @@ pymongo
 WTForms
 Flask-pymongo
 Flask-Mail
-psycopg2
+psycopg2-binary
 redis
 hiredis
+cachetools

@@ -13,5 +13,5 @@ else
   token="$2"
 fi
 echo "Setting token '$token' to user '$user'"
-psql -U nerd -c "UPDATE users SET api_token = '$token' WHERE id = '$user'"
+psql -U nerd nerd_users -c "UPDATE users SET api_token = '$token' WHERE id = '$user'"
 

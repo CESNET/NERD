@@ -22,8 +22,6 @@ def main(cfg_file, process_index):
     logging.getLogger("requests").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     
-    log.info("***** NERD worker {} start *****".format(process_index))
-    
     ################################################
     # Load core components
     
@@ -31,6 +29,7 @@ def main(cfg_file, process_index):
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
     
     import common.config
+    import common.eventdb_mentat
     import core.mongodb
     import core.update_manager
     import core.scheduler
@@ -39,17 +38,26 @@ def main(cfg_file, process_index):
     # Load configuration
     
     # Read NERDd-specific config (nerdd.yml)
-    log.info("Loading config file {}".format(cfg_file))
+    log.debug("Loading config file {}".format(cfg_file))
     config = common.config.read_config(cfg_file)
 
     config_base_path = os.path.dirname(os.path.abspath(cfg_file))
 
     # Read common config (nerd.cfg) and combine them together
     common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
-    log.info("Loading config file {}".format(common_cfg_file))
+    log.debug("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
-    
-    
+
+
+    # Get number of processes from config
+    num_processes = config.get('worker_processes')
+
+    assert (isinstance(num_processes, int) and num_processes > 0), "Number of processes ('num_processes' in config) must be a positive integer"
+    assert (isinstance(process_index, int) and process_index >= 0), "Process index can't be negative"
+    assert (process_index < num_processes), "Process index must be less than total number of processes"
+
+    log.info("***** NERD worker {}/{} start *****".format(process_index, num_processes))
+
     ################################################
     # Create instances of core components
     # Save them to "g" ("global") module so they can be easily accessed from everywhere
@@ -59,15 +67,33 @@ def main(cfg_file, process_index):
     g.config_base_path = config_base_path
     g.scheduler = core.scheduler.Scheduler()
     g.db = core.mongodb.MongoEntityDatabase(config)
-    g.um = core.update_manager.UpdateManager(config, g.db, process_index)
+    g.um = core.update_manager.UpdateManager(config, g.db, process_index, num_processes)
     
+    # EventDB may be local PSQL (default), external Mentat instance or None
+    # (commented out, it's currently only used in warden_receiver, which not a part of worker)
+    # EVENTDB_TYPE = config.get('eventdb', 'psql')
+    # if EVENTDB_TYPE == 'psql':
+    #     import common.eventdb_psql
+    #     g.eventdb = common.eventdb_psql.PSQLEventDatabase(config)
+    # elif EVENTDB_TYPE == 'mentat':
+    #     import common.eventdb_mentat
+    #     g.eventdb = common.eventdb_mentat.MentatEventDBProxy(config)
+    # else:
+    #     class DummyEventDB:
+    #         def get(*args, **kwargs):
+    #             return []
+    #         def put(*args, **kwargs):
+    #             return None
+    #     g.eventdb = DummyEventDB()
+    #     log.error("Unknown 'eventdb' configured, events won't be stored")
+
     
     ################################################
     # Load all plug-in modules
     # (all modules can now use core components in "g")
     
     # TODO load all modules automatically (or just modules specified in config)
-    import modules.updater
+    import modules.update_planner
     import modules.cleaner
     import modules.dns
     import modules.geolocation
@@ -78,18 +104,19 @@ def main(cfg_file, process_index):
     import modules.event_counter
     import modules.hostname
     import modules.caida_as_class
-    import modules.bgp_rank
+    #import modules.bgp_rank
     import modules.event_type_counter
     import modules.tags
     import modules.reputation
     import modules.whois
-    import modules.passive_dns
+    #import modules.passive_dns
+    import modules.fmp
     
     # Instantiate modules
     # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
     #  or take if from configuration
     module_list = [
-        modules.updater.Updater(),
+        modules.update_planner.UpdatePlanner(),
         modules.cleaner.Cleaner(),
         modules.event_counter.EventCounter(),
         modules.dns.DNSResolver(),
@@ -102,10 +129,11 @@ def main(cfg_file, process_index):
         modules.reputation.Reputation(),
         modules.hostname.HostnameClass(),
         modules.caida_as_class.CaidaASclass(),
-        modules.bgp_rank.CIRCL_BGPRank(),
+        #modules.bgp_rank.CIRCL_BGPRank(), # Disabled by default, as it seems the service has been discontinued
         modules.event_type_counter.EventTypeCounter(),
         modules.tags.Tags(),
-        modules.passive_dns.PassiveDNSResolver()
+        #modules.passive_dns.PassiveDNSResolver(),
+        modules.fmp.FMP()
     ]
     
     
@@ -144,9 +172,6 @@ def main(cfg_file, process_index):
     g.scheduler.start()
     
     
-    print()
-    print("*** Press Ctrl-C to quit ***")
-    
     # Wait until someone wants to stop the program by releasing this Lock.
     # It may be a user by pressing Ctrl-C or some program module.
     # (try to acquire the lock again, effectively waiting until it's released by signal handler or another thread)
@@ -181,12 +206,12 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(
         prog="worker.py",
-        description="Main worker process of the NERD system. If run multiple times in parallel, process index MUST be given by a parameter."
+        description="Main worker process of the NERD system. There are usually multiple workers running in parallel."
     )
-    parser.add_argument('process_index', metavar='INDEX', type=int, default=0,
-        help='Index of the worker process (default: 0)')
-    parser.add_argument('-c', '--config', metavar='FILENAME', default='../etc/nerdd.yml',
-        help='Path to configuration file (default: ../etc/nerdd.yml')
+    parser.add_argument('process_index', metavar='INDEX', type=int,
+        help='Index of the worker process')
+    parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
+        help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
     args = parser.parse_args()
 
     # Run main code

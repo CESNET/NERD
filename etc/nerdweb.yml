@@ -6,8 +6,7 @@ acl_config: acl
 
 # Secret key used by Flask for various security purposes
 # Set this to an arbitrary long-enough string, use e.g.:
-# >>> import os
-# >>> os.urandom(24)
+# head -c 24 /dev/urandom | base64
 secret_key: "!!! CHANGE THIS !!!"
 
 # Show "BETA" label over logo in web header
@@ -16,7 +15,7 @@ beta_label: true
 # URL of NERDweb root (without trailing slash, e.g. "/nerd")
 # All NERDweb pages are relative to this
 # Keep empty if NERDweb resides in web server's root directory
-base_url: ""
+base_url: "/nerd"
 
 data_disk_path: "/data"
 
@@ -29,7 +28,7 @@ login:
       id_field: REMOTE_USER
       # Path to .htpasswd file with usernames and passwords (relative to NERD's "etc" dir)
       # Note that the file must be accessible by web server for both read and write (to allow password change)
-      htpasswd_file: ".htpasswd"
+      htpasswd_file: "htpasswd"
 
 #    shibboleth:
 #      display: EduGAIN

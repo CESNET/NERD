@@ -1,0 +1,14 @@
+[Unit]
+Description=supervisord instance for controlling NERD components
+Documentation=http://supervisord.org
+After=network.target mongod.service redis.service rabbitmq-server.service named.service postgresql-11.service
+
+[Service]
+Type=forking
+ExecStart=/bin/supervisord -c /etc/nerd/supervisord.conf
+ExecReload=/bin/supervisorctl -c /etc/nerd/supervisord.conf reload
+ExecStop=/bin/supervisorctl -c /etc/nerd/supervisord.conf shutdown
+User=nerd
+
+[Install]
+WantedBy=multi-user.target

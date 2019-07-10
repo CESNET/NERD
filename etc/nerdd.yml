@@ -2,24 +2,31 @@
 ---
 common_config: nerd.yml
 
-# Number of days to store IP address in the database since the last observed event related to the IP
-inactive_ip_lifetime: 14
+# Number of worker processes
+# WARNING: If changing number of worker processes, the following process must be followed:
+# 1. stop all inputs (e.g. warden_receiver, updater)
+# 2. when all queues are empty, stop all workers
+# 3. reconfigure queues in RabbitMQ using /nerd/scripts/rmq_reconfigure.sh
+# 4. change the settings here and in supervisord config (workers.ini)
+# 5. reload supervisord and start everything again
+worker_processes: 2
 
-# Number of days to store meta-data about events in IP records
-max_event_history: 90
+# Number of worker threads per process.
+# This may be higher than number of CPUs, because this is not primarily intended
+# to utilize computational power of multiple CPUs (which Python cannot do well
+# anyway due to the GIL), but to mask long I/O operations (e.g. queries to
+# external services via network)
+worker_threads: 16
 
-eventdb:
+
+eventdb_psql:
   # Number of separate processes for inserting messages to DB
   # (zero means don't spawn a separate process)
   dbwriter_processes: 0
-  
-  # Forward all IDEA messages to this RabbitMQ queue
-  # (NERDd doesn't declare the queue, it must be defined externally by rabbitmqctl or via web management)
-  #forward_to_queue: "idea-nerd2grip"
 
 whois:
-  asn_file: "/tmp/nerd-whois-asn.csv"
-  ipv4_file: "/tmp/nerd-whois-ipv4.csv"
+  asn_file: "/data/nerd-whois-asn.csv"
+  ipv4_file: "/data/nerd-whois-ipv4.csv"
 
 # Event type counter module determines which types of attacks exceed threshold during given time period
 event_type_counter:
@@ -35,7 +42,7 @@ caida:
 
   # File where list with ASes, source of classification and their type is stored
   # (Module is disabled if this is commented out)
-  #caida_file: "/data/caida-as2types.txt"
+  caida_file: "/data/caida-as2types.txt"
 
   # Source with confidence of right classification (default is 1 if source or confidence not present)
   sources:
@@ -66,6 +73,10 @@ dnsbl:
   max_requests: 150000
   # File where daily count of requests is stored (this is only prefix to which date will be appended)
   req_cnt_file: "/data/dnsbl-requests-"
+
+fmp:
+  paths: {"general" : "/data/fmp/general/"}
+  models: {"general" : "/data/fmp/models/model_access_nerd_xg200_7.bin"}
 
 #shodan:
 #   apikey: ""

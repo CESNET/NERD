@@ -9,6 +9,9 @@ import g
 
 import datetime
 
+EWMA_ALPHA = 0.25 # a parameter (there's no strong reason for the value selected, I just feel that 0.25 gives reasonable weights for the 7 day long period)
+EWMA_WEIGHTS = [(EWMA_ALPHA * (1 - EWMA_ALPHA)**i) for i in range(7)]
+
 # TODO - (re)compute sets of nodes for 1, 7 and 30 days as well (or do it in frontend?)
 
 class EventCounter(NERDModule):
@@ -40,7 +43,9 @@ class EventCounter(NERDModule):
             self.count_events, # function (or bound method) to call
             'ip', # entity type
             ('events_meta.total','!every1d'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
-            ('events_meta.total1','events_meta.total7','events_meta.total30') # tuple/list/set of attributes the method may change
+            ('events_meta.total1','events_meta.total7','events_meta.total30',
+             'events_meta.nodes_1d','events_meta.nodes_7d','events_meta.nodes_30d',
+             'ewma','bin_ewma') # tuple/list/set of attributes the method may change
         )
 
 
@@ -60,6 +65,7 @@ class EventCounter(NERDModule):
         or events).
         In particular, the following updates are requested:
           ('set', 'events_meta.total{1,7,30}', number_of_events)
+          ('set', 'events_meta.nodes_{1,7,30}d', number_of_unique_nodes)
         """
         etype, key = ekey
         if etype != 'ip':
@@ -70,21 +76,39 @@ class EventCounter(NERDModule):
         total1 = 0
         total7 = 0
         total30 = 0
+        nodes1 = set()
+        nodes7 = set()
+        nodes30 = set()
+
+        alerts_per_day = [0]*7;
+
         for evtrec in rec['events']:
             n = evtrec['n']
             date = evtrec['date']
             date = datetime.date(int(date[0:4]), int(date[5:7]), int(date[8:10]))
             days_diff = (today - date).days
+
             if days_diff <= 1:
                 total1 += n
+                nodes1.add(evtrec['node'])
             if days_diff <= 7:
                 total7 += n
+                nodes7.add(evtrec['node'])
             if days_diff <= 30:
                 total30 += n
+                nodes30.add(evtrec['node'])
+
+            if days_diff < 7:
+                alerts_per_day[days_diff] += n;
 
         return [
             ('set', 'events_meta.total1', total1),
             ('set', 'events_meta.total7', total7),
             ('set', 'events_meta.total30', total30),
+            ('set', 'events_meta.nodes_1d', len(nodes1)),
+            ('set', 'events_meta.nodes_7d', len(nodes7)),
+            ('set', 'events_meta.nodes_30d', len(nodes30)),
+            ('set', 'events_meta.ewma', sum(n*w for n,w in zip(alerts_per_day, EWMA_WEIGHTS))),
+            ('set', 'events_meta.bin_ewma', sum((w if n else 0) for n,w in zip(alerts_per_day, EWMA_WEIGHTS)))
         ]
 
