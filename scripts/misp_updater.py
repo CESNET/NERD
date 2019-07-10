@@ -9,13 +9,16 @@ from pymisp import PyMISP
 import logging
 import datetime
 import argparse
-
+import os
+import re
 import sys
-sys.path.insert(0, '..')
+
+# Add to path the "one directory above the current file location" to find modules from "common"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+
 from common.config import read_config
 import NERDd.core.mongodb as mongodb
-from common.task_queue import TaskQueue
-
+from common.task_queue import TaskQueueWriter
 
 DEFAULT_MONGO_HOST = 'localhost'
 DEFAULT_MONGO_PORT = 27017
@@ -26,17 +29,36 @@ parser = argparse.ArgumentParser(
     prog="misp_receiver.py",
     description="NERD standalone, which will synchronize NERD with data from MISP instance."
 )
+parser.add_argument("-v", dest="verbose", action="store_true",
+                    help="Verbose mode")
+parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
+                    help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
 parser.add_argument("--cert", required=False, dest="cert", action="store", default=False,
                     help="Self signed certificate of MISP instance")
 args = parser.parse_args()
 
-# db config
-config = read_config("../etc/nerd.yml")
+LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
+LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
+logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
+
+logger = logging.getLogger('MISP_updater')
+
+if args.verbose:
+    logger.setLevel("DEBUG")
+
+# config - load nerdd.yml
+logger.info("Loading config file {}".format(args.config))
+config = read_config(args.config)
+# update config variable (nerdd.yml) with nerd.yml
+config_base_path = os.path.dirname(os.path.abspath(args.config))
+common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
+logger.info("Loading config file {}".format(common_cfg_file))
+config.update(read_config(common_cfg_file))
 
 db = mongodb.MongoEntityDatabase(config)
 
 # task queue init
-tq = TaskQueue(config.get('rabbitmq', {}))
+tq = TaskQueueWriter(config.get('rabbitmq', {}))
 
 # load MISP instance configuration
 try:
@@ -47,12 +69,6 @@ except KeyError:
     sys.exit(1)
 
 misp_inst = PyMISP(misp_url, misp_key, args.cert, 'json')
-
-LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
-LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
-logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
-
-logger = logging.getLogger('MISP_updater')
 
 # if some error occures in ip processing, add it to list and try to process it again at the end of the script
 error_ip = {}
@@ -188,7 +204,10 @@ def process_ip(ip_addr, role):
     :return: None if error occured while loading info about ip address
     """
     # check ip record in DB
-    db_entity = db.get("ip", ip_addr)
+    try:
+        db_entity = db.get("ip", ip_addr)
+    except ValueError:
+        logger.error("ERROR: " + ip_addr, exc_info=True)
     try:
         misp_events_response = misp_inst.search(controller='events', values=ip_addr)
         misp_events = misp_events_response['response']
@@ -214,11 +233,11 @@ def process_ip(ip_addr, role):
             if db_entity.get('misp_events', {}) != events:
                 # construct new update request and send it
                 update_requests = [('set', 'misp_events', events)]
-                tq.put_update_request('ip', ip_addr, update_requests)
+                tq.put_task('ip', ip_addr, update_requests)
         else:
             # ip address not even in NERD --> insert it
             update_requests = [('set', 'misp_events', events)]
-            tq.put_update_request('ip', ip_addr, update_requests)
+            tq.put_task('ip', ip_addr, update_requests)
 
 
 def main():
@@ -238,26 +257,31 @@ def main():
 
     # remove all 'misp_events' attributes that are in NERD but not in MISP
     if db_ip_misp_events:
-        logger.info("{} NERD IPs don't have an entry in MISP anymore, removing corresponding misp_events keys...".format(len(db_ip_misp_events)))
+        logger.info(
+            "{} NERD IPs don't have an entry in MISP anymore, removing corresponding misp_events keys...".format(
+                len(db_ip_misp_events)))
         for ip in db_ip_misp_events:
-            tq.put_update_request('ip', ip, [('remove', 'misp_events')])
+            tq.put_task('ip', ip, [('remove', 'misp_events')])
 
     logger.info("Checking and updating NERD records for all the IPs ...")
+    # this is not the absolutely correct regular expression for IP4 address, but for the purposes of this converter it
+    # is enough
+    re_ip_address = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
 
     # go through every source ip
     for ip_addr in ip_src:
-        # cProfile.runctx("proccess_ip(ip_addr, \"src\")", {}, {'ip_addr': ip_addr, 'proccess_ip': proccess_ip})
-        #logger.debug(ip_addr)
-        process_ip(ip_addr, "src")
-    
+        if re_ip_address.search(ip_addr):
+            process_ip(ip_addr, "src")
+
     # go through every destination ip
     for ip_addr in ip_dst:
-        #logger.debug(ip_addr)
-        process_ip(ip_addr, "dst")
+        if re_ip_address.search(ip_addr):
+            process_ip(ip_addr, "dst")
 
     # try to process IPs, which was not processed correctly
     for ip_addr, role in error_ip.items():
-        process_ip(ip_addr, role)
+        if re_ip_address.search(ip_addr):
+            process_ip(ip_addr, role)
 
     logger.info("Done")
 

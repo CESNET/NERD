@@ -13,12 +13,14 @@ import logging
 from pymisp import PyMISP
 import datetime
 import argparse
+import os
 
-sys.path.append('../')
+# Add to path the "one directory above the current file location" to find modules from "common"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+
 import NERDd.core.mongodb as mongodb
 from common.config import read_config
-import common.task_queue
-import common.config
+from common.task_queue import TaskQueueWriter
 import re
 
 running_flag = True
@@ -29,23 +31,16 @@ logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
 
 logger = logging.getLogger('MispReceiver')
 
-# config
-common_cfg_file = "../etc/nerd.yml"
-config = read_config(common_cfg_file)
-rabbit_config = config.get("rabbitmq")
-db = mongodb.MongoEntityDatabase(config)
-
-# rabbitMQ
-tq = common.task_queue.TaskQueue(rabbit_config)
-
-# Parse arguments
+# parse arguments
 parser = argparse.ArgumentParser(
     prog="MISP_receiver.py",
     description="NERD standalone script for receiving MISP instance changes of events, attributes or sightings."
 )
 parser.add_argument("--cert", required=False, dest="cert", action="store", default=False,
                     help="Self signed certificate of MISP instance")
-parser.add_argument("-v", dest="verbose", action="store_true", 
+parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
+                    help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
+parser.add_argument("-v", dest="verbose", action="store_true",
                     help="Verbose mode")
 
 args = parser.parse_args()
@@ -53,14 +48,31 @@ args = parser.parse_args()
 if args.verbose:
     logger.setLevel("DEBUG")
 
+# config - load nerdd.yml
+logger.info("Loading config file {}".format(args.config))
+config = read_config(args.config)
+# update config variable (nerdd.yml) with nerd.yml
+config_base_path = os.path.dirname(os.path.abspath(args.config))
+common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
+logger.info("Loading config file {}".format(common_cfg_file))
+config.update(read_config(common_cfg_file))
+
+rabbit_config = config.get("rabbitmq")
+db = mongodb.MongoEntityDatabase(config)
+
+# rabbitMQ
+tq_writer = TaskQueueWriter(rabbit_config)
+
 # load MISP instance configuration
 try:
     misp_key = config['misp']['key']
     misp_url = config['misp']['url']
-    misp_zmq = config['misp']['zmq']
+    misp_zmq_url = config['misp']['zmq']
 except KeyError:
-    logging.error("Missing configuration of MISP instance in the configuration file!")
+    logger.error("Missing configuration of MISP instance in the configuration file!")
     sys.exit(1)
+
+logger.info(config)
 
 # MISP instance
 misp_inst = PyMISP(misp_url, misp_key, args.cert, 'json')
@@ -74,10 +86,11 @@ re_event_id_title = re.compile("Event \(([0-9]+)\)")
 # get attribute id from str like: "Attribute (562857) from Event (5822): Network activity\/url bit.ly\/2m0x8IH"
 re_attrib_id_title = re.compile("Attribute \(([0-9]+)\)")
 # get attribute's type and attribute's value from str like: "Event (6921): Network activity\/ip-src 24.25.34.2"
-re_attrib_type_value_title = re.compile("\([0-9]+\): [\w| ]+\\\/([\w|\-]+) (.*)")
+re_attrib_type_value_title = re.compile("\([0-9]+\): [\w| ]+/([\w|\-]+) (.*)")
 
 IP_MISP_TYPES = ["ip-src", "ip-dst", "ip-dst|port", "ip-src|port", "domain|ip"]
 THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
+
 
 def stop(signal, frame):
     """
@@ -225,7 +238,7 @@ def remove_misp_event(ip_addr, event_id):
     :return: None
     """
     # remove the event from 'misp_events' array
-    tq.put_update_request("ip", ip_addr, [('array_remove', 'misp_events',
+    tq_writer.put_task("ip", ip_addr, [('array_remove', 'misp_events',
                                            {'misp_instance': misp_url, 'event_id': event_id})])
 
 
@@ -244,8 +257,8 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
     updates = []
     for k, v in new_event.items():
         updates.append(('set', k, v))
-    tq.put_update_request('ip', ip_addr, [('array_upsert', 'misp_events',
-                                           {'misp_instance': misp_url, 'event_id': event['id']}, updates)])
+    tq_writer.put_task('ip', ip_addr, [('array_upsert', 'misp_events',
+                                        {'misp_instance': misp_url, 'event_id': event['id']}, updates)])
 
 
 def process_sighting_notification(sighting):
@@ -274,9 +287,9 @@ def process_sighting_notification(sighting):
                     just_update = True
             if just_update:
                 # ip record found, just rewrite sightings
-                tq.put_update_request("ip", ip_addr, [('array_upsert', 'misp_events', {'misp_instance': misp_url,
-                                                      'event_id': sighting['event_id']}, [('set', 'sightings',
-                                                       get_sightings_for_nerd(sighting_list))])])
+                tq_writer.put_task("ip", ip_addr, [('array_upsert', 'misp_events', {'misp_instance': misp_url,
+                                                    'event_id': sighting['event_id']}, [('set', 'sightings',
+                                                    get_sightings_for_nerd(sighting_list))])])
                 return
         # ip address not even in NERD or not found correct 'misp_event', create new 'misp_event'
         # find correct attribute to pass it to event creation
@@ -327,12 +340,12 @@ def receive_events():
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
 
-    logger.info("Connecting to: " + misp_zmq)
-    socket.connect(misp_zmq)
+    logger.info("Connecting to: " + misp_zmq_url)
+    socket.connect(misp_zmq_url)
     socket.setsockopt(zmq.SUBSCRIBE, b'')
 
     while running_flag:
-        # wait for new message (using nonblocking receive and sleep allows to 
+        # wait for new message (using nonblocking receive and sleep allows to
         # the exit program gracefully even if no message arrives)
         try:
             message = socket.recv(flags=zmq.NOBLOCK)
@@ -380,6 +393,7 @@ def receive_events():
                             insert_ip_list.append(
                                {'event': event, 'attrib': attrib, 'sighting': attrib.get('Sighting')})
 
+                # get list of ip addresses, which are both of type source and destination
                 ip_src_and_dst = check_src_and_dst_list(insert_ip_list)
                 # insert new ip addresses
                 for ip_ev in insert_ip_list:
@@ -414,7 +428,12 @@ def receive_events():
                 if attrib_type in IP_MISP_TYPES:
                     event_id = re_event_id_change.search(json_message['Log']['change']).group(1)
                     attrib_id = json_message['Log']['model_id']
+                    #try:
                     attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
+                    #except AttributeError:
+                    #    logger.error(json_message['Log']['title'])
+                    #    logger.error("Error", exc_info=True)
+                    #    continue
                     attrib_add_or_edit(attrib_value, event_id, attrib_id)
 
         elif message.startswith("misp_json_sighting"):
