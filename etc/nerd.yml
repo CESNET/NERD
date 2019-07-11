@@ -41,6 +41,15 @@ eventdb: psql
 # Path to a directory where Warden filer stores incoming IDEA messages
 warden_filer_path: "/data/warden_filer/warden_receiver"
 
+# MISP instance settings
+#misp:
+  # URL of MISP instance
+  #url: "https://misp.example.org"
+  # The MISP auth key can be found on the MISP web interface under the automation section
+  #key: ""
+  # URL of MISP instace ZMQ module (tcp://MISP_URL:50000)
+  #zmq: "tcp://misp.example.org:50000"
+
 # File to log total number of updates processed (written every 2s)
 upd_cnt_file: "/data/nerd_updates_processed"
 
