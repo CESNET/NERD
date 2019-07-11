@@ -33,8 +33,10 @@ parser.add_argument("-v", dest="verbose", action="store_true",
                     help="Verbose mode")
 parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
                     help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
-parser.add_argument("--cert", required=False, dest="cert", action="store", default=False,
-                    help="Self signed certificate of MISP instance")
+parser.add_argument("--cert", metavar='CA_FILE',
+                    help="Use this server certificate (or CA bundle) to check the certificate of MISP instance, useful when the server uses self-signed cert.")
+parser.add_argument("--insecure", action="store_true",
+                    help="Don't check the server certificate of MISP instance.")
 args = parser.parse_args()
 
 LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
@@ -68,7 +70,14 @@ except KeyError:
     logging.error("Missing configuration of MISP instance in the configuration file!")
     sys.exit(1)
 
-misp_inst = PyMISP(misp_url, misp_key, args.cert, 'json')
+
+cert = True # set to check server certificate (default)
+if args.insecure:
+    cert = False # don't check certificate
+elif args.cert:
+    cert = args.cert # read the certificate (CA bundle) to check the cert
+
+misp_inst = PyMISP(misp_url, misp_key, cert, 'json')
 
 # if some error occures in ip processing, add it to list and try to process it again at the end of the script
 error_ip = {}
@@ -203,6 +212,8 @@ def process_ip(ip_addr, role):
     :param role: type of ip address [src|dst]
     :return: None if error occured while loading info about ip address
     """
+    logger.debug("Processing IP: {}".format(ip_addr))
+    
     # check ip record in DB
     try:
         db_entity = db.get("ip", ip_addr)
