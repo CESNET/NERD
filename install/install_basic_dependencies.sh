@@ -21,23 +21,12 @@ easy_install-3.6 --prefix /usr pip
 pip3 install -r /tmp/nerd_install/pip_requirements_nerdd.txt
 pip3 install -r /tmp/nerd_install/pip_requirements_nerdweb.txt
 
-# Patch bgpranking_web to work in Python 3
-echo "Patching bgpranking_web package to work in Python 3"
-# get package path
-path="$(pip3 show bgpranking_web 2>/dev/null | sed -n '/Location: / s/Location: //p')"
-# check path and overwrite package's __init__.py
-if [ -z "$path" ]
-then
-  echo "ERROR: Can't find the path to bgpranking_web python package, it won't be patched" >&2
-else
-  echo 'import sys
-if sys.version_info[0] == 2:
-    from api import *
-else:
-    from .api import *
-' > "$path/bgpranking_web/__init__.py"
-fi
-
+# install CIRCL BGP ranking python library (pybgpranking)
+cd /tmp
+git clone https://github.com/D4-project/BGP-Ranking.git
+cd BGP-Ranking/client/
+python3 setup.py install
+#rm -rf /tmp/BGP-Ranking/
 
 echo "** Installing MongoDB **"
 
