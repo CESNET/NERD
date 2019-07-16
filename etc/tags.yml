@@ -53,7 +53,7 @@ tags:
   malware:
     name: Malware
     description: Malware has been detected on host
-    info: 'Prevalent event cateogries: {events_meta.types}'
+    info: 'Prevalent event categories: {events_meta.types}'
     tag_color: "#933744"
     condition: "'Malware' in events_meta.types or 'MalwareVirus' in events_meta.types or 'MalwareWorm'
       in events_meta.types or 'MalwareTrojan' in events_meta.types or 'MalwareSpyware' in events_meta.types
@@ -158,3 +158,9 @@ tags:
 #    condition: "caida_as_class.v == 'access' and 'ReconScanning' in events_meta.types "
 #    confidence: "caida_as_class.c*0.5 + hostname*0.5"
 #    info: "this ip with hostname {hostname} has been classified as {caida_as_class.v} type"
+
+  reserved_ip:
+    name: Reserved IP
+    description: "Host IP is reserved IP address"
+    tag_color: "#C0C0C0"
+    condition: "reserved_range"

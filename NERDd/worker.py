@@ -111,6 +111,7 @@ def main(cfg_file, process_index):
     import modules.whois
     #import modules.passive_dns
     import modules.fmp
+    import modules.reserved_ip
     
     # Instantiate modules
     # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
@@ -133,7 +134,8 @@ def main(cfg_file, process_index):
         modules.event_type_counter.EventTypeCounter(),
         modules.tags.Tags(),
         #modules.passive_dns.PassiveDNSResolver(),
-        modules.fmp.FMP()
+        modules.fmp.FMP(),
+        modules.reserved_ip.ReservedIPTags()
     ]
     
     
