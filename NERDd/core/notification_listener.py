@@ -3,15 +3,18 @@ NotificationListener can be used in modules for listening in channels for certai
 in some channel for notifications just initialize NotificationListener and call .start()
 
 Example, which can be called in module's __init__():
-    test_notification_settings = {
+    notification_settings = {
             'log': (self.notification_job, {'arg': "Hello world!"})
-        }
-    listener = NotificationListener("test", test_notification_settings, self.log)
+    }
+    listener = NotificationListener("test", notification_settings, self.logger)
     listener.start()
 
 This example subscribes module to channel called "test" and if channel receives message equal to "log", module will
-call self.notification_job() method with argument equal to {'arg': "Hello world!"}. Last argument self.log is module's
-logger for logging purposes of listener.
+call self.notification_job() method with argument equal to {'arg': "Hello world!"}. Last argument self.logger is
+module's logger for logging purposes of listener.
+
+Notification can be send by typing 'redis-cli PUBLISH <channel> <message>' in terminal or executed as bash script.
+To send correct notification to module's example above, just use 'redis-cli PUBLISH test log'
 """
 
 import threading
@@ -27,8 +30,7 @@ class NotificationListener(threading.Thread):
                              received in subscribed channel, will start certain work/job, which is paired to the trigger
                              (it's key's value). Job setting is 2-tuple, specifying:
                              (work function, function argument).
-                             Multiple arguments to function can be passed as array argument or dictionary (example
-                             above).
+                             Multiple arguments to function can be passed as array or dictionary (example above).
         :param module_logger: Logger of module, which calls the listener
         """
         threading.Thread.__init__(self)
