@@ -1,6 +1,4 @@
 """
-TODO: Test if the python library pybgpranking will ge installed properly with clean installation
-TODO: Try to properly handle error while querying - returns 0, when even wrong number/string is queried
 NERD module
 
 BGP Ranking API Python installation:
@@ -18,6 +16,7 @@ from api import *   ----> from .api import *
 """
 
 from core.basemodule import NERDModule
+from core.notification_listener import NotificationListener
 import g
 
 import logging
@@ -40,6 +39,18 @@ class CIRCL_BGPRank(NERDModule):
             ('!NEW', '!every1d'), # tuple/list/set of attributes to watch (their update triggers call of the registered method)
             ('circl_bgprank',)    # tuple/list/set of attributes the method may change
         )
+
+        # TODO: Delete rest of __init__(), because it is just example of notifications. Delete notification_job() too.
+        # Subscribing to channel 'test' and waiting for message 'log'. If 'log' received, notification_job() will be
+        # called
+        test_notification_settings = {
+            'log': (self.notification_job, {'channel': "test"})
+        }
+        listener = NotificationListener("test", test_notification_settings, self.log)
+        listener.start()
+
+    def notification_job(self, args):
+        self.log.info("Successfully processed notification in " + args['channel'] + " channel!")
 
     def set_bgprank(self, ekey, rec, updates):
         """
@@ -75,7 +86,7 @@ class CIRCL_BGPRank(NERDModule):
             # }
             reply = self.bgp_session.query(key)
 
-            # not sure if this error handle is enough, but when wrong format send to server, server returns same
+            # not sure if this error handle is enough, but when wrong format is sent to server, server returns same
             # response format with description equal to {}, rank equal to 0.0 and position is None
             if not reply['response']['asn_description'] and reply['response']['ranking']['rank'] == 0.0 and \
                     reply['response']['ranking']['position'] is None:
