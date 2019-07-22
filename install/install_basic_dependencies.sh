@@ -22,11 +22,12 @@ pip3 install -r /tmp/nerd_install/pip_requirements_nerdd.txt
 pip3 install -r /tmp/nerd_install/pip_requirements_nerdweb.txt
 
 # install CIRCL BGP ranking python library (pybgpranking)
-cd /tmp
+pushd /tmp
 git clone https://github.com/D4-project/BGP-Ranking.git
 cd BGP-Ranking/client/
 python3 setup.py install
-#rm -rf /tmp/BGP-Ranking/
+popd
+rm -rf /tmp/BGP-Ranking/
 
 echo "** Installing MongoDB **"
 
