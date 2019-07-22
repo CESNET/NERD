@@ -64,11 +64,10 @@ db = mongodb.MongoEntityDatabase(config)
 tq_writer = TaskQueueWriter(rabbit_config)
 
 # load MISP instance configuration
-try:
-    misp_key = config['misp']['key']
-    misp_url = config['misp']['url']
-    misp_zmq_url = config['misp']['zmq']
-except KeyError:
+misp_key = config.get('misp.key', None)
+misp_url = config.get('misp.url', None)
+misp_zmq_url = config.get('misp.zmq', None)
+if not (misp_key and misp_url and misp_zmq_url):
     logger.error("Missing configuration of MISP instance in the configuration file!")
     sys.exit(1)
 
