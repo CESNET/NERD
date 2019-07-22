@@ -103,6 +103,9 @@ class FMP(NERDModule):
         if etype != 'ip' or 'general' not in self.models.keys():
             return None
 
+        if 'events_meta' not in rec:
+            return None # No events, nothing to do
+
         actions = []
         featV = np.zeros(21)
         transFeatV = np.zeros(21)

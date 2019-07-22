@@ -54,6 +54,9 @@ class Reputation(NERDModule):
         if etype != 'ip':
             return None
 
+        if 'events' not in rec:
+            return None # No Warden event, nothing to do
+
         today = datetime.datetime.utcnow().date()
         DATE_RANGE = 14
         

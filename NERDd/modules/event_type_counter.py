@@ -61,6 +61,9 @@ class EventTypeCounter(NERDModule):
         if etype != 'ip':
             return None
 
+        if 'events' not in rec:
+            return None # No Warden event, nothing to do
+
         ret = []
         total_events = 0
         types = {} # Map: event_type -> count

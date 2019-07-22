@@ -61,7 +61,7 @@ class Cleaner(NERDModule):
         # Remove all event-records with day before cut_day
         actions = []
         num_events = 0
-        for evtrec in rec['events']:
+        for evtrec in rec.get('events', []):
             if evtrec['date'] < cut_day: # Thanks to ISO format it's OK to compare dates as strings
                 actions.append( ('array_remove', 'events', {'date': evtrec['date'], 'node': evtrec['node'], 'cat': evtrec['cat']}) )
             else:
@@ -115,19 +115,22 @@ class Cleaner(NERDModule):
 
     def check_ip_expiration(self, ekey, rec, updates):
         """
-        Handler function to issue !every1d and !every1w event in case the IP record is still valid.
+        Handler function to issue !every1d event in case the IP record is still valid.
         If the IP record is no longer valid, a !DELETE event is issued.
         """
         etype, key = ekey
         if etype != 'ip':
             return None
 
-        diff = datetime.utcnow() - rec['ts_last_event']
         actions = []
-
-        if diff >= self.ip_lifetime:
-            actions.append(('event', '!DELETE'))
-            return actions
-        else:
-            actions.append(('event', '!every1d'))
-            return actions
+        if 'ts_last_event' in rec:
+            diff = datetime.utcnow() - rec['ts_last_event']
+            if diff >= self.ip_lifetime:
+                # last event is too old - delete record
+                actions.append(('event', '!DELETE'))
+                return actions
+        
+        # last event is recent enough or not set at all - keep record and
+        # issue normal !every1d event        
+        actions.append(('event', '!every1d'))
+        return actions
