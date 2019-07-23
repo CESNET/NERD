@@ -1,16 +1,16 @@
 #!/bin/sh
 # Install all packages needed to run NERD and run all the services
 
-# disable "fastestmirror plugin, which in facat slows down yum"
-alias yum="yum --disableplugin=fastestmirror"
+BASEDIR=$(dirname $0)
+. $BASEDIR/common.sh
 
-echo "=============== Install basic dependencies ==============="
+echob "=============== Install basic dependencies ==============="
 
-echo "** Installing basic RPM packages **"
+echob "** Installing basic RPM packages **"
 yum install -y -q epel-release
 yum install -y -q git wget gcc vim python36 python36-devel python36-setuptools python-setuptools
 
-echo "** Installing pip and Python packages **"
+echob "** Installing pip and Python packages **"
 easy_install-2.7 --prefix /usr pip # Py2 is needed for Supervisor (until stable Supervisor 4 is out, which should work under Py3)
 easy_install-3.6 --prefix /usr pip
 # for some reason, this creates file /usr/bin/pip3.7 instead of pip3.6 (but everything works OK)
@@ -18,9 +18,10 @@ easy_install-3.6 --prefix /usr pip
 # Allow to run python3.6 as python3 (not needed, is created automatically)
 # ln -s /usr/bin/python3.6 /usr/bin/python3
 
-pip3 install -r /tmp/nerd_install/pip_requirements_nerdd.txt
-pip3 install -r /tmp/nerd_install/pip_requirements_nerdweb.txt
+pip3 install -r $BASEDIR/pip_requirements_nerdd.txt
+pip3 install -r $BASEDIR/pip_requirements_nerdweb.txt
 
+echob "** Installing pybgpranking from git repo **"
 # install CIRCL BGP ranking python library (pybgpranking)
 pushd /tmp
 git clone https://github.com/D4-project/BGP-Ranking.git
@@ -29,7 +30,7 @@ python3 setup.py install
 popd
 rm -rf /tmp/BGP-Ranking/
 
-echo "** Installing MongoDB **"
+echob "** Installing MongoDB **"
 
 # Add repository
 echo '[mongodb-org-4.0]
@@ -61,23 +62,23 @@ echo '/var/log/mongodb/mongod.log {
 }
 ' > /etc/logrotate.d/mongodb
 
-echo "** Starting MongoDB **"
+echob "** Starting MongoDB **"
 # /sbin/chkconfig mongod on
 systemctl enable mongod.service
 systemctl start mongod.service
 
 
 
-echo "** Installing Redis **"
+echob "** Installing Redis **"
 yum install -y -q redis
 
-echo "** Starting Redis **"
+echob "** Starting Redis **"
 systemctl enable redis.service
 systemctl start redis.service
 
 
 
-echo "** Installing RabbitMQ **"
+echob "** Installing RabbitMQ **"
 # We need more recent version than in CentOS7 (>=3.7.0), so install from developer sites
 
 # Install Erlang (dependency)
@@ -119,16 +120,16 @@ fi
 # Allow guest user to login remotely (allowed only from localhost by default)
 # This is necessary for Vagrant, but DON'T DO THIS IN PRODUCTION!
 # (rabbitmq.conf is not present after installation, so we just create it)
-if [ -d /vagrant ] ; then
-  echo "It seems we run in Vagrant, allowing RabbitMQ guest user to login remotely."
-  echo -e "loopback_users = none" > /etc/rabbitmq/rabbitmq.conf
+if [ -d /vagrant/NERDd ] ; then
+  echor "It seems we run in Vagrant, allowing RabbitMQ guest user to login remotely."
+  echo "loopback_users = none" > /etc/rabbitmq/rabbitmq.conf
 fi
 
 # Enable necessary plugins
 rabbitmq-plugins enable rabbitmq_management
 # rabbitmq-plugins enable rabbitmq_consistent_hash_exchange
 
-echo "** Starting RabbitMQ **"
+echob "** Starting RabbitMQ **"
 systemctl enable rabbitmq-server
 systemctl start rabbitmq-server
 
@@ -140,12 +141,12 @@ fi
 
 
 
-echo "** Installing Supervisor **"
+echob "** Installing Supervisor **"
 pip2 install supervisor
 
 
 
-echo "** Installing PostgreSQL **"
+echob "** Installing PostgreSQL **"
 if ! yum list installed postgresql11-server >/dev/null 2>&1 ; then
   yum install -y -q https://download.postgresql.org/pub/repos/yum/11/redhat/rhel-7-x86_64/pgdg-centos11-11-2.noarch.rpm
   yum install -y -q postgresql11-server postgresql11-devel
@@ -172,4 +173,4 @@ systemctl enable postgresql-11.service
 systemctl restart postgresql-11.service
 
 
-echo "** All main dependencies installed **"
+echob "** All main dependencies installed **"

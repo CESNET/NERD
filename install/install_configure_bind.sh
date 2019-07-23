@@ -1,11 +1,14 @@
 #!/bin/sh
 # Install and configure BIND (supports DNS queries made by various modules)
 
-echo "=============== Install & Configure BIND ==============="
+BASEDIR=$(dirname $0)
+. $BASEDIR/common.sh
 
-echo "** Installing BIND **"
-yum --disableplugin=fastestmirror install -y -q bind bind-utils
+echob "=============== Install & Configure BIND ==============="
 
-echo "** Starting BIND **"
+echob "** Installing BIND **"
+yum install -y -q bind bind-utils
+
+echob "** Starting BIND **"
 systemctl enable named.service
 systemctl restart named.service

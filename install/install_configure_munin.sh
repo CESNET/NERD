@@ -6,8 +6,10 @@
 # - munin-node runs on the host and provides provides information to the maser
 # In this case, the same host runs both munin (master) and munin-node
 
-echo "=============== Install & configure Munin ==============="
+BASEDIR=$(dirname $0)
+. $BASEDIR/common.sh
 
+echob "=============== Install & configure Munin ==============="
 
 yum -y -q install munin munin-node
 
@@ -16,7 +18,7 @@ yum -y -q install munin munin-node
 sed -i -e 's/^host \*$/# host \*/' -e 's/^#\s*host 127.0.0.1/host 127.0.0.1/' /etc/munin/munin-node.conf
 
 # Install and enable NERD plugins
-cp /tmp/nerd_install/nerd/scripts/munin/* /usr/share/munin/plugins/
+cp $BASEDIR/munin/* /usr/share/munin/plugins/
 chmod +x /usr/share/munin/plugins/nerd_*
 ln -s /usr/share/munin/plugins/nerd_* /etc/munin/plugins/
 
@@ -34,8 +36,8 @@ sed -E 's|^#\s*(</?[Dd]irectory.*)|\1|' </var/www/html/munin/.htaccess >/etc/htt
 
 touch /etc/munin/munin-htpasswd
 
-echo
-echo "INFO: Munin is available at http://<this_host>/munin/ (if NERD is not installed into \"/\")"
-echo "INFO: To enable access, add an account to /etc/munin/munin-htpasswd:"
-echo "INFO:   htpasswd -B /etc/munin/munin-htpasswd username"
+echoy
+echoy "INFO: Munin is available at http://<this_host>/munin/ (if NERD is not installed into \"/\")"
+echoy "INFO: To enable access, add an account to /etc/munin/munin-htpasswd:"
+echoy "INFO:   htpasswd -B /etc/munin/munin-htpasswd username"
 

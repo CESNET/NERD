@@ -1,8 +1,11 @@
 #!/bin/sh
 
-echo "=============== Configure MongoDB ==============="
+BASEDIR=$(dirname $0)
+. $BASEDIR/common.sh
 
-echo "** Configuring MongoDB **"
+echob "=============== Configure MongoDB ==============="
+
+echob "** Configuring MongoDB **"
 
 # Set up MongoDB for NERD (create indexes)
-mongo nerd /tmp/nerd_install/mongo_prepare_db.js
+mongo nerd $BASEDIR/mongo_prepare_db.js

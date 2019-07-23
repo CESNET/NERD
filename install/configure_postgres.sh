@@ -5,9 +5,12 @@
 # 2) database of Warden events (optional, disabled by default)
 # The second one can be enabled by passing "--warden" as argument
 
-echo "=============== Configure PostgreSQL ==============="
+BASEDIR=$(dirname $0)
+. $BASEDIR/common.sh
 
-echo "** Configuring PostgreSQL database **"
+echob "=============== Configure PostgreSQL ==============="
+
+echob "** Configuring PostgreSQL database **"
 
 cd / # to avoid "could not change directory to /home/vagrant" error in Vagrant
 
@@ -15,12 +18,12 @@ sudo -u postgres /usr/pgsql-11/bin/createuser nerd
 
 # Create a user database for NERDweb in PostgreSQL
 sudo -u postgres /usr/pgsql-11/bin/createdb --owner nerd nerd_users
-sudo -u nerd /usr/pgsql-11/bin/psql -d nerd_users -f /tmp/nerd_install/create_user_db.sql
+sudo -u nerd /usr/pgsql-11/bin/psql -d nerd_users -f $BASEDIR/create_user_db.sql
 
 # (Optional) Create a database for Warden events
 if [ "$1" == "--warden" ] ; then
   sudo -u postgres /usr/pgsql-11/bin/createdb --owner nerd nerd_warden
-  sudo -u nerd /usr/pgsql-11/bin/psql -d nerd_warden -f /tmp/nerd_install/create_warden_db.sql
+  sudo -u nerd /usr/pgsql-11/bin/psql -d nerd_warden -f $BASEDIR/create_warden_db.sql
 fi
 
 # TODO install pgadmin4
