@@ -217,7 +217,7 @@ class RabbitMQWriter:
 class TaskQueueWriter:
     # Must know total number of workers
     # Not thread safe - each thread must have its own instance
-    def __init__(self, rabbit_config={}, workers=1, exchange=DEFAULT_EXCHANGE, priority_exchange=DEFAULT_EXCHANGE):
+    def __init__(self, rabbit_config={}, workers=1, exchange=DEFAULT_EXCHANGE, priority_exchange=DEFAULT_PRIORITY_EXCHANGE):
         self.log = logging.getLogger('TaskQueueWriter')
         self.log.setLevel(LOG_LEVEL)
 
