@@ -75,6 +75,9 @@ Vagrant.configure(2) do |config|
     v.cpus = 2
   end
 
+  # Mark that this is a development Vagrant VM machine (some scripts look for this file)
+  config.vm.provision "shell", inline: "touch /vagrant/vagrant_provisioning"
+
   # Disable SELinux
   config.vm.provision "shell", inline: $selinux
   
@@ -115,4 +118,6 @@ Vagrant.configure(2) do |config|
 
   # Create testing users  
   config.vm.provision "shell", inline: $users
+
+  config.vm.provision "shell", inline: "rm /vagrant/vagrant_provisioning"
 end
