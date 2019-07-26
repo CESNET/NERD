@@ -40,7 +40,7 @@ rabbitmqadmin declare exchange name=nerd-priority-task-exchange type=direct dura
 # Declare queues for N workers
 for i in $(seq 0 $(($N-1)))
 do
-  rabbitmqadmin declare queue name=nerd-worker-$i durable=true 'arguments={"x-max-length":100}'
+  rabbitmqadmin declare queue name=nerd-worker-$i durable=true 'arguments={"x-max-length": 100, "x-overflow": "reject-publish"}'
   rabbitmqadmin declare queue name=nerd-worker-$i-pri durable=true
 done
 

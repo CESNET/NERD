@@ -267,7 +267,7 @@ class TaskQueueWriter:
                 if err_printed == 1:
                     self.log.warning("It's OK now, the message was successfully sent")
                 elif err_printed == 2:
-                    self.log.info("It's OK now, the message was successfully sent")
+                    self.log.debug("It's OK now, the message was successfully sent")
                 else:
                     self.log.debug("Message successfully sent")
                 break
@@ -278,7 +278,7 @@ class TaskQueueWriter:
                 time.sleep(5)
             except pika.exceptions.NackError:
                 if err_printed != 2:
-                    self.log.info("Can't deliver a message (refused, queue of worker {} is probably full), will retry every second".format(routing_key))
+                    self.log.debug("Can't deliver a message (refused, queue of worker {} is probably full), will retry every second".format(routing_key))
                     err_printed = 2
                 time.sleep(1)
 
