@@ -66,7 +66,7 @@ HASH = lambda x: int(hashlib.md5(x.encode('utf8')).hexdigest()[-4:], 16)
 
 # When reading, pre-fetch only a limited amount of messages
 # (because pre-fetched messages are not counted to queue length limit)
-PREFETCH_COUNT = 2
+PREFETCH_COUNT = 10
 
 
 RECONNECT_DELAYS = [1, 2, 5, 10, 30] # number of seconds to wait for the i-th attempt to reconnect after error
@@ -584,6 +584,8 @@ class TaskQueueReader:
 
         self.auto_ack = auto_acknowledge
 
+        self.rmqr_lock = threading.Lock() # lock to guard access to RMQR (pika is not thread-safe, RMQR isn't as well)
+
         self.queue = queue.format(worker_index)
         self.queuep = priority_queue.format(worker_index)
 
@@ -619,12 +621,16 @@ class TaskQueueReader:
         """
         Acknowledge processing of message with given ID.
 
+        This function can be safely called from multiple threads.
+
         :param msg_id: ID of the message, as received in the registered callback
         """
         if self.auto_ack:
             raise RuntimeError("TaskQueueReader: You can't call ack_msg() when auto_acknowledge is enabled.")
-        # Signalize to RabbitMQ that the message was processed
-        self.rmqr.ack(msg_id)
+        # This can be called from multiple threads, but pika is not thread-safe -> locking is necessary
+        with self.rmqr_lock:
+            # Signalize to RabbitMQ that the message was processed
+            self.rmqr.ack(msg_id)
 
 
     def stop(self):
