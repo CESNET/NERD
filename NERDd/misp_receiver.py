@@ -10,10 +10,13 @@ import json
 import sys
 import signal
 import logging
-from pymisp import PyMISP
 import datetime
 import argparse
 import os
+import re
+
+
+from pymisp import ExpandedPyMISP
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -21,7 +24,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(
 import NERDd.core.mongodb as mongodb
 from common.config import read_config
 from common.task_queue import TaskQueueWriter
-import re
+from common.utils import int2ipstr
 
 running_flag = True
 
@@ -36,8 +39,11 @@ parser = argparse.ArgumentParser(
     prog="MISP_receiver.py",
     description="NERD standalone script for receiving MISP instance changes of events, attributes or sightings."
 )
-parser.add_argument("--cert", required=False, dest="cert", action="store", default=False,
-                    help="Self signed certificate of MISP instance")
+parser.add_argument("--cert", metavar='CA_FILE',
+                    help="Use this server certificate (or CA bundle) to check the certificate of MISP instance, useful "
+                         "when the server uses self-signed cert.")
+parser.add_argument("--insecure", action="store_true",
+                    help="Don't check the server certificate of MISP instance.")
 parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
                     help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
 parser.add_argument("-v", dest="verbose", action="store_true",
@@ -71,10 +77,13 @@ if not (misp_key and misp_url and misp_zmq_url):
     logger.error("Missing configuration of MISP instance in the configuration file!")
     sys.exit(1)
 
-logger.info(config)
+cert = True # set to check server certificate (default)
+if args.insecure:
+    cert = False # don't check certificate
+elif args.cert:
+    cert = args.cert # read the certificate (CA bundle) to check the cert
 
-# MISP instance
-misp_inst = PyMISP(misp_url, misp_key, args.cert, 'json')
+misp_inst = ExpandedPyMISP(misp_url, misp_key, cert)
 
 # get attribute's type from str like: "distribution () => (5), type () => (hostname), category () => (Network activity)"
 re_attrib_type_change = re.compile("type \(\) => \(([\w|\-]+)\)")
@@ -315,7 +324,7 @@ def attrib_add_or_edit(ip_addr, event_id, attrib_id):
     """
     # get event from MISP, to which the attribute corresponds
     try:
-        event = misp_inst.get(int(event_id))['Event']
+        event = misp_inst.get_event(int(event_id))['Event']
     except ConnectionError as e:
         logger.error("Cannot connect to MISP instance: " + str(e))
         return
@@ -375,7 +384,7 @@ def receive_events():
                 # final publish of event, process it
                 event_id = json_message['Log']['model_id']
                 try:
-                    event = misp_inst.get(event_id)['Event']
+                    event = misp_inst.get_event(event_id)['Event']
                 except ConnectionError as e:
                     logger.error("Cannot connect to MISP instance: " + str(e))
                     continue
@@ -402,7 +411,7 @@ def receive_events():
                         upsert_new_event(event, ip_ev['attrib'], ip_ev['sighting'])
 
             elif json_message['Log']['model'] == "Attribute" and json_message['Log']['action'] == "delete":
-                # delete of attribute
+                # deletion of attribute
                 attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
                 if attrib_type in IP_MISP_TYPES:
                     attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
@@ -441,6 +450,17 @@ def receive_events():
             # was it sighting of an ip address?
             if sighting['Attribute']['type'] in IP_MISP_TYPES:
                 process_sighting_notification(sighting)
+
+        elif message.startswith("misp_json_event"):
+            if json_message['action'] == "delete":
+                # deletion of MISP event
+                # find all ip records, which contains deleted MISP event
+                outdated_records = db.aggregate('ip', {'$match': {"misp_events.event_id": json_message['Event']['id']}})
+                for ip_record in outdated_records:
+                    # from every ip record delete outdated misp record
+                    # first id of ip record has to be converted to string IP address
+                    ip_address = int2ipstr(ip_record['_id'])
+                    remove_misp_event(ip_address, json_message['Event']['id'])
 
 
 if __name__ == "__main__":

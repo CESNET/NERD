@@ -4,14 +4,14 @@ NERD standalone script which will synchronize NERD with data from MISP instance.
 instance and get information about all events, where IP address occurred. All these information are then stored as
 'misp_events'
 """
-
-from pymisp import PyMISP
 import logging
 import datetime
 import argparse
 import os
 import re
 import sys
+
+from pymisp import ExpandedPyMISP, MISPAttribute
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -70,14 +70,13 @@ except KeyError:
     logging.error("Missing configuration of MISP instance in the configuration file!")
     sys.exit(1)
 
-
 cert = True # set to check server certificate (default)
 if args.insecure:
     cert = False # don't check certificate
 elif args.cert:
     cert = args.cert # read the certificate (CA bundle) to check the cert
 
-misp_inst = PyMISP(misp_url, misp_key, cert, 'json')
+misp_inst = ExpandedPyMISP(misp_url, misp_key, cert)
 
 # if some error occures in ip processing, add it to list and try to process it again at the end of the script
 error_ip = {}
@@ -86,25 +85,41 @@ SIGHTING_DICT = {'0': "positive", '1': "false positive", '2': "expired attribute
 THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
 
 
-def get_ip_from_rec(ip_str, position=None):
+def get_ip_from_attrib(attrib):
     """
-    Gets ip addresses from list of addresses in string, where records are splitted by new line
-    :param ip_str: list of ip addresses in string
-    :param position: position of ip_address in case of composite record ("domain|ip" --> 1)
-    :return: List of ip addresses
+    Get ip address from MISP attribute and check its distribution level
+    :param attrib: MISP attribute with ip address
+    :return:
     """
-    ip_list_raw = ip_str.text.splitlines()
-    # if position, have to split record (domain|ip)
-    if position is not None:
-        ip_list = []
-        for ip_addr in ip_list_raw:
-            # delimeter can be | or :
-            ip = ip_addr.split("|")
-            if len(ip) == 1:
-                ip = ip_addr.split(":")
-            ip_list.append(ip[position])
-        return ip_list
-    return ip_list_raw
+    # First check distribution level of attributes, 2 = Connected Communities, 3 = All Communities, 5 can have only
+    # attributes and it means inherit event's distribution
+    if int(attrib.get('distribution', 0)) in (2, 3, 5) and int(attrib.get('Event', {}).get('distribution')) in (2, 3):
+        if attrib['type'] in ("ip-src", "ip-dst"):
+            return attrib['value']
+        elif attrib['type'] == "domain|ip":
+            return attrib['value'].split("|")[1]
+        elif attrib['type'] in ("ip-src|port", "ip-dst|port"):
+            ip_split = attrib['value'].split("|")
+            if len(ip_split) == 1:
+                # ip-scr|port can use ':' as delimeter, so if after split it did not split anything, it probably uses
+                # ':' as delimeter
+                ip_split = attrib['value'].split(":")
+            return ip_split[0]
+
+
+def get_ip_from_query(query_result):
+    """
+    Gets IP addresses from search query (controller='attributes'), which was run on MISP instance
+    :param query_result: result of query, where will IP addresses be parsed from
+    :param position: position of IP address in case of composite record ("domain|ip" --> 1)
+    :return: list of parsed IP addresses
+    """
+    ip_list = []
+    for ip_attrib in query_result['Attribute']:
+        ip = get_ip_from_attrib(ip_attrib)
+        if ip:
+            ip_list.append(ip)
+    return ip_list
 
 
 def get_all_ip():
@@ -114,20 +129,25 @@ def get_all_ip():
     """
     # get all ip addresses from
     try:
-        ip_src = misp_inst.get_all_attributes_txt("ip-src")
-        ip_dst = misp_inst.get_all_attributes_txt("ip-dst")
+        ip_src = misp_inst.search(controller="attributes", type_attribute="ip-src")
+        logger.info("Downloaded all ip-src MISP attributes!")
+        ip_dst = misp_inst.search(controller="attributes", type_attribute="ip-dst")
+        logger.info("Downloaded all ip-dst MISP attributes!")
         # domain|ip attribute is destination ip
-        dom_ip = misp_inst.get_all_attributes_txt("domain|ip")
-        ip_src_port = misp_inst.get_all_attributes_txt("ip-src|port")
-        ip_dst_port = misp_inst.get_all_attributes_txt("ip-dst|port")
+        dom_ip = misp_inst.search(controller="attributes", type_attribute="domain|ip")
+        logger.info("Downloaded all domain-ip MISP attributes!")
+        ip_src_port = misp_inst.search(controller="attributes", type_attribute="ip-src|port")
+        logger.info("Downloaded all ip-src|port MISP attributes!")
+        ip_dst_port = misp_inst.search(controller="attributes", type_attribute="ip-dst|port")
+        logger.info("Downloaded all ip-dst|port MISP attributes!")
     except ConnectionError as e:
         logger.error("Cannot connect to MISP instance: " + str(e))
         sys.exit(1)
 
-    # remove duplicity with set and convert to list again, get_ip_from_rec(ip_src_port, 0) -- 0 because ip address is
+    # remove duplicity with set, get_ip_from_rec(ip_src_port, 0) --> 0 because ip address is
     # at index 0 after split ("192.168.1.1|2715"), the same for ip_dst|port and domain|ip
-    ip_src_all = set(get_ip_from_rec(ip_src) + get_ip_from_rec(ip_src_port, 0))
-    ip_dst_all = set(get_ip_from_rec(dom_ip, 1) + get_ip_from_rec(ip_dst_port, 0) + get_ip_from_rec(ip_dst))
+    ip_src_all = set(get_ip_from_query(ip_src) + get_ip_from_query(ip_src_port))
+    ip_dst_all = set(get_ip_from_query(dom_ip) + get_ip_from_query(ip_dst_port) + get_ip_from_query(ip_dst))
 
     return ip_src_all, ip_dst_all
 
@@ -172,34 +192,38 @@ def create_new_event(event, role, ip_addr):
         'threat_level': THREAT_LEVEL_DICT[event['threat_level_id']],
         'last_change': datetime.datetime.fromtimestamp(int(event['timestamp']))
     }
-
+    logger.debug("Creating new event record! Trying to find sightings of IP address {ip}!".format(ip=ip_addr))
     # get sighting count, find the right attribute, carrying this ip address and its sighting list
     try:
-        attrib = misp_inst.search(controller='attributes', eventid=event['id'], values=ip_addr)
-        try:
-            attrib_id = int(attrib['response']['Attribute'][0]['id'])
-        except KeyError:
-            logger.error("Unexpected response: " + str(attrib))
-            return None
-        sighting_list = misp_inst.sighting_list(attrib_id)
-        try:
-            for sighting in sighting_list['response']:
-                new_event['sightings'][SIGHTING_DICT[sighting['Sighting']['type']]] += 1
-        except KeyError:
-            logger.error("Unexpected response: " + str(attrib))
-            return None
+        ip_attrib = None
+        for attrib in event['Attribute']:
+            if ip_addr in attrib['value']:
+                # create MISP attribute, which carries the IP address and pass it to sightings
+                ip_attrib = MISPAttribute()
+                ip_attrib.from_dict(**attrib)
+                break
+
+        if ip_attrib:
+            sighting_list = misp_inst.sightings(ip_attrib)
+            try:
+                for sighting in sighting_list:
+                    new_event['sightings'][SIGHTING_DICT[sighting['Sighting']['type']]] += 1
+            except KeyError:
+                logger.error("Unexpected response: " + str(sighting_list))
+                return None
     except ConnectionError as e:
         # key error occurs, when cannot connect and trying to access to ['response'] key
         logger.error("Cannot connect to MISP instance: " + str(e))
         error_ip[ip_addr] = role
         return None
 
+    logger.debug("Trying to get all tags of event of IP address {ip}!".format(ip=ip_addr))
     # get name and colour Tags on event level
     for tag in event.get('Tag', []):
         if not tag['name'].startswith("tlp"):
             new_event['tag_list'].append({'name': tag['name'], 'colour': tag['colour']})
         else:
-            # tlp:white
+            # tlp tag looks like tlp:white
             new_event['tlp'] = tag['name'][4:0]
 
     return new_event
@@ -213,21 +237,22 @@ def process_ip(ip_addr, role):
     :return: None if error occured while loading info about ip address
     """
     logger.debug("Processing IP: {}".format(ip_addr))
-    
+
     # check ip record in DB
     try:
         db_entity = db.get("ip", ip_addr)
     except ValueError:
         logger.error("ERROR: " + ip_addr, exc_info=True)
+        return None
+
     try:
-        misp_events_response = misp_inst.search(controller='events', values=ip_addr)
-        misp_events = misp_events_response['response']
+        misp_events = misp_inst.search(controller='events', value=ip_addr)
     except ConnectionError as e:
         logger.error("Cannot connect to MISP instance: " + str(e))
         error_ip[ip_addr] = role
         return None
     except KeyError:
-        logger.error("Unexpected response: " + str(misp_events_response))
+        logger.error("Unexpected response: " + str(misp_events))
         error_ip[ip_addr] = role
         return None
 
