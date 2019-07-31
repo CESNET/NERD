@@ -56,6 +56,11 @@ from datetime import datetime
 import time
 import signal
 import ipaddress
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+
+from common.utils import ipstr2int
 
 parser = argparse.ArgumentParser(description="Download blacklists and put them into Redis to be used by NERD workers. Runs permanently and downloads blacklists at times specified in config file.")
 parser.add_argument("-c", metavar="FILE", dest='cfg_file', default="/etc/nerd/blacklists.yml",
@@ -69,37 +74,14 @@ parser.add_argument("-q", "--quiet", action="store_true",
 
 args = parser.parse_args()
 
-# basic regex for IP address match, not perfect, but should be enough
-re_ip = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-# basic regex for prefix IP address match in format like "192.168.0.0-192.168.0.255"
-re_prefix_ip = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}-\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-# domain regex is quite complicated and slow, rather do not use it right now
-re_domain = re.compile(".*")
-
 # dictionary of supported blacklist types
 # 'db_prexix' is used, when inserting to Redis
 # 'singular' and 'plural' is just for correct printing purposes
-# 'validation_re' is regular expression, which validates, if blacklist records are in correct format
 bl_all_types = {
-    'ip': {'db_prefix': "bl:", 'singular': "IP", 'plural': "IPs", 'validation_re': re_ip},
-    'prefixIP': {'db_prefix': "pbl:", 'singular': "prefix IP", 'plural': "prefix IPs", 'validation_re': re_prefix_ip},
-    'domain': {'db_prefix': "dbl:", 'singular': "domain", 'plural': "domains", 'validation_re': re_domain}
+    'ip': {'db_prefix': "bl:", 'singular': "IP", 'plural': "IPs"},
+    'prefixIP': {'db_prefix': "pbl:", 'singular': "IP range", 'plural': "IP ranges"},
+    'domain': {'db_prefix': "dbl:", 'singular': "domain", 'plural': "domains"}
 }
-
-
-def validate_blacklist_records(bl_records, bl_type):
-    """
-    Validate all blacklist records by validation regular expression, which depends on blacklist type
-    :param bl_records: all records from blacklist, which are supposed to be validated
-    :param bl_type: type of blacklist (ip|prefixIP|domain)
-    :return:
-    """
-    checked_bl_records = []
-    validation_regex = bl_all_types[bl_type]['validation_re']
-    for record in bl_records:
-        if validation_regex.match(record):
-            checked_bl_records.append(record)
-    return checked_bl_records
 
 
 def vprint(*_args, **kwargs):
@@ -141,43 +123,59 @@ def get_blacklist(id, name, url, regex, bl_type="ip"):
         data = ""
 
     # Parse the list
+    bl_records = []
     if regex:
         cregex = re.compile(regex)
-        bl_records = []
         for line in data.split('\n'):
             match = cregex.search(line)
             if match:
                 # there may be two groups for capturing start IP and end IP of prefix IP BL, depends on BL format
-                if cregex.groups == 2 and bl_type == "prefixIP":
-                    range_start_ip = match.group(1)
-                    range_end_ip = match.group(2)
-                    # save as start-end
-                    bl_records.append(range_start_ip + "-" + range_end_ip)
-                else:
-                    if "/" in match.group(1) and bl_type == "prefixIP":
-                        # prefix BL in CIDR format, get ip_network instance, which creates list of included IP addresses
-                        network = ipaddress.ip_network(match.group(1))
-                        range_start_ip, range_end_ip = (network[0], network[-1])
-                        # save as start-end
-                        bl_records.append(str(range_start_ip) + "-" + str(range_end_ip))
+                try:
+                    if cregex.groups == 2 and bl_type == "prefixIP":
+                        range_start = ipaddress.IPv4Address(match.group(1))
+                        range_end = ipaddress.IPv4Address(match.group(2))
+                        # save in cidr notation to later better handle prefix overlays
+                        prefix_in_cidr = [ipaddr for ipaddr in ipaddress.summarize_address_range(range_start, range_end)]
+                        bl_records += prefix_in_cidr
                     else:
-                        bl_records.append(match.group(1))
+                        if "/" in match.group(1) and bl_type == "prefixIP":
+                            # prefix BL in CIDR format, get ip_network instance, which creates list of included IP
+                            # addresses
+                            prefix_network = ipaddress.ip_network(match.group(1))
+                            bl_records.append(prefix_network)
+                        else:
+                            bl_records.append(match.group(1) if bl_type == "domain" else str(ipaddress.IPv4Address(match.group(1))))
+                except ipaddress.AddressValueError:
+                    continue
     else:
         if bl_type == "prefixIP":
-            bl_records = []
             # prefix BL in CIDR format, get ip_network instance, which creates list of included IP addresses
             all_data = [line.strip() for line in data.split('\n') if not line.startswith('#') and line.strip()]
             for ip in all_data:
-                network = ipaddress.ip_network(ip)
-                range_start_ip, range_end_ip = (str(network[0]), str(network[-1]))
-                # save as start-end
-                bl_records.append(range_start_ip + "-" + range_end_ip)
+                try:
+                    prefix_network = ipaddress.ip_network(ip)
+                except ipaddress.AddressValueError:
+                    continue
+                bl_records.append(prefix_network)
         else:
             # records of blacklist are formatted as one IP record per line and does not need additional parsing
-            bl_records = [line.strip() for line in data.split('\n') if not line.startswith('#') and line.strip()]
+            bl_records_non_validated = [line.strip() for line in data.split('\n') if not line.startswith('#') and
+                                        line.strip()]
+            if bl_type == "ip":
+                for record in bl_records_non_validated:
+                    try:
+                        ipaddr = ipaddress.IPv4Address(record)
+                    except ipaddress.AddressValueError:
+                        continue
+                    bl_records.append(str(ipaddr))
+            else:
+                # domain is not validated yet
+                bl_records = bl_records_non_validated
 
-    # Check that all parsed items are indeed IPv4 addresses in correct format
-    checked_bl_records = validate_blacklist_records(bl_records, bl_type)
+    if bl_type == "prefixIP":
+        prefix_bl_len = len(bl_records)
+        # remove overlays from range IP blacklists
+        bl_records = ipaddress.collapse_addresses(bl_records)
 
     key_prefix = bl_all_types[bl_type]['db_prefix'] + id + ":"
     # Put the list into Redis    
@@ -188,14 +186,23 @@ def get_blacklist(id, name, url, regex, bl_type="ip"):
         pipe.set(key_prefix+"name", name)
         pipe.set(key_prefix+"time", now)
         pipe.delete(key_prefix+"list")
-        if checked_bl_records:
-            pipe.sadd(key_prefix+"list", *checked_bl_records)
+        if bl_records and bl_type != "prefixIP":
+            pipe.sadd(key_prefix+"list", *bl_records)
+        elif bl_records and bl_type == "prefixIP":
+            # save every IP range as sorted set:
+            # first value = IP address as integer
+            # second value = IP address (add '/' prefix if it is range end to distinguish start from end)
+            for record in bl_records:
+                range_start = ipstr2int(str(record[0]))
+                range_end = ipstr2int(str(record[-1]))
+                pipe.zadd(key_prefix + "list", {str(record[0]): range_start})
+                pipe.zadd(key_prefix + "list", {'/' + str(record[-1]): range_end})
         else:
             vprint("{} blacklist {} is empty! Maybe the service stopped working.".format(
                 bl_all_types[bl_type]['singular'], id))
         pipe.execute()
-        vprint("Done, {} {} stored into Redis under '{}list'".format(len(checked_bl_records),
-                                                                     bl_all_types[bl_type]['plural'], key_prefix))
+        vprint("Done, {} {} stored into Redis under '{}list'".format(len(bl_records) if isinstance(bl_records, list)
+                                                    else prefix_bl_len, bl_all_types[bl_type]['plural'], key_prefix))
     except redis.exceptions.ConnectionError as e:
         print("ERROR: Can't connect to Redis DB ({}:{}): {}".format(redis_host, redis_port, str(e)), file=sys.stderr)
 

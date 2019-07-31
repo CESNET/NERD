@@ -36,19 +36,6 @@ class Blacklist:
             self._key_list = "pbl:" + id + ":list"
             self._key_time = "pbl:" + id + ":time"
 
-    @staticmethod
-    def in_range(ip, ip_range):
-        split_range = ip_range.decode("utf-8") .split("-")
-        # get start of the range and end of the range and with checked ip convert it to int
-        start = ipstr2int(split_range[0])
-        end = ipstr2int(split_range[1])
-        checked_ip = ipstr2int(ip)
-        # compare if the ip is in the range
-        if start <= checked_ip <= end:
-            return True
-        else:
-            return False
-
     def check(self, ip):
         # TODO - load both time and presence in a transaction (and/or use WATCH)
         time = self._redis.get(self._key_time)
@@ -58,12 +45,12 @@ class Blacklist:
 
         present = False
         if self._key_list[0] == "p":
-            # it is prefix blacklist
-            all_bl_prefixes = self._redis.smembers(self._key_list)
-            for prefix in all_bl_prefixes:
-                if self.in_range(ip, prefix):
-                    present = True
-                    break
+            # it is prefix blacklist, get the closest IP address, which int value is higher then the ip's value
+            # if found ip address starts with '/', it means, that the ip is on blacklist, because prefix '/' is used by
+            # end of prefix range --> start of BL range <= IP <= end of BL range
+            all_bl_prefixes = self._redis.zrangebyscore(self._key_list, ipstr2int(ip), "+inf", start=0, num=1)
+            if all_bl_prefixes[0].decode('utf-8').startswith('/'):
+                present = True
         else:
             # normal blacklist
             present = self._redis.sismember(self._key_list, ip)
