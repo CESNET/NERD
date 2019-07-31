@@ -36,6 +36,9 @@ setenforce 0
 # Disable permanently
 sed -i --follow-symlinks -e 's/^SELINUX=.*$/SELINUX=disabled/' /etc/sysconfig/selinux
 
+echob "=============== Installing git (needed to clone repository) ==============="
+
+yum install -y -q git
 
 echob "=============== Cloning repository ==============="
 
@@ -45,8 +48,8 @@ if ! [ -d /tmp/nerd_install ]; then
   cd /tmp/nerd_install
   git checkout parallel
 else
+  echoy "NOTICE: Using existing installation files in /tmp/nerd_install/"
   cd /tmp/nerd_install
-  git pull
 fi
 chmod +x /tmp/nerd_install/install/*.sh
 
@@ -55,6 +58,7 @@ chmod +x /tmp/nerd_install/install/*.sh
 
 
 # Copy files into final locations
+sudo -u nerd mkdir -p /nerd/{common,NERDd,NERDweb,scripts}
 sudo -u nerd cp -R /tmp/nerd_install/common/* /nerd/common
 sudo -u nerd cp -R /tmp/nerd_install/NERDd/* /nerd/NERDd
 sudo -u nerd cp -R /tmp/nerd_install/NERDweb/* /nerd/NERDweb
@@ -62,6 +66,7 @@ sudo -u nerd cp -R /tmp/nerd_install/scripts/* /nerd/scripts
 sudo -u nerd cp -R /tmp/nerd_install/etc/* /etc/nerd
 chmod -R g+w /nerd/
 chmod -R g+w /etc/nerd/
+chmod +x /nerd/scripts/*.sh
 
 
 # Install and configure all dependencies
@@ -134,7 +139,7 @@ echoy " 1. See logs above for potential error messages."
 echoy " 2. Register Warden client, configure and run warden_filer (see above)."
 echoy " 3. Create a user for web interface":
 echoy "      psql -U nerd nerd_users"
-echoy "        INSERT INTO users VALUES ('local:username', '{\"registered\",\"admin\"}','Name Surname','email@example.com','Organization');"
+echoy "        INSERT INTO users VALUES ('local:admin', '{\"registered\",\"trusted\",\"admin\"}','Mr. Admin','email@example.com','Test org');
 echoy "      htpasswd -c -B -C 12 /etc/nerd/htpasswd username"
 echoy " 4. Run NERDd:"
 echoy "      sudo systemctl start nerd-supervisor"

@@ -41,6 +41,8 @@ mkdir -p /data/warden_filer/warden_receiver/{incoming,temp,errors}
 chown -R nerd:nerd /data/warden_filer
 chmod -R 775 /data/warden_filer
 
+# Start receiving from the last message available at the time of first start
+echo -1 >/data/warden_filer/warden_filer.id
 
 echoy "** Preparing template configuration file **"
 install -o nerd -g nerd -m 664 $BASEDIR/warden_filer.cfg.template /etc/nerd/warden_filer.cfg.template

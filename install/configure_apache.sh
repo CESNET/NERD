@@ -68,11 +68,10 @@ sed -i -E "s|^base_url:.*$|base_url: \"$base_loc_nerd\"|" /etc/nerd/nerdweb.yml
 secret=$(head -c 24 /dev/urandom | base64)
 sed -i -E "s|^secret_key: \"!!! CHANGE THIS !!!\"|secret_key: \"$secret\"|" /etc/nerd/nerdweb.yml
 
-# (not needed, default is to allow everything)
-#echo "** Setting up firewall **"
-#iptables -I INPUT 1 -p TCP --dport 80 -j ACCEPT
-#iptables -I INPUT 1 -p TCP --dport 5000 -j ACCEPT
-#iptables-save > /etc/sysconfig/iptables
+echob "** Setting up firewall (allow port 80, 443) **"
+iptables -I INPUT 1 -p TCP --dport 80 -j ACCEPT
+iptables -I INPUT 1 -p TCP --dport 443 -j ACCEPT
+iptables-save > /etc/sysconfig/iptables
 
 echob "** Starting Apache **"
 systemctl enable httpd

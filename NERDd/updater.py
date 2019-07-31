@@ -121,7 +121,7 @@ if __name__ == "__main__":
         logging.getLogger("apscheduler.scheduler").setLevel("INFO")
         logging.getLogger("apscheduler.executors.default").setLevel("INFO")
 
-
+    log.info("**** Updater started *****")
 
     # Determine final path to nerdd.yml file and read the configuration
     log.debug("Loading config file {}".format(args.cfg_file))

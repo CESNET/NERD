@@ -8,7 +8,7 @@ echob "=============== Prepare environment =============="
 
 echob "** Creating user 'nerd' **"
 
-useradd --system --home-dir /nerd --shell /sbin/nologin nerd
+useradd --system --home-dir /nerd --shell /sbin/nologin -g nerd nerd
 
 
 echob "** Creating NERD directories and setting up permissions **"

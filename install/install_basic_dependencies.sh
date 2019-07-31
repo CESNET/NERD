@@ -7,7 +7,7 @@ BASEDIR=$(dirname $0)
 echob "=============== Install basic dependencies ==============="
 
 echob "** Installing basic RPM packages **"
-yum install -y -q epel-release
+yum install -y -q https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 yum install -y -q git wget gcc vim python36 python36-devel python36-setuptools python-setuptools
 
 echob "** Installing pip and Python packages **"
@@ -157,7 +157,7 @@ if ! [ -e /var/lib/pgsql/11/data/PG_VERSION ] ; then
   /usr/pgsql-11/bin/postgresql-11-setup initdb
 fi
 
-# Non.default DB path:
+# Non-default DB path:
 # mkdir -p /data/pgsql
 # chown -R postgres /data/pgsql
 # sudo -u postgres /usr/pgsql-11/bin/initdb -D /data/pgsql
