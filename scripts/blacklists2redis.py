@@ -134,14 +134,14 @@ def get_blacklist(id, name, url, regex, bl_type="ip"):
                     if cregex.groups == 2 and bl_type == "prefixIP":
                         range_start = ipaddress.IPv4Address(match.group(1))
                         range_end = ipaddress.IPv4Address(match.group(2))
-                        # save in cidr notation to later better handle prefix overlays
+                        # save in cidr notation to later better handle prefix overlaps
                         prefix_in_cidr = [ipaddr for ipaddr in ipaddress.summarize_address_range(range_start, range_end)]
                         bl_records += prefix_in_cidr
                     else:
                         if "/" in match.group(1) and bl_type == "prefixIP":
                             # prefix BL in CIDR format, get ip_network instance, which creates list of included IP
                             # addresses
-                            prefix_network = ipaddress.ip_network(match.group(1))
+                            prefix_network = ipaddress.IPv4Network(match.group(1))
                             bl_records.append(prefix_network)
                         else:
                             bl_records.append(match.group(1) if bl_type == "domain" else str(ipaddress.IPv4Address(match.group(1))))
@@ -153,7 +153,7 @@ def get_blacklist(id, name, url, regex, bl_type="ip"):
             all_data = [line.strip() for line in data.split('\n') if not line.startswith('#') and line.strip()]
             for ip in all_data:
                 try:
-                    prefix_network = ipaddress.ip_network(ip)
+                    prefix_network = ipaddress.IPv4Network(ip)
                 except ipaddress.AddressValueError:
                     continue
                 bl_records.append(prefix_network)
@@ -174,7 +174,7 @@ def get_blacklist(id, name, url, regex, bl_type="ip"):
 
     if bl_type == "prefixIP":
         prefix_bl_len = len(bl_records)
-        # remove overlays from range IP blacklists
+        # remove overlaps from range IP blacklists
         bl_records = ipaddress.collapse_addresses(bl_records)
 
     key_prefix = bl_all_types[bl_type]['db_prefix'] + id + ":"
@@ -193,10 +193,10 @@ def get_blacklist(id, name, url, regex, bl_type="ip"):
             # first value = IP address as integer
             # second value = IP address (add '/' prefix if it is range end to distinguish start from end)
             for record in bl_records:
-                range_start = ipstr2int(str(record[0]))
-                range_end = ipstr2int(str(record[-1]))
-                pipe.zadd(key_prefix + "list", {str(record[0]): range_start})
-                pipe.zadd(key_prefix + "list", {'/' + str(record[-1]): range_end})
+                range_start = int(record.network_address)
+                range_end = int(record.broadcast_address)
+                pipe.zadd(key_prefix + "list", {str(record.network_address): range_start})
+                pipe.zadd(key_prefix + "list", {'/' + str(record.broadcast_address): range_end})
         else:
             vprint("{} blacklist {} is empty! Maybe the service stopped working.".format(
                 bl_all_types[bl_type]['singular'], id))

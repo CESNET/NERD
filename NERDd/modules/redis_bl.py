@@ -1,5 +1,5 @@
 """
-NERD module that queries blacklists chached locally in Reids.
+NERD module that queries blacklists cached locally in Reids.
 """
 
 if __name__ == '__main__':
@@ -45,11 +45,14 @@ class Blacklist:
 
         present = False
         if self._key_list[0] == "p":
-            # it is prefix blacklist, get the closest IP address, which int value is higher then the ip's value
-            # if found ip address starts with '/', it means, that the ip is on blacklist, because prefix '/' is used by
-            # end of prefix range --> start of BL range <= IP <= end of BL range
+            # prefix blacklist - these are stored as sorted sets (i.e. set of value+score pairs), each prefix as
+            # two entries - begin and end of the range. Score is IP address as int, value is IP address as string,
+            # end of range prefixed by '/' (like '/1.2.3.4').
+            # Find the closest entry, whose score value is higher or equal then the IP's value.
+            # If the found IP address starts with '/', it means that the IP is between start end end of some prefix
+            # -> IP is on blacklist
             all_bl_prefixes = self._redis.zrangebyscore(self._key_list, ipstr2int(ip), "+inf", start=0, num=1)
-            if all_bl_prefixes[0].decode('utf-8').startswith('/'):
+            if all_bl_prefixes and all_bl_prefixes[0].decode('utf-8').startswith('/'):
                 present = True
         else:
             # normal blacklist
@@ -139,7 +142,7 @@ class RedisBlacklist(NERDModule):
                 # Blacklist disappeared from Redis - remove from list of blacklists and tell admin that it's needed to reload the daemon
                 # TODO: reload automatically, but this would need to re-register the handler function with new 'changes', which is currently not supported by UpdateManager.
                 bl_to_remove.append(bl) # we can't remove from list while iterating it - do it after loop ends
-                self.log.warning("Blacklist {} not found in Redis. Configuration has probably changed - RELOAD NERD TO APPLY NEW CONFIGURATION!")
+                self.log.warning("Blacklist {} not found in Redis. Configuration has probably changed - RELOAD NERD TO APPLY NEW CONFIGURATION!".format(bl))
                 # TODO: Should also remove corresponding 'bl' entry from IP record?
                 continue
             blname = bl.id
