@@ -193,10 +193,8 @@ def get_blacklist(id, name, url, regex, bl_type="ip"):
             # first value = IP address as integer
             # second value = IP address (add '/' prefix if it is range end to distinguish start from end)
             for record in bl_records:
-                range_start = int(record.network_address)
-                range_end = int(record.broadcast_address)
-                pipe.zadd(key_prefix + "list", {str(record.network_address): range_start})
-                pipe.zadd(key_prefix + "list", {'/' + str(record.broadcast_address): range_end})
+                pipe.zadd(key_prefix + "list", {str(record.network_address): int(record.network_address)})
+                pipe.zadd(key_prefix + "list", {'/' + str(record.broadcast_address): int(record.broadcast_address)})
         else:
             vprint("{} blacklist {} is empty! Maybe the service stopped working.".format(
                 bl_all_types[bl_type]['singular'], id))
@@ -221,15 +219,18 @@ def process_blacklist_type(config_path, bl_type):
     :param bl_type: type of blacklist (ip|prefixIP|domain)
     :return: None
     """
+    # Get list of blacklists (their IDs) in configuration
+    config_lists = set(cfg_item[0] for cfg_item in config.get(config_path, []))
+    # Get list of blacklists present in Redis
     keys = r.keys(bl_all_types[bl_type]['db_prefix'] + '*')
     redis_lists = set(key.decode().split(':')[1] for key in keys)
-    config_lists = set(cfg_item[0] for cfg_item in config[config_path])
+
     for id in redis_lists - config_lists:
         vprint(
             "IP blacklist '{}' was found in Redis, but not in current configuration. Removing from Redis.".format(id))
         r.delete(*r.keys(bl_all_types[bl_type]['db_prefix'] + id + ':*'))
 
-    for id, name, url, regex, refresh_time in config[config_path]:
+    for id, name, url, regex, refresh_time in config.get(config_path, []):
         # TODO: check how old the list is and re-download if it's too old (complicated since cron-spec may be very complex)
         if args.force_refresh:
             get_blacklist(id, name, url, regex, bl_type=bl_type)
@@ -271,15 +272,21 @@ process_blacklist_type("domainlists", "domain")
 
 # Schedule periodic updates of blacklists
 if not args.one_shot:
-    for id, name, url, regex, refresh_time in config['iplists']:
+    for id, name, url, regex, refresh_time in config.get('iplists', []):
         trigger = CronTrigger(**refresh_time)
-        job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, False),
+        job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, 'ip'),
             trigger=trigger, coalesce=True, max_instances=1)
         vprint("IP blacklist '{}' scheduled to be downloaded at every: {}".format(id, refresh_time))
 
-    for id, name, url, regex, refresh_time in config['domainlists']:
+    for id, name, url, regex, refresh_time in config.get('prefixiplists', []):
         trigger = CronTrigger(**refresh_time)
-        job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, True),
+        job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, 'prefixIP'),
+            trigger=trigger, coalesce=True, max_instances=1)
+        vprint("IP blacklist '{}' scheduled to be downloaded at every: {}".format(id, refresh_time))
+
+    for id, name, url, regex, refresh_time in config.get('domainlists', []):
+        trigger = CronTrigger(**refresh_time)
+        job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, 'domain'),
             trigger=trigger, coalesce=True, max_instances=1)
         vprint("Domain blacklist '{}' scheduled to be downloaded at every: {}".format(id, refresh_time))
     

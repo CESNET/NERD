@@ -155,7 +155,7 @@ class RedisBlacklist(NERDModule):
                 self.log.debug("IP address ({0}) is not on {1}.".format(key, blname))
                 actions.append( ('array_update', 'bl', {'n': blname}, [('set', 'v', 0), ('set', 't', time)]) )
 
-        # In case of error, remove blaklists not already present
+        # In case of error, remove blacklists not already present
         for bl in bl_to_remove:
             self.blacklists.remove(bl)
             
