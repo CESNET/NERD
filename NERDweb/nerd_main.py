@@ -489,8 +489,9 @@ def get_ip_blacklists():
     # Get the list of all configured IP blacklists. Return array of (id, name).
     # DNSBL (IP only)
     blacklists = [(bl_name, bl_name) for bl_group in config.get('dnsbl.blacklists', []) for bl_name in bl_group[2].values()]
-    # Blacklists cached in Redis (IP and domain) 
+    # Blacklists cached in Redis (IP and prefix)
     blacklists += [(bl[0], bl[1]) for bl in config_bl.get('iplists', [])]
+    blacklists += [(bl[0], bl[1]) for bl in config_bl.get('prefixiplists', [])]
     blacklists.sort()
     return blacklists
 

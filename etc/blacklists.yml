@@ -60,9 +60,10 @@ iplists:
 #  - hour: 1,9,17
 #    minute: 45
 
-# there applies same format as in normal iplists except 'regex'. If the prefix is formatted as start and end of IP
-# network, then start of IP network should be catched as group 1 in regex and end of IP network should be catched as
-# group 2 in regex.
+# Lists of IP ranges or CIDR prefixes.
+# Same format as in normal iplists is used, except 'regex'. If the prefix is formatted as start and end of IP network,
+# then start of IP network should be caught as group 1 in regex and end of IP network should be caught as group 2
+# (without regex, CIDR format is assumed)
 prefixiplists:
 - - dshield
   - DShield.org Recommended Block List
@@ -70,12 +71,12 @@ prefixiplists:
   - "([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})\\s*([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})"
   - hour: 4
     minute: 50
-- - amazonAWS
-  - Amazon AWS
-  - https://ip-ranges.amazonaws.com/ip-ranges.json
-  - "\"ip_prefix\": \"([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\/[0-9]{1,2})\""
-  - hour: 4
-    minute: 50
+#- - amazonAWS
+#  - Amazon AWS
+#  - https://ip-ranges.amazonaws.com/ip-ranges.json
+#  - "\"ip_prefix\": \"([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\/[0-9]{1,2})\""
+#  - hour: 4
+#    minute: 50
 
 domainlists:
 - - zeus
