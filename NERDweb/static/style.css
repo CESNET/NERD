@@ -45,6 +45,18 @@ p.error {
   color: #000;
 }
 
+.help:after {
+  content: '(?)';
+}
+.help {
+  opacity: 0.5;
+  margin: 0 0.5em;
+}
+
+.time {
+  white-space: nowrap; /* Prevent Chrome to break lines at '-' inside dates */
+}
+
 div.loading {
   text-align: center;
   /*background-color: rgba(0, 0, 0, 0.01);*/
@@ -53,6 +65,11 @@ img.load-spinner {
   width: 2em;
   height: 2em;
   margin: 1em;
+}
+img.load-spinner-small {
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0.4em;
 }
 
 /* Flash messages */
@@ -143,6 +160,40 @@ img.load-spinner {
   border-bottom: 1px solid #eee;
 }
 
+#admin-box {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, 0);
+  width: 12em;
+  padding: 0.2em 0.5em;
+  margin: 0em;
+  text-align: center;
+  border: 2px solid yellow;
+  border-top: 0px;
+  border-radius: 0px 0px 4px 4px;
+  background: #CCCC99;
+  color: #000000;
+  z-index: 5;
+}
+#admin-box:hover {
+  padding-bottom: 0.5em;
+}
+#admin-box > div {
+  display: none;
+}
+#admin-box:hover > div {
+  display: block;
+}
+
+#admin-box > div {
+  margin-top: 0.5em;
+  padding: 0.5em;
+  border: 1px solid #777;
+  background: #bbb;
+  text-align: left;
+}
+
+
 #content {
   padding: 0 0.75em 0.75em 0.75em;
   border-top: 2px solid #0061a2;
@@ -224,9 +275,22 @@ img.load-spinner {
 /**********/
 /* Form */
 
+/* Set/fix some visual properties of multiselects */
 .ms-options-wrap {
   display: inline-block;
+  position: relative;
   width: 16em;
+  height: 0.1em;
+}
+.ms-options-wrap > button,
+.ms-options-wrap > button:focus {
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+.ms-options-wrap > .ms-options {
+  width: auto;
+  min-width: 16em;
+  white-space: nowrap;
 }
 
 .op_button {
@@ -358,12 +422,26 @@ td.links img {
 
 .notfound {
   font-size: 1.25em;
+  font-weight: bold;
+  color: #600;
 }
+.notfound2 {
+  font-size: 0.9em;
+  color: #666;
+}
+
+
 .entity-info {
   /*margin: 1em 0 0 0;*/
   background-color: #fff;
   padding: 0.5em 1em 0.5em 1em;  
 }
+.entity-info:after { /* expand the div to include all inner floats */
+    content: "";
+    clear: both;
+    display: block;
+}
+
 .entity-info .header {
   margin: 0.5em 0;
   padding: 0.3em 0.1em;
@@ -388,6 +466,23 @@ td.links img {
   color: #444;
   margin-left: 1em;
 }
+.entity-info .header .links {
+  float: right;
+  font-size: 1.2em;
+  color: #777;
+}
+.entity-info .header .links img {
+  width: 1em;
+  height: 1em;
+  margin: 0 0.2em;
+}
+.entity-info .header .links span.divider {
+  width: 0;
+  height: 1em;
+  margin: 0 0.3em;
+  border-left: 1px dotted #444;
+}
+
 
 dl.attrs dt {
   font-weight: bold;
@@ -399,6 +494,78 @@ dd dl dt:first-child {
 
 .test-cat {
   color: #aaa;
+}
+
+
+.float-box {
+  float: right;
+  clear: right;
+  min-width: 18em;
+  max-width: 30em;
+  min-height: 2em;
+  max-height: 30em;
+  border: 2px solid #0061a2;
+  margin-bottom: 0.75em;
+  overflow-y: auto;
+}
+.float-box .title {
+  text-align: center;
+  font-weight: bold;
+  background-color: #0061a2;
+  color: #fff;
+  padding: 3px;
+  position: relative;
+}
+.float-box .title .help {
+  /*float: right;*/
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  margin: 0;
+}
+.float-box .title .side-link {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  /*margin: 0 0.5em;*/
+  opacity: 0.5;
+}
+.float-box .title .side-link a {
+  color: inherit;
+}
+.float-box .content {
+  padding: 5px;
+}
+.float-box .content p {
+  margin: 0.25em 0;
+}
+.float-box.pdns .content {
+  text-align: right;
+}
+
+.tag.dnstype {
+  background: #bfd8e8; /*#80b0d0;*/ 
+  color: #000;
+  float: left;
+  box-shadow: none;
+  margin-right: 1em;
+}
+.pdns-item {
+  border-bottom: 1px dotted #444;
+  padding-bottom: 2px;
+  margin-bottom: 3px;
+}
+.pdns-item:last-child {
+  border-bottom: 0px;
+  margin-bottom: 0px;
+}
+.pdns-item > div:last-child {
+  margin-top: 2px;
+  font-size: 0.9em;
+}
+
+#events {
+  clear: both;
 }
 
 #event-details {
@@ -443,9 +610,32 @@ div.idea .cat_and_time {
   /*min-width: 10em;*/
   height: 100%;
   background: #bdf;
-  padding: 0.2em;
+  padding: 0.2em 0.4em;
   
 }
+.idea .time {
+  padding-left: 1.3em;
+  background: left center / 1em 1em no-repeat; 
+}
+.idea .time.detecttime {
+  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxzdmcgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiB2ZXJzaW9uPSIxLjEiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4NCiA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwIC0yODguNSkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCI+DQogIDxlbGxpcHNlIGN4PSIxMyIgY3k9IjMwMS41IiByeD0iMTAiIHJ5PSIxMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjMiLz4NCiAgPHBhdGggZD0ibTIwLjIzIDMwNy4zIDUgNSIgc3Ryb2tlLXdpZHRoPSIyIi8+DQogIDxwYXRoIGQ9Im0yNS4yMyAzMTIuMyA0IDQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSI0Ii8+DQogIDxwYXRoIGQ9Im03LjUgMzAxLjUgNCA0IDctNyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjIiLz4NCiA8L2c+DQo8L3N2Zz4NCg==);
+}
+.idea .time.eventtime {
+  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxzdmcgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiB2ZXJzaW9uPSIxLjEiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4NCiA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwIC0yODguNSkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjMiPg0KICA8cGF0aCBkPSJtNiAyOTMuNXYyMiIvPg0KICA8cGF0aCBkPSJtMTEgMzA0LjVoMTYiLz4NCiAgPHBhdGggZD0ibTIyIDI5OS41IDUgNS01IDUiLz4NCiA8L2c+DQo8L3N2Zz4NCg==); 
+}
+.idea .time.ceasetime {
+  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxzdmcgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiB2ZXJzaW9uPSIxLjEiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4NCiA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwIC0yODguNSkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjMiPg0KICA8cGF0aCBkPSJtMjYgMjkzLjV2MjIiLz4NCiAgPHBhdGggZD0ibTUgMzA0LjVoMTYiLz4NCiAgPHBhdGggZD0ibTE2IDI5OS41IDUgNS01IDUiLz4NCiA8L2c+DQo8L3N2Zz4NCg==); 
+}
+.idea .time.winstarttime {
+  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxzdmcgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiB2ZXJzaW9uPSIxLjEiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4NCiA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwIC0yODguNSkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjMiPg0KICA8cGF0aCBkPSJtMTEgMjkzLjVoLTV2MjJoNSIvPg0KICA8cGF0aCBkPSJtMTEgMzA0LjVoMTYiLz4NCiAgPHBhdGggZD0ibTIyIDI5OS41IDUgNS01IDUiLz4NCiA8L2c+DQo8L3N2Zz4NCg==); 
+}
+.idea .time.winendtime {
+  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxzdmcgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiB2ZXJzaW9uPSIxLjEiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4NCiA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwIC0yODguNSkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjMiPg0KICA8cGF0aCBkPSJtMjEgMjkzLjVoNXYyMmgtNSIvPg0KICA8cGF0aCBkPSJtNSAzMDQuNWgxNiIvPg0KICA8cGF0aCBkPSJtMTYgMjk5LjUgNSA1LTUgNSIvPg0KIDwvZz4NCjwvc3ZnPg0K); 
+}
+.idea .time.duration {
+  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxzdmcgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiB2ZXJzaW9uPSIxLjEiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4NCiA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwIC0yODguNSkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjMiPg0KICA8cGF0aCBkPSJtNCAyOTUuM3YxOCIvPg0KICA8cGF0aCBkPSJtMjggMjk1LjV2MTgiLz4NCiAgPHBhdGggZD0ibTggMzA0LjVoMTYiLz4NCiAgPHBhdGggZD0ibTEyIDMwMC41LTQgNCA0IDQiLz4NCiAgPHBhdGggZD0ibTIwIDMwMC41IDQgNC00IDQiLz4NCiA8L2c+DQo8L3N2Zz4NCg==); 
+}
+
 div.idea .nodes {
   /*float: right;*/
   flex-grow: 0;
@@ -458,11 +648,16 @@ div.idea .others {
   flex-grow: 5;
   padding: 0 0.5em;
 }
-div.idea .others .descr {
+div.idea .others .idea-descr,
+div.idea .others .idea-note {
   padding: 0.2em 0.5em;
   margin-bottom: 0.2em;
   background: #bdf;
 }
+div.idea .others .idea-descr {
+  font-weight: bold;
+}
+
 div.idea.test {
   background: #eee;
   border-color: #ccc;
@@ -471,7 +666,8 @@ div.idea.test {
 div.idea.test .nodes {
   border-left-color: #ccc;
 }
-div.idea.test .descr,
+div.idea.test .idea-descr,
+div.idea.test .idea-note,
 div.idea.test .cat_and_time {
   background-color: #ccc;
 }
@@ -484,6 +680,7 @@ div.idea.test .others .target {
 /* misc */
 div.idea .category {
   font-weight: bold;
+  margin-bottom: 0.2em;
 }
 
 /* Nodes */
@@ -521,6 +718,7 @@ div.idea .nodes li:first-child:last-child::before {
 /* NERD status block */
 #status-block {
   position: absolute;
+  z-index: 5;
   top: 2.7em;
   right: 0.5em;
   width: 15em;

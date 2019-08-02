@@ -17,8 +17,11 @@
   {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
   {{ formfield(form.asn, size=7) }}
   <br>
-  {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+  {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
+  {%- if ac('nodenames') %}
+  &nbsp; &amp; &nbsp;
   {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
+  {% endif %}
   <br>
   {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
   {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
@@ -30,74 +33,12 @@
   <input type="submit">
 </form>
 
-<script>
-// Improve selects using "multiselect" library/plugin
-$("select#cat").multiselect({texts: {placeholder: "\xa0"}, search: true});
-$("select#node").multiselect({texts: {placeholder: "\xa0"}, search: true});
-$("select#blacklist").multiselect({texts: {placeholder: "\xa0"}, search: true});
-$("select#tag").multiselect({texts: {placeholder: "\xa0"}, search: true});
-// Set up an operation (and/or) button
-function set_up_op_button(button_id, form_elem_id, title_or, title_and) {
-  $(button_id).on("click", function() {
-    if ($(form_elem_id).val() == 'and') {
-      $(form_elem_id).val("or");
-      $(this).text("\u22c1").attr("title", title_or); // \u22c1 = Logical OR
-    } else {
-      $(form_elem_id).val("and");
-      $(this).text("\u22c0").attr("title", title_and); // \u22c0 = Logical AND
-    }
-    return false;
-  });
-  if ($(form_elem_id).val() == "or") {
-      $(button_id).text("\u22c1").attr("title", title_or);
-  } else {
-      $(button_id).text("\u22c0").attr("title", title_and);
-  }
-}
-set_up_op_button("#cat_op_button", "#cat_op", "OR: At least one of the selected categories", "AND: All selected categories")
-set_up_op_button("#node_op_button", "#node_op", "OR: At least one of the selected nodes", "AND: All selected nodes")
-set_up_op_button("#bl_op_button", "#bl_op", "OR: At least one of the selected blacklists", "AND: All selected blacklists")
-set_up_op_button("#tag_op_button", "#tag_op", "OR: At least one of the selected tags", "AND: All selected tags")
-</script>
+<script src="{{ url_for('static', filename='ips.js') }}"></script>
 
 {% if results %}
-<script>
-
-// Set-up possibility to click on a part of hostname to set it as a filer
-function set_hostname_filter(hostname) {
-  document.location = ROOT + "ips/?hostname=" + hostname;
-};
-
-$(function () {
-  $("td.hostname").each( function () {
-    hostname = $(this).text();
-    if (hostname == "--")
-      return;
-    parts = hostname.split(".");
-    $(this).html("<span>" + parts.join("</span><span>.") + "</span>");
-  });
-  $("td.hostname span")
-    .css("cursor", "pointer")
-    .click( function () {
-      set_hostname_filter( $(this).text() + $(this).nextAll().text() );
-    })
-    .hover(
-      function () { // mouseenter
-        $(this).css("text-decoration", "underline");
-        $(this).nextAll().css("text-decoration", "underline");
-        $(this).attr("title", "Set as filter");
-      },
-      function () { // mouseleave
-        $(this).css("text-decoration", "");
-        $(this).nextAll().css("text-decoration", "");
-        $(this).attr("title", "");
-      }
-    )
-});
-</script>
 
 <!-- hidden form to allow links to blacklist check at whatismyipaddress.com -->
-<form id="bl-check-form" action="http://whatismyipaddress.com/blacklist-check" method="POST" target="_blank">
+<form id="bl-check-form" action="https://whatismyipaddress.com/blacklist-check" method="POST" target="_blank">
 <input type="hidden" id="bl-check-form-ip" name="LOOKUPADDRESS" value="">
 <input type="hidden" name="Lookup+Hostname" value="Check+Blacklists">
 </form>
@@ -117,11 +58,11 @@ $(function () {
 <th>Hostname</th>
 <th title="Autonomous system number and name">ASN</th>
 <th>Country</th>
-<th title="Total number of alerts / nodes / categories">Events</th>
+<th title="Total number of alerts / nodes / categories in last {{ cfg_max_event_history }} days">Events</th>
 <!--<th>Shodan info</th>
 <th>Device type</th>-->
-{#{% if ac('rep_exp') %}<th title="Reputation (frontend-computed)">Rep.</th>{% endif %}#}
 <th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.</th>
+{% if ac('fmp') %}<th title="Future Maliciousness Probability score">FMP</th>{% endif %}
 <th>Other properties</th>
 <th>Time added</th>
 <th>Last event</th>
@@ -133,14 +74,11 @@ $(function () {
 <td class="id ip"><a href="{{ url_for('ip') + ip._id }}"><span>{{ip._id}}</span></a></td>
 <td class="hostname">{{ip['hostname']|reverse if ip['hostname'] else '--'}}</td>
 <td class="asn">
-  <span title="MaxMind GeoLite:<br> &nbsp; {% if ip.as_maxmind %}AS{{ip.as_maxmind.num}} - {{ip.as_maxmind.description}}{% else %}--{% endif %}<br>
-Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} - {{ip.as_rv.description}}{% else %}--{% endif %}">
-  {% if ip.as_maxmind and ip.as_rv %}
-    {% if ip.as_maxmind.num == ip.as_rv.num %}AS{{ip.as_maxmind.num}}{% else %}??{% endif %}
-  {% elif ip.as_maxmind %}
-    AS{{ip.as_maxmind.num}}
-  {% elif ip.as_rv %}
-    AS{{ip.as_rv.num}}
+  {% if 'asn' in ip%}
+    {% for asn in ip['asn']%}
+    <a href="{{ url_for('asn') + asn['_id']|string }}" title="{{asn['rir']}}:{{asn['name']}}">{{ 'AS' + asn['_id']|string }}</a>
+    <br>
+    {% endfor %}
   {% endif %}
 </span>
 </td>
@@ -158,16 +96,17 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
 
 <td class="events" data-cats="{{ip._evt_info.cats}}" data-dates="{{ip._evt_info.dates}}"
   data-nodes="{{ip._evt_info.nodes}}" data-table="{{ip._evt_info.date_cat_table}}">
-  <span>{{ip.events_meta.total}}</span><span>{{ip._evt_info.n_nodes}}</span><span>{{ip._evt_info.n_cats}}</span>
+  <span>{{ip.events_meta.total if ip.events_meta else 0}}</span><span>{{ip._evt_info.n_nodes}}</span><span>{{ip._evt_info.n_cats}}</span>
 </td>
-{#{% if ac('rep_exp') %}
-<td class="reputation" style="background-color: hsl({{100 - 100*ip.rep_frontend}}, 100%, 90%)">
-  {{ "%.3f"|format(ip.rep_frontend) }}
-</td>
-{% endif %}#}
 <td class="reputation" style="background-color: {{ rep_css_color(ip.rep) }}">
   {{ "%.3f"|format(ip.rep) if 'rep' in ip else "---" }}
 </td>
+{% if ac('fmp') %}
+{% set fmp = ip.get('fmp',{}).get('general', undefined) %}
+<td class="reputation" style="background-color: {{ rep_css_color(fmp) }}">
+  {{ "%.3f"|format(ip.fmp.general) if fmp is defined else "---" }}
+</td>
+{% endif %}
 <td class="other">
   {% if ip.shodan %}
     {% if ip.shodan.os %}<span class="tag os">{{ip.shodan.os}}</span>{% endif %}
@@ -186,12 +125,12 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
 
   {% if ip.tags %}
     {% for tag_id,tag_param in ip.tags.items() %}
-      {% if tag_id in config.tags and "name" in config.tags[tag_id] %}
-      <span class="tag" style="{{ tag_color_style(config.tags[tag_id].tag_color, tag_param.confidence) }}" title="{% if "description" in config.tags[tag_id] %}<b>{{config.tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
-      {{config.tags[tag_id].name}}
+      {% if tag_id in config_tags and "name" in config_tags[tag_id] %}
+      <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="{% if "description" in config_tags[tag_id] %}<b>{{config_tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+      {{config_tags[tag_id].name}}
       </span>
       {% else %}
-        <span class="tag" title="<b>ERROR:</b> Missing mandatory config for tag {{tag_id}}">
+        <span class="tag" title="<b>ERROR:</b> Missing configuration for tag {{tag_id}}">
         {{tag_id}}
         </span>
       {% endif %}
@@ -206,13 +145,26 @@ Routeviews & BGP looking glass:<br> &nbsp; {% if ip.as_rv %}AS{{ip.as_rv.num}} -
     {% endif %}
   {%- endfor %}
   {% endif %}
+  {% if ip.dbl %}
+  {% for bl_entry in ip.dbl -%}
+    {% if bl_entry.v %}
+      <span class="tag blacklist" title="A domain name associated with the IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">
+        {{-bl_entry.n-}}</span>
+    {% endif %}
+  {%- endfor %}
+  {% endif %}
 </td>
-<td class="time">{{ip.ts_added.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S")}}</td>
-<td class="time">{{ip.ts_last_event.astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S") if ip.ts_last_event else "??"}}</td>
+<td class="time">{{ip.ts_added.replace(tzinfo=tz_utc).astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
+<td class="time">{{ip.ts_last_event.replace(tzinfo=tz_utc).astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S") if ip.ts_last_event else "--"}}</td>
 <td class="links">
-<a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan"><img src="{{ url_for('static', filename='shodan_icon.png') }}" width=16 height=16></a>
-<a href="https://censys.io/ipv4/{{ ip._id }}" title="Search on Censys"><img src="{{ url_for('static', filename='censys_icon.png') }}" width=16 height=16></a>
-<a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}" width=16 height=16></a>
+<a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"></a>
+<a href="https://censys.io/ipv4/{{ ip._id }}" title="Search on Censys" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"></a>
+<a href="http://multirbl.valli.org/lookup/{{ ip._id }}.html" title="Blacklist Check at valli.org" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"></a>
+<a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"></a>
+<a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip._id }}" title="Search at Talos Intelligence Reputation Center" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"></a>
+<a href="https://senderscore.org/lookup.php?lookup={{ ip._id }}" title="Search at Sender Score" target="_blank"><img src="{{ url_for('static', filename='senderscore_icon.png') }}"></a>
+
+
 </td>
 </tr>
 {% endfor %}

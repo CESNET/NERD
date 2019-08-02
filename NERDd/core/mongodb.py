@@ -9,9 +9,7 @@ import logging
 import pymongo
 from operator import itemgetter
 
-# TODO: Store IP addresses (keys) as Binary or as HEX strings, so they can be 
-# easily queried by ragnes (less-than/greater-than).
-# Hide this from the rest of the system (it should be dotted-decimal string in the rest of the system)
+from common.utils import ipstr2int, int2ipstr
 
 # Defaults (may be overridden by config values mongodb.host, mongodb.port, mongodb.dbname)
 DEFAULT_MONGO_HOST = 'localhost'
@@ -70,9 +68,16 @@ class MongoEntityDatabase():
         if etype not in self._supportedTypes:
             raise UnknownEntityType("There is no collection for entity type "+str(etype))
         
+        # IP addresses are stored as int
+        if etype == 'ip':
+            key = ipstr2int(key)
+        
         record = self._db[etype].find_one({'_id': key})
         if not record:
             return None
+        
+        if etype == 'ip':
+            record['_id'] = int2ipstr(record['_id'])
         
         # Hostnames are reversed in DB, reverse it before returning to NERD
         if 'hostname' in record and record['hostname'] is not None:
@@ -93,6 +98,11 @@ class MongoEntityDatabase():
         if etype not in self._supportedTypes:
             raise UnknownEntityType("There is no collection for entity type "+str(etype))
         
+        # Store IP address as int
+        if etype == 'ip':
+            key = ipstr2int(key)
+            record['_id'] = ipstr2int(record['_id'])
+        
         # Store hostname reversed
         if record and 'hostname' in record and record['hostname'] is not None:
             record['hostname'] = record['hostname'][::-1]
@@ -106,6 +116,32 @@ class MongoEntityDatabase():
         
         Return list of keys of matching entities.
         """
-        return list(map(itemgetter('_id'), self._db[etype].find(filter=mongo_query, projection={'_id': 1}, **kwargs)))
+        if etype == 'ip':
+            return list(map(lambda rec: int2ipstr(rec['_id']), self._db[etype].find(filter=mongo_query, projection={'_id': 1}, **kwargs)))
+        else:
+            return list(map(itemgetter('_id'), self._db[etype].find(filter=mongo_query, projection={'_id': 1}, **kwargs)))
 
+    def delete(self, etype, key):
+        """
+        Delete an entity specified with the key.
+        """
+        if etype not in self._supportedTypes:
+            raise UnknownEntityType("There is no collection for entity type "+str(etype))
 
+        if etype == 'ip':
+            key = ipstr2int(key)
+
+        self._db[etype].delete_one({'_id': key})
+
+    def aggregate(self, etype, mongo_query):
+        """
+        Aggregates all the records, which do meet certain condition (monqo query)
+
+        :param etype: entity type (str), e.g. 'ip'
+        :param mongo_query: aggregation query in pymongo format
+        :return:
+        """
+        if etype not in self._supportedTypes:
+            raise UnknownEntityType("There is no collection for entity type " + str(etype))
+
+        return list(self._db[etype].aggregate([mongo_query]))

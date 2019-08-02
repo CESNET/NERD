@@ -1,9 +1,0 @@
-pyyaml
-pymongo
-psycopg2
-dnspython
-geoip2
-pygeoip
-pycares
-shodan
-apscheduler

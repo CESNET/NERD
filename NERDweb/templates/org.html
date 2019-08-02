@@ -5,16 +5,17 @@
 
 {% if not org or not ac('ipsearch') %}
   {# Print nothing if no org was passed or insufficient permissions #}
-{% elif not rec %}
-  <hr>
-  <p class="msg info notfound">Organization '{{ org }}' not in database.</p>
 {% else %}
 
 <hr>
 
 <div class="entity-info org">
-<p class="header"><span class="rep" style="background-color: {{ rep_css_color(rec.rep) }}">
-  {{- "%.3f"|format(rec.rep)|replace("0.",".") if rec.rep is defined else "--" }}</span><span class="entity-id">{{ rec.name if rec.name else org }}</span><span class="entity-name">{{ '('+org+')' if rec.name else '' }}</span></p>
+<p class="header"><span class="entity-id">{{ rec.name if rec.name else org }}</span><span class="entity-name">{{ '('+org+')' if rec.name else '' }}</span></p>
+
+{% if not rec %}
+<p class="notfound">Record not found in database</p>
+{% else %}
+
 
 <dl class="attrs">
 {% for attr,val in rec|dictsort %}
@@ -43,5 +44,6 @@
 </dl>
 </div>
 {% endif %}{# if not found #}
+{% endif %}{# if nothing specified #}
 
 {% endblock %}

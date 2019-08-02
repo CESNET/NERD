@@ -27,16 +27,17 @@ def hierarchical_get(self, key, default=NoDefault):
             d = d[first_key]
         return d[key]
     except KeyError:
-        if default is NoDefault:
-            raise MissingConfigError("Mandatory configuration element is missing: " + key)
-        else:
-            return default
+        pass # not found - continue below
+    if default is NoDefault:
+        raise MissingConfigError("Mandatory configuration element is missing: " + key)
+    else:
+        return default
 
 def hierarchical_update(self, other):
     """
     Update HierarchicalDict with other dictionary and merge common keys.
     
-    If there is a key in both current and the other dictionary and vlaues of
+    If there is a key in both current and the other dictionary and values of
     both keys are dictionaries, they are merged together.
     Example:
       HierarchicalDict({'a': {'b': 1, 'c': 2}}).update({'a': {'b': 10, 'd': 3}})
@@ -73,7 +74,7 @@ def read_config(file):
     """
     Read configuration file and return config as a dict-like object.
     
-    The configuration file shoud contain a valid YAML
+    The configuration file should contain a valid YAML
     - Comments may be included as lines starting with '#' (optionally preceded
       by whitespaces).
 
@@ -82,7 +83,7 @@ def read_config(file):
     hierarchical keys (e.g. 'abc.x.y'). See doc of "hierarchical_get" function
     for more information.
     """
-    return HierarchicalDict(yaml.load(open(file)))
+    return HierarchicalDict(yaml.safe_load(open(file)))
 
 # ***** Unit tests *****
 # TODO 'update' is tested only, test 'get' as well

@@ -39,7 +39,7 @@ class Shodan(NERDModule):
     def __init__(self):
         self.log = logging.getLogger('Shodan')
         #self.log.setLevel("DEBUG")
-        self.errors = 0 # Number of API errors that has occured
+        self.errors = 0 # Number of API errors that has occurred
         self.enabled = True
         
         self.apikey = g.config.get('shodan.apikey', None)
@@ -49,7 +49,7 @@ class Shodan(NERDModule):
         
         try:
             self.client = shodan.Shodan(key=self.apikey)
-            self.client.info() # Test connection and validy of the key
+            self.client.info() # Test connection and validity of the key
         except shodan.exception.APIError as e:
             self.log.error("Cannot initialize Shodan module: {}".format(str(e)))
             self.log.error("Shodan module disabled.")
@@ -72,7 +72,7 @@ class Shodan(NERDModule):
         Arguments:
         ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
         rec -- record currently assigned to the key
-        updates -- list of all attributes whose update triggerd this call and  
+        updates -- list of all attributes whose update triggered this call and  
           their new values (or events and their parameters) as a list of 
           2-tuples: [(attr, val), (!event, param), ...]
         

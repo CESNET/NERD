@@ -1,17 +1,3 @@
------- users ------
-CREATE TABLE IF NOT EXISTS users (
-	id	VARCHAR PRIMARY KEY,
-	groups	VARCHAR[] NOT NULL,
-	name	VARCHAR,
-	email	VARCHAR,
-	org	VARCHAR,
-	api_token	VARCHAR
-);
--- testing user (used when testing on localhost by directly running nerd_main.py)
-INSERT INTO users (id,groups,name,email) VALUES ('test_user','{"registered","test"}','Mr. Test','test@example.org') ON CONFLICT DO NOTHING;
-INSERT INTO users (id,groups,name,api_token) VALUES ('api_user','{"registered"}','API_USER','Wj09BuhVMi') ON CONFLICT DO NOTHING;
-
-
 ------ event database (IDEA messages) ------
 CREATE TABLE IF NOT EXISTS events (
     id          VARCHAR PRIMARY KEY,

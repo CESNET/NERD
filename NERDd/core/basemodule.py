@@ -7,7 +7,7 @@
 # Arguments:
 # ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
 # rec -- record currently assigned to the key
-# updates -- list of all attributes whose update triggerd this call and their 
+# updates -- list of all attributes whose update triggered this call and their 
 #   new values (or events and their parameters) as a list of 2-tuples:
 #   [(attr, val), (!event, param), ...]
 # 
@@ -24,7 +24,7 @@ class NERDModule:
         Run the module - used to run own thread if needed.
         
         Called after initialization, may be used to create and run a separate
-        thread if needed by the module. Do nothing unless overriden.
+        thread if needed by the module. Do nothing unless overridden.
         """
         pass
     
@@ -33,7 +33,7 @@ class NERDModule:
         Stop the module - used to stop own thread.
         
         Called before program exit, may be used to finalize and stop the 
-        separate thread if it is used. Do nothing unless overriden.
+        separate thread if it is used. Do nothing unless overridden.
         """
         pass
     

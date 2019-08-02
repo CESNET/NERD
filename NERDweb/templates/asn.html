@@ -12,15 +12,16 @@
 
 {% if not asn or not ac('assearch') %}
   {# Print nothing if no ASN was passed #}
-{% elif not rec %}
-  <hr>
-  <p class="msg info notfound">AS{{asn}} not in database.</p>
 {% else %}
 
 <hr>
 
 <div class="entity-info asn">
 <p class="header"><span class="entity-id">AS{{ asn }}</span> <span class="entity-name">{{ rec.name }}</span></p>
+
+{% if not rec %}
+<p class="notfound">Record not found in database</p>
+{% else %}
 
 <dl class="attrs">
 {% for attr,val in rec|dictsort %}
@@ -50,5 +51,6 @@
 
 </div>
 {% endif %}{# if not found #}
+{% endif %}{# if nothing specified #}
 
 {% endblock %}

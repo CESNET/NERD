@@ -31,8 +31,7 @@ class Tags(NERDModule):
         self.log = logging.getLogger("Tags")
         #self.log.setLevel("DEBUG")
         
-        cfg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../etc/")
-        tags_config_file = os.path.join(cfg_dir, g.config.get("tags_config")) 
+        tags_config_file = os.path.join(g.config_base_path, g.config.get("tags_config")) 
         self.config = common.config.read_config(tags_config_file)
         self.tags_config = self.config.get("tags", {})
         self.tags = {}
@@ -46,7 +45,7 @@ class Tags(NERDModule):
             
             condition = self.parse_condition(tag_params["condition"])
             if condition is None:
-                self.log.error("Error occured when parsing condition of tag \"{}\" -> skipping tag.".format(tag_id))
+                self.log.error("Error occurred when parsing condition of tag \"{}\" -> skipping tag.".format(tag_id))
                 continue
            
             if "info" in tag_params:
@@ -195,12 +194,12 @@ class Tags(NERDModule):
         # Create appropriate update request for each tag which may be updated
         ret = []
 
-        # Remove all obsolate tags if event !refresh_tags is set
+        # Remove all obsolete tags if event !refresh_tags is set
         if refresh_all and "tags" in rec:
             for tag_id in rec["tags"]:
                 if tag_id not in tags_for_update:
-                    ret.append(('remove', 'tags.' + tag_id, None))
-                    self.log.debug("Obsolate tag {} has been deleted from record for IP {}.".format(tag_id,key))
+                    ret.append(('remove', 'tags.' + tag_id))
+                    self.log.debug("Obsolete tag {} has been deleted from record for IP {}.".format(tag_id,key))
 
         for tag_id in tags_for_update:
             # Update confidence or info in entity record if these values has been changed otherwise do nothing
@@ -224,7 +223,7 @@ class Tags(NERDModule):
                 self.log.debug("Tag {} is new for IP {} and has been added to record.".format(tag_id,key))
             # Remove tag which does not satisfy condition after attribute update
             elif "tags" in rec and tag_id in rec["tags"]:
-                ret.append(('remove', 'tags.' + tag_id, None))
+                ret.append(('remove', 'tags.' + tag_id))
                 self.log.debug("Tag {} has been deleted from record for IP {}.".format(tag_id,key))
 
         return ret
@@ -421,7 +420,7 @@ class Lexer:
 """
 AST
 
-Tree representation of abstract syntactic structure created from condition, confidence and info
+Tree representation of abstract syntactic structure created from condition and info
 """
 
 class Expr:
@@ -526,27 +525,32 @@ class Bop(Expr):
                 right_eval = 0
             else:
                 right_eval = 1
-        if self.op == PLUS:
-            return left_eval + right_eval
-        elif self.op == MINUS:
-            return left_eval - right_eval
-        elif self.op == TIMES:
-            return left_eval * right_eval
-        elif self.op == DIVIDE:
-            return left_eval / right_eval
-        elif self.op == EQ:
-            return left_eval == right_eval
-        elif self.op == NEQ:
-            return left_eval != right_eval
-        elif self.op == LT:
-            return left_eval < right_eval
-        elif self.op == GT:
-            return left_eval > right_eval
-        elif self.op == LTE:
-            return left_eval <= right_eval
-        elif self.op == GTE:
-            return left_eval >= right_eval
-
+        try:
+            if self.op == PLUS:
+                return left_eval + right_eval
+            elif self.op == MINUS:
+                return left_eval - right_eval
+            elif self.op == TIMES:
+                return left_eval * right_eval
+            elif self.op == DIVIDE:
+                try:
+                    return left_eval / right_eval
+                except ZeroDivisionError:
+                    return 0
+            elif self.op == EQ:
+                return left_eval == right_eval
+            elif self.op == NEQ:
+                return left_eval != right_eval
+            elif self.op == LT:
+                return left_eval < right_eval
+            elif self.op == GT:
+                return left_eval > right_eval
+            elif self.op == LTE:
+                return left_eval <= right_eval
+            elif self.op == GTE:
+                return left_eval >= right_eval
+        except Exception:
+            return False
 class In(Expr):
     """
     In node represents membership operator ("in" and "not in"). 

@@ -26,6 +26,7 @@ class HostnameClass(NERDModule):
         self.log = logging.getLogger("hostname_class")
         #self.log.setLevel("DEBUG")
         self.regex_hostname = g.config.get("hostname_tagging.regex_tagging", [])
+        self.regex_ip_in_hostname = g.config.get("hostname_tagging.regex_tagging_ip_in_hostname", [])
         self.regex_hostname = [(re.compile(regex, flags=re.ASCII), tag) for regex,tag in self.regex_hostname]
         self.known_domains = self.convert_domain_list_to_dict(g.config.get("hostname_tagging.known_domains", []))
 
@@ -90,16 +91,31 @@ class HostnameClass(NERDModule):
                 if tag not in tags:
                     tags.append(tag)
                 break
-        
+
+        # second simple implementation of ip in host check
+        ip_in_host_prob = 0
+        for octet in set(key.split(".")):
+            if octet in hostname:
+                ip_in_host_prob += 25
+        if ip_in_host_prob >= 50:
+            tags.append("ip_in_hostname")
+
         for regex in self.regex_hostname:
-            if regex[0].search(hostname):
+            search = regex[0].search(hostname)
+            if search:
                 tag = regex[1]
+                if tag == "ip_in_hostname":
+                    # check if captured ip address is really ip address of this hostname
+                    ip_adress_matched = all([group in key for group in search.groups() if group])
+                    if not ip_adress_matched:
+                        continue
+
                 self.log.debug("Hostname ({}) matches regex {} and has been classified as {}.".format(hostname, regex[0].pattern, tag))
                 if tag not in tags:
                     tags.append(tag)
-        
+
         if tags:
             return [('set', 'hostname_class', tags)]
         else:
             # If hostname_class existed previously but no rule matches now, remove the key
-            return [('remove', 'hostname_class', None)] 
+            return [('remove', 'hostname_class')] 

@@ -85,10 +85,6 @@ class DNSBLResolver(NERDModule):
     
     Event flow specification:
       !NEW -> query_blacklists -> bl.*
-    
-    TODO: periodic re-checking (but it might cause a lot more queries and 
-      for example spamhaus allows only 300,000 queries per day for free
-      -> we'll need paid subscription)
     """
     
     def __init__(self):
@@ -107,9 +103,13 @@ class DNSBLResolver(NERDModule):
 
         # Limit number of requests per day to avoid getting blocked by blacklist
         # providers
+        # TODO FIXME: storing counts to file can't be used in parallel version, it must be replaced with EventCountLogger
         if g.config.get('dnsbl.max_requests', None) and g.config.get('dnsbl.req_cnt_file', None):
             self.max_req_count = int(g.config.get('dnsbl.max_requests'))
             self.req_cnt_file = g.config.get('dnsbl.req_cnt_file')
+            if self.req_cnt_file:
+                self.log.warning("req_cnt_file is not supported in the parallel version, limit on number of requests per day won't work!")
+                self.req_cnt_file = None
             self.log.info("Maximal number of DNSBL requests per day set to {}.".format(self.max_req_count))
         else:
             self.max_req_count = float('inf')
@@ -157,13 +157,13 @@ class DNSBLResolver(NERDModule):
     def query_blacklists(self, ekey, rec, updates):
         """
         Query all configured blacklists and update the set of blacklists
-        the address is listed on, togerther with the time of query.
+        the address is listed on, together with the time of query.
         Updates 'bl' attribute.
         
         Arguments:
         ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
         rec -- record currently assigned to the key
-        updates -- list of all attributes whose update triggerd this call and  
+        updates -- list of all attributes whose update triggered this call and  
           their new values (or events and their parameters) as a list of 
           2-tuples: [(attr, val), (!event, param), ...]
         
@@ -222,11 +222,11 @@ class DNSBLResolver(NERDModule):
                 if blname in results:
                     # IP is on blacklist blname
                     self.log.debug("IP address ({0}) is on {1}.".format(key, blname))
-                    actions.append( ('array_upsert', 'bl', ({'n': blname}, [('set', 'v', 1), ('set', 't', req_time), ('append', 'h', req_time)])) )
+                    actions.append( ('array_upsert', 'bl', {'n': blname}, [('set', 'v', 1), ('set', 't', req_time), ('append', 'h', req_time)]) )
                 else:
                     # IP is not on blacklist blname
                     self.log.debug("IP address ({0}) is not on {1}.".format(key, blname))
-                    actions.append( ('array_update', 'bl', ({'n': blname}, [('set', 'v', 0), ('set', 't', req_time)])) )
+                    actions.append( ('array_update', 'bl', {'n': blname}, [('set', 'v', 0), ('set', 't', req_time)]) )
                     # Note: array_update change the record only if the matching element is there, if the IP wasn't on the blacklist before, it does nothing
         
         return actions

@@ -1,8 +1,5 @@
 """
 NERD module clearing old entries from entity records.
-
-This only removes old parts of records (like metadata about evetns),
-whole records are removed by an external script.
 """
 import logging
 from datetime import datetime, timedelta
@@ -23,6 +20,8 @@ class Cleaner(NERDModule):
         #self.log.setLevel("DEBUG")
 
         max_event_history = g.config.get("max_event_history")
+        ip_lifetime = g.config.get("inactive_ip_lifetime")
+        self.ip_lifetime = timedelta(days=ip_lifetime)
         self.max_event_history = timedelta(days=max_event_history)
 
         g.um.register_handler(
@@ -36,6 +35,12 @@ class Cleaner(NERDModule):
             'ip',
             ('!every1d',),
             tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
+        )
+        g.um.register_handler(
+            self.check_ip_expiration,
+            'ip',
+            ('!check_and_update_1d',),
+            tuple()
         )
 
 
@@ -56,7 +61,7 @@ class Cleaner(NERDModule):
         # Remove all event-records with day before cut_day
         actions = []
         num_events = 0
-        for evtrec in rec['events']:
+        for evtrec in rec.get('events', []):
             if evtrec['date'] < cut_day: # Thanks to ISO format it's OK to compare dates as strings
                 actions.append( ('array_remove', 'events', {'date': evtrec['date'], 'node': evtrec['node'], 'cat': evtrec['cat']}) )
             else:
@@ -84,8 +89,8 @@ class Cleaner(NERDModule):
         cut_time = datetime.utcnow() - self.max_event_history
 
         actions = []
-        for blrec in rec['bl']:
-            name = blrec['n']
+        # IP blacklists
+        for blrec in rec.get('bl', []):
             # Create a new list without the old records
             newlist = [ts for ts in blrec['h'] if ts > cut_time]
             if len(newlist) == 0:
@@ -93,8 +98,39 @@ class Cleaner(NERDModule):
                 actions.append( ('array_remove', 'bl', {'n': blrec['n']}) )
             elif len(newlist) != len(blrec['h']):
                 # If something was removed, replace the list in the record with the new one
-                actions.append( ('array_update', 'bl', ({'n': blrec['n']}, [('set', 'h', newlist)])) )
+                actions.append( ('array_update', 'bl', {'n': blrec['n']}, [('set', 'h', newlist)]) )
+        
+        # Domain blacklists
+        for blrec in rec.get('dbl', []):
+            # Create a new list without the old records
+            newlist = [ts for ts in blrec['h'] if ts > cut_time]
+            if len(newlist) == 0:
+                # Everything was removed -> remove whole blacklist-record
+                actions.append( ('array_remove', 'dbl', {'n': blrec['n'], 'd': blrec['d']}) )
+            elif len(newlist) != len(blrec['h']):
+                # If something was removed, replace the list in the record with the new one
+                actions.append( ('array_update', 'dbl', {'n': blrec['n'], 'd': blrec['d']}, [('set', 'h', newlist)]) )
         
         return actions
 
+    def check_ip_expiration(self, ekey, rec, updates):
+        """
+        Handler function to issue !every1d event in case the IP record is still valid.
+        If the IP record is no longer valid, a !DELETE event is issued.
+        """
+        etype, key = ekey
+        if etype != 'ip':
+            return None
 
+        actions = []
+        if 'ts_last_event' in rec:
+            diff = datetime.utcnow() - rec['ts_last_event']
+            if diff >= self.ip_lifetime:
+                # last event is too old - delete record
+                actions.append(('event', '!DELETE'))
+                return actions
+        
+        # last event is recent enough or not set at all - keep record and
+        # issue normal !every1d event        
+        actions.append(('event', '!every1d'))
+        return actions

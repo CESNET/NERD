@@ -6,9 +6,11 @@ acl_config: acl
 
 # Secret key used by Flask for various security purposes
 # Set this to an arbitrary long-enough string, use e.g.:
-# >>> import os
-# >>> os.urandom(24)
+# head -c 24 /dev/urandom | base64
 secret_key: "!!! CHANGE THIS !!!"
+
+# Show "BETA" label over logo in web header
+beta_label: true
 
 # URL of NERDweb root (without trailing slash, e.g. "/nerd")
 # All NERDweb pages are relative to this
@@ -26,7 +28,7 @@ login:
       id_field: REMOTE_USER
       # Path to .htpasswd file with usernames and passwords (relative to NERD's "etc" dir)
       # Note that the file must be accessible by web server for both read and write (to allow password change)
-      htpasswd_file: ".htpasswd"
+      htpasswd_file: "htpasswd"
 
 #    shibboleth:
 #      display: EduGAIN
@@ -40,11 +42,24 @@ login:
 #      email_field: mail
 #      logout_path: "/Shibboleth.sso/Logout?return=/nerd/"
 
-  # TODO get this automatically
-  return-path: "/nerd/"
   # Where to send emails about account requests
   # !!! Fill this when shibboleth is enabled !!!
   request-email: ''
+
+rate-limit:
+  # Rate-limiter default parameters (applied unless overridden for specific user).
+  # Token bucket algorithm is used. Bucket size: maximum number of tokens per 
+  # user (how big burst of requests is allowed until rate-limitng applies).
+  # Tokens per second: rate of bucket refilling (maximum long-term rate of 
+  # requests)
+  # Default: 1 token/sec, bucket size of 60  
+  tokens-per-sec: 1
+  bucket-size: 60
+  # Selection of Redis instance and DB index (default: localhost:6379/1)
+  redis:
+    # host: localhost
+    # port: 6379
+    db-index: 1
 
 # (Optional) URL to find alert of an IP in Mentat ('$IP' is replaced by the IP)
 # Link is shown to users with "mentat" permission only.

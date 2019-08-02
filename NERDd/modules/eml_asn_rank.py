@@ -26,11 +26,12 @@ class EML_ASN_rank(NERDModule):
         if not self.url or not self.apikey:
             self.log.warning("API URL or key not set, EML ASN rank module disabled.")
             return
+        self.log.debug("EML ASN Rank module initialized")
         
         g.um.register_handler(
             self.get_rank,
             'asn',
-            ('!NEW','!refresh_eml_rank'),
+            ('!NEW','every1d','!refresh_eml_rank'),
             ('eml_rank',)
         )
     
@@ -41,7 +42,7 @@ class EML_ASN_rank(NERDModule):
         Arguments:
         ekey -- two-tuple of entity type and key, e.g. ('ip', '192.0.2.42')
         rec -- record currently assigned to the key
-        updates -- list of all attributes whose update triggerd this call and  
+        updates -- list of all attributes whose update triggered this call and  
           their new values (or events and their parameters) as a list of 
           2-tuples: [(attr, val), (!event, param), ...]
 
@@ -58,6 +59,7 @@ class EML_ASN_rank(NERDModule):
             r.raise_for_status()
             data = r.json()
             rank = float(data['asnrankinfo']['asnrank'])
+            #self.log.debug("Setting EML ASN Rank of {} to {}".format(key, rank))
         except Exception as e:
             self.log.error("Can't get rank for AS{}: {}".format(key, repr(e)))
             return None

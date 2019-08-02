@@ -7,7 +7,7 @@ import psycopg2
 import sys
 from flask import flash
 
-__all__ = ['get_user_info']
+__all__ = ['get_user_info', 'get_all_groups', 'authenticate_with_token', 'generate_unique_token']
 
 def init(config, cfg_dir):
     """
@@ -19,7 +19,7 @@ def init(config, cfg_dir):
     acl_cfg_file = os.path.join(cfg_dir, config.get('acl_config'))
 
     # Create database connection
-    db = psycopg2.connect(database=config.get('userdb.dbname', 'nerd'),
+    db = psycopg2.connect(database=config.get('userdb.dbname', 'nerd_users'),
                           user=config.get('userdb.dbuser', 'nerd'),
                           password=config.get('userdb.dbpassword', None))
     db.autocommit = True # don't use transactions, every action have immediate effect
@@ -30,6 +30,7 @@ def init(config, cfg_dir):
     # and must not be in any of "groups_deny".
     # Format (one resource per line):
     # <resource_id> <comma_separated_list_of_groups_allow>[;<comma_separated_list_of_groups_deny>]
+    # (* means anyone)
     acl = {}
     with open(acl_cfg_file, 'r') as f:
         for line in f:
@@ -42,6 +43,16 @@ def init(config, cfg_dir):
             acl[id] = (allow, deny)
 
 
+def get_all_groups():
+    """Return all groups defined in the "acl" file."""
+    groups = set()
+    for allow,deny in acl.values():
+        groups.update(allow)
+        groups.update(deny)
+    groups.discard('*')
+    return sorted(list(groups))
+
+
 # ***** Access control functions *****
 
 def get_user_groups(full_id):
@@ -49,21 +60,26 @@ def get_user_groups(full_id):
     cur.execute("SELECT groups FROM users WHERE id = %s", (full_id,))
     row = cur.fetchone()
     if not row:
-        return set(['notregistered']) # Unknown user
+        return set() # Unknown user - no group
     return set(row[0])
 
 
 def get_ac_func(user_groups):
     """Return a function for testing access permissions of a specific user."""
+    user_groups2 = user_groups.copy()
+    user_groups2.add('*') # every user is in group '*', so acl rule containing '*' always matches
     def ac(resource):
         """"
         Access control test - check if current user has access to given resource.
         """
-        if resource in acl and acl[resource][0] & user_groups and not acl[resource][1] & user_groups:
+        if resource in acl and acl[resource][0] & user_groups2 and not acl[resource][1] & user_groups2:
             return True
         else:
             return False
     return ac
+
+
+# TODO - split authentication and authorization/get_user_information
 
 def get_user_info(session):
     """
@@ -74,32 +90,27 @@ def get_user_info(session):
       user, ac = get_user_info(session)
     
     'user' contains:
-      login_type, id, fullid, groups, name, email, org, api_id, api_secret
-      `----------v---------'  `-----------v------------------------------'
+      login_type, id, fullid, groups, name, email, org, api_token, rl-bs, rl-tps
+      `----------v---------'  `-----------v------------------------------------'
             from session            from database (find by 'fullid')
     """
     # Get ID of user logged in
     if 'user' in session:
         user = session['user'].copy() # should contain 'id', 'login_type' and optionally 'name'
         user['fullid'] = user['login_type'] + ':' + user['id']
-    elif cfg.testing:
-        user = {
-            'login_type': '',
-            'id': 'test_user',
-            'fullid': 'test_user',
-        }
     else:
         # No user logged in
-        return None, lambda x: False
+        return None, get_ac_func(set())
     
     # Get user info from DB
+    # TODO: get only what is normally needed (id, groups, name (to show in web header), rl-*)
     cur = db.cursor()
     cur.execute("SELECT * FROM users WHERE id = %s", (user['fullid'],))
     col_names = [col.name for col in cur.description]
     row = cur.fetchone()
     if not row:
         # User not found in DB = user is authenticated (e.g. via shibboleth) but has no account yet
-        user['groups'] = set(['notregistered'])
+        user['groups'] = set()
         return user, get_ac_func(user['groups'])
     
     # Put all fields from DB into 'user' dict
@@ -113,17 +124,25 @@ def get_user_info(session):
     if isinstance(user['name'], bytes):
         user['name'] = user['name'].decode('utf-8') if user['name'] else None
     
-    ac = get_ac_func(user['groups'])
+    # If the user is in "admin" group, he can select groups that take effect.
+    # The set of selected groups is stored as "selected_groups" in the session
+    # (which was copied into "user").
+    if 'admin' in user['groups'] and 'selected_groups' in user:
+        ac = get_ac_func(set(user['selected_groups']))
+    else:
+        ac = get_ac_func(user['groups'])
     return user, ac
 
+
 def authenticate_with_token(token):
+    """Like get_user_info, but authentication uses API token"""
     user = {}
     cur = db.cursor()
     cur.execute("SELECT * FROM users WHERE api_token = %s", (token,))
     col_names = [col.name for col in cur.description]
     row = cur.fetchone()
     if not row:
-        return None, lambda x: False
+        return None, lambda x: False # user not found
 
     col_names[0] = 'fullid' # rename column 'id' to 'fullid', other columns can be mapped directly as they are in DB
     user.update(zip(col_names, row))
