@@ -13,6 +13,11 @@ redis:
 #   url (http(s):// or file://, if local file is used, it should be updated by external cron script)
 #   regex to parse the file (should match on IP address) or empty if there are only IP addresses, one per line (lines beginning with '#' are ignored),
 #       or just fill regex with searching for IP, IP prefix or domain without group, if the whole blacklist is on one line or has multiple records on on line
+#       - you can use special substitutions for IP address or CIDR IP address
+#         - "//A" can be used for IP address, in interal part it will be substituted for IP regex
+#         - "//CA" can be used for CIDR prefix (192.168.0.0/16)
+#       IP address regex example, where IP address starts on every line:
+          "^(//A)"
 #   refresh time (cron-like specification of when the list should be updated (in UTC), see https://apscheduler.readthedocs.io/en/latest/modules/triggers/cron.html for details)
 iplists:
 - - feodo
@@ -30,19 +35,19 @@ iplists:
 - - ransomware
   - Ransomware (IP)
   - https://ransomwaretracker.abuse.ch/downloads/RW_IPBL.txt
-  - "([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)"
+  - "(\\A)"
   - hour: 4
     minute: 50
 - - bruteforceblocker
   - Daniel Gerzo's BruteForceBlocker
   - http://danger.rulez.sk/projects/bruteforceblocker/blist.php
-  - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)"
+  - "^(\\A)"
   - hour: 4
     minute: 52
 - - urlvir
   - URL Vir
   - http://www.urlvir.com/export-ip-addresses
-  - "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+  - ""
   - hour: 6
     minute: 0
 - - andoniafMiners
@@ -87,13 +92,13 @@ prefixiplists:
 - - dshield
   - DShield.org Recommended Block List
   - https://www.dshield.org/block.txt
-  - "([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})\\s*([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})"
+  - "(\\A)\\s*(\\A)"
   - hour: 4
     minute: 50
 #- - amazonAWS
 #  - Amazon AWS
 #  - https://ip-ranges.amazonaws.com/ip-ranges.json
-#  - "\"ip_prefix\": \"([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\/[0-9]{1,2})\""
+#  - "\"ip_prefix\": \"(\\CA)\""
 #  - hour: 4
 #    minute: 50
 

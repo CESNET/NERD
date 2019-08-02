@@ -125,6 +125,12 @@ def get_blacklist(id, name, url, regex, bl_type="ip"):
     # Parse the list
     bl_records = []
     if regex:
+        if "\\A" in regex:
+            # replace "special" configuration character for IP address
+            regex = regex.replace("\\A", "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
+        if "\\CA" in regex:
+            # replace "special" configuration character for CIDR IP address (192.168.0.0/16)
+            regex = regex.replace("\\CA", "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}")
         cregex = re.compile(regex)
         if cregex.groups == 0:
             # if there are no groups in regex (most probably blacklist with multiple records on one line), try to find
@@ -181,7 +187,7 @@ def get_blacklist(id, name, url, regex, bl_type="ip"):
         else:
             # records of blacklist are formatted as one IP record per line and does not need additional parsing
             bl_records_non_validated = [line.strip() for line in data.split('\n') if not line.startswith('#') and
-                                        line.strip()]
+                                        line.strip() and not line.startswith("//")]
             if bl_type == "ip":
                 for record in bl_records_non_validated:
                     try:
