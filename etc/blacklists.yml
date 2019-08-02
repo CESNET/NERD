@@ -14,12 +14,6 @@ redis:
 #   regex to parse the file (should match on IP address) or empty if there are only IP addresses, one per line (lines beginning with '#' are ignored),
 #   refresh time (cron-like specification of when the list should be updated (in UTC), see https://apscheduler.readthedocs.io/en/latest/modules/triggers/cron.html for details)
 iplists:
-- - zeus
-  - ZeuS tracker
-  - https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist
-  - ""
-  - hour: 4
-    minute: 50
 - - feodo
   - Feodo tracker
   - https://feodotracker.abuse.ch/downloads/ipblocklist.txt
@@ -44,6 +38,30 @@ iplists:
   - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)"
   - hour: 4
     minute: 52
+- - urlvir
+  - URL Vir
+  - http://www.urlvir.com/export-ip-addresses
+  - "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
+  - hour: 6
+    minute: 0
+- - andoniafMiners
+  - Andoniaf Miners
+  - https://raw.githubusercontent.com/andoniaf/mining-pools-list/master/mining-pools_IP.lst
+  - ""
+  - hour: 4
+    minute: 50
+- - ciarmy
+  - CI Army - BadGuys
+  - http://cinsscore.com/list/ci-badguys.txt
+  - ""
+  - hour: 4
+    minute: 50
+- - malc0de
+  - Malc0de
+  - https://malc0de.com/bl/IP_Blacklist.txt
+  - ""
+  - hour: 4
+    minute: 50
 # The following blacklists should be rsynced to local files by scripts in
 # cron, therefore they're not available until those scripts are set up and
 # therefore they're disabled by default.
@@ -79,18 +97,6 @@ prefixiplists:
 #    minute: 50
 
 domainlists:
-- - zeus
-  - ZeuS tracker (domains)
-  - https://zeustracker.abuse.ch/blocklist.php?download=baddomains
-  - ""
-  - hour: 4
-    minute: 50
-- - feodo
-  - Feodo tracker (domains)
-  - https://feodotracker.abuse.ch/blocklist/?download=domainblocklist
-  - ""
-  - hour: 4
-    minute: 50
 - - ransomware
   - Ransomware (domains)
   - https://ransomwaretracker.abuse.ch/downloads/RW_DOMBL.txt
@@ -103,3 +109,16 @@ domainlists:
   - "^\\t\\t([^\\s]*)"
   - hour: 4
     minute: 55
+- - openphish
+  - openphis.com
+  - https://openphish.com/feed.txt
+  - ""
+  - hour: 4
+    minute: 50
+- - booters
+  - Booters
+  - https://raw.githubusercontent.com/jjsantanna/booters_ecosystem_analysis/master/booterblacklist.csv
+  - "^[0-9]*?,(.*?)$"
+  - hour: 4
+    minute: 50
+

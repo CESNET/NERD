@@ -126,27 +126,48 @@ def get_blacklist(id, name, url, regex, bl_type="ip"):
     bl_records = []
     if regex:
         cregex = re.compile(regex)
-        for line in data.split('\n'):
-            match = cregex.search(line)
-            if match:
-                # there may be two groups for capturing start IP and end IP of prefix IP BL, depends on BL format
+        if cregex.groups == 0:
+            # if there are no groups in regex (most probably blacklist with multiple records on one line), try to find
+            # all occurrences
+            all_records = cregex.finditer(data)
+            for ip_match in all_records:
+                # for every occurrence found, check if IP address valid and add it to bl_records
+                record_start = ip_match.span()[0]
+                record_end = ip_match.span()[1]
                 try:
-                    if cregex.groups == 2 and bl_type == "prefixIP":
-                        range_start = ipaddress.IPv4Address(match.group(1))
-                        range_end = ipaddress.IPv4Address(match.group(2))
-                        # save in cidr notation to later better handle prefix overlaps
-                        prefix_in_cidr = [ipaddr for ipaddr in ipaddress.summarize_address_range(range_start, range_end)]
-                        bl_records += prefix_in_cidr
+                    if "/" in data[record_start:record_end] and bl_type == "prefixIP":
+                        # range IP blacklist
+                        bl_records.append(ipaddress.IPv4Network(data[record_start:record_end]))
+                    elif bl_type == "ip":
+                        # classic IP address blacklist
+                        bl_records.append(str(ipaddress.IPv4Address(data[record_start:record_end])))
                     else:
-                        if "/" in match.group(1) and bl_type == "prefixIP":
-                            # prefix BL in CIDR format, get ip_network instance, which creates list of included IP
-                            # addresses
-                            prefix_network = ipaddress.IPv4Network(match.group(1))
-                            bl_records.append(prefix_network)
-                        else:
-                            bl_records.append(match.group(1) if bl_type == "domain" else str(ipaddress.IPv4Address(match.group(1))))
+                        # domain blacklist
+                        bl_records.append(data[record_start:record_end])
                 except ipaddress.AddressValueError:
                     continue
+        else:
+            for line in data.split('\n'):
+                match = cregex.search(line)
+                if match:
+                    # there may be two groups for capturing start IP and end IP of prefix IP BL, depends on BL format
+                    try:
+                        if cregex.groups == 2 and bl_type == "prefixIP":
+                            range_start = ipaddress.IPv4Address(match.group(1))
+                            range_end = ipaddress.IPv4Address(match.group(2))
+                            # save in cidr notation to later better handle prefix overlaps
+                            prefix_in_cidr = [ipaddr for ipaddr in ipaddress.summarize_address_range(range_start, range_end)]
+                            bl_records += prefix_in_cidr
+                        else:
+                            if "/" in match.group(1) and bl_type == "prefixIP":
+                                # prefix BL in CIDR format, get ip_network instance, which creates list of included IP
+                                # addresses
+                                prefix_network = ipaddress.IPv4Network(match.group(1))
+                                bl_records.append(prefix_network)
+                            else:
+                                bl_records.append(match.group(1) if bl_type == "domain" else str(ipaddress.IPv4Address(match.group(1))))
+                    except ipaddress.AddressValueError:
+                        continue
     else:
         if bl_type == "prefixIP":
             # prefix BL in CIDR format, get ip_network instance, which creates list of included IP addresses
