@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
     # Configure RabbitMQ
     rabbit_config = config.get("rabbitmq")
-    task_queue_writer = common.task_queue.TaskQueueWriter(rabbit_config, workers=num_processes)
+    task_queue_writer = common.task_queue.TaskQueueWriter(num_processes, rabbit_config)
     task_queue_writer.connect()
 
     # Configure database
