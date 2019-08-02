@@ -12,6 +12,7 @@ redis:
 #   name (for humans),
 #   url (http(s):// or file://, if local file is used, it should be updated by external cron script)
 #   regex to parse the file (should match on IP address) or empty if there are only IP addresses, one per line (lines beginning with '#' are ignored),
+#       or just fill regex with searching for IP, IP prefix or domain without group, if the whole blacklist is on one line or has multiple records on on line
 #   refresh time (cron-like specification of when the list should be updated (in UTC), see https://apscheduler.readthedocs.io/en/latest/modules/triggers/cron.html for details)
 iplists:
 - - feodo
