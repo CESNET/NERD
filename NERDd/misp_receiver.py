@@ -67,7 +67,8 @@ rabbit_config = config.get("rabbitmq")
 db = mongodb.MongoEntityDatabase(config)
 
 # rabbitMQ
-tq_writer = TaskQueueWriter(rabbit_config)
+num_processes = config.get('worker_processes')
+tq_writer = TaskQueueWriter(num_processes, rabbit_config)
 
 # load MISP instance configuration
 misp_key = config.get('misp.key', None)

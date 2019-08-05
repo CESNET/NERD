@@ -285,10 +285,10 @@ class UpdateManager:
         self._queues = [queue.Queue(10) for _ in range(self.num_threads)]
 
         # Connections to main task queue
-        # One global reader  - it reads tasks from a single queue (one queue per process) and distributes them to worker threads
+        # Reader - reads tasks from a pair of queues (one pair per process) and distributes them to worker threads
         self._task_queue_reader = TaskQueueReader(self._distribute_task, self.process_index, self.rabbit_params)
-        # One writer per thread (writer is not thread safe, each thread must have its own connection)
-        self._task_queue_writers = [TaskQueueWriter(self.rabbit_params, self.num_processes) for _ in range(self.num_threads)]
+        # Writer - allows modules to write new tasks
+        self._task_queue_writer = TaskQueueWriter(self.num_processes, self.rabbit_params)
 
         # Object to store thread-local data (e.g. worker-thread index) (each thread sees different object contents)
         self._current_thread_data = threading.local()
@@ -378,15 +378,18 @@ class UpdateManager:
         ekey -- Entity type and key (2-tuple)
         update_requests -- list of update_request n-tuples (see the comments in the beginning of file)
         """
-        queue_writer = self._task_queue_writers[self._current_thread_data.index]
         # Put task to priority queue, so this can never block due to full queue
-        queue_writer.put_task(ekey[0], ekey[1], update_requests, priority=True)
+        self._task_queue_writer.put_task(ekey[0], ekey[1], update_requests, priority=True)
 
 
     # ############### Task distribution & control functions ###############
 
     def start(self):
         """Run the worker threads and start consuming from TaskQueue."""
+        self.log.info("Connecting to RabbitMQ")
+        self._task_queue_reader.connect()
+        self._task_queue_writer.connect()
+
         self.log.info("Starting {} worker threads".format(self.num_threads))
         self.running = True
         self._worker_threads = [
@@ -397,6 +400,7 @@ class UpdateManager:
 
         self.log.info("Starting consuming tasks from main queue")
         self._task_queue_reader.start()
+
 
     def stop(self):
         """
@@ -415,6 +419,9 @@ class UpdateManager:
         # Wait until all workers stopped
         for worker in self._worker_threads:
             worker.join()
+
+        self._task_queue_reader.disconnect()
+        self._task_queue_writer.disconnect()
 
         # Stop logging scheduler
         # TODO won't be needed when EventCountLogger is used
@@ -478,7 +485,7 @@ class UpdateManager:
             msg_id, etype, eid, updreq = task
 
             # Acknowledge receipt of the task (regardless of success/failre of its processing)
-            self._task_queue_reader.ack_msg(msg_id)
+            self._task_queue_reader.ack(msg_id)
 
             # Process the task
             self._process_update_req(etype, eid, updreq)
