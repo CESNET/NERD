@@ -17,7 +17,7 @@ redis:
 #         - "//A" can be used for IP address, in interal part it will be substituted for IP regex
 #         - "//CA" can be used for CIDR prefix (192.168.0.0/16)
 #       IP address regex example, where IP address starts on every line:
-          "^(//A)"
+#         "^(//A)"
 #   refresh time (cron-like specification of when the list should be updated (in UTC), see https://apscheduler.readthedocs.io/en/latest/modules/triggers/cron.html for details)
 iplists:
 - - feodo

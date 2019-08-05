@@ -8,6 +8,7 @@ echob "=============== Prepare environment =============="
 
 echob "** Creating user 'nerd' **"
 
+groupadd nerd
 useradd --system --home-dir /nerd --shell /sbin/nologin -g nerd nerd
 
 

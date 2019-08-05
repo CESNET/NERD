@@ -162,7 +162,8 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
         <dd><b>Targets number: </b>{{ val.targets }}</dd>
         <dd><b>First date: </b>{{ val.mindate }}</dd>
         <dd><b>Most recent date:  </b>{{ val.maxdate }}</dd>
-    <dd><b>Details <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">here</a></b></dd>
+        <dd><b>IP summary <a href="https://isc.sans.edu/ipinfo.html?ip={{ ip }}">here</a></b></dd>
+        <dd><b>Reports details <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">here</a></b></dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}

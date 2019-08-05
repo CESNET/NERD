@@ -1,24 +1,24 @@
 """
 NERD module for getting data from DShield API.
 
-API documentation (with xml response example):
+API documentation (with xml response example, but module uses json):
 https://isc.sans.edu/api/#ip
-
+XML: https://isc.sans.edu/api/ip/70.91.145.10
+vs
+JSON: https://isc.sans.edu/api/ip/70.91.145.10?json
 """
 
 from core.basemodule import NERDModule
 import g
 
-from copy import copy
-import xml.etree.ElementTree as ET
 import requests
 import logging
 import json
 
+
 class DShield(NERDModule):
     """
     NERD class for getting data from DShield API.
-
     """
 
     def __init__(self):
@@ -45,51 +45,33 @@ class DShield(NERDModule):
 
         try:
             # get response from server
-            response = requests.get("http://isc.sans.edu/api/ip/" + ekey[1])
-            # parse xml response
-            root = ET.fromstring(response.text)
-            # make a dict from the response
-            dict_response = self.dictify(root)
-            reports = targets = mindate = maxdate = ""
+            response = requests.get("http://isc.sans.edu/api/ip/" + ekey[1] + "?json")
+            data = json.loads(response.content.decode('utf-8'))['ip']
+
+            dshield_record = {
+                'reports': 0,
+                'targets': 0,
+                'mindate': "",
+                'maxdate': "",
+            }
 
             # server can return no values, if it has no record of this IP
-            if "value" in dict_response["ip"]["count"][0].keys():
-                reports = dict_response["ip"]["count"][0]["value"]
-            if "value" in dict_response["ip"]["attacks"][0].keys():
-                targets = dict_response["ip"]["attacks"][0]["value"]
-            if "value" in dict_response["ip"]["mindate"][0].keys():
-                mindate = dict_response["ip"]["mindate"][0]["value"]
-            if "value" in dict_response["ip"]["maxdate"][0].keys():
-                maxdate = dict_response["ip"]["maxdate"][0]["value"]
+            if data['count']:
+                dshield_record['reports'] = data['count']
+            if data['attacks']:
+                dshield_record['targets'] = data['attacks']
+            if data['mindate']:
+                dshield_record['mindate'] = data['mindate']
+            if data['maxdate']:
+                dshield_record['maxdate'] = data['maxdate']
 
-            if reports == "" or targets == "" or mindate == "" or maxdate == "":
+            # if some value is missing, probably the record is damaged, do not store
+            if not (dshield_record['reports'] and dshield_record['targets'] and dshield_record['mindate'] and
+                    dshield_record['maxdate']):
                 return None
 
         except Exception as e:
             self.log.exception(e.__str__())
             return None             # could be connection error etc.
 
-        return_arr = [
-            ('set', 'dshield.reports', reports),
-            ('set', 'dshield.targets', targets),
-            ('set', 'dshield.mindate', mindate),
-            ('set', 'dshield.maxdate', maxdate)
-        ]
-
-        return return_arr
-
-    def dictify(self, r, root=True):
-        if root:
-            return {r.tag: self.dictify(r, False)}
-        d = copy(r.attrib)
-        if r.text:
-            d["value"] = r.text
-        for x in r.findall("./*"):
-            if x.tag not in d:
-                d[x.tag] = []
-            d[x.tag].append(self.dictify(x, False))
-        return d
-
-# easy test
-# dshield_reporter = DShield()
-# print (dshield_reporter.set_dshield(('ip', '70.91.145.10'), None, None))
+        return [('set', 'dshield', dshield_record)]
