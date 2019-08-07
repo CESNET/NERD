@@ -131,13 +131,14 @@ class Cleaner(NERDModule):
                 elif datetime.utcnow() < expiration:
                     # token still valid
                     updated_tokens[name] = expiration
-                # if not, then the token expired
+                # if not, then the token expired, do not save it in updated tokens
 
             if not updated_tokens:
                 # if all tokens are expired, then delete the record
                 actions.append(('event', '!DELETE'))
                 return actions
             elif updated_tokens.items() != rec['_keep_alive'].items():
+                # if there was some expired tokens, then update them by set _keep_alive
                 actions.append(('set', '_keep_alive', updated_tokens))
 
         # last event is recent enough or not set at all - keep record and
