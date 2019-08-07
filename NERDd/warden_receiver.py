@@ -17,6 +17,7 @@ import json
 import logging
 import signal
 import sys
+from datetime import datetime, timedelta
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -25,6 +26,7 @@ from common.utils import parse_rfc_time
 import common.config
 import common.eventdb_psql
 import common.task_queue
+import NERDd.core.mongodb as mongodb
 
 # script global variables
 
@@ -37,7 +39,6 @@ LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
 logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
 
 log = logging.getLogger('WardenReceiver')
-
 
 ###############################################################################
 # Code for reading directory of "filer protocol"
@@ -218,10 +219,11 @@ def stop(signal, frame):
     log.info("exiting")
 
 
-def receive_events(filer_path, eventdb, task_queue_writer):
+def receive_events(filer_path, eventdb, task_queue_writer, mongo_db, inactive_ip_lifetime):
     # Infinite loop reading events as files in given directory
     # This loop stops on SIGINT
     log.info("Reading IDEA files from {}/incoming".format(filer_path))
+    life_span = timedelta(days=inactive_ip_lifetime)
     for (rawdata, event) in read_dir(filer_path, call_when_waiting=put_set_to_database):
         # Store the event to EventDB
         if eventdb is not None:
@@ -251,13 +253,24 @@ def receive_events(filer_path, eventdb, task_queue_writer):
                         end_time = detect_time
 
                     node = event["Node"][-1]["Name"]
+
+                    # calculate the timestamp, to which the record should be kept
+                    live_till = end_time + life_span
+                    # have to get all other keep alive tokens of the record, if there are any
+                    ip_record = mongo_db.get("ip", ipv4)
+                    if ip_record:
+                        keep_alive_tokens = ip_record['_keep_alive']
+                        keep_alive_tokens.update({'warden': live_till})
+                    else:
+                        keep_alive_tokens = {'warden': live_till}
+
                     task_queue_writer.put_task('ip', ipv4,
                         [
                             ('array_upsert', 'events',
                              {'date': date, 'node': node, 'cat': cat},
                              [('add', 'n', 1)]),
                             ('add', 'events_meta.total', 1),
-                            ('set', 'ts_last_event', end_time),
+                            ('set', '_keep_alive', keep_alive_tokens),
                         ]
                     )
                 for ipv6 in src.get("IP6", []):
@@ -291,7 +304,9 @@ if __name__ == "__main__":
     common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
     log.info("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
-    
+
+    mongo_db = mongodb.MongoEntityDatabase(config)
+    inactive_ip_lifetime = config.get('inactive_ip_lifetime', 14)
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
 
@@ -309,5 +324,5 @@ if __name__ == "__main__":
     task_queue_writer.connect()
 
     signal.signal(signal.SIGINT, stop)
-    receive_events(filer_path, eventdb, task_queue_writer)
+    receive_events(filer_path, eventdb, task_queue_writer, mongo_db, inactive_ip_lifetime)
 

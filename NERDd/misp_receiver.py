@@ -14,6 +14,7 @@ import datetime
 import argparse
 import os
 import re
+from datetime import timedelta
 
 
 from pymisp import ExpandedPyMISP
@@ -63,12 +64,15 @@ common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
 logger.info("Loading config file {}".format(common_cfg_file))
 config.update(read_config(common_cfg_file))
 
+inactive_ip_lifetime = config.get('inactive_ip_lifetime', 14)
+
 rabbit_config = config.get("rabbitmq")
 db = mongodb.MongoEntityDatabase(config)
 
 # rabbitMQ
 num_processes = config.get('worker_processes')
 tq_writer = TaskQueueWriter(num_processes, rabbit_config)
+tq_writer.connect()
 
 # load MISP instance configuration
 misp_key = config.get('misp.key', None)
@@ -268,6 +272,15 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
         updates.append(('set', k, v))
     tq_writer.put_task('ip', ip_addr, [('array_upsert', 'misp_events',
                                         {'misp_instance': misp_url, 'event_id': event['id']}, updates)])
+    rec = db.get("ip", ip_addr)
+    live_till = new_event['date'] + timedelta(days=inactive_ip_lifetime)
+    if rec:
+        keep_alive_tokens = rec['_keep_alive']
+        keep_alive_tokens.update({'misp': live_till})
+    else:
+        keep_alive_tokens = {'misp': live_till}
+
+    tq_writer.put_task("ip", ip_addr, [('set', '_keep_alive', keep_alive_tokens)])
 
 
 def process_sighting_notification(sighting):
