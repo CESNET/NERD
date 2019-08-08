@@ -270,6 +270,7 @@ def receive_events(filer_path, eventdb, task_queue_writer, mongo_db, inactive_ip
                              {'date': date, 'node': node, 'cat': cat},
                              [('add', 'n', 1)]),
                             ('add', 'events_meta.total', 1),
+                            ('setmax', 'last_activity', end_time),
                             ('set', '_keep_alive', keep_alive_tokens),
                         ]
                     )

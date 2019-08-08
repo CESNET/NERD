@@ -10,11 +10,10 @@ import json
 import sys
 import signal
 import logging
-import datetime
 import argparse
 import os
 import re
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 
 from pymisp import ExpandedPyMISP
@@ -163,12 +162,11 @@ def check_src_and_dst_list(insert_ip_list):
     return list(set(ip_src) & set(ip_dst))
 
 
-def create_new_event(event, role, attrib_timestamp, sighting_list=None):
+def create_new_event(event, role, sighting_list=None):
     """
     Creates dictionary containing information about MISP event used in NERD as 'misp_events'
     :param event: the MISP event
     :param role: src|dst IP address
-    :param attrib_timestamp: timestamp of ip_address attribute
     :param sighting_list: list of sightings of ip_address attribute, which called event creation
     :return: event dictionary ('misp_event')
     """
@@ -181,9 +179,9 @@ def create_new_event(event, role, attrib_timestamp, sighting_list=None):
         'role': role,
         'info': event['info'],
         'sightings': {'positive': 0, 'false positive': 0, 'expired attribute': 0},
-        'date': datetime.datetime.fromtimestamp(int(attrib_timestamp)),
+        'date': datetime.strptime(event['date'], "%Y-%m-%d"),
         'threat_level': THREAT_LEVEL_DICT[event['threat_level_id']],
-        'last_change': datetime.datetime.fromtimestamp(int(event['timestamp']))
+        'last_change': datetime.fromtimestamp(int(event['timestamp']))
     }
 
     # get sighting count
@@ -264,7 +262,7 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
     :param role: role of ip_address (src or|and dst)
     :return: None
     """
-    new_event = create_new_event(event, role if role is not None else get_role_of_ip(attrib['type']), attrib['timestamp'], sighting_list)
+    new_event = create_new_event(event, role if role is not None else get_role_of_ip(attrib['type']), sighting_list)
     ip_addr = get_ip_address(attrib)
     # create update sets for NERD queue
     updates = []
@@ -280,7 +278,8 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
     else:
         keep_alive_tokens = {'misp': live_till}
 
-    tq_writer.put_task("ip", ip_addr, [('set', '_keep_alive', keep_alive_tokens)])
+    tq_writer.put_task("ip", ip_addr, [('set', '_keep_alive', keep_alive_tokens)], ('setmax', 'last_activity',
+                                                                                    new_event['date']))
 
 
 def process_sighting_notification(sighting):
