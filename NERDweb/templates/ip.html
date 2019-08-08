@@ -51,7 +51,7 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 
 {% if not ipinfo %}
 <p class="notfound">Record not found in database</p>
-<p class="notfound2">No malicious activity related to the IP address has been reported in last {{ config.inactive_ip_lifetime }} days.</p>
+<p class="notfound2">No malicious activity related to the IP address has been reported from Warden in last {{ config.record_life_length.warden }} days and from MISP in last {{config.record_life_length.misp}} days.</p>
 {% else %}
 
 <dl class="attrs">

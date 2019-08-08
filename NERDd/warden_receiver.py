@@ -307,7 +307,7 @@ if __name__ == "__main__":
     config.update(common.config.read_config(common_cfg_file))
 
     mongo_db = mongodb.MongoEntityDatabase(config)
-    inactive_ip_lifetime = config.get('inactive_ip_lifetime', 14)
+    inactive_ip_lifetime = config.get('record_life_length', {}).get('warden', 14)
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
 

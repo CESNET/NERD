@@ -63,7 +63,7 @@ common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
 logger.info("Loading config file {}".format(common_cfg_file))
 config.update(read_config(common_cfg_file))
 
-inactive_ip_lifetime = config.get('inactive_ip_lifetime', 14)
+inactive_ip_lifetime = config.get('record_life_length', {}).get('misp', 180)
 
 rabbit_config = config.get("rabbitmq")
 db = mongodb.MongoEntityDatabase(config)

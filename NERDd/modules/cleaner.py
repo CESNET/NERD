@@ -21,8 +21,6 @@ class Cleaner(NERDModule):
         #self.log.setLevel("DEBUG")
 
         max_event_history = g.config.get("max_event_history")
-        ip_lifetime = g.config.get("inactive_ip_lifetime")
-        self.ip_lifetime = timedelta(days=ip_lifetime)
         self.max_event_history = timedelta(days=max_event_history)
 
         g.um.register_handler(
