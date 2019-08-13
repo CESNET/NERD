@@ -18,12 +18,6 @@ worker_processes: 2
 # external services via network)
 worker_threads: 16
 
-
-eventdb_psql:
-  # Number of separate processes for inserting messages to DB
-  # (zero means don't spawn a separate process)
-  dbwriter_processes: 0
-
 whois:
   asn_file: "/data/nerd-whois-asn.csv"
   ipv4_file: "/data/nerd-whois-ipv4.csv"
