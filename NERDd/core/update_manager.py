@@ -488,7 +488,13 @@ class UpdateManager:
             self._task_queue_reader.ack(msg_id)
 
             # Process the task
-            self._process_update_req(etype, eid, updreq)
+            # self.log.debug("Processing task {}: {}/{} {}".format(msg_id, etype, eid, updreq))
+            start_time = datetime.now()
+            created = self._process_update_req(etype, eid, updreq.copy())
+            duration = (datetime.now() - start_time).total_seconds()
+            #self.log.debug("Task {} finished in {:.3f} seconds.".format(msg_id, duration))
+            if duration > 1.0:
+                self.log.debug("Task {} took {} seconds: {}/{} {}{}".format(msg_id, duration, etype, eid, updreq, " (new record created)" if created else ""))
 
             # # Increment corresponding update counter
             # # TODO: replace this by event_count_logger
