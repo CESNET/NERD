@@ -21,14 +21,6 @@ easy_install-3.6 --prefix /usr pip
 pip3 install -r $BASEDIR/pip_requirements_nerdd.txt
 pip3 install -r $BASEDIR/pip_requirements_nerdweb.txt
 
-echob "** Installing pybgpranking from git repo **"
-# install CIRCL BGP ranking python library (pybgpranking)
-pushd /tmp
-git clone https://github.com/D4-project/BGP-Ranking.git
-cd BGP-Ranking/client/
-python3 setup.py install
-popd
-rm -rf /tmp/BGP-Ranking/
 
 echob "** Installing MongoDB **"
 
