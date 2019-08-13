@@ -16,3 +16,4 @@ numpy
 xgboost
 pymisp
 zmq
+amqpstorm

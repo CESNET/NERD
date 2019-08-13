@@ -1,7 +1,10 @@
 # NERD config - common part (for both NERDd and NERDweb)
 ---
-# Number of days to store IP address in the database since the last observed event related to the IP
-inactive_ip_lifetime: 14
+# Number of days to store IP address in the database since the last observed event related to the IP. It also depends
+# on source of the event.
+record_life_length:
+  warden: 14
+  misp: 180
 
 # Number of days to store meta-data about events in IP records
 max_event_history: 90
@@ -41,6 +44,7 @@ eventdb: psql
 # Path to a directory where Warden filer stores incoming IDEA messages
 warden_filer_path: "/data/warden_filer/warden_receiver"
 
+# MISP instance settings
 # MISP instance settings
 #misp:
   # URL of MISP instance

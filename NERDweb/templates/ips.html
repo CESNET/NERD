@@ -155,10 +155,12 @@
   {% endif %}
 </td>
 <td class="time">{{ip.ts_added.replace(tzinfo=tz_utc).astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
-<td class="time">{{ip.ts_last_event.replace(tzinfo=tz_utc).astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S") if ip.ts_last_event else "--"}}</td>
+<td class="time">{{ip.last_activity.replace(tzinfo=tz_utc).astimezone(timezone).strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
 <td class="links">
 <a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"></a>
 <a href="https://censys.io/ipv4/{{ ip._id }}" title="Search on Censys" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"></a>
+<a href="https://www.abuseipdb.com/check/{{ ip._id }}" title="Search on AbuseIPDB" target="_blank"><img src="{{ url_for('static', filename='abuse_ip_db_icon.png') }}"></a>
+<a href="https://www.threatcrowd.org/ip.php?ip={{ ip._id }}" title="Search on Threat Crowd" target="_blank"><img src="{{ url_for('static', filename='threat_crowd_icon.png') }}"></a>
 <a href="http://multirbl.valli.org/lookup/{{ ip._id }}.html" title="Blacklist Check at valli.org" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"></a>
 <a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"></a>
 <a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip._id }}" title="Search at Talos Intelligence Reputation Center" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"></a>

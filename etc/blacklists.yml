@@ -17,8 +17,21 @@ redis:
 #         - "//A" can be used for IP address, in interal part it will be substituted for IP regex
 #         - "//CA" can be used for CIDR prefix (192.168.0.0/16)
 #       IP address regex example, where IP address starts on every line:
-          "^(//A)"
+#         "^(//A)"
 #   refresh time (cron-like specification of when the list should be updated (in UTC), see https://apscheduler.readthedocs.io/en/latest/modules/triggers/cron.html for details)
+#
+#   URL params and request headers can be passed also, but it is optional. For normal GET request just fill arguments
+#   described above. If only one of params or headers needs to be passed, both has to be filled (just leave the one
+#   which is unnecessary as {}). General structure of params and headers:
+#   - params:
+#      param1name: param1value
+#      param2name: param2value
+#      ...
+#  - headers:
+#      header1name: header1value
+#      header2name: header2value
+#      ...
+#   Example of params and headers usage can be viewed below in Abuse IP DB blacklist specification.
 iplists:
 - - feodo
   - Feodo tracker
@@ -68,6 +81,20 @@ iplists:
   - ""
   - hour: 4
     minute: 50
+- - abuseipdb
+  - Abuse IP DB
+  - https://api.abuseipdb.com/api/v2/blacklist
+  - "\\A"
+  - hour: 6
+    minute: 0
+  - params:
+      countMinimum: "15"
+      maxAgeInDays: "60"
+      confidenceMinimum: "90"
+  - headers:
+      Accept: "application/json"
+      Key: ""
+
 # The following blacklists should be rsynced to local files by scripts in
 # cron, therefore they're not available until those scripts are set up and
 # therefore they're disabled by default.

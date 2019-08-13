@@ -138,7 +138,7 @@ class FMP(NERDModule):
         np.log1p(featV[:i], out=transFeatV[:i])
 
         # Last alert age
-        featV[i] = (datetime.utcnow() - rec['ts_last_event']).total_seconds() / 86400
+        featV[i] = (datetime.utcnow() - rec['last_activity']).total_seconds() / 86400
         if featV[i] > 7.0:
             featV[i] = float("inf")
 

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from core.basemodule import NERDModule
 import g
 
+
 class Cleaner(NERDModule):
     """
     Module clearing old entries from entity records.
@@ -20,8 +21,6 @@ class Cleaner(NERDModule):
         #self.log.setLevel("DEBUG")
 
         max_event_history = g.config.get("max_event_history")
-        ip_lifetime = g.config.get("inactive_ip_lifetime")
-        self.ip_lifetime = timedelta(days=ip_lifetime)
         self.max_event_history = timedelta(days=max_event_history)
 
         g.um.register_handler(
@@ -42,7 +41,6 @@ class Cleaner(NERDModule):
             ('!check_and_update_1d',),
             tuple()
         )
-
 
     def clear_events(self, ekey, rec, updates):
         """
@@ -73,7 +71,6 @@ class Cleaner(NERDModule):
         
         self.log.debug("Cleaning {}: Removing {} old event-records".format(key, len(actions)-1))
         return actions
-
 
     def clear_bl_hist(self, ekey, rec, updates):
         """
@@ -123,13 +120,25 @@ class Cleaner(NERDModule):
             return None
 
         actions = []
-        if 'ts_last_event' in rec:
-            diff = datetime.utcnow() - rec['ts_last_event']
-            if diff >= self.ip_lifetime:
-                # last event is too old - delete record
+        updated_tokens = {}
+        if rec.get('_keep_alive'):
+            for name, expiration in rec['_keep_alive'].items():
+                if expiration == '*':
+                    # record should be alive forever
+                    updated_tokens[name] = expiration
+                elif datetime.utcnow() < expiration:
+                    # token still valid
+                    updated_tokens[name] = expiration
+                # if not, then the token expired, do not save it in updated tokens
+
+            if not updated_tokens:
+                # if all tokens are expired, then delete the record
                 actions.append(('event', '!DELETE'))
                 return actions
-        
+            elif updated_tokens.items() != rec['_keep_alive'].items():
+                # if there was some expired tokens, then update them by set _keep_alive
+                actions.append(('set', '_keep_alive', updated_tokens))
+
         # last event is recent enough or not set at all - keep record and
         # issue normal !every1d event        
         actions.append(('event', '!every1d'))
