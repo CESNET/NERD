@@ -89,7 +89,7 @@ def vprint(*_args, **kwargs):
         print(*_args, **kwargs)
 
 
-def get_blacklist(id, name, url, regex, bl_type, optional):
+def get_blacklist(id, name, url, regex, bl_type, params):
     """
     Download the blacklist, parse all its records, try to validate them and insert it into Redis
     :param id: id of the blacklist
@@ -97,6 +97,7 @@ def get_blacklist(id, name, url, regex, bl_type, optional):
     :param url: url, where can the blacklist be downloaded
     :param regex: regex for correct parsing of blacklist records
     :param bl_type: type of blacklist (ip|prefixIP|domain)
+    :param params: dict of other parameters from config, may contain keys 'url_params' and 'headers'
     :return:
     """
     # Download given blacklist and store it into Redis
@@ -107,10 +108,7 @@ def get_blacklist(id, name, url, regex, bl_type, optional):
     if url.startswith("http://") or url.startswith("https://"):
         data = None
         try:
-            if optional:
-                resp = requests.get(url, params=optional[0]['params'], headers=optional[1]['headers'])
-            else:
-                resp = requests.get(url)
+            resp = requests.get(url, params=params.get('url_params'), headers=params.get('headers'))
             data = resp.content.decode('utf-8', 'ignore')
         except requests.exceptions.ConnectionError as e:
             print("ERROR: Can't download list '{}' from '{}': {}".format(id, url, str(e)))
@@ -258,16 +256,18 @@ def process_blacklist_type(config_path, bl_type):
             "IP blacklist '{}' was found in Redis, but not in current configuration. Removing from Redis.".format(id))
         r.delete(*r.keys(bl_all_types[bl_type]['db_prefix'] + id + ':*'))
 
-    # optional unpack argument will be empty most of the time, it will only contain values of headers and/or params of
-    # request if specified
-    for id, name, url, regex, refresh_time, *optional in config.get(config_path, []):
+    # other_params should be empty or a dict containing optional parameters such as 'url_params' or 'headers'
+    for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
+        if len(other_params) > 1:
+            print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(config_path, id), file=sys.stderr)
+        other_params = other_params[0] if other_params else {}
         # TODO: check how old the list is and re-download if it's too old (complicated since cron-spec may be very complex)
         if args.force_refresh:
-            get_blacklist(id, name, url, regex, bl_type, optional)
+            get_blacklist(id, name, url, regex, bl_type, other_params)
         elif r.get(bl_all_types[bl_type]['db_prefix'] + id + ":time") is None:
             vprint("{} blacklist '{}' is not in Redis yet, downloading now.".format(bl_all_types[bl_type]['singular'],
                                                                                     id))
-            get_blacklist(id, name, url, regex, bl_type, optional)
+            get_blacklist(id, name, url, regex, bl_type, other_params)
         else:
             vprint("{} blacklist '{}' is already in Redis, nothing to do for now.".format(
                 bl_all_types[bl_type]['singular'], id))
@@ -302,25 +302,17 @@ process_blacklist_type("domainlists", "domain")
 
 # Schedule periodic updates of blacklists
 if not args.one_shot:
-    # optional unpack argument will be empty most of the time, it will only contain values of headers and/or params of
-    # request if specified
-    for id, name, url, regex, refresh_time, *optional in config.get('iplists', []):
-        trigger = CronTrigger(**refresh_time)
-        job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, 'ip', optional),
-            trigger=trigger, coalesce=True, max_instances=1)
-        vprint("IP blacklist '{}' scheduled to be downloaded at every: {}".format(id, refresh_time))
-
-    for id, name, url, regex, refresh_time, *optional in config.get('prefixiplists', []):
-        trigger = CronTrigger(**refresh_time)
-        job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, 'prefixIP', optional),
-            trigger=trigger, coalesce=True, max_instances=1)
-        vprint("IP blacklist '{}' scheduled to be downloaded at every: {}".format(id, refresh_time))
-
-    for id, name, url, regex, refresh_time, *optional in config.get('domainlists', []):
-        trigger = CronTrigger(**refresh_time)
-        job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, 'domain', optional),
-            trigger=trigger, coalesce=True, max_instances=1)
-        vprint("Domain blacklist '{}' scheduled to be downloaded at every: {}".format(id, refresh_time))
+    for config_path, bl_type in [('iplists', 'ip'), ('prefixiplists', 'prefixIP'), ('domainlists', 'domain')]:
+        # other_params should be empty or a dict containing optional parameters such as 'url_params' or 'headers'
+        for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
+            if len(other_params) > 1:
+                print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(config_path, id), file=sys.stderr)
+            other_params = other_params[0] if other_params else {}
+            trigger = CronTrigger(**refresh_time)
+            job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, other_params),
+                trigger=trigger, coalesce=True, max_instances=1)
+            vprint("{} blacklist '{}' scheduled to be downloaded at every: {}".format(bl_all_types[bl_type]['singular'],
+                                                                                      id, refresh_time))
     
 signal.signal(signal.SIGINT, stop_program)
 signal.signal(signal.SIGTERM, stop_program)
