@@ -123,6 +123,24 @@ def format_datetime(val, format="%Y-%m-%d %H:%M:%S"):
 app.jinja_env.filters['datetime'] = format_datetime
 
 
+# ***** WTForm validators and filters *****
+
+# Own reimplamentation of wtforms.validators.Optional
+# The original one uses field.raw_data, but we need field.data
+# (raw_data only contain data loaded from Form (GET/POST), not those passed
+#  to Form constructor using obj/data/kwargs parameters)
+def validator_optional(form, field):
+    if not field.data:
+        field.errors[:] = []
+        raise validators.StopValidation()
+
+# Filter to strip whitespeces in string
+def strip_whitespace(s):
+    if isinstance(s, str):
+        s = s.strip()
+    return s
+
+
 # ***** Auxiliary functions *****
 
 def pseudonymize_node_name(name):
@@ -513,12 +531,12 @@ def subnet_validator(form, field):
         raise validators.ValidationError()
 
 class IPFilterForm(FlaskForm):
-    subnet = TextField('IP prefix', [validators.Optional(), subnet_validator])
-    hostname = TextField('Hostname suffix', [validators.Optional()])
-    country = TextField('Country code', [validators.Optional(), validators.length(2, 2)])
+    subnet = TextField('IP prefix', [validators.Optional(), subnet_validator], filters=[strip_whitespace])
+    hostname = TextField('Hostname suffix', [validators.Optional()], filters=[strip_whitespace])
+    country = TextField('Country code', [validators.Optional(), validators.length(2, 2)], filters=[strip_whitespace])
     asn = TextField('ASN', [validators.Optional(),
         validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
-        message='Must be a number, optionally preceded by "AS".')])
+        message='Must be a number, optionally preceded by "AS".')], filters=[strip_whitespace])
     cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
     cat_op = HiddenField('', default="or")
     node = SelectMultipleField('Node', [validators.Optional()])
@@ -736,15 +754,16 @@ def ips_count():
 # ***** Detailed info about individual IP *****
 
 class SingleIPForm(FlaskForm):
-    ip = TextField('IP address', [validators.IPAddress(message="Invalid IPv4 address")])
-
+    ip = TextField('IP address', [validator_optional, validators.IPAddress(message="Invalid IPv4 address")], filters=[strip_whitespace])
 
 @app.route('/ip/')
 @app.route('/ip/<ipaddr>')
 def ip(ipaddr=None):
     # Validate IP address
-    form = SingleIPForm(ip=ipaddr)
-    if not form.validate():
+    form = SingleIPForm(data={'ip':ipaddr})
+    if form.validate():
+        ipaddr = form.ip.data # get IP back from Form to apply filters (strip whitespace).
+    else:
         flash('Invalid IPv4 address', 'error')
         ipaddr = None
 

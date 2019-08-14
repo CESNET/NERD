@@ -6,6 +6,7 @@ import pika
 from argparse import ArgumentParser
 from cachetools import TTLCache
 import json
+from datetime import datetime
 
 rmq_creds = pika.PlainCredentials('guest', 'guest')
 rmq_params = pika.ConnectionParameters('localhost', 5672, '/', rmq_creds)
@@ -40,13 +41,14 @@ def get_shodan_data(ip):
 
 def on_request(ch, method, props, body):
     ip = str(body, 'utf-8')
-    print("Received request for ip '{}'".format(ip))
+    print("{} Received request for '{}'".format(datetime.now().isoformat(), ip))
     response = get_shodan_data(ip)
     ch.basic_publish(exchange='',
                      routing_key=props.reply_to,
                      properties=pika.BasicProperties(correlation_id=props.correlation_id),
                      body=response)
     ch.basic_ack(delivery_tag=method.delivery_tag)
+    print("{} Sent response for '{}'".format(datetime.now().isoformat(), ip))
 
 # Get API key, either directly from parameter or from a file
 arg_parser = ArgumentParser()
