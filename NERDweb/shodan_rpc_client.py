@@ -1,6 +1,8 @@
 import pika
 import uuid
+import time
 
+TIMEOUT = 10 # how many seconds to wait for RPC reply
 
 class ShodanRpcClient(object):
     def __init__(self):
@@ -32,7 +34,10 @@ class ShodanRpcClient(object):
                                    body=str(ip))
         #print("(shodan_rpc_client) Request sent to RabbitMQ, waiting for response...")
         
+        start = time.time()
         while self.response is None:
-            self.connection.process_data_events()
+            self.connection.process_data_events(time_limit=2)
+            if time.time() - start > TIMEOUT:
+                return '{"error": "timeout"}'
 
         return str(self.response.decode('utf8'))

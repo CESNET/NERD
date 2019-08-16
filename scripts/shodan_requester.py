@@ -19,13 +19,12 @@ cache = TTLCache(maxsize=128, ttl=3600)
 
 def get_shodan_data(ip):
     if ip in cache:
-        print("cache hit for {}".format(ip))
+        print("{} Cache hit for {}".format(datetime.now().isoformat(), ip))
         data = cache[ip]
     else:
         url = 'https://api.shodan.io/shodan/host/{ip}?key={api_key}'.format(ip=ip, api_key=api_key)
         resp = requests.get(url)
         if resp.status_code == 200:
-            cache[ip] = resp.content
             data = resp.content
         else:
             if resp.status_code != 404:
@@ -35,6 +34,10 @@ def get_shodan_data(ip):
             except Exception:
                 return json.dumps({"error": "Shodan returned invalid response"})
             data = json.dumps({"error": response_dict["error"] if "error" in response_dict else "Unknown error"})
+        
+        if resp.status_code == 200 or resp.status_code == 404:
+            # store returned data (or info that there's no data) to cache
+            cache[ip] = data
 
     return data
 

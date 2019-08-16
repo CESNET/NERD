@@ -9,6 +9,8 @@
 
 {%- elif "No information available" in data.error -%}
 <div style="text-align: center">-- no information available --</div>
+{%- elif data.error == "timeout" -%}
+Error: RPC timeout
 {%- else -%}
 Error while requesting shodan api: {{ data.error }}
 {%- endif %}
