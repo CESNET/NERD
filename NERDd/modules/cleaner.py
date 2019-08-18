@@ -119,14 +119,17 @@ class Cleaner(NERDModule):
         if etype != 'ip':
             return None
 
+        now = datetime.utcnow()
         actions = []
+        # TODO: this might be more readable if it explicitly issue "del" action for each expired token,
+        #   rather than copy non-expired ones to a new dict a replace it
         updated_tokens = {}
         if rec.get('_keep_alive'):
             for name, expiration in rec['_keep_alive'].items():
                 if expiration == '*':
                     # record should be alive forever
                     updated_tokens[name] = expiration
-                elif datetime.utcnow() < expiration:
+                elif now < expiration:
                     # token still valid
                     updated_tokens[name] = expiration
                 # if not, then the token expired, do not save it in updated tokens
@@ -136,7 +139,7 @@ class Cleaner(NERDModule):
                 actions.append(('event', '!DELETE'))
                 return actions
             elif updated_tokens.items() != rec['_keep_alive'].items():
-                # if there was some expired tokens, then update them by set _keep_alive
+                # if there was some expired tokens, then update them by setting _keep_alive
                 actions.append(('set', '_keep_alive', updated_tokens))
 
         # last event is recent enough or not set at all - keep record and

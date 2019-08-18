@@ -63,7 +63,7 @@ common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
 logger.info("Loading config file {}".format(common_cfg_file))
 config.update(read_config(common_cfg_file))
 
-inactive_ip_lifetime = config.get('record_life_length', {}).get('misp', 180)
+inactive_ip_lifetime = config.get('record_life_length.misp', 180)
 
 rabbit_config = config.get("rabbitmq")
 db = mongodb.MongoEntityDatabase(config)
@@ -268,18 +268,12 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
     updates = []
     for k, v in new_event.items():
         updates.append(('set', k, v))
-    tq_writer.put_task('ip', ip_addr, [('array_upsert', 'misp_events',
-                                        {'misp_instance': misp_url, 'event_id': event['id']}, updates)])
-    rec = db.get("ip", ip_addr)
     live_till = new_event['date'] + timedelta(days=inactive_ip_lifetime)
-    if rec:
-        keep_alive_tokens = rec['_keep_alive']
-        keep_alive_tokens.update({'misp': live_till})
-    else:
-        keep_alive_tokens = {'misp': live_till}
-
-    tq_writer.put_task("ip", ip_addr, [('set', '_keep_alive', keep_alive_tokens)], ('setmax', 'last_activity',
-                                                                                    new_event['date']))
+    tq_writer.put_task('ip', ip_addr, [
+        ('array_upsert', 'misp_events', {'misp_instance': misp_url, 'event_id': event['id']}, updates),
+        ('setmax', '_keep_alive.misp', live_till),
+        ('setmax', 'last_activity', new_event['date'])
+    ])
 
 
 def process_sighting_notification(sighting):
