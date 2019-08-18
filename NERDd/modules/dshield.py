@@ -23,6 +23,7 @@ class DShield(NERDModule):
 
     def __init__(self):
         self.log = logging.getLogger('DShield')
+        #self.log.setLevel("DEBUG")
         g.um.register_handler(
             self.set_dshield,  # function (or bound method) to call
             'ip',                # entity type
@@ -45,7 +46,7 @@ class DShield(NERDModule):
 
         try:
             # get response from server
-            response = requests.get("http://isc.sans.edu/api/ip/" + ekey[1] + "?json")
+            response = requests.get("https://isc.sans.edu/api/ip/" + key + "?json")
             data = json.loads(response.content.decode('utf-8'))['ip']
 
             dshield_record = {
@@ -65,13 +66,15 @@ class DShield(NERDModule):
             if data['maxdate']:
                 dshield_record['maxdate'] = data['maxdate']
 
-            # if some value is missing, probably the record is damaged, do not store
+            # if some value is missing, DShield have no data for the IP (or the record is damaged), do not store
             if not (dshield_record['reports'] and dshield_record['targets'] and dshield_record['mindate'] and
                     dshield_record['maxdate']):
+                self.log.debug("No data in DShield for IP {}".format(key))
                 return None
 
         except Exception as e:
-            self.log.exception(e.__str__())
+            self.log.exception("Cen't get DShield data for IP {}: {}".format(key, e))
             return None             # could be connection error etc.
 
+        self.log.debug("DShield record for IP {}: {}".format(key, dshield_record))
         return [('set', 'dshield', dshield_record)]
