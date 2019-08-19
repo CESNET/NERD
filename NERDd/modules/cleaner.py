@@ -124,8 +124,8 @@ class Cleaner(NERDModule):
         # TODO: this might be more readable if it explicitly issue "del" action for each expired token,
         #   rather than copy non-expired ones to a new dict a replace it
         updated_tokens = {}
-        if rec.get('_keep_alive'):
-            for name, expiration in rec['_keep_alive'].items():
+        if rec.get('_ttl'):
+            for name, expiration in rec['_ttl'].items():
                 if expiration == '*':
                     # record should be alive forever
                     updated_tokens[name] = expiration
@@ -138,9 +138,9 @@ class Cleaner(NERDModule):
                 # if all tokens are expired, then delete the record
                 actions.append(('event', '!DELETE'))
                 return actions
-            elif updated_tokens.items() != rec['_keep_alive'].items():
-                # if there was some expired tokens, then update them by setting _keep_alive
-                actions.append(('set', '_keep_alive', updated_tokens))
+            elif updated_tokens.items() != rec['_ttl'].items():
+                # if there was some expired tokens, then update them by setting _ttl
+                actions.append(('set', '_ttl', updated_tokens))
 
         # last event is recent enough or not set at all - keep record and
         # issue normal !every1d event        

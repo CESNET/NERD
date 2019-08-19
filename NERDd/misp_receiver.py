@@ -271,7 +271,7 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
     live_till = new_event['date'] + timedelta(days=inactive_ip_lifetime)
     tq_writer.put_task('ip', ip_addr, [
         ('array_upsert', 'misp_events', {'misp_instance': misp_url, 'event_id': event['id']}, updates),
-        ('setmax', '_keep_alive.misp', live_till),
+        ('setmax', '_ttl.misp', live_till),
         ('setmax', 'last_activity', new_event['date'])
     ])
 
