@@ -8,10 +8,9 @@ echob "=============== Install basic dependencies ==============="
 
 echob "** Installing basic RPM packages **"
 yum install -y -q https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-yum install -y -q git wget gcc vim python36 python36-devel python36-setuptools python-setuptools
+yum install -y -q git wget gcc vim python36 python36-devel python36-setuptools
 
 echob "** Installing pip and Python packages **"
-easy_install-2.7 --prefix /usr pip # Py2 is needed for Supervisor (until stable Supervisor 4 is out, which should work under Py3)
 easy_install-3.6 --prefix /usr pip
 # for some reason, this creates file /usr/bin/pip3.7 instead of pip3.6 (but everything works OK)
 
@@ -134,8 +133,9 @@ fi
 
 
 echob "** Installing Supervisor **"
-pip2 install supervisor
-
+pip install "supervisor==4.*"
+ln -s /usr/local/bin/supervisord /usr/bin/supervisord
+ln -s /usr/local/bin/supervisorctl /usr/bin/supervisorctl
 
 
 echob "** Installing PostgreSQL **"
