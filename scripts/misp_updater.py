@@ -60,7 +60,7 @@ config.update(read_config(common_cfg_file))
 db = mongodb.MongoEntityDatabase(config)
 
 # task queue init
-tq = TaskQueueWriter(config.get('rabbitmq', {}))
+tq = TaskQueueWriter(config.get('worker_processes'), config.get('rabbitmq', {}))
 
 # load MISP instance configuration
 try:
@@ -277,10 +277,10 @@ def process_ip(ip_addr, role):
 
 
 def main():
+    tq.connect()
+
     logger.info("Loading a list of all IPs in MISP ...")
-
     ip_src, ip_dst = get_all_ip()
-
     ip_all = ip_src.union(ip_dst)
     logger.info("Loaded {} src IPs and {} dst IPs.".format(len(ip_src), len(ip_dst)))
 

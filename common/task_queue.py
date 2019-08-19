@@ -172,6 +172,8 @@ class RobustAMQPConnection:
     def disconnect(self):
         if self.connection:
             self.connection.close()
+        self.connection = None
+        self.channel = None
 
 
 class TaskQueueWriter(RobustAMQPConnection):
@@ -179,12 +181,16 @@ class TaskQueueWriter(RobustAMQPConnection):
         """
         Create an object for writing tasks into the main Task Queue.
 
+        :param workers: Number of worker processes in the system
         :param rabbit_config: RabbitMQ connection parameters, dict with following keys (all optional):
             host, port, virtual_host, username, password
-        :param workers: Number of worker processes in the system
         :param exchange: Name of the exchange to write tasks to
         :param priority_exchange: Name of the exchange to write priority tasks to
         """
+        assert isinstance(workers, int) and workers >= 1
+        assert isinstance(exchange, str)
+        assert isinstance(priority_exchange, str)
+
         super().__init__(rabbit_config)
 
         self.log = logging.getLogger('TaskQueueWriter')
@@ -196,6 +202,9 @@ class TaskQueueWriter(RobustAMQPConnection):
 
     def put_task(self, etype, eid, requested_changes, priority=False):
         """Put task (update_request) to the queue of corresponding worker"""
+        if not self.channel:
+            self.connect()
+
         # Prepare message and routing key
         msg = {
             'etype': etype,
@@ -258,6 +267,11 @@ class TaskQueueReader(RobustAMQPConnection):
         :param queue: Name of RabbitMQ queue to read from (should contain "{}" to fill in worker_index)
         :param priority_queue: Name of RabbitMQ queue to read from (priority messages) (should contain "{}" to fill in worker_index)
         """
+        assert callable(callback)
+        assert isinstance(worker_index, int) and worker_index >= 0
+        assert isinstance(queue, str)
+        assert isinstance(priority_queue, str)
+
         super().__init__(rabbit_config)
 
         self.log = logging.getLogger('TaskQueueReader')
