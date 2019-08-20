@@ -164,3 +164,9 @@ tags:
     description: "Host IP is reserved IP address"
     tag_color: "#C0C0C0"
     condition: "reserved_range"
+
+  dshield:
+    name: DShield
+    description: "IP is in DShield database"
+    tag_color: "#66FF66"
+    condition: "dshield"
