@@ -74,78 +74,73 @@ iplists:
   - ""
   - hour: 4
     minute: 50
-- - blocklist_de-all
-  - blocklist.de all
-  - https://lists.blocklist.de/lists/all.txt
-  - ""
-  - hour: 4
-    minute: 50
+
 - - blocklist_de-ssh
   - blocklist.de ssh
   - https://lists.blocklist.de/lists/ssh.txt
   - ""
-  - hour: 4
-    minute: 50
+  - hour: "0,6,12,18"
+    minute: 5
 - - blocklist_de-mail
   - blocklist.de mail
   - https://lists.blocklist.de/lists/mail.txt
   - ""
-  - hour: 4
-    minute: 50
+  - hour: "0,6,12,18"
+    minute: 5
 - - blocklist_de-apache
   - blocklist.de apache
   - https://lists.blocklist.de/lists/apache.txt
   - ""
-  - hour: 4
-    minute: 50
+  - hour: "0,6,12,18"
+    minute: 5
 - - blocklist_de-imap
   - blocklist.de imap
   - https://lists.blocklist.de/lists/imap.txt
   - ""
-  - hour: 4
-    minute: 50
+  - hour: "0,6,12,18"
+    minute: 5
 - - blocklist_de-ftp
   - blocklist.de ftp
   - https://lists.blocklist.de/lists/ftp.txt
   - ""
-  - hour: 4
-    minute: 50
+  - hour: "0,6,12,18"
+    minute: 5
 - - blocklist_de-sip
   - blocklist.de sip
   - https://lists.blocklist.de/lists/sip.txt
   - ""
-  - hour: 4
-    minute: 50
+  - hour: "0,6,12,18"
+    minute: 5
 - - blocklist_de-bots
   - blocklist.de bots
   - https://lists.blocklist.de/lists/bots.txt
   - ""
-  - hour: 4
-    minute: 50
+  - hour: "0,6,12,18"
+    minute: 5
 - - blocklist_de-strongips
   - blocklist.de strong IPs
   - https://lists.blocklist.de/lists/strongips.txt
   - ""
-  - hour: 4
-    minute: 50
+  - hour: "0,6,12,18"
+    minute: 5
 - - blocklist_de-ircbot
   - blocklist.de ircbot
   - https://lists.blocklist.de/lists/ircbot.txt
   - ""
-  - hour: 4
-    minute: 50
+  - hour: "0,6,12,18"
+    minute: 5
 - - blocklist_de-bruteforcelogin
   - blocklist.de brute force login
   - https://lists.blocklist.de/lists/bruteforcelogin.txt
   - ""
-  - hour: 4
-    minute: 50
+  - hour: "0,6,12,18"
+    minute: 5
 
 # AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key
 #- - abuseipdb
 #  - Abuse IP DB
 #  - https://api.abuseipdb.com/api/v2/blacklist
-#  - "\\A"
+#  - ""
 #  - hour: 6
 #    minute: 0
 #  - params:
