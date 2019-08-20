@@ -82,7 +82,8 @@ if [ "$install_munin" == "1" ]; then
   /tmp/nerd_install/install/install_configure_munin.sh
 fi
 /tmp/nerd_install/install/download_data_files.sh
-/tmp/nerd_install/install/configure_supervisor.sh 
+/tmp/nerd_install/install/configure_cron.sh
+/tmp/nerd_install/install/configure_supervisor.sh
 
 # TODO only do this when some parameter is passed
 # Backup newly created system-user accounts, so they don't disappear when users are synchronized, then, put them manually to /etc/*.template
@@ -106,23 +107,6 @@ echoy ""
 #echoy "* Administrator/developer - use 'Devel. autologin' option"
 echoy "* Unprivileged local account - username/password: test/test"
 echoy ""
-
-
-
-# == Configure cron ==
-# !!TODO!!
-
-# Copy scripts to /data/NERD_scripts
-#mkdir -p /data/NERD_scripts
-#cp /home/nerd/NERD/scripts/nerd_db_remove_old_records.sh /data/NERD_scripts/
-#cp /home/nerd/NERD/scripts/nerd_clean_eventdb.sh /data/NERD_scripts/
-#cp /home/nerd/NERD/scripts/update_db_meta_info.js /data/NERD_scripts/
-#chmod +x /home/nerd/NERD/scripts/nerd_db_remove_old_records.sh
-#chmod +x /home/nerd/NERD/scripts/nerd_clean_eventdb.sh
-
-# Set up cron rules
-#crontab -u nerd /home/nerd/NERD/scripts/crontab
-
 
 
 # == Install and enable NRPE (for nagios) ==
