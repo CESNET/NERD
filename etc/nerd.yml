@@ -45,7 +45,6 @@ eventdb: psql
 warden_filer_path: "/data/warden_filer/warden_receiver"
 
 # MISP instance settings
-# MISP instance settings
 #misp:
   # URL of MISP instance
   #url: "https://misp.example.org"
@@ -92,30 +91,6 @@ dnsbl:
       #127.0.0.11: sorbs-badconf
       #127.0.0.12: sorbs-nomail
       127.0.0.14: sorbs-noserver
-  # blocklist.de, description: https://www.blocklist.de/en/rbldns.html
-  - - blocklist.de
-    - all.bl.blocklist.de
-    - 127.0.0.2: blocklist_de-amavis
-      127.0.0.3: blocklist_de-apacheddos
-      127.0.0.4: blocklist_de-asterisk
-      127.0.0.5: blocklist_de-badbot
-      127.0.0.6: blocklist_de-ftp
-      127.0.0.7: blocklist_de-imap
-      127.0.0.8: blocklist_de-ircbot
-      127.0.0.9: blocklist_de-mail
-      127.0.0.10: blocklist_de-pop3
-      127.0.0.11: blocklist_de-regbot
-      127.0.0.12: blocklist_de-rfi-attack
-      127.0.0.13: blocklist_de-sasl
-      127.0.0.14: blocklist_de-ssh
-      127.0.0.15: blocklist_de-w00tw00t
-      127.0.0.16: blocklist_de-portflood
-      127.0.0.17: blocklist_de-sql-injection
-      127.0.0.18: blocklist_de-webmin
-      127.0.0.19: blocklist_de-trigger-spam
-      127.0.0.20: blocklist_de-manuall
-      127.0.0.21: blocklist_de-bruteforcelogin
-      127.0.0.22: blocklist_de-mysql
   # WPBL (Weighted Private Block List; spam blacklist), description: http://www.wpbl.info/
   - - WPBL (spam)
     - db.wpbl.info
