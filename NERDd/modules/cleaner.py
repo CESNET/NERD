@@ -18,7 +18,7 @@ class Cleaner(NERDModule):
 
     def __init__(self):
         self.log = logging.getLogger("Cleaner")
-        #self.log.setLevel("DEBUG")
+        # self.log.setLevel("DEBUG")
 
         max_event_history = g.config.get("max_event_history")
         self.max_event_history = timedelta(days=max_event_history)
@@ -121,26 +121,24 @@ class Cleaner(NERDModule):
 
         now = datetime.utcnow()
         actions = []
-        # TODO: this might be more readable if it explicitly issue "del" action for each expired token,
-        #   rather than copy non-expired ones to a new dict a replace it
-        updated_tokens = {}
         if rec.get('_ttl'):
-            for name, expiration in rec['_ttl'].items():
+            # copy() has to be present to prevent "dictionary changed size during iteration" RuntimeError while removing
+            # expired token
+            for name, expiration in rec['_ttl'].copy().items():
                 if expiration == '*':
                     # record should be alive forever
-                    updated_tokens[name] = expiration
-                elif now < expiration:
-                    # token still valid
-                    updated_tokens[name] = expiration
-                # if not, then the token expired, do not save it in updated tokens
+                    continue
+                elif now >= expiration:
+                    # token expired, remove it
+                    rec['_ttl'].pop(name)
 
-            if not updated_tokens:
-                # if all tokens are expired, then delete the record
+            if not rec['_ttl']:
+                # if all tokens are expired (_ttl empty), then delete the record
                 actions.append(('event', '!DELETE'))
                 return actions
-            elif updated_tokens.items() != rec['_ttl'].items():
-                # if there was some expired tokens, then update them by setting _ttl
-                actions.append(('set', '_ttl', updated_tokens))
+            else:
+                # otherwise update _ttl
+                actions.append(('set', '_ttl', rec['_ttl']))
 
         # last event is recent enough or not set at all - keep record and
         # issue normal !every1d event        
