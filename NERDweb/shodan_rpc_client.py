@@ -1,11 +1,24 @@
 import pika
 import uuid
 
+from common.config import read_config
+
+# config - load nerd.yml
+config = read_config("/etc/nerd/nerd.yml")
+rmq_settings = config.get('rabbitmq', {
+    'host': "localhost",
+    'port': 5672,
+    'virtual_host': "/",
+    'username': "guest",
+    'password': "guest"
+})
+
 
 class ShodanRpcClient(object):
     def __init__(self):
-        rmq_creds = pika.PlainCredentials('guest', 'guest')
-        rmq_params = pika.ConnectionParameters('localhost', 5672, '/', rmq_creds)
+        rmq_creds = pika.PlainCredentials(rmq_settings['username'], rmq_settings['password'])
+        rmq_params = pika.ConnectionParameters(rmq_settings['host'], rmq_settings['port'], rmq_settings['virtual_host'],
+                                               rmq_creds)
         self.connection = pika.BlockingConnection(rmq_params)
         self.channel = self.connection.channel()
 
