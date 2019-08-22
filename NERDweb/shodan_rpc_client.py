@@ -3,15 +3,18 @@ import uuid
 
 from common.config import read_config
 
-# config - load nerd.yml
-config = read_config("/etc/nerd/nerd.yml")
-rmq_settings = config.get('rabbitmq', {
+DEFAULT_RMQ_SETTINGS = {
     'host': "localhost",
     'port': 5672,
     'virtual_host': "/",
     'username': "guest",
     'password': "guest"
-})
+}
+
+# config - load nerd.yml
+config = read_config("/etc/nerd/nerd.yml")
+rmq_settings = DEFAULT_RMQ_SETTINGS
+rmq_settings.update(config.get('rabbitmq', {}))
 
 
 class ShodanRpcClient(object):

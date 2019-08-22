@@ -11,6 +11,9 @@ import logging
 from cachetools import TTLCache
 import pika
 
+# Add to path the "one directory above the current file location" to find modules from "common"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+
 from common.config import read_config
 
 LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
@@ -24,7 +27,7 @@ parser = argparse.ArgumentParser(
     prog="shodan_requester.py",
     description="NERD standalone, which will get info about IP from Shodan service when requested."
 )
-parser.add_argument('-c', '--config', metavar='FILENAME', default='../etc/nerd.yml',
+parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerd.yml',
                     help='Path to configuration file (default: /etc/nerd/nerd.yml)')
 parser.add_argument("-v", dest="verbose", action="store_true", help="Verbose mode")
 args = parser.parse_args()
