@@ -13,4 +13,4 @@ END
   exit 0
 fi
 
-echo "delay.value $(mongo nerd --quiet --eval 'print((ISODate().getTime() - db.ip.find({}, {ts_last_event: 1, _id: 0}).sort({ts_last_event: -1}).limit(1).next().ts_last_event.getTime())/60000)')"
+echo "delay.value $(mongo nerd --quiet --eval 'print((ISODate().getTime() - db.ip.find({}, {last_activity: 1, _id: 0}).sort({last_activity: -1}).limit(1).next().last_activity.getTime())/60000)')"
