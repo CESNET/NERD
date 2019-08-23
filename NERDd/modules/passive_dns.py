@@ -119,9 +119,9 @@ class PassiveDNSResolver(NERDModule):
                 blname = dbl.id
                 if present:
                     self.log.debug("Domain ({0}) is on blacklist {1}.".format(domain, blname))
-                    actions.append( ('array_upsert', 'dbl', ({'n': blname, 'd': domain}, [('set', 'v', 1), ('set', 't', time), ('append', 'h', time)])) )                    
+                    actions.append( ('array_upsert', 'dbl', {'n': blname, 'd': domain}, [('set', 'v', 1), ('set', 't', time), ('append', 'h', time)]) )
                 else:
                     # Domain is not on blacklist
                     #self.log.debug("Domain ({0}) is not on blacklist {1}.".format(domain, blname))
-                    actions.append( ('array_update', 'dbl', ({'n': blname, 'd': domain}, [('set', 'v', 0), ('set', 't', time)])) )
+                    actions.append( ('array_update', 'dbl', {'n': blname, 'd': domain}, [('set', 'v', 0), ('set', 't', time)]) )
         return actions

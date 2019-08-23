@@ -103,9 +103,13 @@ class DNSBLResolver(NERDModule):
 
         # Limit number of requests per day to avoid getting blocked by blacklist
         # providers
+        # TODO FIXME: storing counts to file can't be used in parallel version, it must be replaced with EventCountLogger
         if g.config.get('dnsbl.max_requests', None) and g.config.get('dnsbl.req_cnt_file', None):
             self.max_req_count = int(g.config.get('dnsbl.max_requests'))
             self.req_cnt_file = g.config.get('dnsbl.req_cnt_file')
+            if self.req_cnt_file:
+                self.log.warning("req_cnt_file is not supported in the parallel version, limit on number of requests per day won't work!")
+                self.req_cnt_file = None
             self.log.info("Maximal number of DNSBL requests per day set to {}.".format(self.max_req_count))
         else:
             self.max_req_count = float('inf')
@@ -218,11 +222,11 @@ class DNSBLResolver(NERDModule):
                 if blname in results:
                     # IP is on blacklist blname
                     self.log.debug("IP address ({0}) is on {1}.".format(key, blname))
-                    actions.append( ('array_upsert', 'bl', ({'n': blname}, [('set', 'v', 1), ('set', 't', req_time), ('append', 'h', req_time)])) )
+                    actions.append( ('array_upsert', 'bl', {'n': blname}, [('set', 'v', 1), ('set', 't', req_time), ('append', 'h', req_time)]) )
                 else:
                     # IP is not on blacklist blname
                     self.log.debug("IP address ({0}) is not on {1}.".format(key, blname))
-                    actions.append( ('array_update', 'bl', ({'n': blname}, [('set', 'v', 0), ('set', 't', req_time)])) )
+                    actions.append( ('array_update', 'bl', {'n': blname}, [('set', 'v', 0), ('set', 't', req_time)]) )
                     # Note: array_update change the record only if the matching element is there, if the IP wasn't on the blacklist before, it does nothing
         
         return actions

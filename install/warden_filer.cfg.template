@@ -1,0 +1,31 @@
+{
+    "warden": {
+        "url": "TODO",
+        "certfile": "/data/warden_filer/cert.pem",
+        "keyfile": "/data/warden_filer/key.pem",
+        "cafile": "/etc/pki/tls/certs/ca-bundle.crt",
+        "timeout": 10,
+        "errlog": {"level": "info"},
+        //"filelog": {"file": "/data/warden_filer/warden_filer.log", "level": "warning"},
+        "idstore": "/data/warden_filer/warden_filer.id",
+        "name": "TODO"
+    },
+    "receiver": {
+        "dir": "/data/warden_filer/warden_receiver",
+        "work_dir": "/data/warden_filer/",
+        "poll_time": 5,
+        // max number of files in incoming dir (approx)
+        "file_limit": 10000,
+        // seconds to wait if max number of files exceeded
+        "limit_wait_time": 10
+        // Optional filter fields for Warden query
+        //"filter": {
+        //    "cat": ["Test", "Recon.Scanning"],
+        //    "nocat": null,
+        //    "group": ["cz.cesnet"],
+        //    "nogroup": null,
+        //    "tag": null,
+        //    "notag": ["Honeypot"]
+        //}
+    }
+}

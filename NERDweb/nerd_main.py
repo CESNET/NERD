@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
-from __future__ import print_function
 import sys
-import random
 import json
-import time
 from datetime import datetime, timedelta
 import os
 import subprocess
@@ -12,7 +9,6 @@ import pytz
 import ipaddress
 import struct
 import hashlib
-import socket
 import requests
 import flask
 from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
@@ -35,7 +31,7 @@ from userdb import get_user_info, authenticate_with_token, generate_unique_token
 
 # ***** Load configuration *****
 
-DEFAULT_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../etc/nerdweb.yml"))
+DEFAULT_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "/etc/nerd/nerdweb.yml"))
 
 # TODO parse arguments using ArgParse
 if len(sys.argv) >= 2:
@@ -511,8 +507,9 @@ def get_ip_blacklists():
     # Get the list of all configured IP blacklists. Return array of (id, name).
     # DNSBL (IP only)
     blacklists = [(bl_name, bl_name) for bl_group in config.get('dnsbl.blacklists', []) for bl_name in bl_group[2].values()]
-    # Blacklists cached in Redis (IP and domain) 
+    # Blacklists cached in Redis (IP and prefix)
     blacklists += [(bl[0], bl[1]) for bl in config_bl.get('iplists', [])]
+    blacklists += [(bl[0], bl[1]) for bl in config_bl.get('prefixiplists', [])]
     blacklists.sort()
     return blacklists
 
@@ -555,7 +552,7 @@ class IPFilterForm(FlaskForm):
                 ('none',"--"),
                 ('rep','Reputation score'),
                 ('events','Events'),
-                ('ts_last_event','Time of last event'),
+                ('last_activity','Time of last event'),
                 ('ts_added','Time added'),
                 ('ip','IP address'),
              ], default='rep')
@@ -586,7 +583,7 @@ sort_mapping = {
     'none': 'none',
     'rep': 'rep',
     'events': 'events_meta.total',
-    'ts_last_event': 'ts_last_event',
+    'last_activity': 'last_activity',
     'ts_added': 'ts_added',
     'ip': '_id',
 }
@@ -1301,7 +1298,7 @@ def get_full_info(ipaddr=None):
         'geo' : val.get('geo', None),
         'ts_added' : val['ts_added'].strftime("%Y-%m-%dT%H:%M:%S"),
         'ts_last_update' : val['ts_last_update'].strftime("%Y-%m-%dT%H:%M:%S"),
-        'ts_last_event' : val['ts_last_event'].strftime("%Y-%m-%dT%H:%M:%S") if 'ts_last_event' in val else None,
+        'last_activity' : val['last_activity'].strftime("%Y-%m-%dT%H:%M:%S") if 'last_activity' in val else None,
         'bl' : [ {
                 'name': bl['n'],
                 'last_check': bl['t'].strftime("%Y-%m-%dT%H:%M:%S"),
@@ -1309,6 +1306,7 @@ def get_full_info(ipaddr=None):
                 'history': [t.strftime("%Y-%m-%dT%H:%M:%S") for t in bl['h']]
             } for bl in val.get('bl', []) ],
         'events' : val.get('events', []),
+        'misp_events' : val.get('misp_events', []),
         'events_meta' : {
             'total': val.get('events_meta', {}).get('total', 0.0),
             'total1': val.get('events_meta', {}).get('total1', 0.0),

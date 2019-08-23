@@ -33,7 +33,7 @@ class PSQLEventDatabase:
         #self.log.setLevel('DEBUG')
         
         # Create database connection
-        self.db = psycopg2.connect(database=config.get('eventdb_psql.dbname', 'nerd'),
+        self.db = psycopg2.connect(database=config.get('eventdb_psql.dbname', 'nerd_warden'),
                                    user=config.get('eventdb_psql.dbuser', 'nerd'),
                                    password=config.get('eventdb_psql.dbpassword', None))
 
@@ -127,9 +127,6 @@ class PSQLEventDatabase:
             
             return (id, sources, targets, detecttime, starttime, endtime, idea)
         
-        # TODO print number of messages in bunch - to check it's really being used
-        print("Inserting a batch of {:3d} messages into EventDB".format(len(ideas)), end="\r")
-
         # Handle \u0000 characters in Attach.Content field.
         # The \u0000 char can't be stored in PSQL - encode the attachment into base64
         for idea in ideas:

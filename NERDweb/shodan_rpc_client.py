@@ -2,20 +2,44 @@ import pika
 import uuid
 import time
 
+from common.config import read_config
+
 TIMEOUT = 10 # how many seconds to wait for RPC reply
+
+DEFAULT_RMQ_SETTINGS = {
+    'host': "localhost",
+    'port': 5672,
+    'virtual_host': "/",
+    'username': "guest",
+    'password': "guest"
+}
+
+# config - load nerd.yml
+config = read_config("/etc/nerd/nerd.yml")
+rmq_settings = DEFAULT_RMQ_SETTINGS
+rmq_settings.update(config.get('rabbitmq', {}))
+
 
 class ShodanRpcClient(object):
     def __init__(self):
-        rmq_creds = pika.PlainCredentials('guest', 'guest')
-        rmq_params = pika.ConnectionParameters('localhost', 5672, '/', rmq_creds)
+        rmq_creds = pika.PlainCredentials(rmq_settings['username'], rmq_settings['password'])
+        rmq_params = pika.ConnectionParameters(rmq_settings['host'], rmq_settings['port'], rmq_settings['virtual_host'],
+                                               rmq_creds)
         self.connection = pika.BlockingConnection(rmq_params)
         self.channel = self.connection.channel()
 
-        result = self.channel.queue_declare(exclusive=True)
+        result = self.channel.queue_declare(queue='', arguments={'x-message-ttl' : 30000}, exclusive=True)
         self.callback_queue = result.method.queue
         self.response = None
-        self.corr_id = int()
-        self.channel.basic_consume(self.on_response, no_ack=True, queue=self.callback_queue)
+        self.corr_id = None
+        self.channel.basic_consume(queue=self.callback_queue, on_message_callback=self.on_response, auto_ack=True)
+
+    def __del__(self):
+        if not self.channel.connection.is_closed:
+            try:
+                self.channel.close()
+            except pika.exceptions.ConnectionClosed: # for case it's been closed by the server
+                pass
 
     def on_response(self, ch, method, props, body):
         if self.corr_id == props.correlation_id:
@@ -40,4 +64,5 @@ class ShodanRpcClient(object):
             if time.time() - start > TIMEOUT:
                 return '{"error": "timeout"}'
 
+        #print("(shodan_rpc_client) Response received, returning to web client")
         return str(self.response.decode('utf8'))

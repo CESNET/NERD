@@ -132,3 +132,16 @@ class MongoEntityDatabase():
             key = ipstr2int(key)
 
         self._db[etype].delete_one({'_id': key})
+
+    def aggregate(self, etype, mongo_query):
+        """
+        Aggregates all the records, which do meet certain condition (monqo query)
+
+        :param etype: entity type (str), e.g. 'ip'
+        :param mongo_query: aggregation query in pymongo format
+        :return:
+        """
+        if etype not in self._supportedTypes:
+            raise UnknownEntityType("There is no collection for entity type " + str(etype))
+
+        return list(self._db[etype].aggregate([mongo_query]))

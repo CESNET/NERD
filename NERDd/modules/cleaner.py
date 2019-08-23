@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from core.basemodule import NERDModule
 import g
 
+
 class Cleaner(NERDModule):
     """
     Module clearing old entries from entity records.
@@ -17,11 +18,9 @@ class Cleaner(NERDModule):
 
     def __init__(self):
         self.log = logging.getLogger("Cleaner")
-        #self.log.setLevel("DEBUG")
+        # self.log.setLevel("DEBUG")
 
         max_event_history = g.config.get("max_event_history")
-        ip_lifetime = g.config.get("inactive_ip_lifetime")
-        self.ip_lifetime = timedelta(days=ip_lifetime)
         self.max_event_history = timedelta(days=max_event_history)
 
         g.um.register_handler(
@@ -43,7 +42,6 @@ class Cleaner(NERDModule):
             tuple()
         )
 
-
     def clear_events(self, ekey, rec, updates):
         """
         Handler function to clear old events metadata.
@@ -61,7 +59,7 @@ class Cleaner(NERDModule):
         # Remove all event-records with day before cut_day
         actions = []
         num_events = 0
-        for evtrec in rec['events']:
+        for evtrec in rec.get('events', []):
             if evtrec['date'] < cut_day: # Thanks to ISO format it's OK to compare dates as strings
                 actions.append( ('array_remove', 'events', {'date': evtrec['date'], 'node': evtrec['node'], 'cat': evtrec['cat']}) )
             else:
@@ -73,7 +71,6 @@ class Cleaner(NERDModule):
         
         self.log.debug("Cleaning {}: Removing {} old event-records".format(key, len(actions)-1))
         return actions
-
 
     def clear_bl_hist(self, ekey, rec, updates):
         """
@@ -98,7 +95,7 @@ class Cleaner(NERDModule):
                 actions.append( ('array_remove', 'bl', {'n': blrec['n']}) )
             elif len(newlist) != len(blrec['h']):
                 # If something was removed, replace the list in the record with the new one
-                actions.append( ('array_update', 'bl', ({'n': blrec['n']}, [('set', 'h', newlist)])) )
+                actions.append( ('array_update', 'bl', {'n': blrec['n']}, [('set', 'h', newlist)]) )
         
         # Domain blacklists
         for blrec in rec.get('dbl', []):
@@ -109,25 +106,41 @@ class Cleaner(NERDModule):
                 actions.append( ('array_remove', 'dbl', {'n': blrec['n'], 'd': blrec['d']}) )
             elif len(newlist) != len(blrec['h']):
                 # If something was removed, replace the list in the record with the new one
-                actions.append( ('array_update', 'dbl', ({'n': blrec['n'], 'd': blrec['d']}, [('set', 'h', newlist)])) )
+                actions.append( ('array_update', 'dbl', {'n': blrec['n'], 'd': blrec['d']}, [('set', 'h', newlist)]) )
         
         return actions
 
     def check_ip_expiration(self, ekey, rec, updates):
         """
-        Handler function to issue !every1d and !every1w event in case the IP record is still valid.
+        Handler function to issue !every1d event in case the IP record is still valid.
         If the IP record is no longer valid, a !DELETE event is issued.
         """
         etype, key = ekey
         if etype != 'ip':
             return None
 
-        diff = datetime.utcnow() - rec['ts_last_event']
+        now = datetime.utcnow()
         actions = []
+        if rec.get('_ttl'):
+            # copy() has to be present to prevent "dictionary changed size during iteration" RuntimeError while removing
+            # expired token
+            for name, expiration in rec['_ttl'].copy().items():
+                if expiration == '*':
+                    # record should be alive forever
+                    continue
+                elif now >= expiration:
+                    # token expired, remove it
+                    rec['_ttl'].pop(name)
 
-        if diff >= self.ip_lifetime:
-            actions.append(('event', '!DELETE', None))
-            return actions
-        else:
-            actions.append(('event', '!every1d', None))
-            return actions
+            if not rec['_ttl']:
+                # if all tokens are expired (_ttl empty), then delete the record
+                actions.append(('event', '!DELETE'))
+                return actions
+            else:
+                # otherwise update _ttl
+                actions.append(('set', '_ttl', rec['_ttl']))
+
+        # last event is recent enough or not set at all - keep record and
+        # issue normal !every1d event        
+        actions.append(('event', '!every1d'))
+        return actions

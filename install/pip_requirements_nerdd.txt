@@ -9,9 +9,11 @@ pygeoip
 pycares
 shodan
 apscheduler
-bgpranking_web
-pika
+pika>=1.0.0
 redis
 hiredis
 numpy
 xgboost
+pymisp
+zmq
+amqpstorm

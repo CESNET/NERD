@@ -1,7 +1,10 @@
 # NERD config - common part (for both NERDd and NERDweb)
 ---
-# Number of days to store IP address in the database since the last observed event related to the IP
-inactive_ip_lifetime: 14
+# Number of days to store IP address in the database since the last observed event related to the IP. It also depends
+# on source of the event.
+record_life_length:
+  warden: 14
+  misp: 180
 
 # Number of days to store meta-data about events in IP records
 max_event_history: 90
@@ -12,16 +15,26 @@ mongodb:
   port: 27017
   dbname: nerd
 
+# RabbitMQ settings
+rabbitmq:
+  host: localhost
+  port: 5672
+  virtual_host: /
+  username: guest
+  password: guest
+
 # Tag configuration file
 tags_config: tags.yml
 
 # Blacklists configuration file
 bl_config: blacklists.yml
 
-# EventDB type (where to store/read events):
-# Local PostgreSQL database (default) (needs config in 'eventdb_psql' in nerdd.yml)
+# EventDB type (where to store/read events), may be one of:
+#  'psql' - (default) Local PostgreSQL database (needs config in 'eventdb_psql' in nerdd.yml)
+#  'mentat' - External Mentat instance (no storage by NERD, load via Mentat API) (needs config in 'eventdb_mentat')
+#  'none' - Only process events into metadata, do not store them anywhere
 eventdb: psql
-# External Mentat instance (no storage by NERD, load via Mentat API) (needs config in 'eventdb_mentat')
+
 # eventdb: mentat
 
 # eventdb_mentat:
@@ -31,15 +44,20 @@ eventdb: psql
 # Path to a directory where Warden filer stores incoming IDEA messages
 warden_filer_path: "/data/warden_filer/warden_receiver"
 
+# MISP instance settings
+#misp:
+  # URL of MISP instance
+  #url: "https://misp.example.org"
+  # The MISP auth key can be found on the MISP web interface under the automation section
+  #key: ""
+  # URL of MISP instace ZMQ module (tcp://MISP_URL:50000)
+  #zmq: "tcp://misp.example.org:50000"
+
+# API key for Shodan requester
+shodan_api_key: ""
+
 # File to log total number of updates processed (written every 2s)
 upd_cnt_file: "/data/nerd_updates_processed"
-
-# Number of worker threads, i.e. how many record updates can be processed in parallel
-# This may be higher than number of CPUs, because this is not primarily intended
-# to utilize computational power of multiple CPUs (which Python cannot do well
-# anyway due to the GIL), but to mask long I/O operations (e.g. queries to
-# external services via network)
-worker_threads: 16
 
 dnsbl:
   # List of blacklists to query (the rest of "dnsbl" config is in nerdd.yml)
@@ -76,30 +94,6 @@ dnsbl:
       #127.0.0.11: sorbs-badconf
       #127.0.0.12: sorbs-nomail
       127.0.0.14: sorbs-noserver
-  # blocklist.de, description: https://www.blocklist.de/en/rbldns.html
-  - - blocklist.de
-    - all.bl.blocklist.de
-    - 127.0.0.2: blocklist_de-amavis
-      127.0.0.3: blocklist_de-apacheddos
-      127.0.0.4: blocklist_de-asterisk
-      127.0.0.5: blocklist_de-badbot
-      127.0.0.6: blocklist_de-ftp
-      127.0.0.7: blocklist_de-imap
-      127.0.0.8: blocklist_de-ircbot
-      127.0.0.9: blocklist_de-mail
-      127.0.0.10: blocklist_de-pop3
-      127.0.0.11: blocklist_de-regbot
-      127.0.0.12: blocklist_de-rfi-attack
-      127.0.0.13: blocklist_de-sasl
-      127.0.0.14: blocklist_de-ssh
-      127.0.0.15: blocklist_de-w00tw00t
-      127.0.0.16: blocklist_de-portflood
-      127.0.0.17: blocklist_de-sql-injection
-      127.0.0.18: blocklist_de-webmin
-      127.0.0.19: blocklist_de-trigger-spam
-      127.0.0.20: blocklist_de-manuall
-      127.0.0.21: blocklist_de-bruteforcelogin
-      127.0.0.22: blocklist_de-mysql
   # WPBL (Weighted Private Block List; spam blacklist), description: http://www.wpbl.info/
   - - WPBL (spam)
     - db.wpbl.info

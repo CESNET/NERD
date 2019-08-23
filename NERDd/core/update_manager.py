@@ -4,24 +4,25 @@ NERD update manager.
 Provides UpdateManager class - a NERD component which handles updates of entity
 records, including chain reaction of updates caused by other updates.
 """
+# TODO: split this class into two separate classes
+#  - "task distribution" and "performing tasks (doing changes, calling callbacks, etc.)"
 import sys
 import os
 import threading
-# import multiprocessing
 import queue
-from datetime import datetime, timezone
+from datetime import datetime
 import time
-from collections import defaultdict, deque, Iterable, OrderedDict, Counter
+from collections import deque, Iterable, OrderedDict, Counter
 import logging
-import traceback
 
 import g
 import core.scheduler
+from common.task_queue import TaskQueueReader, TaskQueueWriter
 
 ENTITY_TYPES = ['ip', 'asn', 'bgppref', 'ipblock', 'org']
 
-#  Update request specification = list of three-tuples:
-#    - [(op, key, value), ...]
+#  Update request specification = list of n-tuples:
+#    - [(op, key, params...), ...]
 #      - ('set', key, value)        - set new value to given key (rec[key] = value)
 #      - ('append', key, value)     - append new value to array at key (rec[key].append(key))
 #      - ('add_to_set', key, value) - append new value to array at key if it isn't present in the array yet (if value not in rec[key]: rec[key].append(value))
@@ -31,12 +32,12 @@ ENTITY_TYPES = ['ip', 'asn', 'bgppref', 'ipblock', 'org']
 #      - ('sub', key, value)        - subtract given numerical value from that stored at key (rec[key] -= value)
 #      - ('setmax', key, value)     - set new value of the key to larger of the given value and the current value (rec[key] = max(value, rec[key]))
 #      - ('setmin', key, value)     - set new value of the key to smaller of the given value and the current value (rec[key] = min(value, rec[key]))
-#      - ('remove', key, None)      - remove given key (and all subkeys) from the record (parameter is ignored) (do nothing if the key doesn't exist)
-#      - ('next_step', key, (key_base, min, step)) - set value of 'key' to the smallest value of 'rec[key_base] + N*step' that is greater than 'min' (used by updater to set next update time); key_base MUST exist in the record!
-#      - ('array_update', key, (query, actions)) - apply given actions to specified array item under key, see below for details.
-#      - ('array_upsert', key, (query, actions)) - apply given actions to specified array item under key (insert new item if no one matches), see below for details.
+#      - ('remove', key)            - remove given key (and all subkeys) from the record (parameter is ignored) (do nothing if the key doesn't exist)
+#      - ('next_step', key, key_base, min, step) - set value of 'key' to the smallest value of 'rec[key_base] + N*step' that is greater than 'min' (used by updater to set next update time); key_base MUST exist in the record!
+#      - ('array_update', key, query, actions) - apply given actions to specified array item under key, see below for details.
+#      - ('array_upsert', key, query, actions) - apply given actions to specified array item under key (insert new item if no one matches), see below for details.
 #      - ('array_remove', key, query) - remove array item satisfying given query (do nothing if no one matches).
-#      - ('event', !name, param)    - do nothing with record, only trigger functions hooked on the event name
+#      - ('event', !name)    - do nothing with record, only trigger functions hooked on the event name
 #  The tuple is passed to functions watching for updates of given keys / events
 #  with given name. Event names must begin with '!' (attribute keys mustn't).
 #  Update manager performs the requested update and calls functions hooked on 
@@ -45,8 +46,8 @@ ENTITY_TYPES = ['ip', 'asn', 'bgppref', 'ipblock', 'org']
 #  i.e. a list of 2-tuples (attr_name, new_value) or (event_name, param)
 #  (if more than one update triggers the same function, it's called only once). 
 
-# Special action "array_update":
-#      - ('update_item', key, (query, actions))
+# Special actions "array_update"/"array_upsert":
+#      - ('array_update', key, query, actions)
 #  "key" must be path to an array of objects (dicts),
 #  the item whose values match those in "query" dict is selected
 #  all "actions" are performed with the selected object (keys inside those actions should be relative to the object root).
@@ -54,14 +55,14 @@ ENTITY_TYPES = ['ip', 'asn', 'bgppref', 'ipblock', 'org']
 #    - array_update: record is not changed
 #    - array_upsert: "query" is added as a new array item.
 #  If there are multiple matching events, only the first one is used.
-#  "actions" may contain actions of type "update_item" (recursion), it must not contain events.
+#  "actions" may contain actions of type "array_update"/"array_upsert" (recursion), it must not contain events.
 #  Rationale:
 #    Because of DB constraints, keys should always be fixed values. Therefore we often use 
 #    arrays of subobjects where one or more attributes of the subobject act as a key.
 #    This action type allows to work with such structures.
 #  Examples:
-#    ('update_item', 'bl', ({n: "blacklistname"} , [('set', 'v', 1), ('set', 't', req_time), ('append', 'h', req_time)]))
-#    ('update_item', 'events', ({date: "2017-07-17", cat: "ReconScanning"} , [('add', 'n', 1)]))
+#    ('array_update', 'bl', {n: "blacklistname"} , [('set', 'v', 1), ('set', 't', req_time), ('append', 'h', req_time)])
+#    ('array_upsert', 'events', {date: "2017-07-17", cat: "ReconScanning"} , [('add', 'n', 1)])
 
 
 # TODO: Let each module (or rather hook function) tell, whether it needs the whole record.
@@ -83,14 +84,15 @@ def perform_update(rec, updreq):
     """
     Update a record according to given update request.
     
-    updreq - 3-tuple (op, key, value)
+    updreq - n-tuple (op, key, params...)
     
-    Return array with specifications of performed updates (pairs (updated_key,
+    Return array with specifications of performed updates - pairs (updated_key,
     new_value) or None.
     (None is returned when nothing was changed, e.g. because op=add_to_set and
     value was already present, or removal of non-existent item was requested)
     """
-    op, key, value = updreq
+    op = updreq[0]
+    key = updreq[1]
     
     # Process keys with hierarchy, i.e. containing dots (like "events.scan.count")
     # rec will be the inner-most subobject ("events.scan"), key the last attribute ("count")
@@ -105,15 +107,16 @@ def perform_update(rec, updreq):
             rec = rec[first_key]
     
     if op == 'set':
-        rec[key] = value
+        rec[key] = updreq[2]
     
     elif op == 'append':
         if key not in rec:
-            rec[key] = [value]
+            rec[key] = [updreq[2]]
         else:
-            rec[key].append(value)
+            rec[key].append(updreq[2])
 
     elif op == 'add_to_set':
+        value = updreq[2]
         if key not in rec:
             rec[key] = [value]
         elif value not in rec[key]:
@@ -122,6 +125,7 @@ def perform_update(rec, updreq):
             return None
     
     elif op == 'extend_set':
+        value = updreq[2]
         if key not in rec:
             rec[key] = list(value)
         else:
@@ -135,31 +139,31 @@ def perform_update(rec, updreq):
 
     elif op == 'rem_from_set':
         if key in rec:
-            rec[key] = list(set(rec[key]) - set(value))
+            rec[key] = list(set(rec[key]) - set(updreq[2]))
 
     elif op == 'add':
         if key not in rec:
-            rec[key] = value
+            rec[key] = updreq[2]
         else:
-            rec[key] += value
+            rec[key] += updreq[2]
     
     elif op == 'sub':
         if key not in rec:
-            rec[key] = -value
+            rec[key] = -updreq[2]
         else:
-            rec[key] -= value
+            rec[key] -= updreq[2]
     
     elif op == 'setmax':
         if key not in rec:
-            rec[key] = value
+            rec[key] = updreq[2]
         else:
-            rec[key] = max(value, rec[key])
+            rec[key] = max(updreq[2], rec[key])
     
     elif op == 'setmin':
         if key not in rec:
-            rec[key] = value
+            rec[key] = updreq[2]
         else:
-            rec[key] = min(value, rec[key])
+            rec[key] = min(updreq[2], rec[key])
     
     elif op == 'remove':
         if key in rec:
@@ -168,12 +172,15 @@ def perform_update(rec, updreq):
         return None
     
     elif op == 'next_step':
-        key_base, min, step = value
+        key_base = updreq[2]
+        minimum = updreq[3]
+        step = updreq[4]
         base = rec[key_base]
-        rec[key] = base + ((min - base) // step + 1) * step 
+        rec[key] = base + ((minimum - base) // step + 1) * step
     
     elif op == 'array_update' or op == 'array_upsert':
-        query, actions = value
+        query = updreq[2]
+        actions = updreq[3]
         if key not in rec:
             if op == 'array_upsert':
                 rec[key] = []
@@ -194,14 +201,14 @@ def perform_update(rec, updreq):
         # Now, "item" is the selected array item ("i" its index), apply all actions to it
         updates_performed = []
         for action in actions:
-            upds = perform_update(item, action)
+            upds = perform_update(item, action) # recursion
             # List of all actions must be returned, convert relative keys to absolute
             for inner_key, new_val in upds:
-                updates_performed.append((key + '.' + str(i) + '.' + inner_key, new_val))
+                updates_performed.append((key + '[' + str(i) + '].' + inner_key, new_val))
         return updates_performed
     
     elif op == 'array_remove':
-        query = value
+        query = updreq[2]
         if key not in rec:
             return None
         array = rec[key]
@@ -213,7 +220,7 @@ def perform_update(rec, updreq):
             return None
         # Remove it
         del array[i]
-        return [(key + '.' + str(i), None)]
+        return [(key + '[' + str(i) + ']', None)]
     
     else:
         print("ERROR: perform_update: Unknown operation {}".format(op), file=sys.stderr)
@@ -230,7 +237,7 @@ class UpdateManager:
     TODO: detailed description
     """
 
-    def __init__(self, config, db):
+    def __init__(self, config, db, process_index, num_processes):
         """
         Initialize update manager.
         
@@ -238,12 +245,25 @@ class UpdateManager:
         config -- global NERDd configuration (dict)
         db -- instance of EntityDatabase which should be used to load/store 
               entity records.
+        process_index -- index of this process (0 to num_processes-1)
+        num_processes -- total number of worker processes in the system
         """
+        assert(isinstance(process_index, int) and isinstance(num_processes, int))
+        assert(num_processes >= 1)
+        assert(0 <= process_index < num_processes)
+
         self.log = logging.getLogger("UpdateManager")
         #self.log.setLevel('DEBUG')
         
+        self.process_index = process_index
+        self.num_processes = num_processes
+        
         self.db = db
         
+        self.rabbit_params = config.get('rabbitmq', {})
+
+        self.running = False
+
         # Mapping of names of attributes to a list of functions that should be 
         # called when the attribute is updated
         # (One such mapping for each entity type)
@@ -257,18 +277,29 @@ class UpdateManager:
         self._func_triggers = {etype: {} for etype in ENTITY_TYPES}
         
         # List of worker threads for processing the update requests
-        self._workers = []
-        self.num_workers = g.config.get('worker_threads', 8)
-        
-        # Queues for pending update requests (one for each worker)
-        self._request_queues = [queue.Queue() for _ in range(self.num_workers)]
-        
+        self._worker_threads = []
+        self.num_threads = g.config.get('worker_threads', 8)
+
+        # Internal queues for each worker
+        # TODO - rozhodnout jak velké maxsize by to mělo být (a jestli je to vůbec nutné, možná není, pokud bude na úrovni RMQ omezen počet nepotvrzených zpráv)
+        self._queues = [queue.Queue(10) for _ in range(self.num_threads)]
+
+        # Connections to main task queue
+        # Reader - reads tasks from a pair of queues (one pair per process) and distributes them to worker threads
+        self._task_queue_reader = TaskQueueReader(self._distribute_task, self.process_index, self.rabbit_params)
+        # Writer - allows modules to write new tasks
+        self._task_queue_writer = TaskQueueWriter(self.num_processes, self.rabbit_params)
+
+        # Object to store thread-local data (e.g. worker-thread index) (each thread sees different object contents)
+        self._current_thread_data = threading.local()
+
         # Number of restarts of threads by watchdog
         self._watchdog_restarts = 0
         # Register watchdog to scheduler
-        g.scheduler.register(self.watchdog, second="*/30")
+        g.scheduler.register(self._watchdog, second="*/30")
 
         # Count of update requests processed (per update type)
+        # TODO: reimplement using EventCountLogger
         self._update_counter = OrderedDict([
             ('ip_new_entity',0), # New entity (usually because of new event)
             ('ip_event',0), # New event added to existing entity
@@ -284,63 +315,20 @@ class UpdateManager:
         self._last_update_counter = self._update_counter.copy()
 
         # Log number of update requests processed every 2 seconds
-        if ("upd_cnt_file" in g.config):
+        # (temporarily disabled)
+        if False or "upd_cnt_file" in g.config:
             # Use a new scheduler, because the default one is stopped when
             # NERDd daemon is going to exit, but we want to keep logging
             # till the end
             self.logging_scheduler = core.scheduler.Scheduler()
-            self.logging_scheduler.register(self.log_update_counter, second="*/2")
+            self.logging_scheduler.register(self._log_update_counter, second="*/2")
             self.logging_scheduler.start()
+        else:
+            self.logging_scheduler = None
 
+        # This is here for performance debugging - measuring the time spent in each handler function
 #        self.t_handlers = Counter()
 #        self.logging_scheduler.register(self.log_t_handlers, second="*/60")
-
-
-    def log_update_counter(self):
-        # Write update counter to file (every 2 sec)
-        # Lines 1-5: (IP) total number of updates (per update type)
-        # Lines 6-10: (ASN) total number of updates (per update type)
-        # Lines 11-15: (IP) number of updates from last period
-        # Lines 16-20: (ASN) number of updates from last period
-        # Line 21: current length of update request queue
-        filename = g.config.get("upd_cnt_file", None)
-        if not filename:
-            return
-        # Write to a temp file and then rename, so at no time there is a partially written file (rename is atomic operation)
-        tmp_filename = filename + "_tmp$"
-        with open(tmp_filename, "w") as f:
-            for _,cnt in self._update_counter.items():
-                f.write('{}\n'.format(cnt))
-            for (_,last),(_,cnt) in zip(self._last_update_counter.items(), self._update_counter.items()):
-                f.write('{}\n'.format(cnt-last))
-            f.write("{}\n".format(self.get_queue_size()))
-        os.replace(tmp_filename, filename)
-        self._last_update_counter = self._update_counter.copy()
-    
-    def log_t_handlers(self):
-        print("Handler function running times:")
-        for name,t in self.t_handlers.most_common(10):
-            print("{:50s} {:7.3f}".format(name,t))
-        self.t_handlers = Counter()
-
-
-    def _dump_handler_chain(self, etype):
-        """
-        Dump information about registered handlers (return string).
-
-        What attrs/events they are hooked on and what attrs they may change.
-        Used for debugging.
-        """
-        s = "func_triggers:\n"
-        for k,v in self._func_triggers[etype].items():
-            s += "{} -> {}\n".format(v,get_func_name(k))
-        s += "\nfunc2attr:\n"
-        for k,v in self._func2attr[etype].items():
-            s += "{} -> {}\n".format(get_func_name(k),v)
-        s += "\nattr2func:\n"
-        for k,v in self._attr2func[etype].items():
-            s += "{} -> {}\n".format(k,list(map(get_func_name,v)))
-        return s
 
 
     def register_handler(self, func, etype, triggers, changes):
@@ -379,32 +367,196 @@ class UpdateManager:
                 self._attr2func[etype][attr] = [func]
 
 
-    def get_queue_sizes(self):
-        """Return current number of requests in each queue."""
-        return [q.qsize() for q in self._request_queues]
-
-    def get_queue_size(self):
-        """Return current total number of requests in all queues."""
-        return sum(q.qsize() for q in self._request_queues)    
-
-
-    def update(self, ekey, update_spec):
+    def update(self, ekey, update_requests): # TODO: rename to "request update"
         """
         Request an update of one or more attributes of an entity record.
         
-        Put given requests into an internal queue to be processed by some of the
-        worker threads. Requests may request changes of some attribute or they
-        may issue events. 
+        Put given requests into the main task queue to be processed by some of the workers.
+        Requests may request changes of some attribute or they may issue events.
         
         Arguments:
         ekey -- Entity type and key (2-tuple)
-        update_spec -- list of 3-tuples ... (see above) TODO
+        update_requests -- list of update_request n-tuples (see the comments in the beginning of file)
         """
-        # Updates are distributed to worker queues based on a hash of entity key
-        index = hash(ekey) % self.num_workers
-        self._request_queues[index].put((ekey, update_spec))
-        
-    
+        # Put task to priority queue, so this can never block due to full queue
+        self._task_queue_writer.put_task(ekey[0], ekey[1], update_requests, priority=True)
+
+
+    # ############### Task distribution & control functions ###############
+
+    def start(self):
+        """Run the worker threads and start consuming from TaskQueue."""
+        self.log.info("Connecting to RabbitMQ")
+        self._task_queue_reader.connect()
+        self._task_queue_writer.connect()
+
+        self.log.info("Starting {} worker threads".format(self.num_threads))
+        self.running = True
+        self._worker_threads = [
+            threading.Thread(target=self._worker_func, args=(i,), name="Worker-{}-{}".format(self.process_index, i)) for
+            i in range(self.num_threads)]
+        for worker in self._worker_threads:
+            worker.start()
+
+        self.log.info("Starting consuming tasks from main queue")
+        self._task_queue_reader.start()
+
+
+    def stop(self):
+        """
+        Stop the manager
+        """
+        self.log.info("Waiting for worker threads to finish their current tasks ...")
+        # Thread for printing debug messages about worker status
+        threading.Thread(target=self._dbg_worker_status_print, daemon=True).start()
+
+        # Stop receiving new tasks from global queue
+        self._task_queue_reader.stop()
+
+        # Signalize stop to worker threads
+        self.running = False
+
+        # Wait until all workers stopped
+        for worker in self._worker_threads:
+            worker.join()
+
+        self._task_queue_reader.disconnect()
+        self._task_queue_writer.disconnect()
+
+        # Stop logging scheduler
+        # TODO won't be needed when EventCountLogger is used
+        if self.logging_scheduler:
+            self.logging_scheduler.stop()
+        # Delete file with updates count log
+        filename = g.config.get("upd_cnt_file", None)
+        if filename:
+            for i in range(self.num_threads):
+                try:
+                    os.remove(filename + "_" + str(i))
+                except Exception:
+                    pass
+        # Cleanup
+        self._worker_threads = []
+
+
+    def _distribute_task(self, msg_id, etype, eid, updreq):
+        """
+        Puts given task into local queue of the corresponding thread.
+
+        Called by TaskQueueReader when a new task is received from the global queue.
+
+        :param msg_id: unique ID of the message, used to acknowledge it
+        :param etype: entity type (e.g. 'ip', 'asn')
+        :param eid: entity identifier (e.g. '1.2.3.4', 2852)
+        :param updreq: list of update requests (n-tuples)
+        """
+        # Distribute tasks to worker threads by hash of (etype,ekey)
+        index = hash((etype, eid)) % self.num_threads
+        self._queues[index].put((msg_id, etype, eid, updreq))
+
+
+    def _worker_func(self, thread_index):
+        """
+        Main worker function.
+
+        Run as a separate thread. Read its local task queue and calls
+        "_process_task" function to process each task.
+
+        Tasks are assigned to workers based on hash of entity key, so each
+        entity is always processed by the same worker. Therefore, all requests
+        modifying a particular entity are done sequentially and no locking is
+        necessary.
+        """
+        # Store index to thread-local variable
+        self._current_thread_data.index = thread_index
+
+        my_queue = self._queues[thread_index]
+
+        # Read and process tasks in a loop.
+        # Exit immediately after self.running is set to False, it's not a problem if there are any more tasks waiting
+        # in the queue - they won't be acknowledged so they will be re-delivered after restart.
+        while self.running:
+            # Get message from thread's local queue
+            try:
+                task = my_queue.get(block=True, timeout=1)
+            except queue.Empty:
+                continue # check self.running again
+
+            msg_id, etype, eid, updreq = task
+
+            # Acknowledge receipt of the task (regardless of success/failre of its processing)
+            self._task_queue_reader.ack(msg_id)
+
+            # Process the task
+            # self.log.debug("Processing task {}: {}/{} {}".format(msg_id, etype, eid, updreq))
+            start_time = datetime.now()
+            created = self._process_update_req(etype, eid, updreq.copy())
+            duration = (datetime.now() - start_time).total_seconds()
+            #self.log.debug("Task {} finished in {:.3f} seconds.".format(msg_id, duration))
+            if duration > 1.0:
+                self.log.debug("Task {} took {} seconds: {}/{} {}{}".format(msg_id, duration, etype, eid, updreq, " (new record created)" if created else ""))
+
+            # # Increment corresponding update counter
+            # # TODO: replace this by event_count_logger
+            # if etype in ['ip', 'asn']:
+            #     if new_rec_created:
+            #         self._update_counter[etype+'_new_entity'] += 1
+            #     elif any(u == ('add', 'events_meta.total', 1) for u in updreq):
+            #         self._update_counter[etype+'_event'] += 1
+            #     elif any(u[1] == '!every1w' for u in updreq):
+            #         self._update_counter[etype+'_regular_1w'] += 1
+            #     elif any(u[1] == '!every1d' for u in updreq):
+            #         self._update_counter[etype+'_regular_1d'] += 1
+            #     else:
+            #         self._update_counter[etype+'_other'] += 1
+
+
+    def _watchdog(self):
+        """
+        Check whether all workers are running and restart them if not.
+
+        Should be called periodically by scheduler.
+        Stop whole program after 20 restarts of threads.
+        """
+        for i, worker in enumerate(self._worker_threads):
+            if not worker.is_alive():
+                if self._watchdog_restarts < 20:
+                    self.log.error("Thread {} is dead, restarting.".format(worker.name))
+                    worker.join()
+                    new_thread = threading.Thread(target=self._worker_func, args=(i,), name="Worker-{}-{}".format(self.process_index, i))
+                    self._worker_threads[i] = new_thread
+                    new_thread.start()
+                    self._watchdog_restarts += 1
+                else:
+                    self.log.critical("Thread {} is dead, more than 20 restarts attempted, giving up...".format(worker.name))
+                    g.daemon_stop_lock.release()  # Exit program
+                    break
+
+    def _dbg_worker_status_print(self):
+        """
+        Print status of workers and the request queue every 5 seconds.
+
+        Should be run as a separate (daemon) thread.
+        Exits when all workers has finished.
+        """
+        ttl = 10  # Wait for 10 seconds until printing starts
+        while True:
+            # Check if all workers are dead every second
+            time.sleep(1)
+            ttl -= 1
+            alive_workers = [w for w in self._worker_threads if w.is_alive()]
+            if not alive_workers:
+                return
+
+            if ttl == 0:
+                # Print info and reset counter to 5 seconds
+                self.log.info("{} worker threads alive".format(len(alive_workers)))
+                ttl = 5
+
+
+
+    # ############### Task processing functions ###############
+
     # TODO cache results (clear cache when register_handler is called)
     def get_all_possible_changes(self, etype, attr):
         """
@@ -427,18 +579,17 @@ class UpdateManager:
         return may_change
     
     
-    def _process_update_req(self, ekey, update_requests):
+    def _process_update_req(self, etype, eid, update_requests):
         """
         Main processing function - update attributes or trigger an event.
         
         Arguments:
-        ekey -- Entity type and key (2-tuple)
-        update_requests -- list of 3-tuples as described above
+        etype - entity type 
+        eid - entity ID
+        update_requests - list of n-tuples as described above
         
         Return True if a new record was created, False otherwise.
         """ 
-        etype = ekey[0]
-        
         # Load record corresponding to the key from database.
         # If record doesn't exist, create new.
         # Also create associated auxiliary objects:
@@ -452,32 +603,31 @@ class UpdateManager:
         # Check whether a new record should not be created in case every operation is 'weak' (starts with '*')
         weak_op = True
         for ndx, updreq in enumerate(update_requests):
-            op, attr, val = updreq
+            op = updreq[0]
             if op[0] != '*':
                 weak_op = False
             else:
                 # Remove starting symbol '*'
-                op = op[1:]
-                update_requests[ndx] = (op, attr, val)
+                update_requests[ndx] = [updreq[0][1:]] + updreq[1:] # first item without first char + all other items
 
         # Fetch the record from database or create a new one
         new_rec_created = False
-        rec = self.db.get(ekey[0], ekey[1])
+        rec = self.db.get(etype, eid)
         if rec is None:
             if weak_op:
                 update_requests.clear()
-                self.log.debug("Received only weak operations for non-existent entity {} of type {}. Aborting record creation.".format(ekey[1], ekey[0]))
+                self.log.debug("Received only weak operations for non-existent entity {} of type {}. Aborting record creation.".format(etype, eid))
             else:
                 now = datetime.utcnow()
                 rec = {
-                    '_id': ekey[1],
+                    '_id': eid,
                     'ts_added': now,
                     'ts_last_update': now,
                 }
                 new_rec_created = True
                 # New record was created -> add "!NEW" event to update_request
-                #self.log.debug("New record {} was created, injecting event '!NEW'".format(ekey))
-                update_requests.insert(0,('event','!NEW',None))
+                #self.log.debug("New record ({},{}) was created, injecting event '!NEW'".format(etype,eid))
+                update_requests.insert(0,('event','!NEW'))
         
         # Short-circuit if update_requests is empty (used to only create a record if it doesn't exist)
         if not update_requests:
@@ -504,14 +654,15 @@ class UpdateManager:
             # the call_queue and update the set of attributes that may change)
             if requests_to_process:
                 # Process update requests (perform updates, put hooked functions to call_queue and update may_change set)
-                self.log.debug("UpdateManager: New update requests for {}: {}".format(ekey, requests_to_process))
+                #self.log.debug("UpdateManager: New update requests for ({},{}): {}".format(etype, eid, requests_to_process))
                 for updreq in requests_to_process:
-                    op, attr, val = updreq
+                    op = updreq[0]
+                    attr = updreq[1]
                     assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
                     
                     if op == 'event':
-                        #self.log.debug("Initial update: Event ({}:{}).{} (param={})".format(ekey[0],ekey[1],attr,val))
-                        updated = [(attr, val)]
+                        #self.log.debug("Initial update: Event ({}:{}).{} (param={})".format(etype,eid,attr,val))
+                        updated = [(attr, None)]
 
                         # Check whether the event is !DELETE, clear queues and add calls to functions hooked to the !DELETE event
                         if attr == '!DELETE':
@@ -522,7 +673,7 @@ class UpdateManager:
                                 call_queue.append((func, updated))
                             break
                     else:
-                        #self.log.debug("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(ekey[0],ekey[1],attr,op,val))
+                        #self.log.debug("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(etype,eid,attr,op,val))
                         updated = perform_update(rec, updreq)
                         if not updated:
                             #self.log.debug("Attribute value wasn't changed.")
@@ -563,7 +714,7 @@ class UpdateManager:
             # safety check against infinite looping
             loop_counter += 1
             if loop_counter > 20:
-                self.log.warning("Too many iterations when updating {}, something went wrong! Update chain stopped.".format(ekey))
+                self.log.warning("Too many iterations when updating ({}:{}), something went wrong! Update chain stopped.".format(etype,eid))
                 break
             
             func, updates = call_queue.popleft()
@@ -572,19 +723,19 @@ class UpdateManager:
             # to expected subsequent events, postpone its call.
             if may_change & self._func_triggers[etype][func]:  # nonempty intersection of two sets
                 # Put the function call back to the end of the queue
-                self.log.debug("call_queue: Postponing call of {}({})".format(get_func_name(func), updates))
+                #self.log.debug("call_queue: Postponing call of {}({})".format(get_func_name(func), updates))
                 call_queue.append((func, updates))
                 continue
             
             # Call the event handler function.
             # Set of requested updates of the record should be returned
-            self.log.debug("Calling: {}({}, ..., {})".format(get_func_name(func), ekey, updates))
+            #self.log.debug("Calling: {}(({}, {}), rec, {})".format(get_func_name(func), etype, eid, updates))
 #            t_handler1 = time.time()
             try:
-                reqs = func(ekey, rec, updates)
+                reqs = func((etype, eid), rec, updates)
             except Exception as e:
-                self.log.exception("Unhandled exception during call of {}({}, rec, {}). Traceback follows:"
-                    .format(get_func_name(func), ekey, updates) )
+                self.log.exception("Unhandled exception during call of {}(({}, {}), rec, {}). Traceback follows:"
+                    .format(get_func_name(func), etype, eid, updates) )
                 reqs = []
 #            t_handler2 = time.time()
 #            t_handlers[get_func_name(func)] = t_handler2 - t_handler1
@@ -608,156 +759,78 @@ class UpdateManager:
         # Set ts_last_update
         rec['ts_last_update'] = datetime.utcnow()
         
-        #self.log.debug("RECORD: {}: {}".format(ekey, rec))
-        
 #        t3 = time.time()
 
         # Remove or update processed database record
         if deletion:
-            self.db.delete(ekey[0], ekey[1])
-            self.log.debug("Entity '{}' of type '{}' was removed from the database.".format(ekey[1], ekey[0]))
+            self.db.delete(etype, eid)
+            self.log.debug("Entity '{}' of type '{}' was removed from the database.".format(eid, etype))
         else:
-            self.db.put(ekey[0], ekey[1], rec)
+            self.db.put(etype, eid, rec)
 
         
 #        t4 = time.time()
 #        #if t4 - t1 > 1.0:
-#        #    self.log.info("Entity {}: load: {:.3f}s, process: {:.3f}s, store: {:.3f}s".format(ekey, t2-t1, t3-t2, t4-t3))
+#        #    self.log.info("Entity ({}:{}): load: {:.3f}s, process: {:.3f}s, store: {:.3f}s".format(etype, eid, t2-t1, t3-t2, t4-t3))
 #        #    self.log.info("  handlers:" + ", ".join("{}: {:.3f}s".format(fname, t) for fname, t in t_handlers))
 #
 #        self.t_handlers.update(t_handlers)
         
         return new_rec_created
 
-    
-    def start(self):
-        """Run the worker threads."""
-        self.log.info("Starting {} worker threads".format(self.num_workers))
-        #self._process = multiprocessing.Process(target=self._main_loop)
-        self._workers = [ threading.Thread(target=self._worker_func, args=(i,), name="UMWorker-"+str(i)) for i in range(self.num_workers) ]
-        for worker in self._workers:
-            worker.start()
-    
-    def stop(self):
+
+
+    # ############### Debug/logging functions ###############
+
+    def dump_handler_chain(self, etype):
         """
-        Stop the manager (signal all worker threads to finish and wait).
-        
-        All modules writing to the request queue should already be stopped.
-        If some request is written to the queue after a call of this function,
-        it probably won't be performed.
+        Dump information about registered handlers (return string).
+
+        What attrs/events they are hooked on and what attrs they may change.
+        Used for debugging.
         """
-        self.log.info("Telling all workers to stop ...")
-        # Thread for printing debug messages about worker status
-        threading.Thread(target=self._dbg_worker_status_print, daemon=True).start()
-        
-        # Wait until all work is done (other modules should be stopped now, but some tasks may still be added as a result of already ongoing processing (e.g. new IP adds new ASN))
-        for i in range(self.num_workers):
-            self._request_queues[i].join() 
-        # Send None to request_queue to signal workers to stop (one for each worker)
-        for i in range(self.num_workers):
-            self._request_queues[i].put(None) 
-        # Wait until all workers stopped (this should be immediate)
-        for worker in self._workers:
-            worker.join()
-        
-        # Stop logging scheduler
-        self.logging_scheduler.stop()
-        # Delete file with updates count log
+        s = "func_triggers:\n"
+        for k,v in self._func_triggers[etype].items():
+            s += "{} -> {}\n".format(v,get_func_name(k))
+        s += "\nfunc2attr:\n"
+        for k,v in self._func2attr[etype].items():
+            s += "{} -> {}\n".format(get_func_name(k),v)
+        s += "\nattr2func:\n"
+        for k,v in self._attr2func[etype].items():
+            s += "{} -> {}\n".format(k,list(map(get_func_name,v)))
+        return s
+
+
+    def _log_update_counter(self):
+        # TODO: won't be needed when EventCountLogger is used
+        # Write update counter to file (every 2 sec)
+        # Lines 1-5: (IP) total number of updates (per update type)
+        # Lines 6-10: (ASN) total number of updates (per update type)
+        # Lines 11-15: (IP) number of updates from last period
+        # Lines 16-20: (ASN) number of updates from last period
+        # Line 21: current length of update request queue
         filename = g.config.get("upd_cnt_file", None)
-        if filename:
-            try:
-                os.remove(filename)
-            except Exception:
-                pass
-        # Cleanup
-        self._workers = []
+        if not filename:
+            return
+        # Add process index to the filename
+        filename += "_" + str(self.process_index)
+        # Write to a temp file and then rename, so at no time there is a partially written file (rename is atomic operation)
+        tmp_filename = filename + "_tmp$"
+        with open(tmp_filename, "w") as f:
+            for _, cnt in self._update_counter.items():
+                f.write('{}\n'.format(cnt))
+            for (_, last), (_, cnt) in zip(self._last_update_counter.items(), self._update_counter.items()):
+                f.write('{}\n'.format(cnt - last))
+            f.write("{}\n".format(
+                0))  # sum(self.get_queue_size(i) for i in range(self.num_threads)))) # Takes a long time - disabled
+        os.replace(tmp_filename, filename)
+        self._last_update_counter = self._update_counter.copy()
 
 
-    def watchdog(self):
-        """
-        Check whether all workers are running and restart them if not.
-        
-        Should be called periodically by scheduler.
-        Stop whole program after 20 restarts of threads.
-        """
-        for i,worker in enumerate(self._workers):
-            if not worker.is_alive():
-                if self._watchdog_restarts < 20:
-                    self.log.error("Thread {} is dead, restarting.".format(worker.name))
-                    worker.join()
-                    new_thread = threading.Thread(target=self._worker_func, args=(i,), name="UMWorker-"+str(i))
-                    self._workers[i] = new_thread
-                    new_thread.start()
-                    self._watchdog_restarts += 1
-                else:
-                    self.log.critical("Thread {} is dead, more than 20 restarts attempted, giving up...".format(worker.name))
-                    g.daemon_stop_lock.release()
-                    break
-
-
-    def _dbg_worker_status_print(self):
-        """
-        Print status of workers and the request queue every 5 seconds.
-        
-        Should be run as a separate (daemon) thread.
-        Exits when all workers has finished.
-        """
-        time.sleep(10)
-        while True:
-            queue_sizes = self.get_queue_sizes()
-            self.log.info("Workers and their queue size:\n" + '\n'.join(
-                "{:2} ({}): {:3}".format(w.name[9:], "alive" if w.is_alive() else "dead ", queue_sizes[i]) for i,w in enumerate(self._workers)
-            ))
-            alive_workers = filter(threading.Thread.is_alive, self._workers)
-            if not alive_workers:
-                break
-            time.sleep(5)
-            
-    
-    def _worker_func(self, thread_index):
-        """
-        Main processing function.
-        
-        Run as a separate thread/process. Read request queue. For each request
-        pull corresponding record from database, and call "_process_update_req"
-        function.
-        
-        Requests are assigned to workers based on hash of entity key, so each
-        entity is always process by the same worker. Therefore, all requests
-        modifying a particular entity are done sequentially and no locking is 
-        necessary.
-        """
-        while True:
-            # Get update request from the queue
-            # (None object in the queue causes termination of the process, used 
-            # to exit the program)
-            req = self._request_queues[thread_index].get()
-            if req is None:
-                self.log.debug("'None' received from queue {} - exiting".format(thread_index))
-                self._request_queues[thread_index].task_done()
-                break
-            ekey, updreq = req
-            
-#             self.log.debug("New update request: {},{}".format(ekey, updreq))
-            
-            # Call update method (pass copy of updreq since we need it unchanged for the logging code below)
-            new_rec_created = self._process_update_req(ekey, updreq.copy())
-            
-#             self.log.debug("Task done")
-            self._request_queues[thread_index].task_done()
-            
-            # Increment corresponding update counter
-            if ekey[0] in ['ip', 'asn']:
-                if new_rec_created:
-                    self._update_counter[ekey[0]+'_new_entity'] += 1
-                elif any(u == ('add', 'events_meta.total', 1) for u in updreq):
-                    self._update_counter[ekey[0]+'_event'] += 1
-                elif any(u[1] == '!every1w' for u in updreq):
-                    self._update_counter[ekey[0]+'_regular_1w'] += 1
-                elif any(u[1] == '!every1d' for u in updreq):
-                    self._update_counter[ekey[0]+'_regular_1d'] += 1
-                else:
-                    self._update_counter[ekey[0]+'_other'] += 1
-
+    def log_t_handlers(self):
+        print("Handler function running times:")
+        for name, t in self.t_handlers.most_common(10):
+            print("{:50s} {:7.3f}".format(name, t))
+        self.t_handlers = Counter()
 
 

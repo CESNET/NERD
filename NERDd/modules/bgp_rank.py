@@ -1,26 +1,17 @@
 """
-NERD module
+NERD module fetching BGP ranking of ASNs from CIRCL's server.
 
-BGP Ranking API Python installation:
-
-    git clone https://github.com/CIRCL/bgpranking-redis-api.git
-    cd bgpranking-redis-api/example/api_web/client/
-    python3 setup.py build
-    sudo python3 setup.py install
-
-I had to change the __init__.py file of this module:
-(This path may vary.)
-~/.local/lib/python3.5/site-packages/bgpranking_web/__init__.py
-from api import *   ----> from .api import *
-
+Official API client is not used, since it's just a simple 'requests' wrapper. We rather construct requests ourselves.
 """
 
 from core.basemodule import NERDModule
 import g
 
-import bgpranking_web
 import logging
+import requests
 
+BASE_URL = "https://bgpranking-ng.circl.lu/"
+QUERY_URL = BASE_URL + "json/asn"
 
 class CIRCL_BGPRank(NERDModule):
     """
@@ -31,6 +22,8 @@ class CIRCL_BGPRank(NERDModule):
 
     def __init__(self):
         self.log = logging.getLogger('CIRCL_BGPRank')
+        self.log.setLevel("DEBUG")
+        self.requests_session = requests.session()
         g.um.register_handler(
             self.set_bgprank,  # function (or bound method) to call
             'asn',                # entity type
@@ -53,7 +46,7 @@ class CIRCL_BGPRank(NERDModule):
         List of update requests (3-tuples describing requested attribute updates
         or events).
         None in case of error.
-        In particular, the following update is requested:
+        In particular, the following update is requested
           ('set', 'circl_bgprank', RANK_NUM)
         """
         etype, key = ekey
@@ -61,15 +54,30 @@ class CIRCL_BGPRank(NERDModule):
         if etype != 'asn':
             return None
 
+        #query = json.dumps({'asn': key, 'address_family': 'v4'})
+        query = '{"asn": ' + str(key) + ', "address_family": "v4"}'
         try:
-            # the return format is: [asn, name, date, source, rank]
-            reply = bgpranking_web.cached_daily_rank(ekey[1])
-            if isinstance(reply, dict) and 'error' in reply:
-                self.log.error("Can't get BGPRank of ASN {}, server returned error: {}".format(key, reply['error']))
-                return None
-            rank = reply[-1]
+            # the return format is:
+            # {'meta': {'asn': integer, 'address_family': 'v4'},
+            #  'response': {'asn_description': 'xxx',
+            #               'ranking': {'rank': double,
+            #                           'position': integer,
+            #                           'total_known_asns': integer
+            #                          }
+            #              }
+            # }
+            reply = self.requests_session.post(QUERY_URL, data=query, timeout=(1,3))
+            reply = reply.json()
+
+            # when ASN is not found (or request is completely wrong), server returns the same response format with
+            # empty asn_description, rank equal to 0.0 and position is None
+            rank = reply['response']['ranking']['rank']
+            pos = reply['response']['ranking']['position']
+            if not reply['response']['asn_description'] and rank == 0.0 and pos is None:
+                self.log.info("ASN {} not found in BGP ranking database".format(key))
+            self.log.debug("Setting BGPRank of ASN {} to {}".format(key, rank))
         except Exception as e:
-            self.log.exception("Can't get BGPRank of ASN {}".format(key))
+            self.log.error("Can't get BGPRank of ASN {}: {}".format(key, str(e)))
             return None             # could be connection error etc.
 
         return [('set', 'circl_bgprank', rank)]

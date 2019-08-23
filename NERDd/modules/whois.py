@@ -255,7 +255,7 @@ class WhoIS(NERDModule):
 
         actions = []
         if rec['_ref_cnt'] < 1:
-            actions.append(('event', '!DELETE', None))
+            actions.append(('event', '!DELETE'))
             for asn in rec.get('asn', []):
                 g.um.update(('asn', asn), [('*rem_from_set', 'bgppref', [bgppref])])
 
@@ -268,7 +268,7 @@ class WhoIS(NERDModule):
 
         actions = []
         if len(rec.get('bgppref', [])) < 1:
-            actions.append(('event', '!DELETE', None))
+            actions.append(('event', '!DELETE'))
             if 'org' in rec:
                 g.um.update(('org', rec['org']), [('*sub', '_ref_cnt', 1)])
 
@@ -281,7 +281,7 @@ class WhoIS(NERDModule):
 
         actions = []
         if rec['_ref_cnt'] < 1:
-            actions.append(('event', '!DELETE', None))
+            actions.append(('event', '!DELETE'))
             if 'org' in rec:
                 g.um.update(('org', rec['org']), [('*sub', '_ref_cnt', 1)])
 
@@ -294,7 +294,7 @@ class WhoIS(NERDModule):
 
         actions = []
         if rec['_ref_cnt'] < 1:
-            actions.append(('event', '!DELETE', None))
+            actions.append(('event', '!DELETE'))
 
         return actions
 

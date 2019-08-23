@@ -118,4 +118,4 @@ class HostnameClass(NERDModule):
             return [('set', 'hostname_class', tags)]
         else:
             # If hostname_class existed previously but no rule matches now, remove the key
-            return [('remove', 'hostname_class', None)] 
+            return [('remove', 'hostname_class')] 

@@ -16,7 +16,7 @@ class CaidaASclass(NERDModule):
     Parses Caida AS classification list of ASN and determines bussiness usage of IP.
 
     Event flow specification:
-    [ip] 'as_maxmind.num' and 'as_rv.num' -> determine_type() -> 'caida_as_class.v' and 'caida_as_class.c'
+    [asn] '!NEW' -> determine_type() -> 'caida_as_class.v' and 'caida_as_class.c'
     """
     
     def __init__(self):
