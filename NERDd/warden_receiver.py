@@ -26,7 +26,6 @@ from common.utils import parse_rfc_time
 import common.config
 import common.eventdb_psql
 import common.task_queue
-import NERDd.core.mongodb as mongodb
 
 # script global variables
 

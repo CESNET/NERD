@@ -123,10 +123,10 @@ echoy " 1. See logs above for potential error messages."
 echoy " 2. Register Warden client, configure and run warden_filer (see above)."
 echoy " 3. Create a user for web interface":
 echoy "      psql -U nerd nerd_users"
-echoy "        INSERT INTO users VALUES ('local:admin', '{\"registered\",\"trusted\",\"admin\"}','Mr. Admin','email@example.com','Test org');
+echoy "        INSERT INTO users VALUES ('local:admin', '{\"registered\",\"trusted\",\"admin\"}','Mr. Admin','email@example.com','Test org');"
 echoy "      htpasswd -c -B -C 12 /etc/nerd/htpasswd username"
 echoy " 4. Run NERDd:"
 echoy "      sudo systemctl start nerd-supervisor"
-echoy " 5. Manage backend via supervisord interfacee (supervisorctl or https://localhost:9100/)"
+echoy " 5. Manage backend via supervisord interface (supervisorctl or https://localhost:9100/)"
 echoy " 6. Check frontend at https://<this_server>/nerd/"
 echoy ""

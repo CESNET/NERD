@@ -66,7 +66,7 @@ def issue_events(db, task_queue_writer, log, fetch_limit):
         log.debug("Requesting updates for {} '{}' entities ({} 4h, {} 1d, {} 1w)".format(
             len(all_ids), etype, len(ids4h), len(ids1d), len(ids1w)))
 
-        for id in all_ids:
+        for n,id in enumerate(all_ids):
             # Each update request contains the corresponding "every*" event,
             # and a change of the '_nru*' attribute.
             requests = []
@@ -81,6 +81,8 @@ def issue_events(db, task_queue_writer, log, fetch_limit):
                 requests.append(('*next_step', '_nru1w', 'ts_added', time, timedelta(days=7)))
             # Issue update requests
             task_queue_writer.put_task(etype, id, requests)
+            if (n+1) % 100 == 0:
+                log.debug("Requests for {} records submitted.".format(n+1))
 
     last_fetch_time = time
 

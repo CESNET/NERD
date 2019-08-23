@@ -73,7 +73,7 @@ class DShield(NERDModule):
                 return None
 
         except Exception as e:
-            self.log.exception("Cen't get DShield data for IP {}: {}".format(key, e))
+            self.log.error("Can't get DShield data for IP {}: {}".format(key, e))
             return None             # could be connection error etc.
 
         self.log.debug("DShield record for IP {}: {}".format(key, dshield_record))
