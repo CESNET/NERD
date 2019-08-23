@@ -46,7 +46,7 @@ if ! [ -d /tmp/nerd_install ]; then
   mkdir /tmp/nerd_install
   git clone https://github.com/CESNET/NERD.git /tmp/nerd_install
   cd /tmp/nerd_install
-  git checkout parallel
+  git checkout master
 else
   echoy "NOTICE: Using existing installation files in /tmp/nerd_install/"
   cd /tmp/nerd_install
