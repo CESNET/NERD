@@ -29,6 +29,13 @@ cp $BASEDIR/supervisord.conf.d/* /etc/nerd/supervisord.conf.d/
 chown -R nerd:nerd /etc/nerd/supervisord.conf
 chown -R nerd:nerd /etc/nerd/supervisord.conf.d/
 
+echob "** Create nerdctl script **"
+echob "'nerdctl' is an alias for 'supervisorctl' with NERD configuration file"
+
+echo '#!/bin/sh
+supervisorctl -c /etc/nerd/supervisord.conf $@' >/usr/bin/nerdctl
+chmod +x /usr/bin/nerdctl
+
 echob "** Set up supervisord systemd unit **"
 
 cp $BASEDIR/nerd-supervisor.service /etc/systemd/system/nerd-supervisor.service
