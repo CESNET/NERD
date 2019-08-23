@@ -64,7 +64,7 @@ HASH = lambda x: int(hashlib.md5(x.encode('utf8')).hexdigest()[-4:], 16)
 
 # When reading, pre-fetch only a limited amount of messages
 # (because pre-fetched messages are not counted to queue length limit)
-PREFETCH_COUNT = 10
+PREFETCH_COUNT = 50
 
 
 RECONNECT_DELAYS = [1, 2, 5, 10, 30] # number of seconds to wait for the i-th attempt to reconnect after error
@@ -237,9 +237,9 @@ class TaskQueueWriter(RobustAMQPConnection):
                     break
                 else: # message NACK'd
                     if err_printed != 1:
-                        self.log.debug("Message rejected (queue of worker {} is probably full), will retry every second".format(routing_key))
+                        self.log.debug("Message rejected (queue of worker {} is probably full), will retry every 100ms".format(routing_key))
                         err_printed = 1
-                    time.sleep(1)
+                    time.sleep(0.1)
             except amqpstorm.AMQPChannelError as e:
                 if err_printed != 2:
                     self.log.warning("Can't deliver a message to worker {} (will retry every 5 seconds): {}".format(routing_key, e))
