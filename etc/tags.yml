@@ -168,5 +168,5 @@ tags:
   dshield:
     name: DShield
     description: "IP is in DShield database"
-    tag_color: "#66FF66"
+    tag_color: "#25671F"
     condition: "dshield"

@@ -22,7 +22,7 @@
 <div class="links">
 Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" title="Search on Shodan" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"></a><a href="https://censys.io/ipv4/{{ ip }}" title="Search on Censys" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"></a><span class="divider"></span><a href="http://multirbl.valli.org/lookup/{{ ip }}.html" title="Blacklist Check at valli.org" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"></a><a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"></a><span class="divider"></span><a href="https://www.abuseipdb.com/check/{{ ip }}" title="Search on AbuseIPDB" target="_blank"><img src="{{ url_for('static', filename='abuse_ip_db_icon.png') }}"></a><a href="https://www.threatcrowd.org/ip.php?ip={{ ip }}" title="Search on ThreatCrowd" target="_blank"><img src="{{ url_for('static', filename='threat_crowd_icon.png') }}"></a><a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip }}" title="Search at Talos Intelligence Reputation Center" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"></a><a href="https://senderscore.org/lookup.php?lookup={{ ip }}" title="Search at Sender Score" target="_blank"><img src="{{ url_for('static', filename='senderscore_icon.png') }}"></a>
 </div>
-{% if ipinfo %}<span class="rep" style="background-color: {{ rep_css_color(ipinfo.rep) }}">{{ "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span>{% endif %}
+{% if ipinfo %}<span class="rep" title="Reputation score" style="background-color: {{ rep_css_color(ipinfo.rep) }}">{{ "%.3f"|format(ipinfo.rep)|replace("0.",".") if ipinfo.rep is defined else "--" }}</span>{% endif %}
 <span class="entity-id">{{ ip }}</span><span class="entity-name">{{ ipinfo.hostname|reverse if ipinfo.hostname else '' }}</span>
 </div>
 
@@ -54,6 +54,22 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 <p class="notfound2">No malicious activity related to the IP address has been reported from Warden in last {{ config.record_life_length.warden }} days and from MISP in last {{config.record_life_length.misp}} days.</p>
 {% else %}
 
+{# Tags -#}
+<div class="tags">
+<span>Tags: </span>
+{% for tag_id,tag_param in ipinfo.pop('tags', []).items() %}
+  {% if tag_id in config_tags and "description" in config_tags[tag_id] and "name" in config_tags[tag_id] %}
+     <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="<b>{{config_tags[tag_id].description}}</b><br /><br />{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+      {{config_tags[tag_id].name}}
+     </span>
+  {%- else -%}
+     <span class="tag" title="<b>ERROR:</b> Missing mandatory config for tag {{tag_id}}">
+      {{tag_id}}
+     </span>
+  {% endif -%}
+{% endfor %}
+</div>
+
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
  {% if (attr.startswith("_") or attr == 'events_meta') and not ac('internal_attrs') %}
@@ -62,7 +78,7 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
   <dt>events ({{ipinfo.events_meta.total}})</dt>
   <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
    {% set last_date = [''] %}
-   {% for evtrec in val|sort(attribute='date') %}
+   {% for evtrec in val|sort(attribute='date', reverse=True) %}
      {% if evtrec.date != last_date[0] %}
        <dt>{{evtrec.date}}</dt><dd>
        {# using last_day as array instead of variable, this hack is needed for changes to be visible outside the scope of this 'if' #}
@@ -127,10 +143,6 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
    {% endfor %}
    {%- if not val %}none{% endif %}
   </dl></dd>
- {% elif attr == "as_maxmind" %}
-  <dt>ASN (MaxMind DB)</dt><dd>{{ val.num }} {{ val.description }}</dd>
- {% elif attr == "as_rv" %}
-  <dt>ASN (routeviews.org & bgplookingglass.com)</dt><dd>{{ val.num }} {{ val.description }}</dd>
  {% elif attr == "asns" %}
   <dt>Origin AS</dt>
   {% for asinfo in val %}
@@ -142,28 +154,14 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
  {% elif attr == "bgppref" %} 
   <dt>BGP Prefix</dt>
   <dd><a href="{{ url_for('bgppref') + val|replace('/','_') }}">{{ val }}</a></dd>
- {% elif attr == "tags" %}
-  <dt>tags</td>
-  <dd>
-  {% for tag_id,tag_param in val.items() %}
-  {% if tag_id in config_tags and "description" in config_tags[tag_id] and "name" in config_tags[tag_id] %}
-     <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="<b>{{config_tags[tag_id].description}}</b><br /><br />{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
-      {{config_tags[tag_id].name}}
-     </span>
-  {% else %}
-     <span class="tag" title="<b>ERROR:</b> Missing mandatory config for tag {{tag_id}}">
-      {{tag_id}}
-     </span>
-  {% endif %}
-  {% endfor %}
  {% elif attr == "dshield" %}
     <dt>DShield</dt>
-        <dd><b>Reports number: </b>{{ val.reports }}</dd>
-        <dd><b>Targets number: </b>{{ val.targets }}</dd>
+        <dd><b>Number of reports: </b>{{ val.reports }}</dd>
+        <dd><b>Distinct targets: </b>{{ val.targets }}</dd>
         <dd><b>First date: </b>{{ val.mindate }}</dd>
         <dd><b>Most recent date:  </b>{{ val.maxdate }}</dd>
-        <dd><b>IP summary <a href="https://isc.sans.edu/ipinfo.html?ip={{ ip }}">here</a></b></dd>
-        <dd><b>Reports details <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">here</a></b></dd>
+        <dd><a href="https://isc.sans.edu/ipinfo.html?ip={{ ip }}">IP summary</a>,
+            <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">reports</a></dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}

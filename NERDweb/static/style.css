@@ -483,6 +483,12 @@ td.links img {
   border-left: 1px dotted #444;
 }
 
+.entity-info div.tags {
+  margin: 0.8em 0 1.5em 0;
+}
+.entity-info div.tags > span:first-child {
+  font-weight: bold;
+}
 
 dl.attrs dt {
   font-weight: bold;
