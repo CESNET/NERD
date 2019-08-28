@@ -281,7 +281,7 @@ def create_new_event(ip_addr, event):
             new_event['tag_list'].append({'name': tag['name'], 'colour': tag['colour']})
         else:
             # tlp tag looks like tlp:white
-            new_event['tlp'] = tag['name'][4:0]
+            new_event['tlp'] = tag['name'][4:]
 
     return new_event
 
