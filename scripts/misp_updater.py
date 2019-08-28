@@ -5,11 +5,12 @@ instance and get information about all events, where IP address occurred. All th
 'misp_events'
 """
 import logging
-import datetime
+from datetime import datetime, timedelta
 import argparse
 import os
 import re
 import sys
+from ipaddress import IPv4Address, AddressValueError
 
 from pymisp import ExpandedPyMISP, MISPAttribute
 
@@ -37,6 +38,16 @@ parser.add_argument("--cert", metavar='CA_FILE',
                     help="Use this server certificate (or CA bundle) to check the certificate of MISP instance, useful when the server uses self-signed cert.")
 parser.add_argument("--insecure", action="store_true",
                     help="Don't check the server certificate of MISP instance.")
+parser.add_argument("--since", action="store",
+                    help="Specifies date from which should misp_updater query IP addresses from MISP. "
+                    "Expected format: YYYY-MM-DD. Default is taken from MISP ip lifetime stored in /etc/nerd.yml "
+                    "(180 days by default).")
+parser.add_argument("--to", action="store",
+                    help="Specifies date to which should misp_updater query IP addresses from MISP. "
+                    "Expected format: YYYY-MM-DD. Default is today's date.")
+parser.add_argument("--events", action="store_true", default=False,
+                    help="Download info about IP addresses event by event. This may be useful, when even smaller time "
+                         "interval cannot be properly handled by MISP server.")
 args = parser.parse_args()
 
 LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
@@ -57,10 +68,14 @@ common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
 logger.info("Loading config file {}".format(common_cfg_file))
 config.update(read_config(common_cfg_file))
 
+inactive_ip_lifetime = config.get('record_life_length.misp', 180)
+
 db = mongodb.MongoEntityDatabase(config)
 
-# task queue init
-tq = TaskQueueWriter(config.get('worker_processes'), config.get('rabbitmq', {}))
+rabbit_config = config.get("rabbitmq")
+num_processes = config.get('worker_processes')
+tq = TaskQueueWriter(num_processes, rabbit_config)
+tq.connect()
 
 # load MISP instance configuration
 try:
@@ -83,99 +98,159 @@ error_ip = {}
 
 SIGHTING_DICT = {'0': "positive", '1': "false positive", '2': "expired attribute"}
 THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
+KEYS_TO_SAFE_FROM_ATTRIB = ('info', 'Orgc', 'id', 'Tag', 'date', 'threat_level_id', 'timestamp')
 
 
 def get_ip_from_attrib(attrib):
     """
     Get ip address from MISP attribute and check its distribution level
     :param attrib: MISP attribute with ip address
-    :return:
+    :return: double empty strings, if distribution level is not met. If distribution is ok, then return 2 values: IP,
+                                                                                                        role (src|dst)
     """
     # First check distribution level of attributes, 2 = Connected Communities, 3 = All Communities, 5 can have only
     # attributes and it means inherit event's distribution
     if int(attrib.get('distribution', 0)) in (2, 3, 5) and int(attrib.get('Event', {}).get('distribution')) in (2, 3):
         if attrib['type'] in ("ip-src", "ip-dst"):
-            return attrib['value']
+            return attrib['value'], "src" if "src" in attrib['type'] else "dst"
         elif attrib['type'] == "domain|ip":
-            return attrib['value'].split("|")[1]
+            return attrib['value'].split("|")[1], "src" if "src" in attrib['type'] else "dst"
         elif attrib['type'] in ("ip-src|port", "ip-dst|port"):
             ip_split = attrib['value'].split("|")
             if len(ip_split) == 1:
                 # ip-scr|port can use ':' as delimeter, so if after split it did not split anything, it probably uses
                 # ':' as delimeter
                 ip_split = attrib['value'].split(":")
-            return ip_split[0]
+            return ip_split[0], "src" if "src" in attrib['type'] else "dst"
+    else:
+        # if distribution level is met not met, return two empty strings
+        return "", ""
 
 
-def get_ip_from_query(query_result):
+def create_or_append(dict_to_update, key, value):
     """
-    Gets IP addresses from search query (controller='attributes'), which was run on MISP instance
+    Create list with value in dict on the key or if it already exists, just append value to it
+    :param dict_to_update: dictionary, which list will get updated on key
+    :param key: key of dict updated dict record
+    :param value: new value
+    :return: None (result is updated dict passed in dict_to_update dictionary)
+    """
+    try:
+        dict_to_update[key].append(value)
+    except KeyError:
+        # key does not exist yet
+        dict_to_update[key] = [value]
+
+
+def get_ip_from_query(query_result, ip_all):
+    """
+    Gets IP addresses and all necessary info from search query (controller='attributes'), which was run on MISP instance
     :param query_result: result of query, where will IP addresses be parsed from
-    :param position: position of IP address in case of composite record ("domain|ip" --> 1)
-    :return: list of parsed IP addresses
+    :param ip_all: dictionary with already processed IP addresses, which will be updated by this method
+    :return: None (the result is updated ip_all dictionary passed as argument)
     """
-    ip_list = []
     for ip_attrib in query_result['Attribute']:
-        ip = get_ip_from_attrib(ip_attrib)
-        if ip:
-            ip_list.append(ip)
-    return ip_list
+        ip, role = get_ip_from_attrib(ip_attrib)
+        try:
+            if ip and IPv4Address(ip):
+                # if retrieved from attribute, then save only info, which  will be later inserted to NERD, which means
+                # all keys listed in KEYS_TO_SAFE_FROM_ATTRIB, Sightings of attribute and role of IP (src|dst)
+                info_to_save = dict((k, ip_attrib['Event'][k]) for k in KEYS_TO_SAFE_FROM_ATTRIB if ip_attrib['Event'])
+                try:
+                    info_to_save['Sightings'] = ip_attrib['Sightings']
+                except KeyError:
+                    pass
+                info_to_save['role'] = role
+                # when all info collected, save it under IP address key in ip_all dictionary, at the end of processing
+                # IPs there will be all IPs with all their events info, where they occurred
+                create_or_append(ip_all, ip, info_to_save)
+        except AddressValueError:
+            # IP address is in wrong format
+            continue
 
 
 def get_all_ip():
     """
     Get all IP addresses from MISP instance
-    :return: two sets of source IP addresses and destination IP addresses
+    :return: dictionary of all IPs found in MISP with all info, which will be later saved in NERD
     """
-    # get all ip addresses from
+    params = {
+        'date_from': args.since if args.since else (datetime.utcnow() - timedelta(days=inactive_ip_lifetime)).strftime("%Y-%m-%d"),
+        'date_to': args.to if args.to else datetime.utcnow().strftime("%Y-%m-%d")
+    }
+
+    ip_all = {}
+
     try:
-        ip_src = misp_inst.search(controller="attributes", type_attribute="ip-src")
-        logger.info("Downloaded all ip-src MISP attributes!")
-        ip_dst = misp_inst.search(controller="attributes", type_attribute="ip-dst")
-        logger.info("Downloaded all ip-dst MISP attributes!")
-        # domain|ip attribute is destination ip
-        dom_ip = misp_inst.search(controller="attributes", type_attribute="domain|ip")
-        logger.info("Downloaded all domain-ip MISP attributes!")
-        ip_src_port = misp_inst.search(controller="attributes", type_attribute="ip-src|port")
-        logger.info("Downloaded all ip-src|port MISP attributes!")
-        ip_dst_port = misp_inst.search(controller="attributes", type_attribute="ip-dst|port")
-        logger.info("Downloaded all ip-dst|port MISP attributes!")
+        if args.events:
+            # if --events used, first download all attributes wanted just with basic info to obtain their event ids
+            ip_src_basic = misp_inst.search(controller="attributes", type_attribute="ip-src", **params)
+            logger.info("Downloaded basic ip-src info!")
+            ip_dst_basic = misp_inst.search(controller="attributes", type_attribute="ip-dst", **params)
+            logger.info("Downloaded basic ip-dst info!")
+            # domain|ip attribute is destination ip
+            dom_ip_basic = misp_inst.search(controller="attributes", type_attribute="domain|ip", **params)
+            logger.info("Downloaded basic domain|ip info!")
+            ip_src_port_basic = misp_inst.search(controller="attributes", type_attribute="ip-src|port", **params)
+            logger.info("Downloaded basic ip-src|port info!")
+            ip_dst_port_basic = misp_inst.search(controller="attributes", type_attribute="ip-dst|port", **params)
+            logger.info("Downloaded basic ip-dst|port info!")
+            logger.info("Basic info about IPs obtained, starting to query IPs event by event!")
+
+            # then save all unique event ids for every attribute type (there are 5 types)
+            event_ids = [[], [], [], [], []]
+            for i, ip_query_basic in enumerate((ip_src_basic, ip_dst_basic, dom_ip_basic, ip_src_port_basic, ip_dst_port_basic)):
+                for attrib in ip_query_basic['Attribute']:
+                    if attrib['event_id'] not in event_ids[i]:
+                        event_ids[i].append(attrib['event_id'])
+
+            attribute_types = ("ip-src", "ip-dst", "domain|ip", "ip-src|port", "ip-dst|port")
+            # now use additional params to get all IP info needed
+            params['includeContext'] = 1
+            params['includeSightings'] = 1
+            # go through all attrib types and their event ids (5 types --> 5 lists of event ids)
+            for i, event_id_list in enumerate(event_ids):
+                for event_id in event_id_list:
+                    logger.debug("Going to query event {} for all {} attributes".format(event_id, attribute_types[i]))
+                    ip_query = misp_inst.search(controller="attributes", type_attribute=attribute_types[i],
+                                                eventid=event_id, **params)
+                    logger.debug("Downloaded {} {} attributes!".format(len(ip_query['Attribute']), attribute_types[i]))
+                    # get all desired info from that query, it means all info, which will be later saved in NERD and
+                    # save it to ip_all
+                    get_ip_from_query(ip_query, ip_all)
+        else:
+            # else download all info about IP straight
+            params['includeContext'] = 1
+            params['includeSightings'] = 1
+            ip_src = misp_inst.search(controller="attributes", type_attribute="ip-src", **params)
+            logger.info("Downloaded all ip-src MISP attributes!")
+            ip_dst = misp_inst.search(controller="attributes", type_attribute="ip-dst", **params)
+            logger.info("Downloaded all ip-dst MISP attributes!")
+            # domain|ip attribute is destination ip
+            dom_ip = misp_inst.search(controller="attributes", type_attribute="domain|ip", **params)
+            logger.info("Downloaded all domain-ip MISP attributes!")
+            ip_src_port = misp_inst.search(controller="attributes", type_attribute="ip-src|port", **params)
+            logger.info("Downloaded all ip-src|port MISP attributes!")
+            ip_dst_port = misp_inst.search(controller="attributes", type_attribute="ip-dst|port", **params)
+            logger.info("Downloaded all ip-dst|port MISP attributes!")
+
+            # go through all the queries and get all needed information from it, it means selected information about
+            # event, which means all info, which will be later saved in NERD, for now save it in ip_all
+            for ip_query in (ip_src, ip_dst, dom_ip, ip_src_port, ip_dst_port):
+                get_ip_from_query(ip_query, ip_all)
+
     except ConnectionError as e:
         logger.error("Cannot connect to MISP instance: " + str(e))
         sys.exit(1)
 
-    # remove duplicity with set, get_ip_from_rec(ip_src_port, 0) --> 0 because ip address is
-    # at index 0 after split ("192.168.1.1|2715"), the same for ip_dst|port and domain|ip
-    ip_src_all = set(get_ip_from_query(ip_src) + get_ip_from_query(ip_src_port))
-    ip_dst_all = set(get_ip_from_query(dom_ip) + get_ip_from_query(ip_dst_port) + get_ip_from_query(ip_dst))
-
-    return ip_src_all, ip_dst_all
+    return ip_all
 
 
-def check_src_dst(attrib_list, ip_addr):
-    """
-    Check if ip_address is as src and dst at the same time in this event
-    :param attrib_list: list of attributes of the event
-    :param ip_addr: searched IP address
-    :return: True if IP address is src and dst at the same time and False if not
-    """
-    src, dst = False, False
-    for attrib in attrib_list:
-        if "ip" in attrib['type']:
-            if attrib['value'] == ip_addr:
-                if "src" in attrib['type']:
-                    src = True
-                else:
-                    dst = True
-    return True if src and dst else False
-
-
-def create_new_event(event, role, ip_addr):
+def create_new_event(ip_addr, event):
     """
     Creates dictionary containing information about event used in NERD as 'misp_events'
-    :param event: actual event
-    :param role: src|dst
     :param ip_addr: actual ip_address which occurred in the event
+    :param event: MISP event, where the IP address occurred
     :return: event dictionary
     """
     new_event = {
@@ -185,39 +260,21 @@ def create_new_event(event, role, ip_addr):
         'tlp': "green",
         'tag_list': [],
         # check if ip address is not src and dst at the same time
-        'role': role if not check_src_dst(event['Attribute'], ip_addr) else "src and dst at the same time",
+        'role': event['role'],
         'info': event['info'],
         'sightings': {'positive': 0, 'false positive': 0, 'expired attribute': 0},
-        'date': datetime.datetime.fromtimestamp(int(event['publish_timestamp'])),
+        'date': event['date'],
         'threat_level': THREAT_LEVEL_DICT[event['threat_level_id']],
-        'last_change': datetime.datetime.fromtimestamp(int(event['timestamp']))
+        'last_change': datetime.fromtimestamp(int(event['timestamp']))
     }
-    logger.debug("Creating new event record! Trying to find sightings of IP address {ip}!".format(ip=ip_addr))
-    # get sighting count, find the right attribute, carrying this ip address and its sighting list
-    try:
-        ip_attrib = None
-        for attrib in event['Attribute']:
-            if ip_addr in attrib['value']:
-                # create MISP attribute, which carries the IP address and pass it to sightings
-                ip_attrib = MISPAttribute()
-                ip_attrib.from_dict(**attrib)
-                break
 
-        if ip_attrib:
-            sighting_list = misp_inst.sightings(ip_attrib)
-            try:
-                for sighting in sighting_list:
-                    new_event['sightings'][SIGHTING_DICT[sighting['Sighting']['type']]] += 1
-            except KeyError:
-                logger.error("Unexpected response: " + str(sighting_list))
-                return None
-    except ConnectionError as e:
-        # key error occurs, when cannot connect and trying to access to ['response'] key
-        logger.error("Cannot connect to MISP instance: " + str(e))
-        error_ip[ip_addr] = role
+    try:
+        for sighting in event.get('Sighting', []):
+            new_event['sightings'][SIGHTING_DICT[sighting['type']]] += 1
+    except KeyError:
+        logger.error("Unexpected sighting type or structure in {} IP attribute!".format(ip_addr))
         return None
 
-    logger.debug("Trying to get all tags of event of IP address {ip}!".format(ip=ip_addr))
     # get name and colour Tags on event level
     for tag in event.get('Tag', []):
         if not tag['name'].startswith("tlp"):
@@ -229,12 +286,21 @@ def create_new_event(event, role, ip_addr):
     return new_event
 
 
-def process_ip(ip_addr, role):
+def switch_role(role):
     """
-    Find all events corresponding to the ip_addr and insert them to NERD
-    :param ip_addr: actual ip_address
-    :param role: type of ip address [src|dst]
-    :return: None if error occured while loading info about ip address
+    Switch role from "src" to "dst" and vice versa
+    :param role: src|dst
+    :return: switched role
+    """
+    return "src" if role == "dst" else "dst"
+
+
+def process_ip(ip_addr, ip_info):
+    """
+    Save all info about IP address in NERD
+    :param ip_addr: IP address which is being processed
+    :param ip_info: All info about IP address, which will be stored in MISP
+    :return: None
     """
     logger.debug("Processing IP: {}".format(ip_addr))
 
@@ -245,53 +311,68 @@ def process_ip(ip_addr, role):
         logger.error("ERROR: " + ip_addr, exc_info=True)
         return None
 
-    try:
-        misp_events = misp_inst.search(controller='events', value=ip_addr)
-    except ConnectionError as e:
-        logger.error("Cannot connect to MISP instance: " + str(e))
-        error_ip[ip_addr] = role
-        return None
-    except KeyError:
-        logger.error("Unexpected response: " + str(misp_events))
-        error_ip[ip_addr] = role
-        return None
+    # deduplicate IP events, where there was duplicate source IP and check if IP in the event is not src and dst at the
+    # same time
+    event_ids_roles = []
+    deduplicated_events = []
+    for event in ip_info:
+        # if IP event with same role already in deduplicated events, just skip it. The same applies for event,
+        # which is already stored as src and dst IP
+        if [event['id'], event['role']] not in event_ids_roles and \
+                [event['id'], "src and dst at the same time"] not in event_ids_roles:
+            # if IP event not already in deduplicated events with switched role, just add it
+            if [event['id'], switch_role(event['role'])] not in event_ids_roles:
+                event_ids_roles.append([event['id'], event['role']])
+                deduplicated_events.append(event)
+            else:
+                # event with opposite role already in deduplicated events, update event's role to "src and dst"
+                for index, dedup_event in enumerate(deduplicated_events):
+                    if dedup_event['id'] == event['id']:
+                        dedup_event['role'] = "src and dst at the same time"
+                        event_ids_roles[index][1] = "src and dst at the same time"
 
+    # create all misp events and save the youngest datetime of the event for keep alive token
     events = []
-    for event in misp_events:
-        event = event['Event']
-        new_event = create_new_event(event, role, ip_addr)
+    youngest_date = datetime(year=2000, month=1, day=1, hour=0, minute=0, second=0)
+    for event_info in deduplicated_events:
+        new_event = create_new_event(ip_addr, event_info)
         if new_event is not None:
             events.append(new_event)
+        event_date = datetime.strptime(new_event['date'], "%Y-%m-%d")
+        if youngest_date < event_date:
+            youngest_date = event_date
 
     if events:
+        live_till = youngest_date + timedelta(days=inactive_ip_lifetime)
         if db_entity is not None:
             # compare 'misp_events' attrib from NERD with events list, if not same --> insert, else do not insert
             if db_entity.get('misp_events', {}) != events:
                 # construct new update request and send it
-                update_requests = [('set', 'misp_events', events)]
+                update_requests = [('set', 'misp_events', events), ('set', '_ttl.misp', live_till),
+                                   ('setmax', 'last_activity', youngest_date)]
                 tq.put_task('ip', ip_addr, update_requests)
         else:
             # ip address not even in NERD --> insert it
-            update_requests = [('set', 'misp_events', events)]
+            update_requests = [('set', 'misp_events', events), ('set', '_ttl.misp', live_till), ('setmax',
+                                                                'last_activity', youngest_date)]
             tq.put_task('ip', ip_addr, update_requests)
 
 
 def main():
-    tq.connect()
-
     logger.info("Loading a list of all IPs in MISP ...")
-    ip_src, ip_dst = get_all_ip()
-    ip_all = ip_src.union(ip_dst)
-    logger.info("Loaded {} src IPs and {} dst IPs.".format(len(ip_src), len(ip_dst)))
+
+    ip_all = get_all_ip()
+
+    logger.info("Loaded {} IPs.".format(len(ip_all)))
 
     # get all IPs with 'misp_events' attribute from NERD
     logger.info("Searching NERD for IP records with misp_events ...")
     db_ip_misp_events = db.find('ip', {'misp_events': {'$exists': True, '$not': {'$size': 0}}})
 
     # find all IPs that are in NERD but not in MISP anymore
-    db_ip_misp_events = set(db_ip_misp_events) - ip_all
+    db_ip_misp_events = set(db_ip_misp_events) - set(ip_all.keys())
 
-    # remove all 'misp_events' attributes that are in NERD but not in MISP
+    # remove all 'misp_events' attributes that are in NERD but not in MISP anymore
     if db_ip_misp_events:
         logger.info(
             "{} NERD IPs don't have an entry in MISP anymore, removing corresponding misp_events keys...".format(
@@ -300,24 +381,13 @@ def main():
             tq.put_task('ip', ip, [('remove', 'misp_events')])
 
     logger.info("Checking and updating NERD records for all the IPs ...")
-    # this is not the absolutely correct regular expression for IP4 address, but for the purposes of this converter it
-    # is enough
-    re_ip_address = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
 
-    # go through every source ip
-    for ip_addr in ip_src:
-        if re_ip_address.search(ip_addr):
-            process_ip(ip_addr, "src")
-
-    # go through every destination ip
-    for ip_addr in ip_dst:
-        if re_ip_address.search(ip_addr):
-            process_ip(ip_addr, "dst")
+    for ip_addr, ip_info in ip_all.items():
+        process_ip(ip_addr, ip_info)
 
     # try to process IPs, which was not processed correctly
     for ip_addr, role in error_ip.items():
-        if re_ip_address.search(ip_addr):
-            process_ip(ip_addr, role)
+        process_ip(ip_addr, role)
 
     logger.info("Done")
 
