@@ -576,8 +576,13 @@ class IPFilterForm(FlaskForm):
         self.blacklist.choices = bl_choices + dbl_choices
 
 class IPFilterFormUnlimited(IPFilterForm):
-    """Subclass of IPFilterForm with no default limit on number of results (used by API)"""
-    limit = IntegerField('Max number of addresses', [validators.Optional()], default=0) # 0 means no limit
+    """Subclass of IPFilterForm with possiblity to set no limit on number of results (used by API)"""
+    limit = IntegerField('Max number of addresses', [validators.Optional()], default=20)
+
+class IPFilterFormUnlimitedDef(IPFilterForm):
+    """Subclass of IPFilterForm with possiblity to set no limit on number of results and no limit is default(used by API)"""
+    limit = IntegerField('Max number of addresses', [validators.Optional()], default=0)
+
 
 sort_mapping = {
     'none': 'none',
@@ -1004,7 +1009,7 @@ def get_status():
 @app.route('/iplist/')
 def iplist():
 
-    form = IPFilterFormUnlimited(request.args)
+    form = IPFilterFormUnlimitedDef(request.args)
     
     if not g.user or not g.ac('ipsearch'):
         return Response('ERROR: Unauthorized', 403, mimetype='text/plain')
@@ -1157,7 +1162,7 @@ def clean_secret_data(data):
     return data
 
 
-# ***** NERD API BasicInfo *****
+# ***** NERD API BasicInfo - helper funcs *****
 def get_basic_info_dic(val):
     geo_d = {}
     if 'geo' in val.keys():
@@ -1191,6 +1196,25 @@ def get_basic_info_dic(val):
 
     return data
 
+def get_basic_info_dic_short(val):
+    # only 'rep' and 'tags' fields
+    tags_l = []
+    for l in val.get('tags', []):
+        d = {
+            'n' : l,
+            'c' : val['tags'][l]['confidence']
+        }
+        tags_l.append(d)
+
+    data = {
+        'ip' : val['_id'],
+        'rep' : val.get('rep', 0.0),
+        'tags'  : tags_l
+    }
+    return data
+
+
+# ***** NERD API BasicInfo *****
 @app.route('/api/v1/ip/<ipaddr>')
 def get_basic_info(ipaddr=None):
     if not g.ac('ipsearch'):
@@ -1326,8 +1350,8 @@ def ip_search(full = False):
         return API_RESPONSE_403
 
     # Get output format
-    output = request.args.get('o', "json")
-    if output not in ('json', 'list'):
+    output = request.args.get('o', 'json')
+    if output not in ('json', 'list', 'short'):
         err['err_n'] = 400
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
@@ -1335,8 +1359,10 @@ def ip_search(full = False):
     list_output = (output == "list")
 
     # Validate parameters
-    if list_output:
-        form = IPFilterFormUnlimited(request.args) # no limit when only asking for list of IPs
+    if output == "list":
+        form = IPFilterFormUnlimitedDef(request.args) # no limit when only asking for list of IPs
+    elif g.ac('unlimited_search') and not full:
+        form = IPFilterFormUnlimited(request.args) # possibility to speficy no limit, but default is 20 as normal
     else:
         form = IPFilterForm(request.args) # otherwise limit must be between 1 and 1000 (TODO: allow more?)
 
@@ -1349,8 +1375,15 @@ def ip_search(full = False):
     sortby = sort_mapping[form.sortby.data]
     query = create_query(form)
     
+    if output == "list":
+        outputfields =  {'_id': 1}
+    elif output == "short": # short output format, only rep. score and tags are needed
+        outputfields = {'_id': 1, 'rep': 1, 'tags': 1}
+    elif output == "json": # normal output, get everything except 'events' (which are long and not needed)
+        outputfields = {'events': 0}
+    
     try:
-        results = mongo.db.ip.find(query, {'_id': 1} if list_output else None).limit(form.limit.data)  # note: limit=0 means no limit
+        results = mongo.db.ip.find(query, outputfields).limit(form.limit.data)  # note: limit=0 means no limit
         if sortby != "none":
             results.sort(sortby, 1 if form.asc.data else -1)
         results = list(results)
@@ -1360,7 +1393,7 @@ def ip_search(full = False):
         return Response(json.dumps(err), 503, mimetype='application/json')
 
     # Return results
-    if list_output:
+    if output == "list":
         return Response(''.join(int2ipstr(res['_id'])+'\n' for res in results), 200, mimetype='text/plain')
 
     # Convert _id from int to dotted-decimal string        
@@ -1368,9 +1401,14 @@ def ip_search(full = False):
         res['_id'] = int2ipstr(res['_id'])
 
     lres = []
-    for res in results:
-        attach_whois_data(res, full)
-        lres.append(get_basic_info_dic(res))
+    if output == "short":
+        for res in results:
+            lres.append(get_basic_info_dic_short(res))
+    else:    
+        for res in results:
+            attach_whois_data(res, full)
+            lres.append(get_basic_info_dic(res))
+
     return Response(json.dumps(lres), 200, mimetype='application/json')
 
 
