@@ -140,10 +140,91 @@ img.load-spinner-small {
   padding: 0.4em 1em;
   float: left;
 }
+
+#switch{
+  float: right;
+  margin: 0.4em 0.3em;
+  position: relative;
+  display: inline-block;
+  width: 65px;
+  height: 15px;
+}
+#switch input{
+  display:none;
+}
+#slider {
+  float: right;
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #32bf31;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+#slider::before{
+  float: right;
+  position: absolute;
+  content: "";
+  height: 10px;
+  width: 10px;
+  left: 4px;
+  bottom: 3px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+#header input:checked + #slider {
+  background-color: #373aeb;
+}
+#header input:focus + #slider{
+  box-shadow: 0 0 1px #2196F3;
+}
+#header input:checked + #slider:before{
+  -webkit-transform: translateX(47px);
+  -ms-transform: translateX(47px);
+  transform: translateX(47px);
+}
+#utcoff{
+  display: none;
+}
+#utcon, #utcoff{
+  float: right;
+  color: white;
+  position: absolute;
+  transform: translate(-50%,-50%);
+  top: 50%;
+  left: 50%;
+  font-size: 10px;
+  font-family: Verdana, sans-serif;
+}
+#header input:checked + #slider #utcoff{
+  display: block;
+}
+#header input:checked + #slider #utcon{
+  display: none;
+}
+#slider{
+  border-radius: 34px;
+}
+.round{
+  border-radius: 34px;
+}
+#slider.round:before{
+  border-radius: 50%;
+}
+#header #timezone {
+  float: right;
+  text-align: right;
+  padding: 0.4em 0.4em;
+}
 #header #login {
   float: right;
   text-align: right;
   padding: 0.4em 1em;
+  width: 15%;
 }
 #header #login a {
   margin-left: 0.7em;
@@ -483,12 +564,6 @@ td.links img {
   border-left: 1px dotted #444;
 }
 
-.entity-info div.tags {
-  margin: 0.8em 0 1.5em 0;
-}
-.entity-info div.tags > span:first-child {
-  font-weight: bold;
-}
 
 dl.attrs dt {
   font-weight: bold;

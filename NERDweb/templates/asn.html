@@ -43,6 +43,8 @@
  {% elif attr == "org" %}
   <dt>Organization</dt>
   <dd><a href="{{ url_for('org') + val }}">{{ val }}</a></dd>
+ {% elif val|is_date %}
+     <dt>{{ attr }}</dt><dd class="time">{{ val }}</dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}

@@ -16,6 +16,8 @@ from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import FlaskForm
 from flask_mail import Mail, Message
 from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
+from dateutil.parser import parse
+import jinja2
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -120,7 +122,21 @@ app.config['WTF_CSRF_ENABLED'] = False
 def format_datetime(val, format="%Y-%m-%d %H:%M:%S"):
     return val.strftime(format)
 
+
+def is_date(val):
+    if type(val) is datetime:
+        return True
+    if isinstance(val, str):
+        try:
+            _ = parse(timestr=val)
+            return True
+        except ValueError:
+            return False
+    return False
+
+
 app.jinja_env.filters['datetime'] = format_datetime
+app.jinja_env.filters['is_date'] = is_date
 
 
 # ***** WTForm validators and filters *****

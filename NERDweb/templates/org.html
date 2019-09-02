@@ -37,6 +37,8 @@
   </dl></dd>
  {% elif attr == "address" %}
   <dt>{{ attr }}</dt><dd>{{ val|replace("\n","<br>"|safe) }}</dd>
+ {% elif val|is_date %}
+     <dt>{{ attr }}</dt><dd class="time">{{ val }}</dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}
