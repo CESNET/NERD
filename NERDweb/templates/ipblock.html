@@ -33,6 +33,8 @@
    <dd><a href="{{ url_for('ip') + ip|string }}">{{ ip }}</a></dd>
   {% endfor %}
   </dl></dd>
+ {% elif val|is_date %}
+     <dt>{{ attr }}</dt><dd class="time">{{ val }}</dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}

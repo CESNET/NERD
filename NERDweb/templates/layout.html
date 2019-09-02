@@ -36,6 +36,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
   var URL_GET_STATUS = "{{ url_for('get_status') }}";
   </script>
   <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <script src="{{ url_for('static', filename='format_date.js') }}"></script>
 </head>
 
 <body>
@@ -132,7 +133,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
  </div>
  <div id="navigation">
   <a href="{{ url_for('ips') }}">List of IPs</a> | <a href="{{ url_for('ip') }}">IP detail</a>
- </div> 
+ </div>
  <div id="login">
   {% if not user %}
   Log in using:
@@ -145,6 +146,10 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
   {% else %}
   Logged in:<a href="{{ url_for('account_info') }}" class="username">{{ user.id }}{% if user.name %} ({{ user.name }}){% endif %}</a>&bull;<a href="{{ url_for('logout') }}">Log out</a>
   {% endif %}
+ </div>
+ <label id="switch"><input type="checkbox" onclick="toggleTimezone()" id="togBtn"><div class="round" id="slider"><span id="utcoff">local</span><span id="utcon">UTC</span></div></label>
+ <div id="timezone">
+     Current timezone:
  </div>
 </div>
 {% endblock %}

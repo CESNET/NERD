@@ -148,10 +148,10 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
   {% for asinfo in val %}
    <dd><a href="{{ url_for('asn') + asinfo._id|string }}">AS{{ asinfo._id }}</a> - {{ asinfo.name }}</dd>
   {% endfor %}
- {% elif attr == "ipblock" %} 
+ {% elif attr == "ipblock" %}
   <dt>Address block ('inetnum' or 'NetRange' in whois database)</dt>
   <dd><a href="{{ url_for('ipblock') + val }}">{{ val }}</a></dd>
- {% elif attr == "bgppref" %} 
+ {% elif attr == "bgppref" %}
   <dt>BGP Prefix</dt>
   <dd><a href="{{ url_for('bgppref') + val|replace('/','_') }}">{{ val }}</a></dd>
  {% elif attr == "dshield" %}
@@ -162,6 +162,8 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
         <dd><b>Most recent date:  </b>{{ val.maxdate }}</dd>
         <dd><a href="https://isc.sans.edu/ipinfo.html?ip={{ ip }}">IP summary</a>,
             <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">reports</a></dd>
+ {% elif val|is_date %}
+     <dt>{{ attr }}</dt><dd class="time">{{ val }}</dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}
@@ -191,7 +193,7 @@ $("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}", function( respon
 // Load passive DNS and Shodan data
 $(document).ready(function () {
 {% if ac('pdns') %}
-  var url = "{{ url_for('pdns_ip', ipaddr=ip) }}";  
+  var url = "{{ url_for('pdns_ip', ipaddr=ip) }}";
   $.getJSON(url, function(response,status) {
     if (status != "success") {
       $("#pdns_data").text("error");
@@ -212,7 +214,7 @@ $(document).ready(function () {
     }
   }).fail( function( jqXHR, textStatus, errorThrown) { $("#pdns_data").text("ERROR: " + jqXHR.responseText); } );
 {% endif %}
-{% if ac('shodan') %}  
+{% if ac('shodan') %}
   url = "{{ url_for('get_shodan_response', ipaddr=ip) }}";
   $.get(url, function (data) {
       $("#shodan-info").html(data);
