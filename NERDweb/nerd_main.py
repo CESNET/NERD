@@ -135,8 +135,17 @@ def is_date(val):
     return False
 
 
+def date_to_int(val):
+    if type(val) is datetime:
+        return datetime.timestamp(val)
+    if isinstance(val, str):
+        date_value = parse(timestr=val)
+        return datetime.time(date_value)
+
+
 app.jinja_env.filters['datetime'] = format_datetime
 app.jinja_env.filters['is_date'] = is_date
+app.jinja_env.filters['date_to_int'] = date_to_int
 
 
 # ***** WTForm validators and filters *****

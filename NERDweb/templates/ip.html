@@ -163,7 +163,7 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
         <dd><a href="https://isc.sans.edu/ipinfo.html?ip={{ ip }}">IP summary</a>,
             <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">reports</a></dd>
  {% elif val|is_date %}
-     <dt>{{ attr }}</dt><dd class="time">{{ val }}</dd>
+     <dt>{{ attr }}</dt><dd class="time" data-time={{ val|date_to_int }}>{{ val }}</dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}

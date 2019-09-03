@@ -38,7 +38,7 @@
  {% elif attr == "address" %}
   <dt>{{ attr }}</dt><dd>{{ val|replace("\n","<br>"|safe) }}</dd>
  {% elif val|is_date %}
-     <dt>{{ attr }}</dt><dd class="time">{{ val }}</dd>
+     <dt>{{ attr }}</dt><dd class="time" data-time={{ val|date_to_int }}>{{ val }}</dd>
  {% else %}
   <dt>{{ attr }}</dt><dd>{{ val }}</dd>
  {% endif %}

@@ -56,7 +56,11 @@ $(function() {
     track: false,
     show: false,
     hide: false,
-    content: function() { return moment($(this).text()).fromNow() },
+    content: function() {
+      timestamp = $(this).data("time");
+      date_obj = new Date(timestamp*1000);
+      return moment(date_obj).fromNow()
+    },
     position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
   });
 });
