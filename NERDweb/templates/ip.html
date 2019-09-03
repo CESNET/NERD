@@ -95,29 +95,38 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
    {% endfor %}
   </dl></dd>
  {% elif attr == "misp_events" %}
-  {% if val|length != 0 %}
-  <dt> MISP events </dt>
-  <dd><dl{% if val|length > 1%} class="scrollable"{% endif %}>
-   {% for misp_event in val %}
-       <b>event_id: {{ misp_event.event_id }} </b>
-       <table style="padding-left: 30px; padding-bottom: 10px">
-        <tr> <td> event_url </td> <td> <a href="{{ misp_event.misp_instance }}/events/view/{{ misp_event.event_id }}">link</a>  </td> </tr>
-        {% for key, value in misp_event.items()  %}
-                <tr>
-                   {% if key == "tag_list" %}
-                     <td valign="top"> {{ key }} </td>
-                     <td> <ul style="padding-left: 15px">
-                     {% for tag in value %}
-                         <li>{{ tag.name }}</li>
-                     {% endfor %}
-                     </ul> </td>
-                   {% elif key == "event_id" %}
-                   {% else %} <td style="padding-right: 15px"> {{ key }} </td> <td> {{ value }}</td>{% endif %}
-                </tr>
-        {% endfor %}
-       </table>
-   {% endfor %}
-  {% endif %}</dl></dd>
+  {% set misp_events = namespace(showable=0) %}
+  {% for misp_event in val %}
+      {% if misp_event.tlp == "white" or (misp_event.tlp == "green" and ac('tlp-green')) %}
+          {% set misp_events.showable = misp_events.showable + 1 %}
+      {% endif %}
+  {% endfor %}
+  {% if misp_events.showable %}
+      <dt> MISP events </dt>
+      <dd><dl{% if misp_events.showable > 1%} class="scrollable"{% endif %}>
+       {% for misp_event in val %}
+            {% if misp_event.tlp == "white" or (misp_event.tlp == "green" and ac('tlp-green')) %}
+               <b>event_id: {{ misp_event.event_id }} </b>
+               <table style="padding-left: 30px; padding-bottom: 10px">
+                <tr> <td> event_url </td> <td> <a href="{{ misp_event.misp_instance }}/events/view/{{ misp_event.event_id }}">link</a>  </td> </tr>
+                {% for key, value in misp_event.items()  %}
+                        <tr>
+                           {% if key == "tag_list" %}
+                             <td valign="top"> {{ key }} </td>
+                             <td> <ul style="padding-left: 15px">
+                             {% for tag in value %}
+                                 <li>{{ tag.name }}</li>
+                             {% endfor %}
+                             </ul> </td>
+                           {% elif key == "event_id" %}
+                           {% else %} <td style="padding-right: 15px"> {{ key }} </td> <td> {{ value }}</td>{% endif %}
+                        </tr>
+                {% endfor %}
+               </table>
+            {% endif %}
+       {% endfor %}
+      </dl></dd>
+  {% endif %}
  {% elif attr == "geo" %}
   <dt>geo</dt><dd><span class="country">
     <a href="http://country.io/{{val.ctry|lower}}/">

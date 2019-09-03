@@ -17,6 +17,7 @@ shodan          *
 nodenames       trusted
 warden_alerts   trusted
 eml_rank        trusted
+tlp-green       trusted
 mentat          mentat
 
 # Admin tools
