@@ -117,7 +117,17 @@ img.load-spinner-small {
   padding: 0;
   font-size: 1.0em;
   height: 2em;
-  border-bottom: 1px solid #fff;
+  -webkit-position: sticky; /* safari */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid #fff; /* White "separator" between the header and the bottom blue line */
+}
+#header::after { /* Blue line on the bottom of the header */
+  content: "";
+  display: block;
+  clear: both;
+  border-bottom: 2px solid #0061a2;
 }
 #header a {
   color: #94c7e7;/*#ccf;*/
@@ -238,7 +248,7 @@ img.load-spinner-small {
 }
 
 #admin-box {
-  position: absolute;
+  position: fixed;
   left: 50%;
   transform: translate(-50%, 0);
   width: 12em;
@@ -250,7 +260,7 @@ img.load-spinner-small {
   border-radius: 0px 0px 4px 4px;
   background: #CCCC99;
   color: #000000;
-  z-index: 5;
+  z-index: 11;
 }
 #admin-box:hover {
   padding-bottom: 0.5em;
