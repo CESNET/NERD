@@ -15,11 +15,11 @@
 <div class="idea{{ ' test' if 'Test' in idea['Category'] else ''}}">
 <div class="cat_and_time">
  <div class="category" title="Category">{{ idea.pop('Category',['N/A'])|join('+') }}</div>
- <div class="time detecttime" title="DetectTime" data-time={{ idea.pop('DetectTime')|date_to_int if idea.pop('DetectTime','N/A')|is_date else "" }}>{{ idea.pop('DetectTime','N/A') }}</div>
- {%- if idea.EventTime %}<div class="time eventtime" title="EventTime" data-time={{ idea.pop('EventTime')|date_to_int if idea.pop('EventTime')|is_date else "" }}>{{ idea.pop('EventTime') }}</div>{% endif -%}
- {%- if idea.WinStartTime %}<div class="time winstarttime" title="WinStartTime" data-time={{ idea.pop('WinStartTime')|date_to_int if idea.pop('WinStartTime')|is_date else "" }}>{{ idea.pop('WinStartTime') }}</div>{% endif -%}
- {%- if idea.CeaseTime %}<div class="time ceasetime" title="CeaseTime" data-time={{ idea.pop('CeaseTime')|date_to_int if idea.pop('CeaseTime')|is_date else "" }}>{{ idea.pop('CeaseTime') }}</div>{% endif -%}
- {%- if idea.WinEndTime %}<div class="time winendtime" title="WinEndTime" data-time={{ idea.pop('WinEndTime')|date_to_int if idea.pop('WinEndTime')|is_date else "" }}>{{ idea.pop('WinEndTime') }}</div>{% endif -%}
+ <div class="time detecttime" title="DetectTime" {% if idea.get('DetectTime')|is_date %}data-time={{ idea.get('DetectTime')|date_to_int }}{% endif %}>{{ idea.pop('DetectTime','N/A') }}</div>
+ {%- if idea.EventTime %}<div class="time eventtime" title="EventTime" {% if idea.get('EventTime')|is_date %}data-time={{ idea.get('EventTime')|date_to_int }}{% endif %}>{{ idea.pop('EventTime') }}</div>{% endif -%}
+ {%- if idea.WinStartTime %}<div class="time winstarttime" title="WinStartTime" {% if idea.get('WinStartTime')|is_date %}data-time={{ idea.get('WinStartTime')|date_to_int }}{% endif %}>{{ idea.pop('WinStartTime') }}</div>{% endif -%}
+ {%- if idea.CeaseTime %}<div class="time ceasetime" title="CeaseTime" {% if idea.get('CeaseTime')|is_date %}data-time={{ idea.get('CeaseTime')|date_to_int }}{% endif %}>{{ idea.pop('CeaseTime') }}</div>{% endif -%}
+ {%- if idea.WinEndTime %}<div class="time winendtime" title="WinEndTime" {% if idea.get('WinEndTime')|is_date %}data-time={{ idea.get('WinEndTime')|date_to_int }}{% endif %}>{{ idea.pop('WinEndTime') }}</div>{% endif -%}
  {%- if idea._duration is defined %}<div class="time duration" title="duration">{{ duration(idea.pop('_duration')) }}</div>{% endif -%}
 </div>
 

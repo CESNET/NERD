@@ -28,25 +28,38 @@ function formatDate(rawDate ){
     return '' + year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second;
 }
 
-function toggleTimezone(){
-    // switch timezone
-    utc_on = !utc_on;
-    // format every time value properly
-    $(".time").each(function () {
-        var datetime = $(this).data("time");
-        var rawDate = new Date(datetime*1000);
-        $(this).text(formatDate(rawDate));
+function format_tag_tooltip(tooltip){
+    if(utc_on){
+        // date is always in UTC by default in tooltips
+        return tooltip
+    }
+
+    // find all dates in tooltip and replace them with local time
+    var date_regex = new RegExp('\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}.*?(?=<|$)', 'g');
+    var all_date_occurences = [...tooltip.matchAll(date_regex)];
+    all_date_occurences.forEach(function (element) {
+        var new_date = new Date(element + "Z");
+        tooltip = tooltip.replace(new RegExp(element), formatDate(new_date));
     });
+
+    return tooltip;
 }
 
-function formatAllDatesOnLoad(){
+function formaAllDates(toggle){
+    if(toggle){
+        // switch timezone
+        utc_on = !utc_on;
+    }
+    // format every time value properly
     $(".time").each(function () {
-        var datetime = $(this).data("time");
-        var rawDate = new Date(datetime*1000);
-        $(this).text(formatDate(rawDate));
+        if (!$(this).get(0).className.includes("duration")) {
+            var datetime = $(this).data("time");
+            var rawDate = new Date(datetime * 1000);
+            $(this).text(formatDate(rawDate));
+        }
     });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    formatAllDatesOnLoad();
+    formaAllDates(false);
 });

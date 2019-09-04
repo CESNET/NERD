@@ -140,7 +140,7 @@ def date_to_int(val):
         return datetime.timestamp(val)
     if isinstance(val, str):
         date_value = parse(timestr=val)
-        return datetime.time(date_value)
+        return datetime.timestamp(date_value)
 
 
 app.jinja_env.filters['datetime'] = format_datetime

@@ -38,7 +38,9 @@ $(function() {
     show: false,
     hide: false,
     position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"},
-    content: function() { return $(this).attr('title'); } /* This is needed to allow HTML in tooltip text */
+    content: function() {
+      return format_tag_tooltip($(this).attr('title'));
+    } /* This is needed to allow HTML in tooltip text */
   });
   /* jQuery UI tooltip at "events" cell with event table */
   $( ".events" ).tooltip({
