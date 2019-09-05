@@ -1,7 +1,9 @@
-var utc_on = true;
+function utc_on() {
+    return $("#utc-togBtn").is(":checked");
+}
 
-function formatDate(rawDate ){
-    if(utc_on){
+function formatDate(rawDate){
+    if(utc_on()) {
         var year = '' + rawDate.getUTCFullYear(),
             // month values are 0-11
             month = '' + (rawDate.getUTCMonth() + 1),
@@ -28,28 +30,18 @@ function formatDate(rawDate ){
     return '' + year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second;
 }
 
-function format_tag_tooltip(tooltip){
-    if(utc_on){
+function format_tag_tooltip(tooltip_str){
+    if(utc_on()) {
         // date is always in UTC by default in tooltips
-        return tooltip
+        return tooltip_str
     }
 
     // find all dates in tooltip and replace them with local time
-    var date_regex = new RegExp('\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}.*?(?=<|$)', 'g');
-    var all_date_occurences = [...tooltip.matchAll(date_regex)];
-    all_date_occurences.forEach(function (element) {
-        var new_date = new Date(element + "Z");
-        tooltip = tooltip.replace(new RegExp(element), formatDate(new_date));
-    });
-
-    return tooltip;
+    var date_regex = new RegExp('\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}(:\\d{2}(.\\d\\+)?)?', 'g');
+    return tooltip_str.replace(date_regex, function (date) { return formatDate(new Date(date + "Z")); } ); // TODO set precision (sec/msec) based on existence of regexp groups 1 and 2.
 }
 
-function formaAllDates(toggle){
-    if(toggle){
-        // switch timezone
-        utc_on = !utc_on;
-    }
+function reformatAllDates(){
     // format every time value properly
     $(".time").each(function () {
         if (!$(this).get(0).className.includes("duration")) {
@@ -61,5 +53,5 @@ function formaAllDates(toggle){
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    formaAllDates(false);
+    reformatAllDates();
 });

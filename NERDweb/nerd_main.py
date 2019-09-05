@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import subprocess
 import re
@@ -16,7 +16,7 @@ from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 from flask_wtf import FlaskForm
 from flask_mail import Mail, Message
 from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
-from dateutil.parser import parse
+import dateutil.parser
 import jinja2
 
 # Add to path the "one directory above the current file location"
@@ -128,7 +128,7 @@ def is_date(val):
         return True
     if isinstance(val, str):
         try:
-            _ = parse(timestr=val)
+            _ = dateutil.parser.parse(timestr=val)
             return True
         except ValueError:
             return False
@@ -137,10 +137,10 @@ def is_date(val):
 
 def date_to_int(val):
     if type(val) is datetime:
-        return datetime.timestamp(val)
+        return val.replace(tzinfo=timezone.utc).timestamp()
     if isinstance(val, str):
-        date_value = parse(timestr=val)
-        return datetime.timestamp(date_value)
+        date_value = dateutil.parser.parse(timestr=val)
+        return date_value.replace(tzinfo=timezone.utc).timestamp()
 
 
 app.jinja_env.filters['datetime'] = format_datetime
