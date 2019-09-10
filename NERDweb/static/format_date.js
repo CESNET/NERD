@@ -1,9 +1,20 @@
-function utc_on() {
+// This code handles the UTC-local time switch.
+// When the switch is toggled, all times on the page are reformatted to show time in UTC or browser's local time.
+// Each element containing time must have ".time" class and "data-time" attribute with timestamp as integer in UTC.
+// The state of the switch is stored in localStorage, so it persists traversal of various pages.
+
+function is_utc_on() {
     return $("#utc-togBtn").is(":checked");
 }
 
+function on_utc_switch_clicked() {
+    // reformat all dates to reflect the change and store current state to localStorage, so it persists on various pages
+    reformatAllDates();
+    window.localStorage.setItem("utc-switch", (is_utc_on() ? "true" : "false"));
+}
+
 function formatDate(rawDate){
-    if(utc_on()) {
+    if(is_utc_on()) {
         var year = '' + rawDate.getUTCFullYear(),
             // month values are 0-11
             month = '' + (rawDate.getUTCMonth() + 1),
@@ -30,8 +41,8 @@ function formatDate(rawDate){
     return '' + year + '-' + month + '-' + day + ' ' + hour + ':' + minute + ':' + second;
 }
 
-function format_tag_tooltip(tooltip_str){
-    if(utc_on()) {
+function format_dates_in_tooltip(tooltip_str){
+    if(is_utc_on()) {
         // date is always in UTC by default in tooltips
         return tooltip_str
     }
@@ -53,5 +64,14 @@ function reformatAllDates(){
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+    // on load - get saved state from localStorage, set/unset the checkbox and reformat all dates
+    if (window.localStorage.getItem("utc-switch") == "true") {
+        $("#utc-togBtn").prop("checked", true);
+    }
+    else { // false or not set = local
+        $("#utc-togBtn").prop("checked", false);
+    }
     reformatAllDates();
+    $("#utc-switch").css("display", "inline-block"); // show the switch, which is hidden by default (otherwise it may load in one state and then, after this code runs, switch to the other state, which looks weird)
+    $("#timezone-label").css("display", "block");
 });
