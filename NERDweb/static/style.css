@@ -156,7 +156,8 @@ img.load-spinner-small {
   float: right;
   margin: 0.4em 0.3em;
   position: relative;
-  display: inline-block;
+  /*display: inline-block;*/
+  display: none; /* hide by default, show only by javascript when it initialization part is done */
   width: 65px;
   height: 15px;
 }
@@ -215,6 +216,7 @@ img.load-spinner-small {
   float: right;
   text-align: right;
   padding: 0.4em 0.4em;
+  display: none;
 }
 
 
