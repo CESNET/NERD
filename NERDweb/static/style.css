@@ -360,6 +360,60 @@ img.load-spinner-small {
 }
 
 /**********/
+
+/***** Main tables, such as IPs table (#entity_table) or Events table (#events_table) *****/
+.misp_table {
+  margin: 0.5em 0em;
+  background: #eeeeee;
+  border: solid black;
+  width: 100%;
+  /* This is necessary to avoid firefox bug, in which borders have different
+     widths when border-collapse:collapse is used and page is zoomed in (which
+     is default for high DPI screens)
+  */
+  border-collapse: separate;
+  border-spacing: 0px;
+  border-width: 0px 0px 1px 1px;
+  border-left: none;
+  border-right: none;
+}
+
+.misp_table td, .misp_table th {
+  border: solid black;
+  border-width: 1px 1px 0px 0px;
+  padding: 0.2em 0.5em;
+  vertical-align: top;
+  text-align: left;
+  /*white-space: nowrap;*/
+  border-left: none;
+  border-right: none;
+}
+
+.misp_table th {
+  background: #bbbbbb;
+  color: #0061a2;
+}
+
+.misp_table tr:hover {
+  background: #fbfbfb;
+}
+
+.misp_basic_cell{
+    white-space: nowrap;
+    width: 10%;
+}
+
+.misp_long_cell{
+  word-break: break-all;
+  width: 20%;
+}
+
+.misp_h3 {
+  color: #669900;
+}
+
+/**********/
+
 /* Form */
 
 /* Set/fix some visual properties of multiselects */

@@ -1,0 +1,176 @@
+{% extends "layout.html" %}
+{% block body %}
+
+{% if error %}
+    <h1>{{ error }}</h1>
+{% elif tlp == "green" and not ac('tlp-green') %}
+    <h1>You do not have enough rights to access this event</h1>
+{% else %}
+    <div class="float-box" {% if ac('statusbox') %} style="margin-top: 65px" {% else %} style="margin-top: 15px" {% endif %}>
+        <div class="title">Related MISP events</div>
+        <div id="misp-related-events" class="content">
+            {% if event.RelatedEvent %}
+            {% for rel_event in event.RelatedEvent %}
+                <b><a href="{{ url_for('misp_event') + rel_event.Event.id }}" title="Show event details">{{ rel_event.Event.info }}</a></b>
+                <br/>
+                {{ rel_event.Event.date}}
+                <br/>
+                {% if not loop.last %}
+                <hr style="font-size: 4px">
+                {% endif %}
+            {% endfor %}
+            {% else %}
+                There are no related events to this event
+            {% endif %}
+        </div>
+    </div>
+    <h1>Basic event info</h1>
+    <dl class="attrs">
+        <dt>Event ID</dt>
+            <dd>{{ event.id }}</dd>
+        <dt>UUID</dt>
+            <dd>{{ event.uuid }}</dd>
+        <dt>Creator ORG</dt>
+            <dd>{{ event.Orgc.name }}</dd>
+        <dt>Owner ORG</dt>
+            <dd>{{ event.Org.name }}</dd>
+        <dt>Tags</dt>
+            {% for tag in event.Tag %}
+            <dd>&bull; {{ tag.name }}</dd>
+            {% endfor %}
+        <dt>Date</dt>
+            <dd>{{ event.date }}</dd>
+        <dt>Threat level</dt>
+            <dd>{{ event.threat_level_id|misp_threat_level_id_to_str }}</dd>
+        <dt>Analysis</dt>
+            <dd>{{ event.analysis|misp_analysis_id_to_str }}</dd>
+        <dt>Distribution</dt>
+            <dd>{{ event.distribution|misp_distribution_id_to_str }}</dd>
+        <dt>Info</dt>
+            <dd>{{ event.info }}</dd>
+        <dt>Published</dt>
+            <dd>{{ event.published }}{% if event.published %} - <span class="time" data-time={{ event.publish_timestamp }}>{{ event.publish_timestamp }}</span>{% endif %}</dd>
+        <dt>Attribute count</dt>
+            <dd>{{ event.attribute_count }}</dd>
+    </dl>
+    <h1>Galaxies</h1>
+    {% if event.get('Galaxy') %}
+        <div {% if event|misp_get_cluster_count > 3 %}class="scrollable"{% endif %}>
+        {% for galaxy in event.Galaxy %}
+            <h3 class="misp_h3">Name: {{ galaxy.name }}</h3>
+            <h4>Description: {{ galaxy.description }}</h4>
+            <dl class="attrs">
+                {% for cluster in galaxy.GalaxyCluster %}
+                    <dt>{{ cluster.value }}</dt>
+                    {% if cluster.description %}
+                        <dd>{{ cluster.description }}</dd>
+                    {% else %}
+                        <dd>No additional info specified</dd>
+                    {% endif %}
+                {% endfor %}
+            </dl>
+        {% endfor %}
+        </div>
+    {% else %}
+        MISP event contains no Galaxies
+    {% endif %}
+    <h1>Attributes</h1>
+    {% if event.Attribute %}
+        <table id="entity_table" class="misp_table">
+            <!-- Header -->
+            <tr>
+                <th class="misp_basic_cell" title="Time of creation or last modification of the attribute">Date</th>
+                <th class="misp_basic_cell" title="Intent of what the attribute is describing">Category</th>
+                <th class="misp_basic_cell" title="Precise meaning of the attribute">Type</th>
+                <th class="misp_basic_cell">Value</th>
+                <th class="misp_basic_cell">Tags</th>
+                <th class="misp_basic_cell" title="Comment attached to the attribute">Comment</th>
+                <th class="misp_basic_cell" title="Sightings of the attribute (Positive/False-Positive/Expired attribute)">Sightings</th>
+            </tr>
+            {% for attrib in event.Attribute %}
+            <tr>
+                <td class="misp_basic_cell time" data-time={{ attrib.timestamp }}>{{ attrib.timestamp|timestamp_to_date|datetime }}</td>
+                <td class="misp_basic_cell">{{ attrib.category }}</td>
+                <td class="misp_basic_cell">{{ attrib.type }}</td>
+                <td class="misp_long_cell">
+                    {% if attrib.value|is_ip_address %}
+                        <a href="{{ url_for('ip') + attrib.value }}" title="Show details about ip address">{{ attrib.value }}</a>
+                    {% elif attrib.value|misp_contains_ip_address(attrib.type) %}
+                        {% if "domain" in attrib.type %}
+                            {{ attrib.value|misp_contains_ip_address(attrib.type, True) }}|<a href="{{ url_for('ip') + attrib.value|misp_contains_ip_address(attrib.type) }}" title="Show details about ip address">{{ attrib.value|misp_contains_ip_address(attrib.type) }}</a>
+                        {% else %}
+                            <a href="{{ url_for('ip') + attrib.value|misp_contains_ip_address(attrib.type) }}" title="Show details about ip address">{{ attrib.value|misp_contains_ip_address(attrib.type) }}</a>|{{ attrib.value|misp_contains_ip_address(attrib.type, True) }}
+                        {% endif %}
+                    {% else %}
+                        {{ attrib.value }}
+                    {% endif %}
+                </td>
+                <td class="misp_long_cell">
+                    {% if attrib.get('Tag') %}
+                        {% for tag in attrib.get('Tag')|misp_get_tags %}
+                            &bull; {{ tag }} <br />
+                        {% endfor %}
+                    {% endif %}</td>
+                <td class="misp_long_cell">{{ attrib.comment }}</td>
+                <td class="misp_basic_cell">{{ attrib.get('Sighting')|misp_sightings_to_str }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        MISP event contains no Attributes
+    {% endif %}
+    <h1>Objects</h1>
+    {% if event.Object %}
+        {% for misp_object in event.Object %}
+        <h3 class="misp_h3">Name: {{ misp_object.name }}</h3>
+        {% if misp_object.comment != "" %}
+        <h3 class="misp_h3">Comment: {{ misp_object.coment }}</h3>
+        {% endif %}
+        <table id="entity_table" class="misp_table">
+            <!-- Header -->
+            <tr>
+                <th class="misp_basic_cell" title="Time of creation or last modification of the attribute">Date</th>
+                <th class="misp_basic_cell" title="Intent of what the attribute is describing">Category</th>
+                <th class="misp_basic_cell" title="Precise meaning of the attribute">Type</th>
+                <th class="misp_basic_cell">Value</th>
+                <th class="misp_basic_cell">Tags</th>
+                <th class="misp_basic_cell" title="Comment attached to the attribute">Comment</th>
+                <th class="misp_basic_cell" title="Sightings of the attribute (Positive/False-Positive/Expired attribute)">Sightings</th>
+            </tr>
+            {% for attrib in misp_object.Attribute %}
+            <tr>
+                <td class="misp_basic_cell time" data-time={{ attrib.timestamp }}>{{ attrib.timestamp|timestamp_to_date|datetime }}</td>
+                <td class="misp_basic_cell">{{ attrib.category }}</td>
+                <td class="misp_basic_cell">{{ attrib.type }}</td>
+                <td class="misp_long_cell">
+                    {% if attrib.value|is_ip_address %}
+                        <a href="{{ url_for('ip') + attrib.value }}" title="Show details about ip address">{{ attrib.value }}</a>
+                    {% elif attrib.value|misp_contains_ip_address(attrib.type) %}
+                        {% if "domain" in attrib.type %}
+                            {{ attrib.value|misp_contains_ip_address(attrib.type, True) }}|<a href="{{ url_for('ip') + attrib.value|misp_contains_ip_address(attrib.type) }}" title="Show details about ip address">{{ attrib.value|misp_contains_ip_address(attrib.type) }}</a>
+                        {% else %}
+                            <a href="{{ url_for('ip') + attrib.value|misp_contains_ip_address(attrib.type) }}" title="Show details about ip address">{{ attrib.value|misp_contains_ip_address(attrib.type) }}</a>|{{ attrib.value|misp_contains_ip_address(attrib.type, True) }}
+                        {% endif %}
+                    {% else %}
+                        {{ attrib.value }}
+                    {% endif %}
+                </td>
+                <td class="misp_long_cell">
+                    {% if attrib.get('Tag') %}
+                        {% for tag in attrib.get('Tag')|misp_get_tags %}
+                            &bull; {{ tag }} <br />
+                        {% endfor %}
+                    {% endif %}
+                </td>
+                <td class="misp_long_cell">{{ attrib.comment }}</td>
+                <td class="misp_basic_cell">{{ attrib.get('Sighting')|misp_sightings_to_str }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% endfor %}
+    {% else %}
+        MISP event contains no objects
+    {% endif %}
+{% endif %}
+
+{% endblock %}
