@@ -737,6 +737,36 @@ div.idea .others .idea-descr {
   font-weight: bold;
 }
 
+div.idea .attachment {
+  display: inline-block;
+  cursor: pointer;
+  border: 1px dashed #444;
+  padding: 0.25em 0.5em;
+  margin-top: 0.2em;
+  margin-right: 0.5em;
+}
+div.idea .attachment::before {
+  content: "\1f4ce";
+  margin-right: 0.5em;
+}
+div.idea .attachment:hover {
+  background: #cc4;
+}
+div.idea .attach-content {
+  display: none; /* do not display by default */
+  position: absolute;
+  left: 5vw;
+  right: 5vw;
+  z-index: 5;
+  white-space: pre-wrap;
+  cursor: default;
+  padding: 0.25em 0.5em;
+  background: #fff;
+  border: 2px solid #444;
+  box-shadow: 4px 4px 3px 0px rgba(0,0,0,0.3);
+}
+
+
 div.idea.test {
   background: #eee;
   border-color: #ccc;
