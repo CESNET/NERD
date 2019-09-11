@@ -4,7 +4,7 @@
 {% if error %}
     <h1>{{ error }}</h1>
 {% elif tlp == "green" and not ac('tlp-green') %}
-    <h1>You do not have enough rights to access this event</h1>
+    <h1>Insufficient permission to access this event</h1>
 {% else %}
     <div class="float-box" {% if ac('statusbox') %} style="margin-top: 65px" {% else %} style="margin-top: 15px" {% endif %}>
         <div class="title">Related MISP events</div>
@@ -24,16 +24,16 @@
             {% endif %}
         </div>
     </div>
-    <h1>Basic event info</h1>
+    <h1>MISP event detail</h1>
     <dl class="attrs">
+        <dt style="font-size: 140%">Info</dt>
+            <dd style="font-size: 140%"><b>{{ event.info }}</b></dd>
         <dt>Event ID</dt>
             <dd>{{ event.id }}</dd>
         <dt>UUID</dt>
             <dd>{{ event.uuid }}</dd>
         <dt>Creator ORG</dt>
             <dd>{{ event.Orgc.name }}</dd>
-        <dt>Owner ORG</dt>
-            <dd>{{ event.Org.name }}</dd>
         <dt>Tags</dt>
             {% for tag in event.Tag %}
             <dd>&bull; {{ tag.name }}</dd>
@@ -44,18 +44,12 @@
             <dd>{{ event.threat_level_id|misp_threat_level_id_to_str }}</dd>
         <dt>Analysis</dt>
             <dd>{{ event.analysis|misp_analysis_id_to_str }}</dd>
-        <dt>Distribution</dt>
-            <dd>{{ event.distribution|misp_distribution_id_to_str }}</dd>
-        <dt>Info</dt>
-            <dd>{{ event.info }}</dd>
-        <dt>Published</dt>
-            <dd>{{ event.published }}{% if event.published %} - <span class="time" data-time={{ event.publish_timestamp }}>{{ event.publish_timestamp }}</span>{% endif %}</dd>
         <dt>Attribute count</dt>
             <dd>{{ event.attribute_count }}</dd>
     </dl>
     <h1>Galaxies</h1>
     {% if event.get('Galaxy') %}
-        <div {% if event|misp_get_cluster_count > 3 %}class="scrollable"{% endif %}>
+        <div {% if event|misp_get_cluster_count > 2 %}class="scrollable"{% endif %}>
         {% for galaxy in event.Galaxy %}
             <h3 class="misp_h3">Name: {{ galaxy.name }}</h3>
             <h4>Description: {{ galaxy.description }}</h4>
