@@ -194,6 +194,9 @@ $("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}", function( respon
   if ( status == "error" ) {
     $("#events div.loading").html( "Error: " + xhr.status + " " + xhr.statusText );
   }
+  else {
+    reformatAllDates(); // reformat times in newly loaded data acocrding to utc-switch
+  }
 });
 </script>
 </div>

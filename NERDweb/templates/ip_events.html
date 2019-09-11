@@ -46,7 +46,12 @@
   {%- endfor -%}
   </div>
 {% endif %}
+{%- set attachments = idea.pop('Attach', []) -%}
 {{ json.dumps(idea, ensure_ascii=False, sort_keys=True).strip("{}") }}
+{%- if attachments|length > 0 %}<br>{% endif -%}
+{%- for attach in attachments %}
+  <div class="attachment" onclick="showAttachment(this)" title="Attachment, click to show content">[{{ attach.get('ContentType', 'unknown-type') }}] {% if attach.Type %}[Type: {{attach.Type}}]{% endif %} {{ attach.Note }}<pre class="attach-content">{{ attach.Content }}</pre></div>
+{%- endfor %}
 </div>
 
 <div class="nodes"><ul>
@@ -65,6 +70,15 @@
 </div>
 {%- endmacro -%}
 
+<script>
+function showAttachment(e) {
+  // Hide all attachments except this one
+  $(".attach-content").not($(e).children()).hide();
+  // Toggle (show/hide) this attachment
+  $(".attach-content", e).toggle();
+  // TODO - don't hide when the text (pre) is clicked 
+}
+</script>
 <div id="events">
 <p id="event-details"><span class="caption">Event details</span> <span class="counts">({{ num_events|safe }})</span>
 {#&nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>#}

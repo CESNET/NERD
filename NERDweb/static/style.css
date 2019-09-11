@@ -151,11 +151,13 @@ img.load-spinner-small {
   float: left;
 }
 
-#utc-switch{
+/* UTC/local time switch */
+#utc-switch {
   float: right;
   margin: 0.4em 0.3em;
   position: relative;
-  display: inline-block;
+  /*display: inline-block;*/
+  display: none; /* hide by default, show only by javascript when it initialization part is done */
   width: 65px;
   height: 15px;
 }
@@ -163,7 +165,6 @@ img.load-spinner-small {
   display:none;
 }
 #utc-slider {
-  float: right;
   position: absolute;
   cursor: pointer;
   top: 0;
@@ -172,11 +173,10 @@ img.load-spinner-small {
   bottom: 0;
   border-radius: 34px;
   background-color: #32bf31;
-  -webkit-transition: .4s;
-  transition: .4s;
+  -webkit-transition: .2s;
+  transition: .2s;
 }
 #utc-slider::before{
-  float: right;
   position: absolute;
   content: "";
   height: 10px;
@@ -185,22 +185,16 @@ img.load-spinner-small {
   bottom: 3px;
   border-radius: 34px;
   background-color: white;
-  -webkit-transition: .4s;
-  transition: .4s;
+  -webkit-transition: .2s;
+  transition: .2s;
 }
-#header input:checked + #utc-slider {
+#utc-switch input:checked + #utc-slider {
   background-color: #373aeb;
 }
-#header input:focus + #utc-slider{
-  box-shadow: 0 0 1px #2196F3;
-}
-#header input:checked + #utc-slider:before{
+#utc-switch input:not(:checked) + #utc-slider::before{
   -webkit-transform: translateX(47px);
   -ms-transform: translateX(47px);
   transform: translateX(47px);
-}
-#utcoff{
-  display: none;
 }
 #utcon, #utcoff{
   float: right;
@@ -209,23 +203,23 @@ img.load-spinner-small {
   transform: translate(-50%,-50%);
   top: 50%;
   left: 50%;
-  font-size: 10px;
-  font-family: Verdana, sans-serif;
-}
-#header input:checked + #utc-slider #utcoff{
-  display: block;
-}
-#header input:checked + #utc-slider #utcon{
   display: none;
 }
-#utc-slider.round:before{
-  border-radius: 50%;
+/* change visibility based on switch "checked" state */
+#utc-switch input:checked + #utc-slider #utcon{
+  display: block;
+}
+#utc-switch input:not(:checked) + #utc-slider #utcoff{
+  display: block;
 }
 #header #timezone-label {
   float: right;
   text-align: right;
   padding: 0.4em 0.4em;
+  display: none;
 }
+
+
 #header #login {
   float: right;
   text-align: right;
@@ -798,6 +792,36 @@ div.idea .others .idea-note {
 div.idea .others .idea-descr {
   font-weight: bold;
 }
+
+div.idea .attachment {
+  display: inline-block;
+  cursor: pointer;
+  border: 1px dashed #444;
+  padding: 0.25em 0.5em;
+  margin-top: 0.2em;
+  margin-right: 0.5em;
+}
+div.idea .attachment::before {
+  content: "\1f4ce";
+  margin-right: 0.5em;
+}
+div.idea .attachment:hover {
+  background: #cc4;
+}
+div.idea .attach-content {
+  display: none; /* do not display by default */
+  position: absolute;
+  left: 5vw;
+  right: 5vw;
+  z-index: 5;
+  white-space: pre-wrap;
+  cursor: default;
+  padding: 0.25em 0.5em;
+  background: #fff;
+  border: 2px solid #444;
+  box-shadow: 4px 4px 3px 0px rgba(0,0,0,0.3);
+}
+
 
 div.idea.test {
   background: #eee;

@@ -147,9 +147,9 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
   Logged in:<a href="{{ url_for('account_info') }}" class="username">{{ user.id }}{% if user.name %} ({{ user.name }}){% endif %}</a>&bull;<a href="{{ url_for('logout') }}">Log out</a>
   {% endif %}
  </div>
- <label id="utc-switch"><input type="checkbox" onclick="formaAllDates(true)" id="utc-togBtn"><div id="utc-slider"><span id="utcoff">local</span><span id="utcon">UTC</span></div></label>
+ <label id="utc-switch"><input type="checkbox" id="utc-togBtn" onclick="on_utc_switch_clicked()" checked><div id="utc-slider"><span id="utcoff">local</span><span id="utcon">UTC</span></div></label>
  <div id="timezone-label">
-     Current timezone:
+     Timezone:
  </div>
 </div>
 {% endblock %}
