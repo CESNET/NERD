@@ -18,6 +18,7 @@ import logging
 import signal
 import sys
 from datetime import datetime, timedelta
+import jsonpath_rw_ext
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -179,6 +180,92 @@ def read_dir_test():
 
 
 ##############################################################################
+# Warden filter
+class WardenFilterRuleError(Exception):
+    pass
+
+
+class WardenFilter():
+    def __init__(self, rules_list):
+        # check if default action is used
+        self.default_action = ["pass"]
+        if rules_list[-1].startswith("else"):
+            # pop last element from rules list (else) and get action from it and save it as [action]
+            self.default_action = [rules_list.pop().split(';')[1].strip()]
+            if self.default_action[0].startswith("sample"):
+                # if default action is 'sample', save it as ["sample", max_sample_count, current_sample_count=0]
+                _, ratio = self.default_action[0].strip().split(' ')
+                max_sample_count = ratio.split(':')[1]
+                self.default_action = ["sample", int(max_sample_count), 0]
+
+        self.filter_list = []
+        try:
+            for rule_action in rules_list:
+                rule, action = rule_action.split(';')
+                path, compared_value = rule.split('=')
+                # result will be list of rules, compared values and actions -- [(rule1, compared_value1, [action1]),...]
+                # $. means root of JSON document
+                if action.strip().startswith("sample"):
+                    _, ratio = action.strip().split(' ')
+                    max_sample_count = ratio.split(':')[1]
+                    # if the action is sample, save action as 3-elem list [sample, max_sample_count, sample_count]
+                    self.filter_list.append(("$." + path.strip(), compared_value.strip(), ["sample", int(max_sample_count), 0]))
+                else:
+                    self.filter_list.append(("$." + path.strip(), compared_value.strip(), [action.strip()]))
+        except ValueError:
+            log.error("Warden filter rules are probably not in correct format!", exc_info=True)
+            raise WardenFilterRuleError("Warden filter rules are probably not in correct format!")
+
+    @staticmethod
+    def _pass():
+        return True
+
+    @staticmethod
+    def _drop():
+        return False
+
+    @staticmethod
+    def _sample(action_list):
+        # action_list is 3-elem list --> ["sample", max_sample_count, current_sample]
+        # increase current sample
+        action_list[2] += 1
+        # if current sample is equal or higher to max_sample_count, then reset current sample counter and pass IDEA
+        # message, else drop it
+        if action_list[2] >= action_list[1]:
+            action_list[2] = 0
+            return True
+        else:
+            return False
+
+    def should_pass(self, idea_message):
+        # go through every defined rule
+        for path, compared_value, action in self.filter_list:
+            try:
+                # find all values, which matches the pattern
+                path_values = jsonpath_rw_ext.match(path, idea_message)
+            except Exception:
+                # One of the rules is wrong, others may work correctly --> continue
+                log.error("Warden filter rules are probably not in correct format!", exc_info=True)
+                continue
+            if compared_value in path_values:
+                # rule match
+                if action[0] == "drop":
+                    return WardenFilter._drop()
+                elif action[0] == "pass":
+                    return WardenFilter._pass()
+                elif action[0] == "sample":
+                    return WardenFilter._sample(action)
+
+        else:
+            # if no rule matched, then do default action
+            if self.default_action[0] == "drop":
+                return WardenFilter._drop()
+            elif self.default_action[0] == "pass":
+                return WardenFilter._pass()
+            elif self.default_action[0] == "sample":
+                return WardenFilter._sample(self.default_action)
+
+##############################################################################
 # Main module code
 
 def put_to_db_queue(event):
@@ -218,19 +305,26 @@ def stop(signal, frame):
     log.info("exiting")
 
 
-def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime):
+def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter_rules):
     # Infinite loop reading events as files in given directory
     # This loop stops on SIGINT
     log.info("Reading IDEA files from {}/incoming".format(filer_path))
     life_span = timedelta(days=inactive_ip_lifetime)
+
+    try:
+        warden_filter = WardenFilter(warden_filter_rules)
+    except WardenFilterRuleError:
+        # some rule is probably completely wrong, at least use filter which drops Test IDEA messages
+        warden_filter = WardenFilter(["Category.[*]=Test ; drop"])
+
     for (rawdata, event) in read_dir(filer_path, call_when_waiting=put_set_to_database):
         # Store the event to EventDB
         if eventdb is not None:
             put_to_db_queue(event)
         try:
-            if "Test" in event["Category"]:
-                log.debug("Test event ignored")
-                continue  # Ignore testing messages
+            if not warden_filter.should_pass(event):
+                log.debug("event {} ignored".format(event["ID"]))
+                continue
             for src in event.get("Source", []):
                 for ipv4 in src.get("IP4", []):
                     # TODO check IP address validity
@@ -299,6 +393,7 @@ if __name__ == "__main__":
     config.update(common.config.read_config(common_cfg_file))
 
     inactive_ip_lifetime = config.get('record_life_length.warden', 14)
+    warden_filter_rules = config.get('warden_filter')
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
 
@@ -316,5 +411,5 @@ if __name__ == "__main__":
     task_queue_writer.connect()
 
     signal.signal(signal.SIGINT, stop)
-    receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime)
+    receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter_rules)
 

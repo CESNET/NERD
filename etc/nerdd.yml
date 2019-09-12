@@ -18,6 +18,33 @@ worker_processes: 2
 # external services via network)
 worker_threads: 16
 
+# List of rules and actions, which defines, whether IDEA message will be inserted into NERD or not. Order is important!
+# If some rule matches, the action is done regardless what other rules are.
+# Expected format:
+#         Pattern  - Just use dot notation to access keys in JSON structure and use [*], when accessing list (number
+#                    index can be used instead of '*', if necessary)
+#         Operator - Only supported operator right now is '='
+#         Value    - Value with which will be the result of pattern compared based on operator
+#         Action   - If any value of pattern search matches compared Value, the action will be done
+#                  - Currently available actions:
+#                       drop       --> IDEA message will not be inserted into NERD
+#                       pass       --> IDEA message will be inserted into NERD
+#                       sample 1:N --> One of N IDEA messages will be inserted into NERD
+#                                    - space between 'sample' and '1:N' is important)
+#    final filter format:
+#        Pattern Operator Value ; Action      (spaces in between do not have to be used)
+#
+#    As last rule, else clause should always be used, which defines actions for every IDEA message, which does not match
+#    any previously defined rule:
+#         else;action     (default action is pass)
+# Example:
+#         "Category.[*]=Test ; drop" --> Drops every IDEA message, which contains 'Test' Category
+#         "Source.[*].IP4.[*]=192.168.0.1 ; pass" --> Inserts every IDEA message, which contains '192.168.0.1' source IP
+#         "Node.[*].Name=NodeName ; drop" --> Drops every IDEA message, which contains 'NodeName' in any Node['Name']
+warden_filter:
+  - "Category.[*]=Test ; drop"
+  - "else ; pass"
+
 whois:
   asn_file: "/data/nerd-whois-asn.csv"
   ipv4_file: "/data/nerd-whois-ipv4.csv"

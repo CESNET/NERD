@@ -17,3 +17,4 @@ xgboost
 pymisp
 zmq
 amqpstorm
+jsonpath_rw_ext
