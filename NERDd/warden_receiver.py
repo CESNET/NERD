@@ -203,7 +203,7 @@ class WardenFilter():
         """
         # check if default action is used
         self.default_action = ["pass"]
-        if rules_list[-1].startswith(";"):
+        if rules_list[-1].strip().startswith(";"):
             # pop last element from rules list (else) and get action from it and save it as [action]
             self.default_action = [rules_list.pop().split(';')[1].strip()]
             if self.default_action[0].startswith("sample"):
