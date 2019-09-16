@@ -1,0 +1,23 @@
+#!/bin/sh
+
+if [ "$1" == "config" ]; then
+  cat <<'END'
+graph_title Not updated entities
+graph_info Number of entities with '_nru' (next regular update) field older than 1 hour. Should always be zero if automatic updates work well.
+graph_category nerd
+graph_vlabel Number of entities
+ip.label Number of IPs
+ip.warn 1
+asn.label Number of ASNs
+asn.warn 1
+END
+  exit 0
+fi
+
+date="$(date --rfc-3339=seconds --utc -d "-1 hour")"
+echo $date
+mongo nerd --quiet --eval "
+  print('ip.value', db.ip.find({_nru1d: {\$lt: ISODate(\"${date}\")}}).count());
+  print('asn.value', db.asn.find({_nru1d: {\$lt: ISODate(\"${date}\")}}).count());
+"
+
