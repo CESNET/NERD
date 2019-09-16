@@ -350,7 +350,7 @@ class WardenFilter():
             pattern_values = jsonpath_rw_ext.match(pattern, idea_message)
             # some values in IDEA message can be of type int, but compared value is always string
             pattern_values = [str(pattern_value) for pattern_value in pattern_values]
-            if operator == "!":
+            if operator == "!=":
                 if compared_value not in pattern_values:
                     return True
             elif operator == "=":
