@@ -114,6 +114,7 @@ Vagrant.configure(2) do |config|
   config.vm.provision "shell", inline: "/tmp/nerd_install/install_warden_filer.sh"
   config.vm.provision "shell", inline: "/tmp/nerd_install/install_configure_munin.sh"
   config.vm.provision "shell", inline: "/tmp/nerd_install/download_data_files.sh"
+  config.vm.provision "shell", inline: "/tmp/nerd_install/configure_cron.sh"
   config.vm.provision "shell", inline: "/tmp/nerd_install/configure_supervisor.sh open" # open mgmt port on all interfaces so it's possible to connect from host
 
   # Create testing users  
