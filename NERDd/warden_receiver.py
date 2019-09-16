@@ -213,36 +213,33 @@ class WardenFilter():
 
         # create list of all rules
         self.filter_list = []
-        try:
-            for warden_filter_rule in rules_list:
-                try:
-                    rule, action = warden_filter_rule.split(';')
-                except ValueError:
-                    # no values to unpack or too many values to unpack
-                    raise WardenFilterRuleFormatError("Zero or more than one action is defined in one rule. Only one "
-                                                      "action is allowed in one rule!")
-                if "AND" in rule and "OR" not in rule:
-                    rule_list = self._parse_rule(rule, "AND")
-                elif "OR" in rule and "AND" not in rule:
-                    rule_list = self._parse_rule(rule, "OR")
-                elif "OR" not in rule and "AND" not in rule:
-                    # should be just single rule
-                    rule_list = self._parse_rule(rule)
-                else:
-                    raise WardenFilterRuleFormatError("Logical operators AND and OR cannot be mixed!")
-                # result will be list of rules, compared values and actions -- [(rule1, compared_value1, [action1]),...]
-                # $. means root of JSON document
-                if action.strip().startswith("sample"):
-                    _, max_sample_count = action.strip().split(' ')
-                    # if the action is sample, save action as 3-elem list [sample, max_sample_count, sample_count]
-                    self.filter_list.append((rule_list, ["sample", int(max_sample_count), 0]))
-                elif action.strip() in WardenFilter.SUPPORTED_ACTIONS:
-                    self.filter_list.append((rule_list, [action.strip()]))
-                else:
-                    raise WardenFilterRuleFormatError("Rule uses unsupported action! Supported actions "
-                                                      "are {}".format(", ".join(WardenFilter.SUPPORTED_ACTIONS)))
-        except Exception:
-            raise WardenFilterRuleFormatError("Warden filter rules are not in correct format!")
+        for warden_filter_rule in rules_list:
+            try:
+                rule, action = warden_filter_rule.split(';')
+            except ValueError:
+                # no values to unpack or too many values to unpack
+                raise WardenFilterRuleFormatError("Zero or more than one action is defined in one rule. Only one "
+                                                  "action is allowed in one rule!")
+            if "AND" in rule and "OR" not in rule:
+                rule_list = self._parse_rule(rule, "AND")
+            elif "OR" in rule and "AND" not in rule:
+                rule_list = self._parse_rule(rule, "OR")
+            elif "OR" not in rule and "AND" not in rule:
+                # should be just single rule
+                rule_list = self._parse_rule(rule)
+            else:
+                raise WardenFilterRuleFormatError("Logical operators AND and OR cannot be mixed!")
+            # result will be list of rules, compared values and actions -- [(rule1, compared_value1, [action1]),...]
+            # $. means root of JSON document
+            if action.strip().startswith("sample"):
+                _, max_sample_count = action.strip().split(' ')
+                # if the action is sample, save action as 3-elem list [sample, max_sample_count, sample_count]
+                self.filter_list.append((rule_list, ["sample", int(max_sample_count), 0]))
+            elif action.strip() in WardenFilter.SUPPORTED_ACTIONS:
+                self.filter_list.append((rule_list, [action.strip()]))
+            else:
+                raise WardenFilterRuleFormatError("Rule uses unsupported action! Supported actions "
+                                                  "are {}".format(", ".join(WardenFilter.SUPPORTED_ACTIONS)))
 
     @classmethod
     def _parse_operator(cls, rule_operator_value):
@@ -429,7 +426,7 @@ def stop(signal, frame):
     log.info("exiting")
 
 
-def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter):
+def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter=None):
     # Infinite loop reading events as files in given directory
     # This loop stops on SIGINT
     log.info("Reading IDEA files from {}/incoming".format(filer_path))
@@ -440,7 +437,7 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
         if eventdb is not None:
             put_to_db_queue(event)
         try:
-            if not warden_filter.should_pass(event):
+            if warden_filter and not warden_filter.should_pass(event):
                 log.debug("event {} ignored".format(event["ID"]))
                 continue
             for src in event.get("Source", []):
@@ -511,14 +508,18 @@ if __name__ == "__main__":
     config.update(common.config.read_config(common_cfg_file))
 
     inactive_ip_lifetime = config.get('record_life_length.warden', 14)
-    warden_filter_rules = config.get('warden_filter')
+    warden_filter_rules = config.get('warden_filter', None)
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
 
-    try:
-        warden_filter = WardenFilter(warden_filter_rules)
-    except Exception:
-        sys.exit(1)
+    if warden_filter_rules:
+        try:
+            warden_filter = WardenFilter(warden_filter_rules)
+        except Exception as e:
+            log.fatal("Error in Warden filter specification: " + str(e))
+            sys.exit(1)
+    else:
+        warden_filter = None
 
     # Get number of processes from config
     num_processes = config.get('worker_processes')
