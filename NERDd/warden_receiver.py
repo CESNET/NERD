@@ -181,41 +181,114 @@ def read_dir_test():
 
 ##############################################################################
 # Warden filter
-class WardenFilterRuleError(Exception):
+class WardenFilterRuleFormatError(Exception):
     pass
 
 
 class WardenFilter():
+    """
+    Warden filter, which allows to configure, which IDEA messages are allowed to pass to NERD and which are not.
+    """
+    # '!=' has to be before '='! Because if '=' would be first in case of '!=', then pattern would be split on '=' and
+    # remaining '!' in pattern would be unexpected character
+    SUPPORTED_OPERATORS = ('!=', "=")
+    SUPPORTED_ACTIONS = ("pass", "drop", "sample")
+
     def __init__(self, rules_list):
+        """
+        Parses warden filter rules from NERD configuration (/etc/nerdd.yml) and allows to filter IDEA messages based
+        on these parsed rules
+        :param rules_list: Raw Warden filter rules from configuration
+        :raise: WardenFilterRuleFormatError
+        """
         # check if default action is used
         self.default_action = ["pass"]
-        if rules_list[-1].startswith("else"):
+        if rules_list[-1].startswith(";"):
             # pop last element from rules list (else) and get action from it and save it as [action]
             self.default_action = [rules_list.pop().split(';')[1].strip()]
             if self.default_action[0].startswith("sample"):
                 # if default action is 'sample', save it as ["sample", max_sample_count, current_sample_count=0]
-                _, ratio = self.default_action[0].strip().split(' ')
-                max_sample_count = ratio.split(':')[1]
+                _, max_sample_count = self.default_action[0].strip().split(' ')
                 self.default_action = ["sample", int(max_sample_count), 0]
 
+        # create list of all rules
         self.filter_list = []
         try:
-            for rule_action in rules_list:
-                rule, action = rule_action.split(';')
-                path, compared_value = rule.split('=')
+            for warden_filter_rule in rules_list:
+                try:
+                    rule, action = warden_filter_rule.split(';')
+                except ValueError:
+                    # no values to unpack or too many values to unpack
+                    raise WardenFilterRuleFormatError("Zero or more than one action is defined in one rule. Only one "
+                                                      "action is allowed in one rule!")
+                if "AND" in rule and "OR" not in rule:
+                    rule_list = self._parse_rule(rule, "AND")
+                elif "OR" in rule and "AND" not in rule:
+                    rule_list = self._parse_rule(rule, "OR")
+                elif "OR" not in rule and "AND" not in rule:
+                    # should be just single rule
+                    rule_list = self._parse_rule(rule)
+                else:
+                    raise WardenFilterRuleFormatError("Logical operators AND and OR cannot be mixed!")
                 # result will be list of rules, compared values and actions -- [(rule1, compared_value1, [action1]),...]
                 # $. means root of JSON document
                 if action.strip().startswith("sample"):
-                    _, ratio = action.strip().split(' ')
-                    max_sample_count = ratio.split(':')[1]
+                    _, max_sample_count = action.strip().split(' ')
                     # if the action is sample, save action as 3-elem list [sample, max_sample_count, sample_count]
-                    self.filter_list.append(("$." + path.strip(), compared_value.strip(), ["sample", int(max_sample_count), 0]))
+                    self.filter_list.append((rule_list, ["sample", int(max_sample_count), 0]))
+                elif action.strip() in WardenFilter.SUPPORTED_ACTIONS:
+                    self.filter_list.append((rule_list, [action.strip()]))
                 else:
-                    self.filter_list.append(("$." + path.strip(), compared_value.strip(), [action.strip()]))
-        except ValueError:
-            log.error("Warden filter rules are probably not in correct format!", exc_info=True)
-            raise WardenFilterRuleError("Warden filter rules are probably not in correct format!")
+                    raise WardenFilterRuleFormatError("Rule uses unsupported action! Supported actions "
+                                                      "are {}".format(", ".join(WardenFilter.SUPPORTED_ACTIONS)))
+        except Exception:
+            raise WardenFilterRuleFormatError("Warden filter rules are not in correct format!")
 
+    @classmethod
+    def _parse_operator(cls, rule_operator_value):
+        """
+        Parses part of rule, which contains rule, operator and comparison value
+        :param rule_operator_value: string which contains rule, operator and comparison value
+        :return: pattern, operator, comparison_value
+        :raise Exception in case of wrong pattern or WardenFilterRuleFormatError
+        """
+        # go through all supported operators and split rule with operator, which was used
+        for operator in cls.SUPPORTED_OPERATORS:
+            if operator in rule_operator_value:
+                # operator found, get pattern and compared value by split and return it with found operator
+                pattern, comparison_value = rule_operator_value.split(operator)
+                # this is just check, if pattern is parsable, later is useless in this form (raises Exception)
+                _ = jsonpath_rw_ext.parse(pattern)
+                return "$." + pattern.strip(), operator, comparison_value.strip()
+        else:
+            raise WardenFilterRuleFormatError("Rule uses unsupported operator! Supported opperators "
+                                              "are {}!".format(", ".join(cls.SUPPORTED_OPERATORS)))
+
+    @classmethod
+    def _parse_rule(cls, rule, logical_operator=None):
+        """
+        Parses one whole Warden filter rule, which can consist of multiple logical operators and rules
+        :param rule: Warden filter rule
+        :param logical_operator: AND|OR|None
+        :return: parsed rule as list with 3-elem tuples [(pattern, operator, comparison_value), ...) with first index as
+                 logical operator if used ["AND|OR", (pattern, ...), ...]
+        :raise Exception in case of wrong pattern or WardenFilterRuleFormatError
+        """
+        if logical_operator is not None:
+            # only one logical operator can be used in rule, split it and get all rules
+            rule_list_raw = rule.split(logical_operator)
+            # save the name of logical operator for future use
+            rule_list = [logical_operator]
+            for pattern_operator_value in rule_list_raw:
+                pattern, operator, comparison_value = cls._parse_operator(pattern_operator_value)
+                rule_list.append((pattern, operator, comparison_value))
+        else:
+            # only one rule is present, there is no need to split on logical operator, just split on normal operator
+            pattern, operator, comparison_value = cls._parse_operator(rule)
+            rule_list = [(pattern, operator, comparison_value)]
+        return rule_list
+
+    # All supported Action function follows
     @staticmethod
     def _pass():
         return True
@@ -226,8 +299,7 @@ class WardenFilter():
 
     @staticmethod
     def _sample(action_list):
-        # action_list is 3-elem list --> ["sample", max_sample_count, current_sample]
-        # increase current sample
+        # action_list is 3-elem list --> ["sample", max_sample_count, current_sample], increase current sample
         action_list[2] += 1
         # if current sample is equal or higher to max_sample_count, then reset current sample counter and pass IDEA
         # message, else drop it
@@ -237,33 +309,85 @@ class WardenFilter():
         else:
             return False
 
-    def should_pass(self, idea_message):
-        # go through every defined rule
-        for path, compared_value, action in self.filter_list:
-            try:
-                # find all values, which matches the pattern
-                path_values = jsonpath_rw_ext.match(path, idea_message)
-            except Exception:
-                # One of the rules is wrong, others may work correctly --> continue
-                log.error("Warden filter rules are probably not in correct format!", exc_info=True)
-                continue
-            if compared_value in path_values:
-                # rule match
-                if action[0] == "drop":
-                    return WardenFilter._drop()
-                elif action[0] == "pass":
-                    return WardenFilter._pass()
-                elif action[0] == "sample":
-                    return WardenFilter._sample(action)
+    @classmethod
+    def _evaluate_rule(cls, rule_list, idea_message):
+        """
+        Evaluates one Warden filter rule
+        :param rule_list: list which contains parts of rule (3-elem tuples with logical operator at first index if used)
+        :param idea_message: IDEA message against which is the rule evaluated
+        :return: True if rule passed else False
+        :raise: WardenFilterRuleFormatError
+        """
+        # if logical operator is used, than rule list has more than one value
+        # (["AND/OR", (patt1, val1), (patt2, val2), ...])
+        if len(rule_list) > 1:
+            # multiple rules with logical operator are used
+            if rule_list[0] == "AND" or rule_list[0] == "OR":
+                # rule_list[1:] because 0th index is logical operator
+                for pattern, operator, compared_value in rule_list[1:]:
+                    pattern_values = jsonpath_rw_ext.match(pattern, idea_message)
+                    # some values in IDEA message can be of type int, but compared value is always string
+                    pattern_values = [str(pattern_value) for pattern_value in pattern_values]
+                    if operator == "!=":
+                        # the operator is != and logical operator is AND, so if even one rule is evaluated as 'in',
+                        # which is opposite to '!=', then the rule did not passed --> return False. Exactly opposite
+                        # applies for logical operator "OR"
+                        if compared_value in pattern_values:
+                            return False if rule_list[0] == "AND" else True
+                    elif operator == "=":
+                        # same as above applies here
+                        if compared_value not in pattern_values:
+                            return False if rule_list[0] == "AND" else True
+                else:
+                    # if all rules were evaluated, return True if AND was used (all rules passed) or return False if
+                    # OR was used, because none of the rules passed
+                    return True if rule_list[0] == "AND" else False
+            else:
+                raise WardenFilterRuleFormatError("Unsupported logical operator is used!")
+        else:
+            # single rule with action
+            pattern, operator, compared_value = rule_list[0]
+            pattern_values = jsonpath_rw_ext.match(pattern, idea_message)
+            # some values in IDEA message can be of type int, but compared value is always string
+            pattern_values = [str(pattern_value) for pattern_value in pattern_values]
+            if operator == "!":
+                if compared_value not in pattern_values:
+                    return True
+            elif operator == "=":
+                if compared_value in pattern_values:
+                    return True
+            return False
 
+    def should_pass(self, idea_message):
+        """
+        Main callable method, which defines, if IDEA message should be stored in NERD or not
+        :param idea_message: IDEA message against which are all the rule evaluated
+        :return: True if any rule passes else False
+        :raise WardenFilterRuleFormatError
+        """
+        # go through every defined rule
+        for rule_list, action in self.filter_list:
+            try:
+                rule_passed = self._evaluate_rule(rule_list, idea_message)
+                if rule_passed:
+                    # rule matched, do the action
+                    if action[0] == "drop":
+                        return self._drop()
+                    elif action[0] == "pass":
+                        return self._pass()
+                    elif action[0] == "sample":
+                        return self._sample(action)
+            except Exception:
+                raise WardenFilterRuleFormatError("Warden filter rules are not in correct format!")
         else:
             # if no rule matched, then do default action
             if self.default_action[0] == "drop":
-                return WardenFilter._drop()
+                return self._drop()
             elif self.default_action[0] == "pass":
-                return WardenFilter._pass()
+                return self._pass()
             elif self.default_action[0] == "sample":
-                return WardenFilter._sample(self.default_action)
+                return self._sample(self.default_action)
+
 
 ##############################################################################
 # Main module code
@@ -305,17 +429,11 @@ def stop(signal, frame):
     log.info("exiting")
 
 
-def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter_rules):
+def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter):
     # Infinite loop reading events as files in given directory
     # This loop stops on SIGINT
     log.info("Reading IDEA files from {}/incoming".format(filer_path))
     life_span = timedelta(days=inactive_ip_lifetime)
-
-    try:
-        warden_filter = WardenFilter(warden_filter_rules)
-    except WardenFilterRuleError:
-        # some rule is probably completely wrong, at least use filter which drops Test IDEA messages
-        warden_filter = WardenFilter(["Category.[*]=Test ; drop"])
 
     for (rawdata, event) in read_dir(filer_path, call_when_waiting=put_set_to_database):
         # Store the event to EventDB
@@ -397,6 +515,11 @@ if __name__ == "__main__":
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
 
+    try:
+        warden_filter = WardenFilter(warden_filter_rules)
+    except Exception:
+        sys.exit(1)
+
     # Get number of processes from config
     num_processes = config.get('worker_processes')
     assert (isinstance(num_processes,int) and num_processes > 0), "Number of processes ('num_processes' in config) must be a positive integer"
@@ -411,5 +534,5 @@ if __name__ == "__main__":
     task_queue_writer.connect()
 
     signal.signal(signal.SIGINT, stop)
-    receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter_rules)
+    receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter)
 
