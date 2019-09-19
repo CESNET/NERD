@@ -157,17 +157,20 @@
 <td class="time" {% if ip.ts_added %}data-time={{ ip.ts_added|date_to_int }}{% endif %}>{{ip.ts_added.strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
 <td class="time" {% if ip.last_activity %}data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
 <td class="links">
-<a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"></a>
-<a href="https://censys.io/ipv4/{{ ip._id }}" title="Search on Censys" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"></a>
-<a href="http://multirbl.valli.org/lookup/{{ ip._id }}.html" title="Blacklist Check at valli.org" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"></a>
-<a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"></a>
-<a href="https://www.abuseipdb.com/check/{{ ip._id }}" title="Search on AbuseIPDB" target="_blank"><img src="{{ url_for('static', filename='abuse_ip_db_icon.png') }}"></a>
-<a href="https://www.threatcrowd.org/ip.php?ip={{ ip._id }}" title="Search on Threat Crowd" target="_blank"><img src="{{ url_for('static', filename='threat_crowd_icon.png') }}"></a>
-<a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip._id }}" title="Search at Talos Intelligence Reputation Center" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"></a>
-<a href="https://senderscore.org/lookup.php?lookup={{ ip._id }}" title="Search at Sender Score" target="_blank"><img src="{{ url_for('static', filename='senderscore_icon.png') }}"></a>
-<a href="https://viz.greynoise.io/ip/{{ ip._id }}" title="Search at GreyNoise Visualizer" target="_blank"><img src="{{ url_for('static', filename='greynoise-logo.png') }}"></a>
-
-
+    <div class="links-dropdown">
+        <button class="links-dropbtn">Click to expand</button>
+        <div class="links-dropdown-content">
+            <a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"> &nbsp; Shodan</a>
+            <a href="https://censys.io/ipv4/{{ ip._id }}" title="Search on Censys" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"> &nbsp; Censys</a>
+            <a href="http://multirbl.valli.org/lookup/{{ ip._id }}.html" title="Blacklist Check at valli.org" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"> &nbsp; valli.org</a>
+            <a href="#" title="Blacklist Check at whatismyipaddress.com" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"> &nbsp; whatismyipaddress.com</a>
+            <a href="https://www.abuseipdb.com/check/{{ ip._id }}" title="Search on AbuseIPDB" target="_blank"><img src="{{ url_for('static', filename='abuse_ip_db_icon.png') }}"> &nbsp; AbuseIPDB</a>
+            <a href="https://www.threatcrowd.org/ip.php?ip={{ ip._id }}" title="Search on Threat Crowd" target="_blank"><img src="{{ url_for('static', filename='threat_crowd_icon.png') }}"> &nbsp; Threat Crowd</a>
+            <a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip._id }}" title="Search at Talos Intelligence Reputation Center" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"> &nbsp; Talos Intelligence Center</a>
+            <a href="https://senderscore.org/lookup.php?lookup={{ ip._id }}" title="Search at Sender Score" target="_blank"><img src="{{ url_for('static', filename='senderscore_icon.png') }}"> &nbsp; Sender Score</a>
+            <a href="https://viz.greynoise.io/ip/{{ ip._id }}" title="Search at GreyNoise Visualizer" target="_blank"><img src="{{ url_for('static', filename='greynoise-logo.png') }}"> &nbsp; Greynoise Visualizer</a>
+        </div>
+    </div>
 </td>
 </tr>
 {% endfor %}
