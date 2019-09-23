@@ -544,32 +544,28 @@ td.links img {
 /**************/
 /* Dropdown menu for service links in ips.html */
 
-/* Clickable button, which expands all links */
-.links-dropbtn {
-  background-color: #eeeeee;
-  color: black;
-  border: none;
-  cursor: pointer;
-  width: 100%;
-}
-
-/* Clickable button on hover & focus */
-.links-dropbtn:hover, .links-dropbtn:focus {
-  background-color: #fbfbfb;
-}
-
 .links-dropdown {
   position: relative;
   display: inline-block;
-  width: 100%;
+}
+
+/* Clickable button, which expands all links */
+.links-dropbtn {
+  color: black;
+  border: none;
+  cursor: pointer;
+  background-color: transparent;
 }
 
 /* Dropdown Content (Hidden by Default) */
 .links-dropdown-content {
   display: none;
   position: absolute;
+  top: 1.5em;
+  right: 0px;
+  min-width: 15em;
   background-color: #f1f1f1;
-  min-width: 160px;
+  border: 1px solid black;
   box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
   z-index: 1;
 }
@@ -581,12 +577,14 @@ td.links img {
   text-decoration: none;
   display: block;
 }
-
-/* Change color of dropdown links on hover */
-.links-dropdown-content a:hover {background-color: #ddd}
+.links-dropdown-content a:hover {
+  background-color: #ddd
+}
 
 /* Show the dropdown menu  */
-.links-show {display:block;}
+.links-show {
+  display:block;
+}
 
 /*.blacklist_entry + .blacklist_entry::before {
   content: "| ";

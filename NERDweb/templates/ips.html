@@ -158,7 +158,7 @@
 <td class="time" {% if ip.last_activity %}data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
 <td class="links">
     <div class="links-dropdown">
-        <button class="links-dropbtn">Click to expand</button>
+        <button class="links-dropbtn">&#x25BC;</button>
         <div class="links-dropdown-content">
             <a href="https://www.shodan.io/search?query={{ ip._id }}" title="Search on Shodan" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"> &nbsp; Shodan</a>
             <a href="https://censys.io/ipv4/{{ ip._id }}" title="Search on Censys" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"> &nbsp; Censys</a>
