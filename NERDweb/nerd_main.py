@@ -18,6 +18,9 @@ from flask_mail import Mail, Message
 from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 import dateutil.parser
 import jinja2
+from pymisp import ExpandedPyMISP
+import signal
+from ipaddress import IPv4Address, AddressValueError
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -69,6 +72,14 @@ else:
     EVENTDB_TYPE = 'none'
     print("ERROR: unknown 'eventdb' configured, it will not be possible to show raw events in GUI", file=sys.stderr)
 
+try:
+    misp_inst = ExpandedPyMISP(config['misp']['url'], config['misp']['key'], None)
+except KeyError:
+    misp_inst = None
+
+MISP_THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
+MISP_ANALYSIS = ["Initial", "Ongoing", "Completed"]
+MISP_DISTRIBUTION = ["Your Organisation Only", "This Community Only", "Connected Communities", "All Communities", "Sharing Group"]
 
 BASE_URL = config.get('base_url', '')
 
@@ -143,9 +154,91 @@ def date_to_int(val):
         return date_value.replace(tzinfo=timezone.utc).timestamp()
 
 
+def timestamp_to_date(timestamp):
+    return datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
+
+
+def misp_threat_level_id_to_str(threat_level_id):
+    return MISP_THREAT_LEVEL_DICT[threat_level_id]
+
+
+def misp_analysis_id_to_str(analysis_id):
+    return MISP_ANALYSIS[int(analysis_id)]
+
+
+def misp_distribution_id_to_str(distribution_id):
+    return MISP_DISTRIBUTION[int(distribution_id)]
+
+
+def misp_sightings_to_str(sightings):
+    if sightings is not None:
+        sightings_count = [0, 0, 0]
+        for sighting_record in sightings:
+            sightings_count[int(sighting_record['type'])] += 1
+        return '/'.join([str(count) for count in sightings_count])
+    else:
+        return "0/0/0"
+
+
+def is_ip_address(value):
+    try:
+        _ = IPv4Address(value)
+        return True
+    except AddressValueError:
+        return False
+
+
+def misp_contains_ip_address(value, attrib_type, get_rest=False):
+    """
+    Checks if string value contains IP address in it and returns it
+    :param value: Checked string
+    :param attrib_type: type of MISP attribute
+    :param get_rest: If True, then do not return IP address, but the rest of the string (except delimeter)
+    :return: IP address if get_rest is False, otherwise returns the rest of the string
+    """
+    if '|' in value or ':' in value:
+        try:
+            # if domain in attribute's type, the type is domain|ip, so ip is on index 1, else it is ip-src|port or
+            # ip-dst|port
+            _ = IPv4Address(value.split('|')[1] if "domain" in attrib_type else value.split('|')[0])
+            if "domain" in attrib_type:
+                return value.split('|')[1] if not get_rest else value.split('|')[0]
+            else:
+                return value.split('|')[0] if not get_rest else value.split('|')[1]
+        except AddressValueError:
+            try:
+                # ':' appears only in ip-src|port or ip-dst|port, there is position of ip address in string strict
+                _ = IPv4Address(value.split(':')[0])
+                return value.split(':')[0] if not get_rest else value.split(':')[1]
+            except AddressValueError:
+                return False
+    return False
+
+
+def misp_get_tags(tag_list):
+    return [tag['name'] for tag in tag_list]
+
+
+def misp_get_cluster_count(event):
+    counter = 0
+    for galaxy in event.get('Galaxy', []):
+        for _ in galaxy['GalaxyCluster']:
+            counter += 1
+    return counter
+
+
 app.jinja_env.filters['datetime'] = format_datetime
 app.jinja_env.filters['is_date'] = is_date
 app.jinja_env.filters['date_to_int'] = date_to_int
+app.jinja_env.filters['timestamp_to_date'] = timestamp_to_date
+app.jinja_env.filters['misp_threat_level_id_to_str'] = misp_threat_level_id_to_str
+app.jinja_env.filters['misp_analysis_id_to_str'] = misp_analysis_id_to_str
+app.jinja_env.filters['misp_distribution_id_to_str'] = misp_distribution_id_to_str
+app.jinja_env.filters['misp_sightings_to_str'] = misp_sightings_to_str
+app.jinja_env.filters['is_ip_address'] = is_ip_address
+app.jinja_env.filters['misp_contains_ip_address'] = misp_contains_ip_address
+app.jinja_env.filters['misp_get_tags'] = misp_get_tags
+app.jinja_env.filters['misp_get_cluster_count'] = misp_get_cluster_count
 
 
 # ***** WTForm validators and filters *****
@@ -875,6 +968,32 @@ def ajax_ip_events(ipaddr):
         num_events = "&ge;100, only first 100 shown"
     return render_template('ip_events.html', json=json, **locals())
 
+
+# ***** Detailed info about individual MISP event *****
+
+@app.route('/misp_event/')
+@app.route('/misp_event/<event_id>')
+def misp_event(event_id=None):
+    if not misp_inst:
+        return render_template("misp_event.html", error="Cannot connect to MISP instance")
+    if not event_id:
+        return render_template("misp_event.html", error="MISP event id not specified")
+
+    event = misp_inst.search(controller="events", eventid=int(event_id))
+
+    if not event:
+        return render_template('misp_event.html', error="Event does not exist in MISP instance")
+    else:
+        event = event[0]['Event']
+
+        # find tlp tag, if tlp tag is not used, set green as default
+        tlp = "green"
+        for tag in event.get('Tag', []):
+            if "tlp" in tag['name']:
+                tlp = tag['name'][4:]
+                break
+
+        return render_template('misp_event.html', event=event, tlp=tlp)
 
 
 # ***** Detailed info about individual AS *****
