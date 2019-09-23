@@ -169,9 +169,9 @@ def get_ip_from_query(query_result, ip_all):
             continue
 
 
-def get_all_ip():
+def get_all_ip_interval():
     """
-    Get all IP addresses from MISP instance
+    Get all IP addresses from MISP instance from selected interval
     :return: dictionary of all IPs found in MISP with all info, which will be later saved in NERD
     """
     params = {
@@ -242,6 +242,31 @@ def get_all_ip():
     except ConnectionError as e:
         logger.error("Cannot connect to MISP instance: " + str(e))
         sys.exit(1)
+
+    return ip_all
+
+
+def get_all_ips():
+    """
+    Gets all IP addresses from MISP instance, which are old as inactive_ip_lifetime or younger
+    :return: List of IP addresses
+    """
+    params = {
+        'date_from': (datetime.utcnow() - timedelta(days=inactive_ip_lifetime)).strftime("%Y-%m-%d"),
+        'date_to': datetime.utcnow().strftime("%Y-%m-%d")
+    }
+    ip_src = misp_inst.search(controller="attributes", type_attribute="ip-src", **params)
+    ip_dst = misp_inst.search(controller="attributes", type_attribute="ip-dst", **params)
+    # domain|ip attribute is destination ip
+    dom_ip = misp_inst.search(controller="attributes", type_attribute="domain|ip", **params)
+    ip_src_port = misp_inst.search(controller="attributes", type_attribute="ip-src|port", **params)
+    ip_dst_port = misp_inst.search(controller="attributes", type_attribute="ip-dst|port", **params)
+
+    ip_all = []
+    for ip_attrib_list in (ip_src, ip_dst, dom_ip, ip_src_port, ip_dst_port):
+        for ip_attrib in ip_attrib_list['Attribute']:
+            ip_addr, _ = get_ip_from_attrib(ip_attrib)
+            ip_all.append(ip_addr)
 
     return ip_all
 
@@ -361,17 +386,18 @@ def process_ip(ip_addr, ip_info):
 def main():
     logger.info("Loading a list of all IPs in MISP ...")
 
-    ip_all = get_all_ip()
+    ip_all_selected_interval = get_all_ip_interval()
+    logger.info("Loaded {} IPs.".format(len(ip_all_selected_interval)))
 
-    logger.info("Loaded {} IPs.".format(len(ip_all)))
+    ip_all = get_all_ips()
 
     # get all IPs with 'misp_events' attribute from NERD
     logger.info("Searching NERD for IP records with misp_events ...")
     db_ip_misp_events = db.find('ip', {'misp_events': {'$exists': True, '$not': {'$size': 0}}})
 
     # find all IPs that are in NERD but not in MISP anymore
-    db_ip_misp_events = set(db_ip_misp_events) - set(ip_all.keys())
-
+    db_ip_misp_events = set(db_ip_misp_events) - set(ip_all)
+    
     # remove all 'misp_events' attributes that are in NERD but not in MISP anymore
     if db_ip_misp_events:
         logger.info(
@@ -382,7 +408,7 @@ def main():
 
     logger.info("Checking and updating NERD records for all the IPs ...")
 
-    for ip_addr, ip_info in ip_all.items():
+    for ip_addr, ip_info in ip_all_selected_interval.items():
         process_ip(ip_addr, ip_info)
 
     # try to process IPs, which was not processed correctly
