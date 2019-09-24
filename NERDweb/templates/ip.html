@@ -75,7 +75,7 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
  {% if (attr.startswith("_") or attr == 'events_meta') and not ac('internal_attrs') %}
   {# pass (hide attrs starting with '_' from normal users) #}
  {% elif attr == "events" %}
-  <dt>events ({{ipinfo.events_meta.total}})</dt>
+  <dt>Warden events ({{ipinfo.events_meta.total}})</dt>
   <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
    {% set last_date = [''] %}
    {% for evtrec in val|sort(attribute='date', reverse=True) %}
@@ -103,30 +103,23 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
   {% endfor %}
   {% if misp_events.showable %}
       <dt> MISP events </dt>
-      <dd><dl{% if misp_events.showable > 1%} class="scrollable"{% endif %}>
-       {% for misp_event in val %}
+      <dd{% if misp_events.showable > 1%} class="scrollable"{% endif %}>
+       {% for misp_event in val|sort(attribute='date', reverse=True) %}
             {% if misp_event.tlp == "white" or (misp_event.tlp == "green" and ac('tlp-green')) %}
-               <b>event_id: {{ misp_event.event_id }} </b>
+               <div><b>[<a href="{{ url_for('misp_event') + misp_event.event_id }}">{{ misp_event.event_id }}</a>] {{ misp_event.pop('date', 'no date') }} | {{ misp_event.pop('info', 'no info') }}</b>
                <table style="padding-left: 30px; padding-bottom: 10px">
-                <tr> <td> event_url </td> <td> <a href="{{ misp_event.misp_instance }}/events/view/{{ misp_event.event_id }}">link</a>  </td> </tr>
-                <tr> <td> event details </td><td> <a href="{{ url_for('misp_event') + misp_event.event_id }}">link</a></td></tr>
-                {% for key, value in misp_event.items()  %}
-                        <tr>
-                           {% if key == "tag_list" %}
-                             <td valign="top"> {{ key }} </td>
-                             <td> <ul style="padding-left: 15px">
-                             {% for tag in value %}
-                                 <li>{{ tag.name }}</li>
-                             {% endfor %}
-                             </ul> </td>
-                           {% elif key == "event_id" %}
-                           {% else %} <td style="padding-right: 15px"> {{ key }} </td> <td> {{ value }}</td>{% endif %}
-                        </tr>
-                {% endfor %}
-               </table>
+                {#<tr> <td> event_url </td> <td> <a href="{{ misp_event.misp_instance }}/events/view/{{ misp_event.event_id }}">link</a>  </td> </tr>#}
+                <tr><td>Reporting org.:</td><td>{{ misp_event.org_created }}</td></tr>
+                <tr><td>TLP:</td><td>{{ misp_event.tlp }}</td></tr>
+                <tr><td>Tags:</td><td><ul style="padding-left: 15px">{% for tag in misp_event.tag_list %}<li>{{ tag.name }}</li>{% endfor %}</ul></td></tr>
+                <tr><td>Sightings:</td><td>positive: {{ misp_event.get('sightings', {}).get('positive') }} | false positive: {{ misp_event.get('sightings', {}).get('false positive') }} | expired attribute: {{ misp_event.get('sightings', {}).get('expired attribute') }}</td></tr>
+                <tr><td>Last change:</td><td>{{ misp_event.last_change }}</td></tr>
+                <tr><td>Threat level:</td><td>{{ misp_event.threat_level }}</td></tr>
+                <tr><td>Role of this IP:</td><td>{{ misp_event.role }}</td></tr>
+               </table></div>
             {% endif %}
        {% endfor %}
-      </dl></dd>
+      </dd>
   {% endif %}
  {% elif attr == "geo" %}
   <dt>geo</dt><dd><span class="country">
