@@ -384,12 +384,13 @@ def process_ip(ip_addr, ip_info):
 
 
 def main():
-    logger.info("Loading a list of all IPs in MISP ...")
-
+    logger.info("Loading a list of all IPs in MISP (in given time interval) ...")
     ip_all_selected_interval = get_all_ip_interval()
     logger.info("Loaded {} IPs.".format(len(ip_all_selected_interval)))
 
+    logger.info("Loading a list of all IPs in MISP (in last {} days) ...".format(inactive_ip_lifetime))
     ip_all = get_all_ips()
+    logger.info("Loaded {} IPs.".format(len(ip_all)))
 
     # get all IPs with 'misp_events' attribute from NERD
     logger.info("Searching NERD for IP records with misp_events ...")
@@ -397,11 +398,11 @@ def main():
 
     # find all IPs that are in NERD but not in MISP anymore
     db_ip_misp_events = set(db_ip_misp_events) - set(ip_all)
-    
+
     # remove all 'misp_events' attributes that are in NERD but not in MISP anymore
     if db_ip_misp_events:
         logger.info(
-            "{} NERD IPs don't have an entry in MISP anymore, removing corresponding misp_events keys...".format(
+            "{} NERD IPs don't have a (recent) entry in MISP anymore, removing corresponding misp_events keys...".format(
                 len(db_ip_misp_events)))
         for ip in db_ip_misp_events:
             tq.put_task('ip', ip, [('remove', 'misp_events')])
