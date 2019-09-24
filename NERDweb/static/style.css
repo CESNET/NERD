@@ -109,6 +109,19 @@ img.load-spinner-small {
   color: inherit;
 }
 
+.header-notice {
+  display: block;
+  margin: 0.5em 0;
+  padding: 0.5em 1em 0.5em 2.5em;
+  position: relative;
+  z-index: 1;
+  color: #000;
+  border: 1px solid #5e708c;
+  background: 1em center / 1em 1em no-repeat;
+  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAQAAABKfvVzAAAAAmJLR0QA/4ePzL8AAAFfSURBVDgRjcG9TpNhGADQQ+PQBFYToZ8ESxMYrUy9BrR0JVyCAQd+7sORqIsTIgQ0Nt4EtwAhEXGmTIXv9ZEQIm8bSHrOmEHTliyaUeDMqR+++eURNdtKIYQQQgjJrhkP6LgU+nYsmzNu3JxlX/SFnrYh7yRhT92wWftCsibTkZTWPWZDkrTdKVwK63KFQm5T6Jly65OwJ9eUJK/kDoQPbkwr9dXlXiqVmnINfaWCVWHHsJrCsF3hLT+FZYOajh1rGrQidJ9o4MigqjqqBh1htuIZ/hjFb9QqRlfB34pzTBnFFM4rTrBgFAs4qeiiYxQddHmu1Dcr1xJCS67hyrXCjY/CvlxLCC25Q2HbrZqesOFeVV1d1b0t4cKkO21JsukxW5LkjcyaJBxoGNZwKCSrhrT1hCu7VsybMGHeiq+uhAuvPeCp966FEEIIISSfTfpvzKDCkkUvFDhzouu7M5l/mI2GWPb1hTcAAAAASUVORK5CYII=);
+  background-color: #d1edff;
+}
+
 /********/
 
 #header {

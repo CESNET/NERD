@@ -65,6 +65,10 @@ rate-limit:
 # Link is shown to users with "mentat" permission only.
 mentat_url: https://mentat-hub.cesnet.cz/mentat/alert/list?action=Search&source=$IP
 
+# (Optional) Message to show on the top of the MISP event page to explain where
+# the data comes from.
+#misp_message: "The MISP events shown in NERD are taken from [TODO]. Only messages with TLP=white (i.e. public information) are shown, unless you have an account with higher privileges."
+
 # (Optional) Link to Munin graphs
 # Shown in "status box" (visible to administrators only)
 munin_link: "/munin/nerd-day.html"

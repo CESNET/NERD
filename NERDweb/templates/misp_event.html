@@ -1,8 +1,12 @@
 {% extends "layout.html" %}
 {% block body %}
 
+{%- if config.misp_message %}
+<div class="header-notice">{{config.misp_message}}</div>
+{% endif -%}
+
 {% if error %}
-    <h1>{{ error }}</h1>
+    <p class="msg error">{{ error }}</p>
 {% elif tlp == "green" and not ac('tlp-green') %}
     <h1>Insufficient permission to access this event</h1>
 {% else %}
@@ -12,9 +16,9 @@
             {% if event.RelatedEvent %}
             {% for rel_event in event.RelatedEvent %}
                 <b><a href="{{ url_for('misp_event') + rel_event.Event.id }}" title="Show event details">{{ rel_event.Event.info }}</a></b>
-                <br/>
+                <br>
                 {{ rel_event.Event.date}}
-                <br/>
+                <br>
                 {% if not loop.last %}
                 <hr style="font-size: 4px">
                 {% endif %}
