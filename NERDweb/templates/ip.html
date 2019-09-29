@@ -59,8 +59,30 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 <span>Tags: </span>
 {% for tag_id,tag_param in ipinfo.pop('tags', {}).items() %}
   {% if tag_id in config_tags and "description" in config_tags[tag_id] and "name" in config_tags[tag_id] %}
-     <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="<b>{{config_tags[tag_id].description}}</b><br /><br />{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
-      {{config_tags[tag_id].name}}
+      {% if tag_id == "misp_tlp_green" %}
+          {% if ac('tlp-green') %}
+              {% set tlp_green_tag = namespace(showed=0) %}
+              {% for misp_event in ipinfo.misp_events %}
+                  {% if misp_event.tlp == "green" and not tlp_green_tag.showed%}
+                    <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="<b>{{config_tags[tag_id].description}}</b><br /><br />{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+                    {{config_tags[tag_id].name}}
+                    {% set tlp_green_tag.showed = tlp_green_tag.showed + 1 %}
+                  {% endif %}
+              {% endfor %}
+          {% endif %}
+      {% elif tag_id == "misp_tlp_white" %}
+          {% set tlp_white_tag = namespace(showed=0) %}
+          {% for misp_event in ipinfo.misp_events %}
+              {% if misp_event.tlp == "white" and not tlp_white_tag.showed %}
+                  <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="<b>{{config_tags[tag_id].description}}</b><br /><br />{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+                  {{config_tags[tag_id].name}}
+                  {% set tlp_white_tag.showed = tlp_white_tag.showed + 1 %}
+              {% endif %}
+          {% endfor %}
+      {% else %}
+          <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="<b>{{config_tags[tag_id].description}}</b><br /><br />{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+          {{config_tags[tag_id].name}}
+      {% endif %}
      </span>
   {%- else -%}
      <span class="tag" title="<b>ERROR:</b> Missing mandatory config for tag {{tag_id}}">

@@ -170,3 +170,15 @@ tags:
     description: "IP is in DShield database"
     tag_color: "#25671F"
     condition: "dshield"
+
+  misp_tlp_white:
+    name: MISP (tlp:white)
+    description: "IP is in MISP event(s) (with TLP white)"
+    tag_color: "#FFFFFF"
+    condition: "misp_events"
+
+  misp_tlp_green:
+    name: MISP (tlp:green)
+    description: "IP is in MISP event(s) (with TLP green)"
+    tag_color: "#339900"
+    condition: "misp_events"
