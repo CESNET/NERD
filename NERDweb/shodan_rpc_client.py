@@ -38,7 +38,7 @@ class ShodanRpcClient(object):
         if not self.channel.connection.is_closed:
             try:
                 self.channel.close()
-            except pika.exceptions.ConnectionClosed: # for case it's been closed by the server
+            except (pika.exceptions.ConnectionClosed, pika.exceptions.StreamLostError): # for case it's been closed by the server
                 pass
 
     def on_response(self, ch, method, props, body):
