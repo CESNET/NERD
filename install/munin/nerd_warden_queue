@@ -6,7 +6,7 @@ graph_title Warden queue length
 graph_category nerd
 graph_vlabel Number of IDEA messages
 queue.label messages
-queue.warn 8000
+queue.warning 8000
 END
   exit 0
 fi

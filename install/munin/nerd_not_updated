@@ -7,9 +7,9 @@ graph_info Number of entities with '_nru' (next regular update) field older than
 graph_category nerd
 graph_vlabel Number of entities
 ip.label Number of IPs
-ip.warn 1
+ip.warning 1
 asn.label Number of ASNs
-asn.warn 1
+asn.warning 1
 END
   exit 0
 fi
