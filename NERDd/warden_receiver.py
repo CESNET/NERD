@@ -39,7 +39,6 @@ LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
 logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
 
 log = logging.getLogger('WardenReceiver')
-total_time = 0
 
 ###############################################################################
 # Code for reading directory of "filer protocol"
