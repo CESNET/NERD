@@ -9,13 +9,16 @@ acl_config: acl
 # head -c 24 /dev/urandom | base64
 secret_key: "!!! CHANGE THIS !!!"
 
-# Show "BETA" label over logo in web header
-beta_label: true
-
 # URL of NERDweb root (without trailing slash, e.g. "/nerd")
 # All NERDweb pages are relative to this
 # Keep empty if NERDweb resides in web server's root directory
 base_url: "/nerd"
+
+# Show "BETA" label over logo in web header
+beta_label: true
+
+# Make the logo a hyperlink (e.g. to main page of this NERD deployment)
+#logo_link: "https://www.example.com/"
 
 data_disk_path: "/data"
 
