@@ -135,7 +135,18 @@ iplists:
   - ""
   - hour: "0,6,12,18"
     minute: 5
-
+- - firehol_anonymous
+  - all anonymizing IPs of the world by
+  - https://iplists.firehol.org/files/firehol_anonymous.netset
+  - "^(\\A)"
+  - hour: "0,6,12,18"
+    minute: 5
+- - bambenek_c2
+  - Bambenek Consulting C&Cs IPs
+  - https://iplists.firehol.org/files/bambenek_c2.ipset
+  - "^(\\A)"
+  - hour: "0,6,12,18"
+    minute: 5
 # AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key
 #- - abuseipdb
 #  - Abuse IP DB
@@ -182,7 +193,12 @@ prefixiplists:
 #  - "\"ip_prefix\": \"(\\CA)\""
 #  - hour: 4
 #    minute: 50
-
+- - spamhaus_edrop
+  - Extension of the spamhaus_drop
+  - https://www.spamhaus.org/drop/edrop.txt
+  - "^(\\CA)"
+  - hour: "0,6,12,18"
+    minute: 5
 domainlists:
 - - ransomware
   - Ransomware (domains)
