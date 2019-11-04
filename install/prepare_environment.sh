@@ -31,6 +31,11 @@ mkdir -p /var/log/nerd
 chown -R nerd:nerd /var/log/nerd/
 chmod -R 775 /var/log/nerd
 
+# Run directory
+mkdir -p /var/run/nerd
+chown -R nerd:nerd /var/run/nerd/
+chmod -R 775 /var/run/nerd
+
 # Data directory
 mkdir -p /data
 chown -R nerd:nerd /data/
