@@ -213,7 +213,18 @@ def get_blacklist(id, name, url, regex, bl_type, params):
         pipe.set(key_prefix+"time", now)
         pipe.delete(key_prefix+"list")
         if bl_records and bl_type != "prefixIP":
-            pipe.sadd(key_prefix+"list", *bl_records)
+            if len(bl_records) > 250000:
+                # if blacklist contains more than 250 000 records, split insert operation into more smaller inserts,
+                # because Redis does not handle well such big insert
+                # split blacklist into chunks with size of 250 000 items
+                for bl_records_part_index in range(0, len(bl_records), 250000):
+                    pipe.execute()
+                    # clear pipe for new sadd(), last pipe.execute() is down in try block
+                    pipe = r.pipeline()
+                    blacklist_chunk = bl_records[bl_records_part_index:bl_records_part_index + 250000]
+                    pipe.sadd(key_prefix + "list", *blacklist_chunk)
+            else:
+                pipe.sadd(key_prefix+"list", *bl_records)
         elif bl_records and bl_type == "prefixIP":
             # save every IP range as sorted set:
             # first value = IP address as integer
