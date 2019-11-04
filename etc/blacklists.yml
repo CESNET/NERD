@@ -135,8 +135,10 @@ iplists:
   - ""
   - hour: "0,6,12,18"
     minute: 5
+
+# Lists from FireHOL
 - - firehol_anonymous
-  - all anonymizing IPs of the world by
+  - List of all anonymizing IPs of the world, aggregated from multiple lists by FireHOL.
   - https://iplists.firehol.org/files/firehol_anonymous.netset
   - "^(\\A)"
   - hour: "0,6,12,18"
@@ -147,6 +149,7 @@ iplists:
   - "^(\\A)"
   - hour: "0,6,12,18"
     minute: 5
+
 # AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key
 #- - abuseipdb
 #  - Abuse IP DB
@@ -194,7 +197,7 @@ prefixiplists:
 #  - hour: 4
 #    minute: 50
 - - spamhaus_edrop
-  - Extension of the spamhaus_drop
+  - Spamhaus Extended DROP List (EDROP)
   - https://www.spamhaus.org/drop/edrop.txt
   - "^(\\CA)"
   - hour: "0,6,12,18"
