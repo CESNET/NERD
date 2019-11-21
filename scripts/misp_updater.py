@@ -288,7 +288,7 @@ def create_new_event(ip_addr, event):
         'role': event['role'],
         'info': event['info'],
         'sightings': {'positive': 0, 'false positive': 0, 'expired attribute': 0},
-        'date': event['date'],
+        'date': datetime.strptime(event['date'], "%Y-%m-%d"),
         'threat_level': THREAT_LEVEL_DICT[event['threat_level_id']],
         'last_change': datetime.fromtimestamp(int(event['timestamp']))
     }
@@ -363,9 +363,8 @@ def process_ip(ip_addr, ip_info):
         new_event = create_new_event(ip_addr, event_info)
         if new_event is not None:
             events.append(new_event)
-        event_date = datetime.strptime(new_event['date'], "%Y-%m-%d")
-        if youngest_date < event_date:
-            youngest_date = event_date
+        if youngest_date < new_event['date']:
+            youngest_date = new_event['date']
 
     if events:
         live_till = youngest_date + timedelta(days=inactive_ip_lifetime)
