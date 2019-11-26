@@ -42,7 +42,7 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 </div>
 {% endif %}
 
-{% if ac('pdns') %}
+{% if ac('pdns') and config.get('pdns.url', False) and config.get('pdns.token', False) %}
 <div class="float-box pdns">
 <div class="title">Passive DNS<span class="help" title="DNS resolutions involving this IP address observed at CESNET DNS servers. Format: <rr_type> <hostname> <first seen> <last seen> <number of observations>"></span></div>
 <div id="pdns_data" class="content"><div class="loading"><img class="load-spinner-small" src="{{ url_for('static', filename='spin.gif') }}"></div></div>
@@ -220,7 +220,7 @@ $("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}", function( respon
 <script>
 // Load passive DNS and Shodan data
 $(document).ready(function () {
-{% if ac('pdns') %}
+{% if ac('pdns') and config.get('pdns.url', False) and config.get('pdns.token', False) %}
   var url = "{{ url_for('pdns_ip', ipaddr=ip) }}";
   $.getJSON(url, function(response,status) {
     if (status != "success") {
@@ -230,8 +230,8 @@ $(document).ready(function () {
       html = "";
       for (var i in response) {
         html += '<div class="pdns-item">';
-        html += '<div><span class="tag dnstype">' + response[i].type + '</span> ' + response[i].domain + '</div>';
-        html += '<div>'+response[i].time_first + '&nbsp;&ndash;&nbsp;' + response[i].time_last + '&nbsp;(' + response[i].count + '&times;)</div>';
+        html += '<div><span class="tag dnstype">' + response[i].rtype + '</span> ' + response[i].domain + '</div>';
+        html += '<div>'+response[i].time_first.slice(0,10) + '&nbsp;&ndash;&nbsp;' + response[i].time_last.slice(0,10) + '&nbsp;(' + response[i].count + '&times;)</div>';
         html += '</div>';
       }
       $("#pdns_data").html(html);

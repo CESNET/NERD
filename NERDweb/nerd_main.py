@@ -1725,11 +1725,15 @@ def page_not_found(e):
 def pdns_ip(ipaddr=None):
     if not g.ac('pdns'):
         return API_RESPONSE_403
+    url = config.get('pdns.url', None)
+    token = config.get('pdns.token', None)
+    if not url or not token:
+        return Response(json.dumps({'status': 500, 'error': 'Passive DNS not configured'}), 500, mimetype='application/json')
     try:
-        response = requests.get('https://passivedns.cesnet.cz/pdns/ip/{}'.format(ipaddr))
+        response = requests.get('{}ip/{}?token={}'.format(url, ipaddr, token))
     except requests.RequestException as e: # Connection error, just in case
         print(str(e), file=sys.stderr)
-        return Response(json.dumps({'status': 502, 'error': 'Bad Gateway - cannot get information from PDNS server'}), 502, mimetype='application/json')        
+        return Response(json.dumps({'status': 502, 'error': 'Bad Gateway - cannot get information from PDNS server'}), 502, mimetype='application/json')
     if response.status_code == 200:
         return Response(json.dumps(response.json()), 200, mimetype='application/json')
     elif response.status_code == 404: # Return "not found" as success, just with empty list
@@ -1738,6 +1742,7 @@ def pdns_ip(ipaddr=None):
         return Response(json.dumps({'status': 502, 'error': 'Bad Gateway. Received response ({}): {}'.format(response.status_code, response.text)}), 502, mimetype='application/json')
 
 
+# ***** Shodan gateway *****
 @app.route('/api/shodan-info/<ipaddr>', methods=['GET'])
 def get_shodan_response(ipaddr=None):
     if not g.ac('shodan'):
