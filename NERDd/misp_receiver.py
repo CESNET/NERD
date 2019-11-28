@@ -93,11 +93,11 @@ misp_inst = ExpandedPyMISP(misp_url, misp_key, cert)
 re_attrib_type_change = re.compile("type \(\) => \(([\w|\-]+)\)")
 # get attribute's event_id from str like: "event_id () => (6916), distribution () => (5), type () => (hostname)"
 re_event_id_change = re.compile("event_id \(\) => \(([0-9]+)\)")
-# get event_id from str like: "Attribute (562857) from Event (5822): Network activity\/url bit.ly\/2m0x8IH"
+# get event_id from str like: "Attribute (562857) from Event (5822): Network activity/url bit.ly\/2m0x8IH"
 re_event_id_title = re.compile("Event \(([0-9]+)\)")
-# get attribute id from str like: "Attribute (562857) from Event (5822): Network activity\/url bit.ly\/2m0x8IH"
+# get attribute id from str like: "Attribute (562857) from Event (5822): Network activity/url bit.ly\/2m0x8IH"
 re_attrib_id_title = re.compile("Attribute \(([0-9]+)\)")
-# get attribute's type and attribute's value from str like: "Event (6921): Network activity\/ip-src 24.25.34.2"
+# get attribute's type and attribute's value from str like: "Event (6921): Network activity/ip-src 24.25.34.2"
 re_attrib_type_value_title = re.compile("\([0-9]+\): [\w| ]+/([\w|\-]+) (.*)")
 
 IP_MISP_TYPES = ["ip-src", "ip-dst", "ip-dst|port", "ip-src|port", "domain|ip"]
@@ -428,7 +428,13 @@ def receive_events():
 
             elif json_message['Log']['model'] == "Attribute" and json_message['Log']['action'] == "edit":
                 # edit of attribute
-                attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
+                try:
+                    attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
+                except AttributeError:
+                    logger.error("Error", exc_info=True)
+                    logger.error("Used regex: " + re_attrib_type_value_title.pattern)
+                    logger.error("Searched text: " + json_message['Log']['title'])
+                    continue
                 if attrib_type in IP_MISP_TYPES:
                     event_id = re_event_id_title.search(json_message['Log']['title']).group(1)
                     attrib_id = re_attrib_id_title.search(json_message['Log']['title']).group(1)
@@ -443,12 +449,13 @@ def receive_events():
                 if attrib_type in IP_MISP_TYPES:
                     event_id = re_event_id_change.search(json_message['Log']['change']).group(1)
                     attrib_id = json_message['Log']['model_id']
-                    #try:
-                    attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
-                    #except AttributeError:
-                    #    logger.error(json_message['Log']['title'])
-                    #    logger.error("Error", exc_info=True)
-                    #    continue
+                    try:
+                        attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
+                    except AttributeError:
+                        logger.error("Error", exc_info=True)
+                        logger.error("Used regex: " + re_attrib_type_value_title.pattern)
+                        logger.error("Searched text: " + json_message['Log']['title'])
+                        continue
                     attrib_add_or_edit(attrib_value, event_id, attrib_id)
 
         elif message.startswith("misp_json_sighting"):
