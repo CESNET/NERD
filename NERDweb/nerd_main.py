@@ -852,6 +852,15 @@ def ips():
                 'n_cats': len(cats),
                 'n_nodes': len(nodes)
             }
+        
+            # Add number of "visible" MISP events (i.e. after filtering by TLP and user's access rights)
+            showable_misp_events = 0
+            for misp_event in ip.get('misp_events', []):
+                tlp = misp_event.get('tlp')
+                if tlp == "white" or (tlp == "green" and g.ac('tlp-green')):
+                    showable_misp_events += 1
+            ip['_showable_misp_events'] = showable_misp_events
+        
     else:
         results = None
         if g.user and not g.ac('ipsearch'):

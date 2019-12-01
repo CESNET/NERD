@@ -500,6 +500,12 @@ td.events span + span {
   border-left: 1px dotted #888;
   text-align: center;
 }
+td.events span.misp {
+  font-size: 0.8em;
+  color: #222;
+  margin-top: 0.2em;
+}
+
 /*td.events span + span::before {
   content: '/';
   padding: 0 0.25em;

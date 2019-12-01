@@ -58,7 +58,7 @@
 <th>Hostname</th>
 <th title="Autonomous system number and name">ASN</th>
 <th>Country</th>
-<th title="Total number of alerts / nodes / categories in last {{ cfg_max_event_history }} days">Events</th>
+<th title="Total number of alerts / nodes / categories in last {{ cfg_max_event_history }} days (from CESNET's Warden)">Events</th>
 <!--<th>Shodan info</th>
 <th>Device type</th>-->
 <th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.</th>
@@ -97,6 +97,7 @@
 <td class="events" data-cats="{{ip._evt_info.cats}}" data-dates="{{ip._evt_info.dates}}"
   data-nodes="{{ip._evt_info.nodes}}" data-table="{{ip._evt_info.date_cat_table}}">
   <span>{{ip.events_meta.total if ip.events_meta else 0}}</span><span>{{ip._evt_info.n_nodes}}</span><span>{{ip._evt_info.n_cats}}</span>
+  {% if ip._showable_misp_events %}<br><span class="misp">+ {{ ip._showable_misp_events }} MISP events</span>{% endif %}
 </td>
 <td class="reputation" style="background-color: {{ rep_css_color(ip.rep) }}">
   {{ "%.3f"|format(ip.rep) if 'rep' in ip else "---" }}
