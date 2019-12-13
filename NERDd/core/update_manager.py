@@ -487,10 +487,19 @@ class UpdateManager:
             # Acknowledge receipt of the task (regardless of success/failre of its processing)
             self._task_queue_reader.ack(msg_id)
 
+            # FIXME: (TEMPORARY) Quick fix to check IP address (should be fixed in MISP receiver, which sometimes sends prefixes instead of IP addresses)
+            if etype == "ip" and "/" in eid:
+                self.log.error("Prefix instead of IP, skipping task: {}".format(task))
+                continue
+
             # Process the task
             # self.log.debug("Processing task {}: {}/{} {}".format(msg_id, etype, eid, updreq))
             start_time = datetime.now()
-            created = self._process_update_req(etype, eid, updreq.copy())
+            try:
+                created = self._process_update_req(etype, eid, updreq.copy())
+            except Exception:
+                self.log.error("Error has occurred during processing task: {}".format(task))
+                raise
             duration = (datetime.now() - start_time).total_seconds()
             #self.log.debug("Task {} finished in {:.3f} seconds.".format(msg_id, duration))
             if duration > 1.0:
