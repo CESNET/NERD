@@ -4,6 +4,7 @@ NERD standalone script which will synchronize NERD with data from MISP instance.
 instance and get information about all events, where IP address occurred. All these information are then stored as
 'misp_events'
 """
+import ipaddress
 import logging
 from datetime import datetime, timedelta
 import argparse
@@ -246,6 +247,14 @@ def get_all_ip_interval():
     return ip_all
 
 
+def is_single_ip(ip_to_check):
+    try:
+        _ = ipaddress.IPv4Address(ip_to_check)
+        return True
+    except ipaddress.AddressValueError:
+        return False
+
+
 def get_all_ips():
     """
     Gets all IP addresses from MISP instance, which are old as inactive_ip_lifetime or younger
@@ -266,7 +275,8 @@ def get_all_ips():
     for ip_attrib_list in (ip_src, ip_dst, dom_ip, ip_src_port, ip_dst_port):
         for ip_attrib in ip_attrib_list['Attribute']:
             ip_addr, _ = get_ip_from_attrib(ip_attrib)
-            ip_all.append(ip_addr)
+            if is_single_ip(ip_addr):
+                ip_all.append(ip_addr)
 
     return ip_all
 

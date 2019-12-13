@@ -3,6 +3,7 @@
 NERD standalone script for receiving MISP instance changes of events, attributes or sightings.
 All the changes are then projected to NERD.
 """
+import ipaddress
 
 import zmq
 import time
@@ -102,6 +103,14 @@ re_attrib_type_value_title = re.compile("\([0-9]+\): [\w| ]+/([\w|\-]+) (.*)")
 
 IP_MISP_TYPES = ["ip-src", "ip-dst", "ip-dst|port", "ip-src|port", "domain|ip"]
 THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
+
+
+def is_single_ip(ip_to_check):
+    try:
+        _ = ipaddress.IPv4Address(ip_to_check)
+        return True
+    except ipaddress.AddressValueError:
+        return False
 
 
 def stop(signal, frame):
@@ -347,6 +356,80 @@ def attrib_add_or_edit(ip_addr, event_id, attrib_id):
     upsert_new_event(event, attrib, attrib.get('Sighting'), role)
 
 
+def process_publish_of_event(json_message):
+    event_id = json_message['Log']['model_id']
+    try:
+        event = misp_inst.get_event(event_id)['Event']
+    except ConnectionError as e:
+        logger.error("Cannot connect to MISP instance: " + str(e))
+        return
+
+    insert_ip_list = []
+    # find all ip attributes and save their metadata
+    for attrib in event['Attribute']:
+        if attrib['type'] in IP_MISP_TYPES and not attrib['deleted'] and is_single_ip(attrib['value']):
+            insert_ip_list.append({'event': event, 'attrib': attrib, 'sighting': attrib.get('Sighting')})
+    # same with attributes in event's objects
+    for event_obj in event.get('Object', []):
+        for attrib in event_obj['Attribute']:
+            if attrib['type'] in IP_MISP_TYPES and is_single_ip(attrib['value']):
+                insert_ip_list.append(
+                    {'event': event, 'attrib': attrib, 'sighting': attrib.get('Sighting')})
+
+    # get list of ip addresses, which are both of type source and destination
+    ip_src_and_dst = check_src_and_dst_list(insert_ip_list)
+    # insert new ip addresses
+    for ip_ev in insert_ip_list:
+        if ip_ev['attrib']['value'] in ip_src_and_dst:
+            upsert_new_event(event, ip_ev['attrib'], ip_ev['sighting'], role="src and dst at the same time")
+        else:
+            upsert_new_event(event, ip_ev['attrib'], ip_ev['sighting'])
+
+
+def process_deletion_of_attribute(json_message):
+    attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
+    if attrib_type in IP_MISP_TYPES:
+        attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
+        if is_single_ip(attrib_value):
+            event_id = re_event_id_title.search(json_message['Log']['title']).group(1)
+            # remove the event from 'misp_events' array
+            remove_misp_event(attrib_value, event_id)
+
+
+def process_edit_of_attribute(json_message):
+    try:
+        attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
+    except AttributeError:
+        logger.error("Error", exc_info=True)
+        logger.error("Used regex: " + re_attrib_type_value_title.pattern)
+        logger.error("Searched text: " + json_message['Log']['title'])
+        return
+    if attrib_type in IP_MISP_TYPES:
+        event_id = re_event_id_title.search(json_message['Log']['title']).group(1)
+        attrib_id = re_attrib_id_title.search(json_message['Log']['title']).group(1)
+        attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
+        if is_single_ip(attrib_value):
+            attrib_add_or_edit(attrib_value, event_id, attrib_id)
+
+
+def process_new_attribute(json_message):
+    # change looks like: "to_ids () => (1), distribution () => (5), type () => (hostname)..."
+    attrib = json_message['Log']['change']
+    attrib_type = re_attrib_type_change.search(attrib).group(1)
+    if attrib_type in IP_MISP_TYPES:
+        event_id = re_event_id_change.search(json_message['Log']['change']).group(1)
+        attrib_id = json_message['Log']['model_id']
+        try:
+            attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
+        except AttributeError:
+            logger.error("Error", exc_info=True)
+            logger.error("Used regex: " + re_attrib_type_value_title.pattern)
+            logger.error("Searched text: " + json_message['Log']['title'])
+            return
+        if is_single_ip(attrib_value):
+            attrib_add_or_edit(attrib_value, event_id, attrib_id)
+
+
 def receive_events():
     """
     Connect to MISP's ZeroMQ and listen for MISP's changes and react on them
@@ -388,75 +471,18 @@ def receive_events():
         if message.startswith("misp_json_audit"):
             if json_message['Log']['model'] == "Event" and json_message['Log']['action'] == "publish" and \
                     json_message['Log']['change'] == "":
-                # final publish of event, process it
-                event_id = json_message['Log']['model_id']
-                try:
-                    event = misp_inst.get_event(event_id)['Event']
-                except ConnectionError as e:
-                    logger.error("Cannot connect to MISP instance: " + str(e))
-                    continue
-
-                insert_ip_list = []
-                # find all ip attributes and save their metadata
-                for attrib in event['Attribute']:
-                    if attrib['type'] in IP_MISP_TYPES and not attrib['deleted']:
-                        insert_ip_list.append({'event': event, 'attrib': attrib, 'sighting': attrib.get('Sighting')})
-                # same with attributes in event's objects
-                for event_obj in event.get('Object', []):
-                    for attrib in event_obj['Attribute']:
-                        if attrib['type'] in IP_MISP_TYPES:
-                            insert_ip_list.append(
-                               {'event': event, 'attrib': attrib, 'sighting': attrib.get('Sighting')})
-
-                # get list of ip addresses, which are both of type source and destination
-                ip_src_and_dst = check_src_and_dst_list(insert_ip_list)
-                # insert new ip addresses
-                for ip_ev in insert_ip_list:
-                    if ip_ev['attrib']['value'] in ip_src_and_dst:
-                        upsert_new_event(event, ip_ev['attrib'], ip_ev['sighting'], role="src and dst at the same time")
-                    else:
-                        upsert_new_event(event, ip_ev['attrib'], ip_ev['sighting'])
+                process_publish_of_event(json_message)
 
             elif json_message['Log']['model'] == "Attribute" and json_message['Log']['action'] == "delete":
-                # deletion of attribute
-                attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
-                if attrib_type in IP_MISP_TYPES:
-                    attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
-                    event_id = re_event_id_title.search(json_message['Log']['title']).group(1)
-                    # remove the event from 'misp_events' array
-                    remove_misp_event(attrib_value, event_id)
+                process_deletion_of_attribute(json_message)
 
             elif json_message['Log']['model'] == "Attribute" and json_message['Log']['action'] == "edit":
                 # edit of attribute
-                try:
-                    attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
-                except AttributeError:
-                    logger.error("Error", exc_info=True)
-                    logger.error("Used regex: " + re_attrib_type_value_title.pattern)
-                    logger.error("Searched text: " + json_message['Log']['title'])
-                    continue
-                if attrib_type in IP_MISP_TYPES:
-                    event_id = re_event_id_title.search(json_message['Log']['title']).group(1)
-                    attrib_id = re_attrib_id_title.search(json_message['Log']['title']).group(1)
-                    attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
-                    attrib_add_or_edit(attrib_value, event_id, attrib_id)
+                process_edit_of_attribute(json_message)
 
             elif json_message['Log']['model'] == "Attribute" and json_message['Log']['action'] == "add":
                 # new attribute
-                # change looks like: "to_ids () => (1), distribution () => (5), type () => (hostname)..."
-                attrib = json_message['Log']['change']
-                attrib_type = re_attrib_type_change.search(attrib).group(1)
-                if attrib_type in IP_MISP_TYPES:
-                    event_id = re_event_id_change.search(json_message['Log']['change']).group(1)
-                    attrib_id = json_message['Log']['model_id']
-                    try:
-                        attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
-                    except AttributeError:
-                        logger.error("Error", exc_info=True)
-                        logger.error("Used regex: " + re_attrib_type_value_title.pattern)
-                        logger.error("Searched text: " + json_message['Log']['title'])
-                        continue
-                    attrib_add_or_edit(attrib_value, event_id, attrib_id)
+                process_new_attribute(json_message)
 
         elif message.startswith("misp_json_sighting"):
             # sighting edit
