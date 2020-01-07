@@ -86,7 +86,7 @@ function showAttachment(e) {
 </p>
 {% if error %}<p class="error">{{error}}</p>{% endif %}
 {% if events|length == 0 %}
-<p>No events found</p>
+<p>No events found in last {{ ip_lifetime }} days.</p>
 {% else %}
 {% for event in events %}
 {{ display_idea(event) }}

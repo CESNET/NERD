@@ -943,7 +943,8 @@ def ajax_ip_events(ipaddr):
     error = None
     
     # Get only data from last 14 days
-    from_date = datetime.utcnow() - timedelta(days=config.get('inactive_ip_lifetime', 14))
+    ip_lifetime = config.get('inactive_ip_lifetime', 14)
+    from_date = datetime.utcnow() - timedelta(days=ip_lifetime)
     
     # PSQL database
     if EVENTDB_TYPE == 'psql':
