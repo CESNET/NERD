@@ -39,9 +39,7 @@
         <dt>Creator ORG</dt>
             <dd>{{ event.Orgc.name }}</dd>
         <dt>Tags</dt>
-            {% for tag in event.Tag %}
-            <dd>&bull; {{ tag.name }}</dd>
-            {% endfor %}
+            <dd>{% for tag in event.Tag %}<span class="tag" style="{{ tag_color_style(tag.colour) }}">{{ tag.name }}</span>{% endfor %}</dd>
         <dt>Date</dt>
             <dd>{{ event.date }}</dd>
         <dt>Threat level</dt>

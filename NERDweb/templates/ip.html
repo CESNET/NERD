@@ -133,7 +133,9 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
                 {#<tr> <td> event_url </td> <td> <a href="{{ misp_event.misp_instance }}/events/view/{{ misp_event.event_id }}">link</a>  </td> </tr>#}
                 <tr><td>Reporting org.:</td><td>{{ misp_event.org_created }}</td></tr>
                 <tr><td>TLP:</td><td>{{ misp_event.tlp }}</td></tr>
-                <tr><td>Tags:</td><td><ul style="padding-left: 15px">{% for tag in misp_event.tag_list %}<li>{{ tag.name }}</li>{% endfor %}</ul></td></tr>
+                <tr><td>Tags:</td><td>
+                  {% for tag in misp_event.tag_list %}<span class="tag" style="{{ tag_color_style(tag.colour) }}">{{ tag.name }}</span>{% endfor %}
+                </td></tr>
                 <tr><td>Sightings:</td><td>positive: {{ misp_event.get('sightings', {}).get('positive') }} | false positive: {{ misp_event.get('sightings', {}).get('false positive') }} | expired attribute: {{ misp_event.get('sightings', {}).get('expired attribute') }}</td></tr>
                 <tr><td>Last change:</td><td>{{ misp_event.last_change }}</td></tr>
                 <tr><td>Threat level:</td><td>{{ misp_event.threat_level }}</td></tr>
