@@ -175,10 +175,11 @@ tags:
     name: MISP (tlp:white)
     description: "IP is in MISP event(s) (with TLP white)"
     tag_color: "#FFFFFF"
-    condition: "misp_events"
+    condition: "misp_events.tlp == white"
 
   misp_tlp_green:
     name: MISP (tlp:green)
     description: "IP is in MISP event(s) (with TLP green)"
     tag_color: "#339900"
-    condition: "misp_events"
+    condition: "misp_events.tlp == green"
+    
