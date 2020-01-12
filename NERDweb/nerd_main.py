@@ -13,6 +13,7 @@ import requests
 import flask
 from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
 from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
+import pymongo.errors
 from flask_wtf import FlaskForm
 from flask_mail import Mail, Message
 from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
@@ -193,7 +194,7 @@ def misp_contains_ip_address(value, attrib_type, get_rest=False):
     Checks if string value contains IP address in it and returns it
     :param value: Checked string
     :param attrib_type: type of MISP attribute
-    :param get_rest: If True, then do not return IP address, but the rest of the string (except delimeter)
+    :param get_rest: If True, then do not return IP address, but the rest of the string (except delimiter)
     :return: IP address if get_rest is False, otherwise returns the rest of the string
     """
     if '|' in value or ':' in value:
@@ -252,7 +253,7 @@ def validator_optional(form, field):
         field.errors[:] = []
         raise validators.StopValidation()
 
-# Filter to strip whitespeces in string
+# Filter to strip whitespaces in string
 def strip_whitespace(s):
     if isinstance(s, str):
         s = s.strip()
@@ -288,7 +289,7 @@ rate_limiter = ratelimit.RateLimiter(config, get_rate_limit_params)
 # 
 # Each of these paths should have a login mechanism configured in web server.
 # (e.g. HTTP basic authentication or Shibboleth).
-# The handler expect a valid user information in environent variables set by 
+# The handler expect a valid user information in environment variables set by
 # the server.
 # The user info (id and optionally name and email) is taken from environment 
 # variables specified in config.login.<method>.{id_field,user_field,email_field}. 
@@ -582,7 +583,7 @@ def account_info():
                 print("ERROR: htpasswd OSError '{}': {}".format(' '.join(cmd), str(e)), file=sys.stderr)
                 return make_response('ERROR: Cannot change password: OSError.', 'error')
             
-            # If we got there, passward was successfully changed
+            # If we got there, password was successfully changed
             flash('Password changed. Please, <b><a href="'+BASE_URL+'/logout">log out</a></b> and then log back in using the new password.', 'safe success')
             return redirect(BASE_URL+'/account')
         else:
@@ -638,6 +639,7 @@ def get_domain_blacklists():
     return blacklists
 
 def get_tags():
+    """Get list of all configured tags (list of IDs and names)"""
     tags = [ (tag_id, tag_param.get('name', tag_id)) for tag_id, tag_param in config_tags.get('tags', {}).items()]
     tags.sort()    
     return tags
@@ -681,12 +683,12 @@ class IPFilterForm(FlaskForm):
     # defined when FlaskForm is initialized
     def __init__(self, *args, **kwargs):
         super(IPFilterForm, self).__init__(*args, **kwargs)
-        # Dynamically load list of Categories/Nodes and their number of occurences
+        # Dynamically load list of Categories/Nodes and their number of occurrences
         # Collections n_ip_by_* should be periodically updated by queries run by 
         # cron (see /scripts/update_db_meta_info.js)
         self.cat.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_cat.find().sort('_id') if item['_id']]
         self.node.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_node.find().sort('_id') if item['_id']]
-        # Number of occurences for blacklists (list of blacklists is taken from configuration)
+        # Number of occurrences for blacklists (list of blacklists is taken from configuration)
         bl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_bl.find()}
         dbl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_dbl.find()}
         bl_choices = [('i:'+id, '[IP] {} ({})'.format(name, bl_name2num.get(id, 0))) for id,name in get_ip_blacklists()]
@@ -694,11 +696,11 @@ class IPFilterForm(FlaskForm):
         self.blacklist.choices = bl_choices + dbl_choices
 
 class IPFilterFormUnlimited(IPFilterForm):
-    """Subclass of IPFilterForm with possiblity to set no limit on number of results (used by API)"""
+    """Subclass of IPFilterForm with possibility to set no limit on number of results (used by API)"""
     limit = IntegerField('Max number of addresses', [validators.Optional()], default=20)
 
 class IPFilterFormUnlimitedDef(IPFilterForm):
-    """Subclass of IPFilterForm with possiblity to set no limit on number of results and no limit is default(used by API)"""
+    """Subclass of IPFilterForm with possibility to set no limit on number of results and no limit is default(used by API)"""
     limit = IntegerField('Max number of addresses', [validators.Optional()], default=0)
 
 
@@ -803,7 +805,7 @@ def ips():
                 ip['bgppref'] = bgppref
                 ip['asn'] = asn_list
 
-        # Add metainfo about evetns for easier creation of event table in the template
+        # Add metainfo about events for easier creation of event table in the template
         for ip in results:
             events = ip.get('events', [])
             # Get sets of all dates, cats and nodes
@@ -963,6 +965,7 @@ def ajax_ip_events(ipaddr):
     else:
         error = 'Event database disabled'
 
+    # Compute "duration" for each event
     for event in events:
         start = end = None
         try:
@@ -979,7 +982,7 @@ def ajax_ip_events(ipaddr):
 
     num_events = str(len(events))
     if len(events) >= 100:
-        num_events = "&ge;100, only first 100 shown"
+        num_events = "&ge;100, only latest 100 shown"
     return render_template('ip_events.html', json=json, **locals())
 
 
@@ -1075,7 +1078,7 @@ def ipblock(ipblock=None):
 @app.route('/org/<org>')
 def org(org=None):
     if not org:
-        return make_response("ERROR: No Organzation ID given.")
+        return make_response("ERROR: No Organization ID given.")
     if g.ac('orgsearch'):
         title = org
         rec = mongo.db.org.find_one({'_id': org})
@@ -1095,7 +1098,7 @@ def org(org=None):
 
 # ***** Detailed info about individual BGP prefix *****
 
-# Note: Slash ('/') in the prefix must be replaced by undescore ('_') in URL, e.g.:
+# Note: Slash ('/') in the prefix must be replaced by underscore ('_') in URL, e.g.:
 # "192.168.0.0/16" -> "192.168.0.0_16"
 @app.route('/bgppref/')
 @app.route('/bgppref/<bgppref>')
@@ -1145,7 +1148,7 @@ def get_status():
         else:
             disk_usage = "(N/A)"
     except Exception as e:
-        disk_usage = "(error) " + str(e);
+        disk_usage = "(error) " + str(e)
     
     return jsonify(
         cnt_ip=cnt_ip,
@@ -1328,7 +1331,7 @@ def get_basic_info_dic(val):
 
     bl_l = []
     for l in val.get('bl', []):
-        bl_l.append(l['n']) # TODO: shoudn't there be a check for v=1?
+        bl_l.append(l['n']) # TODO: shouldn't there be a check for v=1?
 
     tags_l = []
     for l in val.get('tags', []):
@@ -1520,7 +1523,7 @@ def ip_search(full = False):
     if output == "list":
         form = IPFilterFormUnlimitedDef(request.args) # no limit when only asking for list of IPs
     elif g.ac('unlimited_search') and not full:
-        form = IPFilterFormUnlimited(request.args) # possibility to speficy no limit, but default is 20 as normal
+        form = IPFilterFormUnlimited(request.args) # possibility to specify no limit, but default is 20 as normal
     else:
         form = IPFilterForm(request.args) # otherwise limit must be between 1 and 1000 (TODO: allow more?)
 
@@ -1622,7 +1625,7 @@ def prefix(prefix, length):
     
 
 # ***** NERD bad prefix list *****
-# Return list of the worst BGP prefixes by their reutation score
+# Return list of the worst BGP prefixes by their reputation score
 
 # class BadPrefixForm(FlaskForm):
 #     t = FloatField('Reputation score threshold', [validators.Optional(), validators.NumberRange(0, 1, 'Must be a number between 0 and 1')], default=0.01)
