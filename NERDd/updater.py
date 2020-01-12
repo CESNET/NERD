@@ -1,5 +1,27 @@
 #!/usr/bin/env python3
 #-*- encoding: utf-8 -*-
+"""
+Updater module - periodically issues tasks to trigger regular updates of all records in entity database.
+
+Each entity (currently only those of 'ip' and 'asn' type) should have a set of '_nru' fields (Next Regular Update)
+containing date and time of the next planned regular update of the entity.
+
+The module fetches a list of entities whose _nru field value is lower than current time and issues a task with special
+events '!every1d' and '!every1w' (once per day and week, respectively).
+(in fact, '!check_and_update_1d' is issued daily, which is processed by the Cleaner module, which then issues the
+'!every1d' event if the record is not to be removed)
+
+It is also possible to issue additional events for each entity (e.g. when re-processing of some data is needed after
+a configuration change). In order to do this, create a file '<CONFIG_FILE_DIR>/updater_events' whose contents are:
+<entity_type> <event_name> <max_time>
+he entity_type must be one of 'ip', 'asn'. The event_name is the name of the event (should begin with '!') to issue
+for each entity along with '!every1d'. Events are issued only if current time is less than max_time (ISO/RFC format).
+Since we usually want to issue the event once for each entity, max_time should be set to exactly 24 hours in the future.
+The file can contain multiple such entries, one per line.
+When max_time elapses, the entry in the file has no meaning, so it can be removed.
+The file is checked every time a new batch of events is to be issued, so it's not needed to restart updater.
+"""
+
 from datetime import datetime, timedelta, timezone
 from apscheduler.schedulers.background import BlockingScheduler
 
@@ -14,6 +36,9 @@ import common.task_queue
 import common.config
 import NERDd.core.db
 import NERDd.core.mongodb
+from common.utils import parse_rfc_time
+
+CONFIG_FILE_NAME = "updater_events" # name of the file with additional events to issue
 
 last_fetch_time = datetime(1970, 1, 1)
 
@@ -40,6 +65,31 @@ def issue_events(db, task_queue_writer, log, fetch_limit):
     """
     global last_fetch_time
     time = datetime.utcnow()
+
+    # Load the file with additional events
+    additional_events = {'ip': [], 'asn': []}
+    line_no = 0
+    try:
+        for line in open(additional_events_file, "r"):
+            line_no += 1
+            if not line or line[0] == '#':
+                continue # skip empty lines and comments
+            etype, event, max_time = line.split(maxsplit=2)
+            if etype not in additional_events.keys():
+                raise ValueError("Unsupported entity type '{}'".format(etype))
+            try:
+                max_time = parse_rfc_time(max_time)
+            except ValueError:
+                raise ValueError("Wrong timestamp format (it has to end with timezone specification or 'Z' for UTC).")
+            if time > max_time:
+                continue # expired entry, ignore
+            additional_events[etype].append(event)
+            log.debug("Additional event '{}' will be issued for all entities of type '{}'".format(event, etype))
+    except FileNotFoundError:
+        pass # File doesn't exist - that's OK, do nothing
+    except Exception as e:
+        # Other error - print message and continue
+        log.error("Error in the file with additional events ('{}', line {}): {}".format(additional_events_file, line_no, e))
 
     for etype in ('ip', 'asn'):
         # Get list of IDs for each update interval
@@ -79,6 +129,9 @@ def issue_events(db, task_queue_writer, log, fetch_limit):
             if id in ids1w:
                 requests.append(('*event', '!every1w'))
                 requests.append(('*next_step', '_nru1w', 'ts_added', time, timedelta(days=7)))
+            # Add additional events from the file, if specified
+            for add_event in additional_events[etype]:
+                requests.append(('*event', add_event))
             # Issue update requests
             task_queue_writer.put_task(etype, id, requests)
             if (n+1) % 100 == 0:
@@ -132,6 +185,8 @@ if __name__ == "__main__":
     common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
     log.debug("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
+
+    additional_events_file = os.path.join(config_base_path, CONFIG_FILE_NAME)
 
     # Get number of processes from config
     num_processes = config.get('worker_processes')
