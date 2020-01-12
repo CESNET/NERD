@@ -757,7 +757,11 @@ def ips():
     title = "IP search"
     form = IPFilterForm(request.args)
     cfg_max_event_history = config.get('max_event_history', '?')
-    
+
+    # Disallow to see/search by 'misp_tlp_green' tag if the user doesn't have the 'tlp-green' permission
+    if not g.ac('tlp-green'):
+        form.tag.choices = [(tag_id, tag_name) for tag_id, tag_name in form.tag.choices if tag_id != 'misp_tlp_green']
+
     if g.ac('ipsearch') and form.validate():
         tz_utc = pytz.utc 
         timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
