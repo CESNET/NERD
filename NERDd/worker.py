@@ -113,6 +113,7 @@ def main(cfg_file, process_index):
     import modules.fmp
     import modules.reserved_ip
     import modules.dshield
+    import modules.ttl_updater
     
     # Instantiate modules
     # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
@@ -137,6 +138,7 @@ def main(cfg_file, process_index):
         #modules.passive_dns.PassiveDNSResolver(),
         modules.fmp.FMP(),
         modules.reserved_ip.ReservedIPTags(),
+        # modules.ttl_updater.TTLUpdater(),
         modules.dshield.DShield()
     ]
     
