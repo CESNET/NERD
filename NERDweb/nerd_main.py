@@ -26,6 +26,7 @@ from ipaddress import IPv4Address, AddressValueError
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 import common.config
+import common.task_queue
 from common.utils import ipstr2int, int2ipstr, parse_rfc_time
 from shodan_rpc_client import ShodanRpcClient
 
@@ -59,6 +60,15 @@ config_tags = common.config.read_config(tags_cfg_file)
 # Read blacklists config (to separate dict)
 bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
 config_bl = common.config.read_config(bl_cfg_file)
+
+# Read Task queue config
+config_nerdd = common.config.read_config("/etc/nerd/nerdd.yml")
+rabbit_config = config.get('rabbitmq')
+num_processes = config_nerdd.get('worker_processes')
+
+# Init Task queue
+task_queue_writer = common.task_queue.TaskQueueWriter(num_processes, rabbit_config)
+task_queue_writer.connect()
 
 
 # Create event database driver (according to config)
@@ -415,6 +425,32 @@ def store_user_info():
         g.user, g.ac = get_user_info(session)
 
 
+def exceeded_rate_limit(user_id):
+    if request.path.startswith("/api"):
+        # API -> return error in JSON
+        err = {
+            'err_n': 429,
+            'error': "Too many requests",
+        }
+        return Response(json.dumps(err), 429, mimetype='application/json')
+    else:
+        # Web -> return HTML with more information
+        bs, tps = rate_limiter.get_user_params(user_id)
+        if g.user:
+            message = "You are only allowed to make {} requests per second.".format(tps)
+        else:
+            message = "We only allow {} requests per second per IP address for not logged in users.".format(tps)
+        return make_response(render_template('429.html', message=message), 429)
+
+
+def get_user_id():
+    # Get user ID (username or IP address)
+    if g.user:
+        return g.user['fullid']
+    else:
+        return 'ip:' + request.remote_addr
+
+
 @app.before_request
 def rate_limit():
     """Check if user hasn't exceeded its rate-limit"""
@@ -422,30 +458,12 @@ def rate_limit():
         # Ignore requests in some paths
         if request.path.startswith("/static/") or request.path.startswith("/login/") or request.path == "/logout":
             return None
-        # Get user ID (username or IP address)
-        if g.user:
-            id = g.user['fullid']
-        else:
-            id = 'ip:' + request.remote_addr
+        user_id = get_user_id()
         # TODO set different cost for some endpoints
-        ok = rate_limiter.try_request(id, cost=1)
+        ok = rate_limiter.try_request(user_id, cost=1)
         if not ok:
             # Rate-limit exceeded, return error message
-            if request.path.startswith("/api"):
-                # API -> return error in JSON
-                err = {
-                    'err_n': 429,
-                    'error': "Too many requests",
-                }
-                return Response(json.dumps(err), 429, mimetype='application/json')
-            else:
-                # Web -> return HTML with more information
-                bs, tps = rate_limiter.get_user_params(id)
-                if g.user:
-                    message = "You are only allowed to make {} requests per second.".format(tps)
-                else:
-                    message = "We only allow {} requests per second per IP address for not logged in users.".format(tps)
-                return make_response(render_template('429.html', message=message), 429)
+            return exceeded_rate_limit(user_id)
     except Exception as e:
         # If anything fails, log error and continue - web shouldn't stop working
         # just because an error in the rate-limiter
@@ -894,6 +912,21 @@ def ips_count():
 class SingleIPForm(FlaskForm):
     ip = TextField('IP address', [validator_optional, validators.IPAddress(message="Invalid IPv4 address")], filters=[strip_whitespace])
 
+@app.route('/ip/<ipaddr>/_is_prepared')
+def is_ip_prepared(ipaddr):
+    try:
+        ipaddress.IPv4Address(ipaddr)
+    except AddressValueError:
+        return make_response("False")
+
+    ipnum = ipstr2int(ipaddr)
+    ipinfo = mongo.db.ip.find_one({'_id': ipnum})
+
+    if ipinfo:
+        return json.dumps(True)
+    else:
+        return json.dumps(False)
+
 @app.route('/ip/')
 @app.route('/ip/<ipaddr>')
 def ip(ipaddr=None):
@@ -928,6 +961,16 @@ def ip(ipaddr=None):
                 if not g.ac('nodenames'):
                     for evtrec in ipinfo.get('events', []):
                         evtrec['node'] = pseudonymize_node_name(evtrec['node'])
+            else:
+                # create new short life record (3 hours) of IP address to get its basic info, but for bigger cost
+                # of rate limit (total cost is 10, because 1 is taken in @before_request)
+                user_id = get_user_id()
+                ok = rate_limiter.try_request(user_id, cost=9)
+                if not ok:
+                    return exceeded_rate_limit(user_id)
+
+                record_ttl = datetime.utcnow() + timedelta(hours=3)
+                task_queue_writer.put_task('ip', ipaddr, [('set', '_ttl.web', record_ttl)], priority=True)
         else:
             flash('Insufficient permissions to search/view IPs.', 'error')
     else:
