@@ -1,10 +1,21 @@
 # NERD config - common part (for both NERDd and NERDweb)
 ---
 # Number of days to store IP address in the database since the last observed event related to the IP. It also depends
-# on source of the event.
+# on source of the event. Highly active means highly active IP records and long active stands for records, which are
+# active for long period of time
 record_life_length:
   warden: 14
   misp: 180
+  highly_active: 14
+  long_active: 28
+
+# Thresholds for marking IP record as highly active or long active.
+#     Highly active threshold means minimum number of events, where IP address has to occur in last 7 days.
+#     Long active threshold means number of days, which IP address has to be in NERD.
+record_life_threshold:
+  highly_active: 1000
+  long_active: 30
+
 
 # Number of days to store meta-data about events in IP records
 max_event_history: 90
