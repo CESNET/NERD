@@ -14,7 +14,7 @@ redis
 hiredis
 numpy
 xgboost
-pymisp
+pymisp==2.4.111.2
 zmq
 amqpstorm
 jsonpath_rw_ext

@@ -62,9 +62,8 @@ bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
 config_bl = common.config.read_config(bl_cfg_file)
 
 # Read Task queue config
-config_nerdd = common.config.read_config("/etc/nerd/nerdd.yml")
 rabbit_config = config.get('rabbitmq')
-num_processes = config_nerdd.get('worker_processes')
+num_processes = config.get('worker_processes')
 
 # Init Task queue
 task_queue_writer = common.task_queue.TaskQueueWriter(num_processes, rabbit_config)
@@ -917,15 +916,15 @@ def is_ip_prepared(ipaddr):
     try:
         ipaddress.IPv4Address(ipaddr)
     except AddressValueError:
-        return make_response("False")
+        return Response(json.dumps({'err_n' : 400, 'error' : "Invalid IP address"}), 400, mimetype='application/json')
 
     ipnum = ipstr2int(ipaddr)
     ipinfo = mongo.db.ip.find_one({'_id': ipnum})
 
     if ipinfo:
-        return json.dumps(True)
+        return "true"
     else:
-        return json.dumps(False)
+        return "false"
 
 @app.route('/ip/')
 @app.route('/ip/<ipaddr>')

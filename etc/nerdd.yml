@@ -2,15 +2,6 @@
 ---
 common_config: nerd.yml
 
-# Number of worker processes
-# WARNING: If changing number of worker processes, the following process must be followed:
-# 1. stop all inputs (e.g. warden_receiver, updater)
-# 2. when all queues are empty, stop all workers
-# 3. reconfigure queues in RabbitMQ using /nerd/scripts/rmq_reconfigure.sh
-# 4. change the settings here and in supervisord config (workers.ini)
-# 5. reload supervisord and start everything again
-worker_processes: 2
-
 # Number of worker threads per process.
 # This may be higher than number of CPUs, because this is not primarily intended
 # to utilize computational power of multiple CPUs (which Python cannot do well
