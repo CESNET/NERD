@@ -38,9 +38,9 @@ rabbitmq:
 # WARNING: If changing number of worker processes, the following process must be followed:
 # 1. stop all inputs (e.g. warden_receiver, updater)
 # 2. when all queues are empty, stop all workers
-# 3. restart Apache via 'systemctl reload httpd'
-# 4. reconfigure queues in RabbitMQ using /nerd/scripts/rmq_reconfigure.sh
-# 5. change the settings here and in supervisord config (workers.ini)
+# 3. change the settings here and in supervisord config (workers.ini)
+# 4. restart Apache via 'systemctl reload httpd'
+# 5. reconfigure queues in RabbitMQ using /nerd/scripts/rmq_reconfigure.sh
 # 6. reload supervisord and start everything again
 worker_processes: 2
 

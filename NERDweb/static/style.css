@@ -62,9 +62,10 @@ div.loading {
   /*background-color: rgba(0, 0, 0, 0.01);*/
 }
 img.load-spinner {
-  width: 2em;
-  height: 2em;
-  margin: 1em;
+  width: 2rem;
+  height: 2rem;
+  margin: 1rem;
+  vertical-align: middle;
 }
 img.load-spinner-small {
   width: 1.2em;
@@ -627,6 +628,16 @@ td.links img {
 .notfound2 {
   font-size: 0.9em;
   color: #666;
+}
+.notfound-fetching,
+.notfound-error {
+  margin: 2em 0;
+  font-size: 1.25em;
+  font-weight: bold;
+  color: #0061a2;
+}
+.notfound-error {
+  color: #f00;
 }
 
 
