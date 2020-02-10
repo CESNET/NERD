@@ -138,7 +138,7 @@ def main(cfg_file, process_index):
         #modules.passive_dns.PassiveDNSResolver(),
         modules.fmp.FMP(),
         modules.reserved_ip.ReservedIPTags(),
-        # modules.ttl_updater.TTLUpdater(),
+        modules.ttl_updater.TTLUpdater(),
         modules.dshield.DShield()
     ]
     

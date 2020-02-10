@@ -8,6 +8,14 @@ import g
 import logging
 from datetime import datetime, timedelta
 
+# minimum number of events, where IP address has to occur in last 7 days, to be marked as highly active
+DEFAULT_HIGHLY_ACTIVE_THRESHOLD = 1000
+# TTL in days of highly active IP address
+DEFAULT_HIGHLY_ACTIVE_TTL = 30
+# number of days, which IP address has to be in NERD, to be marked as long active
+DEFAULT_LONG_ACTIVE_THRESHOLD = 30
+# TTL in days of long active IP address
+DEFAULT_LONG_ACTIVE_TTL = 30
 
 class TTLUpdater(NERDModule):
     """
@@ -18,14 +26,14 @@ class TTLUpdater(NERDModule):
         self.log.setLevel("DEBUG")
 
         # minimum number of events, where IP address has to occur in last 7 days, to be marked as highly active
-        self.highly_active_threshold = g.config['record_life_threshold']['highly_active']
+        self.highly_active_threshold = g.config.get('record_life_threshold.highly_active', DEFAULT_HIGHLY_ACTIVE_THRESHOLD)
         # TTL in days of highly active IP address
-        self.highly_active_ttl = g.config['record_life_length']['highly_active']
+        self.highly_active_ttl = g.config.get('record_life_length.highly_active', DEFAULT_HIGHLY_ACTIVE_TTL)
 
         # number of days, which IP address has to be in NERD, to be marked as long active
-        self.long_active_threshold = g.config['record_life_threshold']['long_active']
+        self.long_active_threshold = g.config.get('record_life_threshold.long_active', DEFAULT_LONG_ACTIVE_THRESHOLD)
         # TTL in days of long active IP address
-        self.long_active_ttl = g.config['record_life_length']['long_active']
+        self.long_active_ttl = g.config.get('record_life_length.long_active', DEFAULT_LONG_ACTIVE_TTL)
 
         g.um.register_handler(
             self.check_ttl,    # function (or bound method) to call
