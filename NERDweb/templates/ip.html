@@ -52,10 +52,8 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 {% if not ipinfo %}
 <p class="notfound">Record not found in database</p>
 <p class="notfound2">No malicious activity related to the IP address has been reported recently ({{ config.record_life_length.warden }} days for Warden, {{config.record_life_length.misp}} days for MISP).</p>
-<#
 <p class="notfound-fetching"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}">Fetching basic information now.</p>
 <script src="{{ url_for('static', filename='ip_poll.js') }}"></script>
-#}
 {% else %}
 
 {# Tags -#}
@@ -201,8 +199,6 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 {% endfor %}
 </dl>
 
-{% endif %}{# if ipinfo #}
-
 {% if ac('warden_alerts') %}
 <div id="events">
 <p id="event-details"><span class="caption">Event details</span> <span class="counts">(...)</span>
@@ -222,6 +218,8 @@ $("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}", function( respon
 </script>
 </div>
 {% endif %}
+
+{% endif %}{# if ipinfo #}
 
 <script>
 // Load passive DNS and Shodan data

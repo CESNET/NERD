@@ -84,9 +84,12 @@ class MentatEventDBProxy:
         except Exception as e:
             raise GatewayError("Can't get data from Mentat database: " + str(e))
         # Parse response
+        if resp.status_code == 400 and "search query quota" in resp.text:
+            raise GatewayError("Search query quota exceeded, try again later.")
         try:
             result = resp.json()['items']
         except (ValueError, KeyError):
+            #self.log.error("Invalid data received from Mentat database: req. URL: '{}', req. body: '{}', resp. code: {}, resp. body: '{}'".format(resp.request.url, resp.request.body, resp.status_code, resp.text))
             raise GatewayError("Invalid data received from Mentat database")
         
         return result
