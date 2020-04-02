@@ -13,6 +13,7 @@ import re
 import logging
 import datetime
 import os
+import jsonpath_rw
 
 class Tags(NERDModule):
     """
@@ -63,6 +64,7 @@ class Tags(NERDModule):
         self.log.info("{} tags have been parsed.".format(len(self.tags)))
         
         # Create mapping of attributes to list of tags which may be changed when attribute is updated
+        # TODO: include variables from JSONPath expressions!!!
         self.triggers = {}
         for tag_id, tag_params in self.tags.items():
             # Get all attributes which have been parsed from tag condition 
@@ -175,7 +177,7 @@ class Tags(NERDModule):
             for updated_attr,updated_val in updates:
                 if not updated_attr.startswith("!") and updated_attr in self.triggers:
                     tags_for_update.update(self.triggers[updated_attr])
-        self.log.debug("Updating tags for IP {}: these tags may be assigned: {}.".format(key, tags_for_update))
+        self.log.debug("Updating tags for IP {}. Tags to be re-evaluated: {}.".format(key, tags_for_update))
 
         # Evaluate condition for each tag from set. Evaluate confidence and format info if condition is met.
         # Add two-tuple of confidence value and info to updated_tags dict if condition is met
@@ -187,7 +189,7 @@ class Tags(NERDModule):
                 eval_confidence = condition.evaluate_mathematical(eval_value)
                 eval_info = info.evaluate(rec) if info is not None else None
                 updated_tags[tag_id] = (eval_confidence, eval_info)
-                self.log.debug("Tag {} satisfies condition for IP {} - confidence: {}, info: {} .".format(tag_id, key, eval_confidence, eval_info))
+                self.log.debug("Tag {} satisfies condition for IP {} - confidence: {}, info: \"{}\".".format(tag_id, key, eval_confidence, eval_info))
             else:
                 self.log.debug("Tag {} does not satisfy condition for IP {}.".format(tag_id, key))
         
@@ -202,7 +204,7 @@ class Tags(NERDModule):
                     self.log.debug("Obsolete tag {} has been deleted from record for IP {}.".format(tag_id,key))
 
         for tag_id in tags_for_update:
-            # Update confidence or info in entity record if these values has been changed otherwise do nothing
+            # Update confidence or info in entity record if these values has been changed, otherwise do nothing
             if tag_id in updated_tags and "tags" in rec and tag_id in rec["tags"]:
                 if updated_tags[tag_id][0] != rec["tags"][tag_id]["confidence"] or rec["tags"][tag_id].get("info") != updated_tags[tag_id][1]:
                     ret.append(('set', 'tags.'+ tag_id + '.confidence', updated_tags[tag_id][0]))
@@ -233,20 +235,20 @@ Lexer
 """
 
 # Lexem type
-IDENT, NUMB, STRING, PLUS, MINUS, TIMES, DIVIDE, LPAR, RPAR, EQ, NEQ, LT, GT, LTE, GTE, kwOR, kwAND,  kwNOT, kwIN, EOI, ERR = (
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+IDENT, NUMB, JSONPATH, STRING, PLUS, MINUS, TIMES, DIVIDE, LPAR, RPAR, EQ, NEQ, LT, GT, LTE, GTE, kwOR, kwAND,  kwNOT, kwIN, EOI, ERR = (
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
 )
 
 # Specification of character
-LETTER, DOT, NUMBER, WHITE_SPACE, NO_TYPE = (21, 22, 23, 24, 25)
+LETTER, DOT, BACKTICK, NUMBER, WHITE_SPACE, NO_TYPE = (22, 23, 24, 25, 26, 27)
 
-UNARY, IN, NOTIN = (26, 27, 28)
+UNARY, IN, NOTIN = (28, 29, 30)
 
 # Mapping of input word to lexem type
 symbol_table = {"in": kwIN, "or": kwOR, "and": kwAND, "not": kwNOT}
 
 # Mapping of lexem type to description of type
-const_to_string = {IDENT: "attribute name", NUMB: "number", STRING: "string", PLUS: "plus sign", MINUS: "minus sign", TIMES: "times sign", DIVIDE: "divide sign", LPAR: "left parenthesis",
+const_to_string = {IDENT: "attribute name", NUMB: "number", JSONPATH: "JSONPath", STRING: "string", PLUS: "plus sign", MINUS: "minus sign", TIMES: "times sign", DIVIDE: "divide sign", LPAR: "left parenthesis",
     RPAR: "right parenthesis", EQ: "equal sign", NEQ: "not equal sign", LT: "less than sign", GT: "greater than sign", LTE: "less than or equal sign", GTE: "greater than or equal sign",
     kwOR: "logical or", kwAND: "logical and", kwNOT: "NOT keyword", kwIN: "IN keyword", EOI: "end of input", ERR: "error state"
 }
@@ -282,10 +284,13 @@ class Lexer:
         
         if self.char.isalpha() or self.char == "_":
             self.input = LETTER
-        
+
         elif self.char == ".":
             self.input = DOT
-             
+
+        elif self.char == "`":
+            self.input = BACKTICK # used to mark JSONPath expressions
+
         elif self.char.isdigit():
             self.input = NUMBER
         
@@ -391,7 +396,19 @@ class Lexer:
                 raise Exception("Unexpected end of string")
             self.read_input()
             return Lexem(STRING, text)
-        
+
+        elif self.input == BACKTICK: # JSONPath - read all until second backtick
+            expr = ""
+            self.read_input()
+            while not (self.input == BACKTICK or self.input == EOI):
+                expr += self.char
+                self.read_input()
+
+            if self.input == EOI:
+                raise Exception("Unexpected end of JSONPath expression")
+            self.read_input()
+            return Lexem(JSONPATH, expr)
+
         elif  self.input == LETTER:
             ident = self.char
             self.read_input()
@@ -399,7 +416,7 @@ class Lexer:
                 ident += self.char
                 self.read_input()
             return Lexem(self.key_word(ident),ident)
-        
+
         elif self.input == NUMBER or self.input == DOT:
             is_float = True if self.input == DOT else False
             num_string = self.char
@@ -432,7 +449,9 @@ class Expr:
 
 class Var(Expr):
     """
-    Var node represents attribute. 
+    Var node represents attribute.
+
+    Supports subkeys (e.g. "foo.bar"), but not arrays.
     """
     
     def __init__(self,ident):
@@ -454,6 +473,23 @@ class Var(Expr):
             return None
         else:
             return data[key]
+
+class JSONPathExpr(Expr):
+    """
+    Represents a JSONPath expression. Returns a list of matching values.
+
+    The expression must start with '$' (that's how it's recognized from attribute names).
+
+    See python_json_path_rw_ext package for what exactly is supported in JSONPath.
+    """
+
+    def __init__(self,expr):
+        #logging.getLogger("TagsInterpreter").info("JSONPathExpr: '{}'".format(expr))
+        self.parsed_expr = jsonpath_rw.parse(expr)
+
+    def eval(self, data):
+        #logging.getLogger("TagsInterpreter").info("JSONPathExpr: '{}', eval on '{}'".format(self.parsed_expr, data))
+        return [match.value for match in self.parsed_expr.find(data)]
 
 class Numb(Expr):
     """
@@ -694,26 +730,35 @@ class Parser:
     
     def __init__(self, lexer):
         self.lexer = lexer
-        self.variables = set()
+        self.variables = set() # List of all variables (json fields or paths to subfields) found in the condition
         self.symbol = self.read_lexem()
 
     def read_lexem(self):
         """
         Reads next lexem from lexer. If lexem type is variable, adds it to variables set
         """
-    
         lexem = self.lexer.read_lexem()
+
         if lexem.type == IDENT:
             self.variables.add(lexem.val)
+        if lexem.type == JSONPATH:
+            # Add fields from JSONPaths to the list of variables/attributes that trigger re-evaluation of the condition
+            # NOTE: JSONPath can be very complex, so we extract *only the top-level field name*.
+            match = re.search(r'[a-zA-Z0-9_-]+', lexem.val) # find the first alphanumeric sequence (should work in all "normal" cases)
+            if match:
+                self.variables.add(match.group(0))
+            else:
+                logging.getLogger("TagsInterpreter").warning("Can't find any variable/attribute name in JSONPath '{}'. (Re)evaluation of the tag won't be hooked on any attribute update.")
         return lexem
 
     def error_comparison(self, s):
-        raise Exception("Error in comparison - expected symbol is {}, but recieved {}".format(const_to_string[s], const_to_string[self.symbol.type]))
+        raise Exception("Error in comparison - expected symbol is {}, but received {}".format(const_to_string[s], const_to_string[self.symbol.type]))
         
     def error_expansion(self, s):
-        raise Exception("Error in expansion - expected symbol is {}, but recieved {}".format(const_to_string[s], const_to_string[self.symbol.type]))
+        raise Exception("Error in expansion - expected symbol is {}, but received {}".format(const_to_string[s], const_to_string[self.symbol.type]))
     
-    def comparison(self, s):
+    def comparison(self, s): # Check if the next lexem is the expeced one, if yes, return it (and load the next one)
+        #logging.getLogger("TagsInterpreter").info("comparison {} {} (expected {} {})".format(self.symbol.type, const_to_string[self.symbol.type], s, const_to_string[s]))
         if self.symbol.type == s:
             if self.symbol.type == IDENT:
                 ident = self.symbol.val
@@ -727,6 +772,10 @@ class Parser:
                 num = self.symbol.val
                 self.symbol = self.read_lexem()
                 return num
+            elif self.symbol.type == JSONPATH:
+                expr = self.symbol.val
+                self.symbol = self.read_lexem()
+                return expr
             else:
                 self.symbol = self.read_lexem()
         else:
@@ -763,7 +812,11 @@ class Parser:
             ident = self.comparison(IDENT)
             return Var(ident)
         elif self.symbol.type == STRING:
-            return self.string()
+            string = self.comparison(STRING)
+            return String(string)
+        elif self.symbol.type == JSONPATH:
+            expr = self.comparison(JSONPATH)
+            return JSONPathExpr(expr)
         elif self.symbol.type == NUMB:
             num = self.comparison(NUMB)
             return Numb(num)
@@ -778,10 +831,6 @@ class Parser:
         else:
             self.error_expansion("Operand")
     
-    def string(self):
-        string = self.comparison(STRING)
-        return String(string)
-        
     def cond_or(self):
         return self.cond_or_rest(self.cond_and())
 
@@ -803,21 +852,31 @@ class Parser:
             return du
     
     def cond_part(self):
+        #logging.getLogger("TagsInterpreter").info("CondPart begin")
         if self.symbol.type == kwNOT:
             self.comparison(kwNOT)
             return UnNeg(self.cond_part())
         left = self.math_expr()
+        #logging.getLogger("TagsInterpreter").info("CondPart left={}".format(left))
         op = self.compare_operator()
+        #logging.getLogger("TagsInterpreter").info("CondPart op={}".format(op))
         if op == UNARY:
             return left
         ret = None
         if op == NOTIN or op == IN:
-            ident = self.comparison(IDENT)
-            right = Var(ident)
+            # right side can be identifier or JSONPath expression
+            if self.symbol.type == IDENT:
+                right = Var(self.symbol.val)
+            elif self.symbol.type == JSONPATH:
+                right = JSONPathExpr(self.symbol.val)
+            else:
+                raise Exception("Error in comparison - expected symbol is {} or {}, but received {}".format(const_to_string[IDENT], const_to_string[JSONPATH], const_to_string[self.symbol.type]))
+            self.symbol = self.read_lexem()
             ret = In(left,right, True if op == IN else False)
         else:
             right = self.math_expr()
             ret = Bop(op, left, right)
+        #logging.getLogger("TagsInterpreter").info("CondPart right={}".format(right))
         return ret
    
     def compare_operator(self):
@@ -878,7 +937,7 @@ class Interpreter:
         try:
             self.ast = self.parser.parse()
         except Exception as e:
-            self.log.debug("{}: {}".format(self.parser.lexer.string, e))
+            self.log.error("{}: {}".format(self.parser.lexer.string, e))
 
     def evaluate(self, data):
         """
@@ -906,7 +965,7 @@ class Interpreter:
         True or False
         """
         
-        if evaluated_value is None or evaluated_value == False or evaluated_value == 0:
+        if evaluated_value is None or evaluated_value == False or evaluated_value == 0 or evaluated_value == []:
             return False
         else:
             return True
