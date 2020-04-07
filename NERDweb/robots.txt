@@ -1,0 +1,9 @@
+# This is the recommended robots.txt. Put it in such a way it's accessible from the site's root, eg. directly into /var/www/html/.
+
+User-Agent: *
+Disallow: /nerd/login/
+Disallow: /nerd/_ips_count
+Disallow: /nerd/api/
+Disallow: /nerd/ajax/
+Disallow: /nerd/pdns/
+Disallow: /nerd/misp_event/
