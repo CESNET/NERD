@@ -1145,10 +1145,10 @@ def org(org=None):
 @app.route('/bgppref/')
 @app.route('/bgppref/<bgppref>')
 def bgppref(bgppref=None):
-    bgppref = bgppref.replace('_','/')
-    
     if not bgppref:
         return make_response("ERROR: No BGP Prefix given.")
+    bgppref = bgppref.replace('_','/')
+
     if g.ac('bgpprefsearch'):
         title = bgppref
         rec = mongo.db.bgppref.find_one({'_id': bgppref})
@@ -1232,7 +1232,29 @@ def iplist():
         return Response(''.join(int2ipstr(res['_id'])+'\n' for res in results), 200, mimetype='text/plain')
     except pymongo.errors.ServerSelectionTimeoutError:
         return Response('ERROR: Database connection error', 503, mimetype='text/plain')
-    
+
+
+
+# ******************** Static/precomputed data ********************
+
+FILE_IP_REP = "/data/web_data/ip_rep.csv"
+
+@app.route('/data/')
+def data_index():
+    try:
+        ip_rep_file_size = os.stat(FILE_IP_REP).st_size
+    except OSError:
+        ip_rep_file_size = None
+    return render_template("data.html", **locals())
+
+@app.route('/data/ip_rep.csv')
+def data_ip_rep():
+    try:
+        return flask.send_file(FILE_IP_REP, mimetype="text/plain", as_attachment=True)
+    except OSError:
+        return Response('ERROR: File not found on the server', 501, mimetype='text/plain')
+
+
 
 
 # ****************************** API ******************************

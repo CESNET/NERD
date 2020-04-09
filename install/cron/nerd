@@ -3,6 +3,9 @@
 # Compute reputation scores of BGP prefixes once an hour
 55 * * * * mongo --quiet nerd /nerd/scripts/set_prefix_repscore.js
 
+# Generate list of IPs and reputations scores every hour
+00 * * * * /nerd/scripts/generate_ip_rep_list.sh > /data/web_data/ip_rep.csv
+
 # Remove old IDEA messages from PostgeSQL every day at 03:00
 # (enable if local PSQL is used to store alerts from Warden)
 #0 03 * * * /nerd/scripts/nerd_clean_eventdb.sh > /dev/null

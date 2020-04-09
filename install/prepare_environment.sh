@@ -51,3 +51,8 @@ mkdir -p /data/blacklists
 chown -R nerd:nerd /data/blacklists/
 chmod -R 775 /data/blacklists
 
+# directory for precomputed IP lists users can download
+mkdir -p /data/web_data
+chown -R nerd:nerd /data/web_data
+chmod -R 775 /data/web_data
+

@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<h1>Downloadable data</h1>
+
+<ul>
+<li>List of all IPs with their reputation scores (updated once per hour):
+{% if ip_rep_file_size %}<a href="{{url_for("data_ip_rep")}}">ip_rep.csv</a> ({{ip_rep_file_size|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
+</li>
+</ul>
+
+{% endblock %}

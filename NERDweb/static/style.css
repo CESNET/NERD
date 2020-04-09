@@ -452,10 +452,10 @@ img.load-spinner-small {
   cursor: default;
 }
 
-form span.error {
+span.error {
   color: #a00;
 }
-form input.error {
+input.error {
   background-color: #fcc;
 }
 
