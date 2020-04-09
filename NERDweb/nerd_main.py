@@ -1252,7 +1252,7 @@ def data_ip_rep():
     try:
         return flask.send_file(FILE_IP_REP, mimetype="text/plain", as_attachment=True)
     except OSError:
-        return Response('ERROR: File not found on the server', 501, mimetype='text/plain')
+        return Response('ERROR: File not found on the server', 500, mimetype='text/plain')
 
 
 
