@@ -52,8 +52,9 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 {% if not ipinfo %}
 <p class="notfound">Record not found in database</p>
 <p class="notfound2">No malicious activity related to the IP address has been reported recently ({{ config.record_life_length.warden }} days for Warden, {{config.record_life_length.misp}} days for MISP).</p>
-<p class="notfound-fetching"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}">Fetching basic information now.</p>
+<p class="notfound-fetching" style="display: none"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}">Fetching basic information now.</p>
 <script src="{{ url_for('static', filename='ip_poll.js') }}"></script>
+<script>request_ip_data("{{ url_for('ajax_request_ip_data', ipaddr=ip) }}", "{{ url_for('ajax_is_ip_prepared', ipaddr=ip) }}");</script>
 {% else %}
 
 {# Tags -#}

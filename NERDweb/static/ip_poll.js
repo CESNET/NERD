@@ -1,22 +1,43 @@
-// Script, which waits till the data of IP address are ready and then reloads the page (ip.html)
+// Functions to request cretion of a new IP address record, wait until data are ready and then reloads the page (ip.html)
 
-// poll every second
-var pollInterval = setInterval(poll, 1000);
-var queryCounter = 0;
+var pollInterval;
+var queryCounter;
 
 function show_error(message){
-    var elem = document.getElementsByClassName("notfound-fetching")[0];
-    elem.className = "notfound-error";
-    elem.innerHTML = message;
+    var elem = $(".notfound-fetching");
+    elem.removeClass().addClass("notfound-error");
+    elem.text(message);
+    elem.css("display", "block");
 }
 
-function poll(){
-    console.log("Trying " + window.location.href + "/_is_prepared ...");
-    fetch(window.location.href + "/_is_prepared")
+function request_ip_data(url, poll_url) {
+    // Request creation of a temporary record for the IP
+    fetch(url)
+        .then(function(response) {
+            if (response.ok) {
+                // Show information that the data are being fetched
+                $(".notfound-fetching").css("display", "block");
+                // Start polling for the data prepared (every second)
+                pollInterval = setInterval(_poll, 1000, poll_url);
+                queryCounter = 0;
+            }
+            else if (response.status == 429) {
+                show_error("ERROR: Can't fetch IP data, rate limit exceeded.");
+            }
+            else {
+                console.error("Unexpected reply from " + url + ": ", response);
+            }
+        })
+        .catch(function(error){
+          console.error("Error when querying " + url + ": ", error);
+        });
+}
+
+function _poll(url){
+    fetch(url)
         .then((response) => response.text())
-        .then(function(data) {
-            console.log("Response:", data);
-            if (data === "true") {
+        .then(function(response) {
+            if (response === "true") {
                 location.reload();
             }
             else if (queryCounter > 30) { // stop polling after 30 seconds
@@ -27,7 +48,7 @@ function poll(){
         })
         .catch(function(error){
             clearInterval(pollInterval);
-            console.log("Error when polling _is_prepared:", error);
+            console.error("Error when polling _is_prepared:", error);
             show_error("Error while trying to load the data!");
         });
 }

@@ -911,21 +911,6 @@ def ips_count():
 class SingleIPForm(FlaskForm):
     ip = TextField('IP address', [validator_optional, validators.IPAddress(message="Invalid IPv4 address")], filters=[strip_whitespace])
 
-@app.route('/ip/<ipaddr>/_is_prepared')
-def is_ip_prepared(ipaddr):
-    try:
-        ipaddress.IPv4Address(ipaddr)
-    except AddressValueError:
-        return Response(json.dumps({'err_n' : 400, 'error' : "Invalid IP address"}), 400, mimetype='application/json')
-
-    ipnum = ipstr2int(ipaddr)
-    ipinfo = mongo.db.ip.find_one({'_id': ipnum})
-
-    if ipinfo:
-        return "true"
-    else:
-        return "false"
-
 @app.route('/ip/')
 @app.route('/ip/<ipaddr>')
 def ip(ipaddr=None):
@@ -960,16 +945,6 @@ def ip(ipaddr=None):
                 if not g.ac('nodenames'):
                     for evtrec in ipinfo.get('events', []):
                         evtrec['node'] = pseudonymize_node_name(evtrec['node'])
-            else:
-                # create new short life record (3 hours) of IP address to get its basic info, but for bigger cost
-                # of rate limit (total cost is 10, because 1 is taken in @before_request)
-                user_id = get_user_id()
-                ok = rate_limiter.try_request(user_id, cost=9)
-                if not ok:
-                    return exceeded_rate_limit(user_id)
-
-                record_ttl = datetime.utcnow() + timedelta(hours=3)
-                task_queue_writer.put_task('ip', ipaddr, [('set', '_ttl.web', record_ttl)], priority=True)
         else:
             flash('Insufficient permissions to search/view IPs.', 'error')
     else:
@@ -977,6 +952,39 @@ def ip(ipaddr=None):
         ipinfo = {}
     return render_template('ip.html', ctrydata=ctrydata, ip=ipaddr, **locals())
 
+# Functions to asynchornously request creation of a new IP record
+# We use special endpoints, called by JavaScript, since that way we can easily disallow this functionality for robots
+# by blocking /ajax/* in robots.txt
+@app.route('/ajax/fetch_ip_data/<ipaddr>')
+def ajax_request_ip_data(ipaddr):
+    """Request backend to create a new short-life record (3 hours) of IP address to get its basic info.
+
+    This cost 10 rate-limit tokens (9 are taken here since 1 is taken in @before_request)
+    """
+    user_id = get_user_id()
+    ok = rate_limiter.try_request(user_id, cost=9)
+    if not ok:
+        return exceeded_rate_limit(user_id)
+
+    record_ttl = datetime.utcnow() + timedelta(hours=3)
+    task_queue_writer.put_task('ip', ipaddr, [('set', '_ttl.web', record_ttl)], priority=True)
+    return make_response("OK")
+
+
+@app.route('/ajax/is_ip_prepared/<ipaddr>')
+def ajax_is_ip_prepared(ipaddr):
+    try:
+        ipaddress.IPv4Address(ipaddr)
+    except AddressValueError:
+        return Response(json.dumps({'err_n' : 400, 'error' : "Invalid IP address"}), 400, mimetype='application/json')
+
+    ipnum = ipstr2int(ipaddr)
+    ipinfo = mongo.db.ip.find_one({'_id': ipnum})
+
+    if ipinfo:
+        return "true"
+    else:
+        return "false"
 
 @app.route('/ajax/ip_events/<ipaddr>')
 def ajax_ip_events(ipaddr):
