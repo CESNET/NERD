@@ -210,10 +210,15 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 <script>
 $("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}", function( response, status, xhr ) {
   if ( status == "error" ) {
-    $("#events div.loading").html( "Error: " + xhr.status + " " + xhr.statusText );
+    if (xhr.status == 504) { // Gateway timeout - WSGI backend didn't respond in time
+      $("#events div.loading").html( "Error: Timeout. Backend system is probably overloaded, try it again later. If the problem persists, {% if config.admin_email %}<a href="mailto:{{config.admin_email}}">contact administrator</a>{% else %}contact administrator{% endif %}.");
+    }
+    else { // Other errors
+      $("#events div.loading").html( "Error: " + xhr.status + " " + xhr.statusText );
+    }
   }
   else {
-    reformatAllDates(); // reformat times in newly loaded data acocrding to utc-switch
+    reformatAllDates(); // reformat times in newly loaded data according to utc-switch
   }
 });
 </script>

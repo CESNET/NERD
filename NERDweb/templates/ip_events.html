@@ -84,8 +84,9 @@ function showAttachment(e) {
 {#&nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>#}
 {%- if config.mentat_url and ac('mentat') %}<span class="mentat-link">Search in <a href="{{config.mentat_url.replace('$IP', ipaddr)}}">Mentat</a></span>{% endif %}
 </p>
-{% if error %}<p class="error">{{error}}</p>{% endif %}
-{% if events|length == 0 %}
+{% if error %}
+<p class="error">{{error}}</p>
+{% elif events|length == 0 %}
 <p>No events found in last {{ ip_lifetime }} days.</p>
 {% else %}
 {% for event in events %}

@@ -20,6 +20,9 @@ beta_label: true
 # Make the logo a hyperlink (e.g. to main page of this NERD deployment)
 #logo_link: "https://www.example.com/"
 
+# Email to system administrator (shown to users as part of some error messages, optional)
+#admin_email: "nerd@example.com"
+
 data_disk_path: "/data"
 
 login:
