@@ -135,7 +135,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
   {%- if config.logo_link %}</a>{% endif -%}
  </div>
  <div id="navigation">
-  <a href="{{ url_for('ips') }}">IP search</a> | <a href="{{ url_for('ip') }}">IP detail</a> | <a href="{{ url_for('data_index') }}">Data</a>
+  <a href="{{ url_for('ips') }}">IP search</a> | <a href="{{ url_for('ip') }}">IP detail</a> | <a href="{{ url_for('data_index') }}">Data</a> | <a href="{{ url_for('map') }}">Map</a>
  </div>
  <div id="login">
   {% if not user %}
