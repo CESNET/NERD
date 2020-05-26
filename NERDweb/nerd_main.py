@@ -1242,6 +1242,10 @@ def iplist():
         return Response('ERROR: Database connection error', 503, mimetype='text/plain')
 
 
+# ******************** Map ********************
+@app.route('/map/')
+def map_index():
+    return render_template("map.html", **locals())
 
 # ******************** Static/precomputed data ********************
 
