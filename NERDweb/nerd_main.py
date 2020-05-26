@@ -1244,7 +1244,7 @@ def iplist():
 
 # ******************** Map ********************
 @app.route('/map/')
-def map():
+def map_index():
     return render_template("map.html", **locals())
 
 # ******************** Static/precomputed data ********************
