@@ -130,6 +130,8 @@ hostname_tagging:
     - [sfj.corp.censys.io, research_scanner]
     - [security.ipip.net, research_scanner]
     - [shadowserver.org, research_scanner]
+    - [internet-census.org, research_scanner]
+    - [security.criminalip.com, research_scanner]
     - [myvzw.com, mobile_isp]
     - [comcast.net, isp]
     - [ertelecom.ru, isp]
