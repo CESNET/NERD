@@ -42,7 +42,7 @@ fi
 
 echob "** Installing Apache and WSGI **"
 yum install -q -y httpd httpd-devel mod_wsgi
-pip3 install mod_wsgi
+pip3 -q install mod_wsgi
 
 # Replace the stock mod_wsgi.so with the one from Python36
 rm -f /usr/lib64/httpd/modules/mod_wsgi.so

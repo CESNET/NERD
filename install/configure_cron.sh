@@ -4,7 +4,7 @@
 BASEDIR=$(dirname $0)
 . $BASEDIR/common.sh
 
-echob "=============== Configure Supervisor ==============="
+echob "=============== Configure cron ==============="
 
 echob "** Copying cron config file **"
 

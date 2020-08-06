@@ -31,10 +31,12 @@ systemctl enable munin-node
 systemctl restart munin-node
 
 # ** Enable web access **
-# (copy example config file and uncomment <Directory> tags)
-sed -E 's|^#\s*(</?[Dd]irectory.*)|\1|' </var/www/html/munin/.htaccess >/etc/httpd/conf.d/munin.conf
+# Copy prepared config file for Apache
+cp $BASEDIR/httpd/munin.conf /etc/httpd/conf.d/munin.conf
 
 touch /etc/munin/munin-htpasswd
+
+systemctl reload httpd
 
 echoy
 echoy "INFO: Munin is available at http://<this_host>/munin/ (if NERD is not installed into \"/\")"

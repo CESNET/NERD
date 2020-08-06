@@ -50,17 +50,30 @@ htpasswd -bc /etc/nerd/htpasswd test test
 chown apache:nerd /etc/nerd/htpasswd
 chmod 660 /etc/nerd/htpasswd
 
+EOF
+
+##### Final notes #####
+
+$notes = <<EOF
 echo
-echo "************************************************************"
-echo "Two user accounts for testing are available:"
+echo "**********************************************************************"
+echo "System is NOT FULLY PROVISIONED, yet."
+echo "The following steps should be done manually now:"
+echo " 1. See the logs above for potential error messages."
+echo " 2. (optional, needed to receive data form Warden) Register Warden client, configure and run warden_filer (see above)."
+echo " 3. Download geolocation database using /nerd/scripts/download_maxmind_geolite.sh (free registration at maxmind.com is needed)."
+echo " 4. Run backend (NERDd):"
+echo "      sudo systemctl start nerd-supervisor"
 echo ""
+echo "Backend can be managed via supervisord interface ('nerdctl' or https://localhost:9100/)"
+echo ""
+echo "Frontend is running at https://<this_server>/nerd/"
+echo "Two user accounts for testing are available:"
 echo "* Administrator/developer - use 'Devel. autologin' option"
 echo "* Unprivileged local account - username/password: test/test"
 echo ""
 
 EOF
-
-
 
 ##########
 
@@ -121,4 +134,7 @@ Vagrant.configure(2) do |config|
   config.vm.provision "shell", inline: $users
 
   config.vm.provision "shell", inline: "rm /vagrant/vagrant_provisioning"
+
+  # Print final notes
+  config.vm.provision "shell", inline: $notes
 end

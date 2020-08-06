@@ -10,15 +10,16 @@ echob "** Installing basic RPM packages **"
 yum install -y -q https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 yum install -y -q git wget gcc vim python36 python36-devel python36-setuptools
 
-echob "** Installing pip and Python packages **"
+echob "** Installing pip **"
 easy_install-3.6 --prefix /usr pip
 # for some reason, this creates file /usr/bin/pip3.7 instead of pip3.6 (but everything works OK)
 
 # Allow to run python3.6 as python3 (not needed, is created automatically)
 # ln -s /usr/bin/python3.6 /usr/bin/python3
 
-pip3 install -r $BASEDIR/pip_requirements_nerdd.txt
-pip3 install -r $BASEDIR/pip_requirements_nerdweb.txt
+echob "** Installing Python packages **"
+pip3 install -q -r $BASEDIR/pip_requirements_nerdd.txt
+pip3 install -q -r $BASEDIR/pip_requirements_nerdweb.txt
 
 
 echob "** Installing MongoDB **"
@@ -133,15 +134,17 @@ fi
 
 
 echob "** Installing Supervisor **"
-pip install "supervisor==4.*"
+pip -q install "supervisor==4.*"
 ln -s /usr/local/bin/supervisord /usr/bin/supervisord
 ln -s /usr/local/bin/supervisorctl /usr/bin/supervisorctl
 
 
 echob "** Installing PostgreSQL **"
 if ! yum list installed postgresql11-server >/dev/null 2>&1 ; then
-  yum install -y -q https://download.postgresql.org/pub/repos/yum/11/redhat/rhel-7-x86_64/pgdg-centos11-11-2.noarch.rpm
-  yum install -y -q postgresql11-server postgresql11-devel
+  yum install -y -q https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+  # There are some unsatisfiable dependensies, but it works well without them,
+  # so "--skip-broken" is used to ignore the errors
+  yum install -y -q postgresql11-server postgresql11-devel --skip-broken
 fi
 
 # Initialize database (creates DB files in /var/lib/pgsql/11/data/)

@@ -121,7 +121,7 @@ echoy "What to do now:"
 echoy " 1. See logs above for potential error messages."
 # TODO download warden_apply.py to /data/warden_filer and prepare paths to cert in .cfg file to those where the cert will be generated
 echoy " 2. Register Warden client, configure and run warden_filer (see above)."
-echoy " 3. Download geolocation database using /nerd/scripts/download_maxmind_geolite.sh (free registration at maxmind.com is needed). This step is not necessary if you don't need IP geolocation to work"
+echoy " 3. Download geolocation database using /nerd/scripts/download_maxmind_geolite.sh (free registration at maxmind.com is needed)."
 echoy " 4. Create a user for web interface":
 echoy "      psql -U nerd nerd_users"
 echoy "        INSERT INTO users VALUES ('local:admin', '{\"registered\",\"trusted\",\"admin\"}','Mr. Admin','email@example.com','Test org');"
