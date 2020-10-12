@@ -28,7 +28,11 @@ echob "=============== Install Warden filer ==============="
 
 echob "** Installing Warden client Python library and Warden filer **"
 if ! [ -f /usr/lib/python3*/site-packages/warden_client.py -a -d /opt/warden_filer ] ; then
-  git clone https://homeproj.cesnet.cz/git/warden.git
+  git clone --single-branch https://homeproj.cesnet.cz/git/warden.git
+  # checkout older version, as the latest one needs too new Python, not avaialble on CentOS7 by default
+  cd warden
+  git checkout -q 15f59fb
+  cd ..
   cp warden/warden_client/warden_client.py /usr/lib/python3*/site-packages/
   cp warden/warden_client/warden_client.py /usr/lib/python2*/site-packages/
   cp -r warden/warden_filer/ /opt/
@@ -44,7 +48,7 @@ chmod -R 775 /data/warden_filer
 # Start receiving from the last message available at the time of first start
 echo -1 >/data/warden_filer/warden_filer.id
 
-echoy "** Preparing template configuration file **"
+echob "** Preparing template configuration file **"
 install -o nerd -g nerd -m 664 $BASEDIR/warden_filer.cfg.template /etc/nerd/warden_filer.cfg.template
 echoy
 echoy "!!! WARDEN CLIENT MUST BE MANUALLY CONFIGURED !!!"
