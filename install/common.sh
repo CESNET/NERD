@@ -4,7 +4,7 @@
 alias yum="yum --disableplugin=fastestmirror"
 
 # Set up functions for colored output, but not during Vagrant provisioning, as it doesn't work well there
-if ! [ -e /vagrant/vagrant_provisioning ]
+if ! [ -e /vagrant_provisioning ]
 then
 # print section headers in blue color
 echob () {
