@@ -10,15 +10,10 @@
 #   granted.
 # - Web interface is available only via plain HTTP.
 # - NERDd must be started manually.
-# - Warden data must be copied from somewhere (or warden_receiver registered 
+# - Warden data must be copied from somewhere (or warden_filer registered 
 #   and started manually)
 #
 ###############################################################################
-
-# All Vagrant configuration is done below. The "2" in Vagrant.configure
-# configures the configuration version (we support older styles for
-# backwards compatibility). Please don't change it unless you know what
-# you're doing.
 
 
 ##### Disable SELinux #####
@@ -87,9 +82,14 @@ Vagrant.configure(2) do |config|
     v.memory = 2048
     v.cpus = 2
   end
+  config.vm.provider "hyperv" do |v|
+    v.memory = 2048
+    v.cpus = 2
+  end
+
 
   # Mark that this is a development Vagrant VM machine (some scripts look for this file)
-  config.vm.provision "shell", inline: "touch /vagrant/vagrant_provisioning"
+  config.vm.provision "shell", inline: "touch /vagrant_provisioning"
 
   # Disable SELinux
   config.vm.provision "shell", inline: $selinux
@@ -133,7 +133,7 @@ Vagrant.configure(2) do |config|
   # Create testing users  
   config.vm.provision "shell", inline: $users
 
-  config.vm.provision "shell", inline: "rm /vagrant/vagrant_provisioning"
+  config.vm.provision "shell", inline: "rm /vagrant_provisioning"
 
   # Print final notes
   config.vm.provision "shell", inline: $notes
