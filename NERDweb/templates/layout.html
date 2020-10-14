@@ -73,16 +73,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 <tr><td>Event queue (IDEA files):</td><td><span id="status-idea-queue">??</span></td></tr>
 <tr><td colspan="2"><div id="status-idea-queue-bar" class="queue"><div></div></div></td></tr>
 </table>
-<table>
-<tr><td>Update req. queue:</td><td><span id="status-updreq-queue">??</span></td></tr>
-<tr><td colspan="2"><div id="status-updreq-queue-bar" class="queue"><div></div></div></td></tr>
-</table>
-<table>
-<tr><td>Updates/second</td><td><span id="status-updates">??</span></td></tr>
-<tr><td colspan="2"><canvas id="status-updates-plot" width="100" height="40" style="width: 100%; height: 40px"></canvas></td></tr>
-</table>
-{% if config.munin_link %}See more graphs in <a href="{{ config.munin_link }}" target="_blank">Munin</a>{% endif %}
-<script type="text/javascript" src="{{ url_for('static', filename='smoothie.js') }}"></script>{# Library for plotting stream-data (reqs/s) #}
+{% if config.munin_link %}See more in <a href="{{ config.munin_link }}" target="_blank">Munin</a>{% endif %}
 <script type="text/javascript" src="{{ url_for('static', filename='status-box.js') }}"></script>{# All code for status-box #}
 </div>
 </div>

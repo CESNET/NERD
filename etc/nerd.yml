@@ -77,9 +77,6 @@ warden_filer_path: "/data/warden_filer/warden_receiver"
 # API key for Shodan requester
 shodan_api_key: ""
 
-# File to log total number of updates processed (written every 2s)
-upd_cnt_file: "/data/nerd_updates_processed"
-
 dnsbl:
   # List of blacklists to query (the rest of "dnsbl" config is in nerdd.yml)
   blacklists:

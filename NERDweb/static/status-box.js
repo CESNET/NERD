@@ -13,7 +13,6 @@ function toggle_status_box() {
         a.text("▼");
         refresh_status_enable = false;
         $("#status_refresh_toggle").text("disabled");
-        smoothie.stop();
     }
     else {
         div.show();
@@ -25,29 +24,12 @@ function toggle_status_refresh() {
     if (refresh_status_enable) {
         refresh_status_enable=false;
         $("#status_refresh_toggle").text("disabled");
-        smoothie.stop();
     }
     else {
         refresh_status_enable=true;
         $("#status_refresh_toggle").text("enabled");
-        smoothie.start();
     }
 }
-
-/***** Graph with number of updates/s *****/
-// resize the canvas to 100% width
-$("#status-updates-plot").attr("width", $("#status-updates-plot").css("width"));
-// Create reqs/s chart
-var smoothie = new SmoothieChart({millisPerPixel:200, interpolation:'linear', 
-    grid: {fillStyle:'#ffffff', millisPerLine:5000, verticalSections:4},
-    labels: {fillStyle:'#000000'},
-    minValue: 0, maxValue: 400
-});
-smoothie.streamTo(document.getElementById("status-updates-plot"));
-smoothie.stop();
-var updates_timeseries = new TimeSeries();
-smoothie.addTimeSeries(updates_timeseries, {lineWidth: 2, strokeStyle:'#00c000', fillStyle: 'rgba(0,128,0,0.25)'});
-
 
 /***** AJAX request to get NERD status information *****/
 function refresh_status(force=false) {
@@ -79,25 +61,6 @@ function refresh_status(force=false) {
             else {
                 $("#status-idea-queue-bar div").css('background-color', '#c00');
             }
-            
-            $("#status-updreq-queue").text(data.update_queue);
-            // Set width of bar and its color
-            var bar_width = (data.update_queue * 100 / 1000);
-            if (bar_width > 100) {
-                bar_width = 100;
-            }
-            $("#status-updreq-queue-bar div").css('width', bar_width + "%");
-            if (bar_width < 50) {
-                $("#status-updreq-queue-bar div").css('background-color', '#0c0');
-            }
-            else if (bar_width < 75) {
-                $("#status-updreq-queue-bar div").css('background-color', '#ea0');
-            }
-            else {
-                $("#status-updreq-queue-bar div").css('background-color', '#c00');
-            }
-            // Add data to res/s plot
-            updates_timeseries.append(new Date().getTime(), data.updates_processed);
         }
     )
     .always(function() {

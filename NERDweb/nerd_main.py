@@ -1179,19 +1179,7 @@ def get_status():
     cnt_ipblock = mongo.db.ipblock.count()
     cnt_org = mongo.db.org.count()
     idea_queue_len = len(os.listdir(WARDEN_DROP_PATH))
-    
-    if "upd_cnt_file" in config:
-        try:
-            upd_cnt = open(config.get("upd_cnt_file")).read().split("\n")
-            upd_processed = sum(map(int, upd_cnt[10:20]))
-            upd_queue = int(upd_cnt[20])
-        except Exception as e:
-            upd_processed = "(error) " + str(e)
-            upd_queue = 0
-    else:
-        upd_processed = "(N/A)"
-        upd_queue = 0
-    
+
     try:
         if "data_disk_path" in config:
             disk_usage = subprocess.check_output(["df", config.get("data_disk_path"), "-P"]).decode('ascii').splitlines()[1].split()[4]
@@ -1207,8 +1195,6 @@ def get_status():
         cnt_ipblock=cnt_ipblock,
         cnt_org=cnt_org,
         idea_queue=idea_queue_len,
-        update_queue=upd_queue,
-        updates_processed=upd_processed,
         disk_usage=disk_usage
     )
 
