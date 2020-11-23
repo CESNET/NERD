@@ -8,7 +8,7 @@ graph_category nerd
 graph_vlabel Delay [minutes]
 graph_scale no
 delay.label delay
-delay.warning 30
+delay.warning -5:30
 END
   exit 0
 fi
