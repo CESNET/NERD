@@ -6,6 +6,8 @@ https://isc.sans.edu/api/#ip
 XML: https://isc.sans.edu/api/ip/70.91.145.10
 vs
 JSON: https://isc.sans.edu/api/ip/70.91.145.10?json
+
+Note: Base URL can also be https://www.dshield.org/api/, it seems to be completely equivalent
 """
 
 from core.basemodule import NERDModule
@@ -16,6 +18,8 @@ import logging
 import json
 
 
+BASE_URL = "https://isc.sans.edu/api"
+
 class DShield(NERDModule):
     """
     NERD class for getting data from DShield API.
@@ -24,6 +28,14 @@ class DShield(NERDModule):
     def __init__(self):
         self.log = logging.getLogger('DShield')
         #self.log.setLevel("DEBUG")
+
+        # User-Agent string (with contact info) to be sent with each API request, as required by API usage instructions
+        # (see https://isc.sans.edu/api)
+        self.user_agent = g.config.get('dshield.user_agent', None)
+        if not self.user_agent or "CHANGE_ME" in self.user_agent:
+            self.log.warning("Missing mandatory configuration (user-agent), DShield module disabled.")
+            return
+
         g.um.register_handler(
             self.set_dshield,  # function (or bound method) to call
             'ip',                # entity type
@@ -46,7 +58,7 @@ class DShield(NERDModule):
 
         try:
             # get response from server
-            response = requests.get("https://isc.sans.edu/api/ip/" + key + "?json")
+            response = requests.get(f"{BASE_URL}/ip/{key}?json", headers={'user-agent': self.user_agent})
             data = json.loads(response.content.decode('utf-8'))['ip']
 
             dshield_record = {
