@@ -59,6 +59,10 @@ class DShield(NERDModule):
         try:
             # get response from server
             response = requests.get(f"{BASE_URL}/ip/{key}?json", headers={'user-agent': self.user_agent})
+            #self.log.debug(f"{BASE_URL}/ip/{key}?json  -->  '{response.text}'")
+            if response.text.startswith("<html><body>Too Many Requests"):
+                self.log.info(f"Can't get DShield data for IP {key}: Rate-limit exceeded")
+                return None
             data = json.loads(response.content.decode('utf-8'))['ip']
 
             dshield_record = {
@@ -81,12 +85,12 @@ class DShield(NERDModule):
             # if some value is missing, DShield have no data for the IP (or the record is damaged), do not store
             if not (dshield_record['reports'] and dshield_record['targets'] and dshield_record['mindate'] and
                     dshield_record['maxdate']):
-                self.log.debug("No data in DShield for IP {}".format(key))
+                self.log.debug(f"No data in DShield for IP {key}")
                 return None
 
         except Exception as e:
-            self.log.error("Can't get DShield data for IP {}: {}".format(key, e))
+            self.log.error(f"Can't get DShield data for IP {key}: {e}")
             return None             # could be connection error etc.
 
-        self.log.debug("DShield record for IP {}: {}".format(key, dshield_record))
+        self.log.debug(f"DShield record for IP {key}: {dshield_record}")
         return [('set', 'dshield', dshield_record)]
