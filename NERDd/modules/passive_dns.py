@@ -100,7 +100,7 @@ class PassiveDNSResolver(NERDModule):
         try:
             # TODO: put URL to config
             url = 'https://passivedns.cesnet.cz/pdns/ip/' + key
-            response = requests.get(url)
+            response = requests.get(url, timeout=5)
         except Exception as e: # Connection error
             self.log.error("Can't query '{}': {}".format(url, e)) 
             return None
