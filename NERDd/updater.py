@@ -169,7 +169,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
     log = logging.getLogger("Updater")
 
-    logging.getLogger("apscheduler.scheduler").setLevel("WARNING")
+    logging.getLogger("apscheduler.scheduler").setLevel("ERROR")
     logging.getLogger("apscheduler.executors.default").setLevel("WARNING")
     if args.verbose:
         log.setLevel('DEBUG')
