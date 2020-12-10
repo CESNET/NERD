@@ -26,7 +26,7 @@ def hierarchical_get(self, key, default=NoDefault):
             first_key, key = key.split('.', 1)
             d = d[first_key]
         return d[key]
-    except KeyError:
+    except (KeyError, TypeError):
         pass # not found - continue below
     if default is NoDefault:
         raise MissingConfigError("Mandatory configuration element is missing: " + key)
