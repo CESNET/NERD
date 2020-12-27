@@ -19,6 +19,7 @@ from flask_mail import Mail, Message
 from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 import dateutil.parser
 import jinja2
+import pymisp
 from pymisp import ExpandedPyMISP
 import signal
 from ipaddress import IPv4Address, AddressValueError
@@ -85,7 +86,10 @@ else:
 try:
     misp_inst = ExpandedPyMISP(config['misp']['url'], config['misp']['key'], None)
 except KeyError:
-    misp_inst = None
+    misp_inst = None # None means not configured
+except pymisp.exceptions.PyMISPError as e:
+    print("ERROR: Can't initialize a connection to MISP instance: " + str(e), file=sys.stderr)
+    misp_inst = False # False means error
 
 MISP_THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
 MISP_ANALYSIS = ["Initial", "Ongoing", "Completed"]
@@ -468,6 +472,15 @@ def rate_limit():
         # just because an error in the rate-limiter
         print("RateLimit error:", e)
     return None
+
+@app.before_request
+def admin_info():
+    if not g.ac('statusbox'):
+        return
+    # If there is some error and user is admin, show a message.
+    if misp_inst is False: #False means connection error
+        flash("ERROR: There is a problem with connection to MISP server! See server logs for details.", "error")
+
 
 @app.after_request
 def add_user_header(resp):
