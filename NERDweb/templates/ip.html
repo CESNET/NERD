@@ -33,7 +33,7 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 </form>
 
 {% if ac('shodan') %}
-<div class="float-box shodan">
+<div id="shodan-box" class="float-box shodan">
   <div class="title">Shodan<span class="side-link">(<a href="https://www.shodan.io/search?query={{ ip }}">more info</a>)</span></div>
   <div id="shodan-info" class="content">
     {#  this is filled by javascript  #}
@@ -43,7 +43,7 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 {% endif %}
 
 {% if ac('pdns') and config.get('pdns.url', False) and config.get('pdns.token', False) %}
-<div class="float-box pdns">
+<div id="pdns-box" class="float-box pdns">
 <div class="title">Passive DNS<span class="help" title="DNS resolutions involving this IP address observed at CESNET DNS servers. Format: <rr_type> <hostname> <first seen> <last seen> <number of observations>"></span></div>
 <div id="pdns_data" class="content"><div class="loading"><img class="load-spinner-small" src="{{ url_for('static', filename='spin.gif') }}"></div></div>
 </div>
@@ -211,7 +211,7 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 $("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}", function( response, status, xhr ) {
   if ( status == "error" ) {
     if (xhr.status == 504) { // Gateway timeout - WSGI backend didn't respond in time
-      $("#events div.loading").html( "Error: Timeout. Backend system is probably overloaded, try it again later. If the problem persists, {% if config.admin_email %}<a href="mailto:{{config.admin_email}}">contact administrator</a>{% else %}contact administrator{% endif %}.");
+      $("#events div.loading").html( "Error: Timeout. Backend system is probably overloaded, try it again later. If the problem persists, {% if config.admin_email %}<a href=\"mailto:{{config.admin_email}}\">contact administrator</a>{% else %}contact administrator{% endif %}.");
     }
     else { // Other errors
       $("#events div.loading").html( "Error: " + xhr.status + " " + xhr.statusText );
@@ -237,10 +237,18 @@ $(document).ready(function () {
       $("#pdns_data").text("error");
     }
     else if (response.length > 0) {
-      html = "";
+      var html = "";
       for (var i in response) {
-        html += '<div class="pdns-item">';
-        html += '<div><span class="tag dnstype">' + response[i].rtype + '</span> ' + response[i].domain + '</div>';
+        if (response[i].reply) { // a negative reply (NXDOMAIN, NODATA, client failures)
+            if (response[i].reply == "NXDOMAIN" || response[i].reply == "NODATA") {
+                html += '<div class="pdns-item pdns-item-negative">';
+            } else {
+                continue; // other types are client errors, which are not interesting
+            }
+        } else {
+            html += '<div class="pdns-item">';
+        }
+        html += '<div><span class="tag dnstype">' + response[i].rtype + '</span> ' + (response[i].reply || response[i].domain) + '</div>';
         html += '<div>'+response[i].time_first.slice(0,10) + '&nbsp;&ndash;&nbsp;' + response[i].time_last.slice(0,10) + '&nbsp;(' + response[i].count + '&times;)</div>';
         html += '</div>';
       }

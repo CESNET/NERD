@@ -749,7 +749,8 @@ dd dl dt:first-child {
 .float-box .content p {
   margin: 0.25em 0;
 }
-.float-box.pdns .content {
+
+#pdns-box .content {
   text-align: right;
 }
 
@@ -772,6 +773,9 @@ dd dl dt:first-child {
 .pdns-item > div:last-child {
   margin-top: 2px;
   font-size: 0.9em;
+}
+.pdns-item-negative {
+  opacity: 0.5;
 }
 
 #events {
