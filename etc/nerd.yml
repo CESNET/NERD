@@ -77,6 +77,11 @@ warden_filer_path: "/data/warden_filer/warden_receiver"
 # API key for Shodan requester
 shodan_api_key: ""
 
+# (Optional) CESNET's Passive DNS (used by both web interface and passive_dns module)
+pdns:
+  url: https://passivedns.cesnet.cz/api/v1/
+  token: ""
+
 dnsbl:
   # List of blacklists to query (the rest of "dnsbl" config is in nerdd.yml)
   blacklists:

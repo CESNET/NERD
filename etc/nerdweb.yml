@@ -67,11 +67,6 @@ rate-limit:
     # port: 6379
     db-index: 1
 
-# (Optional) CESNET's Passive DNS
-pdns:
-  url: https://passivedns.cesnet.cz/api/v1/
-  token: ""
-
 # (Optional) URL to find alert of an IP in Mentat ('$IP' is replaced by the IP)
 # Link is shown to users with "mentat" permission only.
 mentat_url: https://mentat-hub.cesnet.cz/mentat/events/search?source_addrs=$IP&submit=Search

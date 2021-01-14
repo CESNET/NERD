@@ -43,12 +43,20 @@ class PassiveDNSResolver(NERDModule):
     def __init__(self):
         self.log = logging.getLogger("PassiveDNS")
         #self.log.setLevel("DEBUG")
-        
+
+        # Load configuration of passive DNS
+        pdns_config = g.config.get("pdns", None)
+        if not (pdns_config and pdns_config.get("url") and pdns_config.get("token")):
+            self.log.warning("Configuration of Passive DNS (URL and API token) is missing, module disabled.")
+            return
+        self.base_url = pdns_config.get("url")
+        self.token = pdns_config.get("token")
+
         # Load configuration of blacklists to get Redis connection params
         bl_config_file = os.path.join(g.config_base_path, g.config.get("bl_config", "blacklists.yml"))
         self.log.debug("Loading blacklists configuration from {}".format(bl_config_file))
         bl_config = common.config.read_config(bl_config_file)
-        
+
         # Connect to Redis
         redis_host = bl_config.get("redis.host", "localhost")
         redis_port = bl_config.get("redis.port", 6379)
@@ -95,11 +103,11 @@ class PassiveDNSResolver(NERDModule):
         if etype != 'ip':
             return None
 
-        actions = []  
+        # Get all domain names related to the IP
+        actions = []
         response = None
+        url = "{}ip/{}?token={}".format(self.base_url, key, self.token)
         try:
-            # TODO: put URL to config
-            url = 'https://passivedns.cesnet.cz/pdns/ip/' + key
             response = requests.get(url, timeout=5)
         except Exception as e: # Connection error
             self.log.error("Can't query '{}': {}".format(url, e)) 
@@ -107,13 +115,18 @@ class PassiveDNSResolver(NERDModule):
 
         #self.log.debug('Passive DNS query: ' + key + ', status code: ' + str(response.status_code))
         if response.status_code != 200:
-            return None   
-             
-        domains = [x['domain'] for x in response.json()]
+            return None
+
+        # Filter results
+        #   'reply' key indicates a "negative" answer (e.g. NXDOMAIN, NODATA).
+        #   set() is used to remove duplicates (which may occur since records observed at different servers are stored separately).
+        domains = set(rec['domain'] for rec in response.json() if 'domain' in rec and 'reply' not in rec)
         if domains:
             self.log.debug('Passive DNS match: {} -> {}'.format(key, domains))
-        for domain in domains: # Check domain against all available blacklists 
-            domain = domain[:-1] # Remove dot, beacuse domains on Passive DNS are stored in fully qualified format.
+
+        # Check each domain against all available blacklists
+        for domain in domains:
+            domain = domain[:-1] # Domains on Passive DNS are stored in fully qualified format, here we remove the trailing dot.
             for dbl in self.blacklists:
                 time, present = dbl.check(domain)
                 blname = dbl.id

@@ -109,7 +109,7 @@ def main(cfg_file, process_index):
     import modules.tags
     import modules.reputation
     import modules.whois
-    #import modules.passive_dns
+    import modules.passive_dns
     import modules.fmp
     import modules.reserved_ip
     import modules.dshield
@@ -135,7 +135,7 @@ def main(cfg_file, process_index):
         modules.bgp_rank.CIRCL_BGPRank(),
         modules.event_type_counter.EventTypeCounter(),
         modules.tags.Tags(),
-        #modules.passive_dns.PassiveDNSResolver(),
+        modules.passive_dns.PassiveDNSResolver(),
         modules.fmp.FMP(),
         modules.reserved_ip.ReservedIPTags(),
         modules.ttl_updater.TTLUpdater(),
