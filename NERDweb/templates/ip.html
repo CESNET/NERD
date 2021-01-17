@@ -44,9 +44,19 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 
 {% if ac('pdns') and config.get('pdns.url', False) and config.get('pdns.token', False) %}
 <div id="pdns-box" class="float-box pdns">
-<div class="title">Passive DNS<span class="help" title="DNS resolutions involving this IP address observed at CESNET DNS servers. Format: <rr_type> <hostname> <first seen> <last seen> <number of observations>"></span></div>
+<div class="title">Passive DNS<span class="help"></span></div>
 <div id="pdns_data" class="content"><div class="loading"><img class="load-spinner-small" src="{{ url_for('static', filename='spin.gif') }}"></div></div>
 </div>
+<script>$(function() {
+  $("#pdns-box .help").tooltip({
+    "items": "*",
+    "show": false,
+    "hide": false,
+    "track": false,
+    "position": {"my": "right top", "at": "left top", "collision": "none"},
+    "content": function() {return "<div style=\"max-width: 310px\"><b>Data from CESNET's passive DNS system</b><br>Each row corresponds to a DNS resolution containing this IP address observed at CESNET's DNS servers.</div><div><img src=\"{{ url_for('static', filename='pdns_help.png') }}\" width=\"305\" height=\"247\"></div>";}
+  });
+});</script>
 {% endif %}
 
 {% if not ipinfo %}
