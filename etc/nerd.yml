@@ -165,8 +165,8 @@ hostname_tagging:
     - ["\\bftp\\b", ftp]
     - ["\\bbroad(band)?\\b", dsl]
     - ["\\b[avx]?dsl\\b", dsl]
-    - ["\\bdyn(amic)?\\b", dynamic]
-    - ["\\bstatic\\b", static]
+    - [ "\\bdyn(amic)?(ip)?\\b", dynamic ]
+    - [ "\\bstatic(ip)?\\b", static ]
     # classic ip address - all parts of it must be included in correct order
     - ["^.*?(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[^0-9]+(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[^0-9]+(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[^0-9]+(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).*$", ip_in_hostname]
     # partial ip address
