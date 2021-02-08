@@ -662,7 +662,7 @@ def account_info():
 def set_effective_groups():
     log_ep.log('/set_effective_groups')
     # Only admin can change groups (check group membership, not ac() func since it uses effective groups which may be different)
-    if 'admin' not in g.user['groups']:
+    if not g.user or 'admin' not in g.user['groups']:
         log_err.log('403_unauthorized')
         return Response('Unauthorized', 403, mimetype='text/plain')
     
