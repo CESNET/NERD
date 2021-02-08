@@ -136,6 +136,7 @@ img.load-spinner-small {
   top: 0;
   z-index: 10;
   border-bottom: 1px solid #fff; /* White "separator" between the header and the bottom blue line */
+  white-space: nowrap; /* never wrap to a new line inside the header, it would break layout */
 }
 #header::after { /* Blue line on the bottom of the header */
   content: "";
@@ -238,7 +239,8 @@ img.load-spinner-small {
   float: right;
   text-align: right;
   padding: 0.4em 1em;
-  width: 20%;
+  min-width: 20%;
+  max-width: 50%;
 }
 #header #login a {
   margin-left: 0.7em;
