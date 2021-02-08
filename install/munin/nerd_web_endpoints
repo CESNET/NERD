@@ -1,0 +1,46 @@
+#!/bin/sh
+
+if [ "$1" = "config" ]; then
+cat <<EOF
+graph_title Web endpoint accesses
+graph_category nerd
+graph_vlabel Number of requests per minute
+graph_period minute
+
+/.label /
+/account.label /account
+/ajax/fetch_ip_data.label /ajax/fetch_ip_data
+/ajax/ip_events.label /ajax/ip_events
+/ajax/is_ip_prepared.label /ajax/is_ip_prepared
+/api/bad_prefixes.label /api/bad_prefixes
+/api/ip.label /api/ip
+/api/ip/bulk.label /api/ip/bulk
+/api/ip/fmp.label /api/ip/fmp
+/api/ip/full.label /api/ip/full
+/api/ip/rep.label /api/ip/rep
+/api/prefix.label /api/prefix
+/api/search/ip.label /api/search/ip
+/api/shodan-info.label /api/shodan-info
+/api/user_info.label /api/user_info
+/asn.label /asn
+/bgppref.label /bgppref
+/data.label /data
+/data/ip_rep_csv.label /data/ip_rep_csv
+/ip.label /ip
+/ipblock.label /ipblock
+/iplist.label /iplist
+/ips.label /ips
+/ips_count.label /ips_count
+/map.label /map
+/misp_event.label /misp_event
+/noaccount.label /noaccount
+/org.label /org
+/pdns/ip.label /pdns/ip
+/set_effective_groups.label /set_effective_groups
+/status.label /status
+EOF
+exit 0
+fi
+
+ecl_reader /etc/nerd/event_logging.yml -g web_endpoints -i 5m | sed -E 's/:([0-9]+)$/.value \1/'
+

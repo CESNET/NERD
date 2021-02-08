@@ -1,0 +1,38 @@
+#!/bin/bash
+# Checks if all components are running.
+# Simply returns 1 or 0 for each component showing whether it is in RUNNING state or not
+
+statuscmd="supervisorctl -c /etc/nerd/supervisord.conf -s http://localhost:9001 status"
+
+if [ "$1" == "config" ]; then
+  # Get the list of configured components
+  comps=$($statuscmd | cut -d ' ' -f 1)
+  cat <<END
+graph_title Components running
+graph_info NERD components running (0=stopped/failed, 1=running)
+graph_category nerd
+graph_vlabel "Running components"
+END
+  for comp in $comps; do
+    comp=${comp##*:}
+    echo "$comp.label $comp"
+    echo "$comp.draw AREASTACK"
+    echo "$comp.min 0"
+    echo "$comp.warning 1:"
+  done
+  exit 0
+fi
+
+# Get the list of configured components
+comps_with_state=$($statuscmd | awk '{OFS=","; print $1,$2}')
+for comp_state in $comps_with_state; do
+  comp=${comp_state%%,*}
+  comp=${comp##*:}
+  state=${comp_state##*,}
+  if [[ "$state" == "RUNNING" ]]; then
+    state_val=1
+  else
+    state_val=0
+  fi
+  echo "$comp.value $state_val"
+done

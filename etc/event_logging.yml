@@ -29,7 +29,7 @@ groups:
       - '/iplist'
       - '/map'
       - '/data'
-      - '/data/ip_rep.csv'
+      - '/data/ip_rep_csv'
       - '/api/user_info'
       - '/api/ip'
       - '/api/ip/rep'

@@ -1306,7 +1306,7 @@ def data_index():
 
 @app.route('/data/ip_rep.csv')
 def data_ip_rep():
-    log_ep.log('/data/ip_rep.csv')
+    log_ep.log('/data/ip_rep_csv') # use _csv, not .csv, dot in event name makes problems with Munin
     try:
         return flask.send_file(FILE_IP_REP, mimetype="text/plain", as_attachment=True)
     except OSError:

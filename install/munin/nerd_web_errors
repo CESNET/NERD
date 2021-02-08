@@ -1,0 +1,25 @@
+#!/bin/sh
+
+if [ "$1" = "config" ]; then
+cat <<EOF
+graph_title Web error responses
+graph_category nerd
+graph_vlabel Number of events per minute
+graph_period minute
+
+400_bad_request.label 400_bad_request
+403_invalid_token.label 403_invalid_token
+403_no_auth_header.label 403_no_auth_header
+403_unauthorized.label 403_unauthorized
+404_api_bad_path.label 404_api_bad_path
+404_api_ip_not_found.label 404_api_ip_not_found
+429_rate_limit_api.label 429_rate_limit_api
+429_rate_limit_web.label 429_rate_limit_web
+503_db_error.label 503_db_error
+5xx_other.label 5xx_other
+EOF
+exit 0
+fi
+
+ecl_reader /etc/nerd/event_logging.yml -g web_errors -i 5m | sed -E 's/:([0-9]+)$/.value \1/'
+
