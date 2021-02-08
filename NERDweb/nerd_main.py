@@ -23,6 +23,7 @@ import pymisp
 from pymisp import ExpandedPyMISP
 import signal
 from ipaddress import IPv4Address, AddressValueError
+from event_count_logger import EventCountLogger, EventGroup, DummyEventGroup
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -61,6 +62,22 @@ config_tags = common.config.read_config(tags_cfg_file)
 # Read blacklists config (to separate dict)
 bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
 config_bl = common.config.read_config(bl_cfg_file)
+
+# Read EventCountLogger config (to separate dict) and initialize loggers
+ecl_cfg_filename = config.get('event_logging_config', None)
+if ecl_cfg_filename:
+    # Load config
+    config_ecl = common.config.read_config(os.path.join(cfg_dir, ecl_cfg_filename))
+    # Initialize EventCountLogger
+    ecl = EventCountLogger(config_ecl.get('groups'), config_ecl.get('redis', {}))
+    # Get instances of EventGroups (if specified in configuration, otherwise, DummyEventGroup is used, so logging is no-op)
+    # (it's recommended to enable local counters for both groups for better performance)
+    log_ep = ecl.get_group('web_endpoints') or DummyEventGroup() # log access to individual endpoints
+    log_err = ecl.get_group('web_errors') or DummyEventGroup() # log error replies
+else:
+    print("WARNING: nerd_main: Path to event logging config ('event_logging_config' key) not specified, EventCountLogger disabled.")
+    log_ep = DummyEventGroup()
+    log_err = DummyEventGroup()
 
 # Read Task queue config
 rabbit_config = config.get('rabbitmq')
@@ -406,6 +423,7 @@ def store_user_info():
         # API authentication using token
         auth = request.headers.get("Authorization")
         if not auth:
+            log_err.log('403_no_auth_header')
             return API_RESPONSE_403_NOAUTH
 
         # Extract token from Authorization header. Two formats may be used:
@@ -417,10 +435,12 @@ def store_user_info():
         elif len(vals) == 2 and vals[0] == "token":
             token = vals[1]
         else:
+            log_err.log('403_invalid_token')
             return API_RESPONSE_403_TOKEN
 
         g.user, g.ac = authenticate_with_token(token)
         if not g.user:
+            log_err.log('403_invalid_token')
             return API_RESPONSE_403_TOKEN
 
     else:
@@ -435,6 +455,7 @@ def exceeded_rate_limit(user_id):
             'err_n': 429,
             'error': "Too many requests",
         }
+        log_err.log('429_rate_limit_api')
         return Response(json.dumps(err), 429, mimetype='application/json')
     else:
         # Web -> return HTML with more information
@@ -443,6 +464,7 @@ def exceeded_rate_limit(user_id):
             message = "You are only allowed to make {} requests per second.".format(tps)
         else:
             message = "We only allow {} requests per second per IP address for not logged in users.".format(tps)
+        log_err.log('429_rate_limit_web')
         return make_response(render_template('429.html', message=message), 429)
 
 
@@ -502,6 +524,7 @@ def render_template(template, **kwargs):
 # TODO: rewrite as before_request (to check for this situation at any URL)
 @app.route('/')
 def main():
+    log_ep.log('/')
     # User is authenticated but has no account
     if g.user and g.ac('notregistered'):
         return redirect(BASE_URL+'/noaccount')
@@ -517,6 +540,7 @@ class AccountRequestForm(FlaskForm):
 
 @app.route('/noaccount', methods=['GET','POST'])
 def noaccount():
+    log_ep.log('/noaccount')
     if not g.user:
         return make_response("ERROR: no user is authenticated")
     if not g.ac('notregistered'):
@@ -562,6 +586,7 @@ class PasswordChangeForm(FlaskForm):
 @app.route('/account/gen_token', endpoint='gen_token', methods=['POST'])
 @app.route('/account/set_password', endpoint='set_password', methods=['POST'])
 def account_info():
+    log_ep.log('/account')
     if not g.user:
         return make_response("ERROR: no user is authenticated")
     if g.user and g.ac('notregistered'):
@@ -569,7 +594,7 @@ def account_info():
 
     if request.endpoint == 'gen_token':
         if not generate_unique_token(g.user):
-            return make_response("ERROR: An unexpected error during token creation occured.")
+            return make_response("ERROR: An unexpected error during token creation occurred.")
         return redirect(BASE_URL+'/account')
 
     token = {}
@@ -635,8 +660,10 @@ def account_info():
 # If no parameter is passed, selected_groups are reset to normal set of groups of the user
 @app.route('/set_effective_groups')
 def set_effective_groups():
+    log_ep.log('/set_effective_groups')
     # Only admin can change groups (check group membership, not ac() func since it uses effective groups which may be different)
     if 'admin' not in g.user['groups']:
+        log_err.log('403_unauthorized')
         return Response('Unauthorized', 403, mimetype='text/plain')
     
     if 'groups' in request.args:
@@ -786,6 +813,7 @@ def create_query(form):
 @app.route('/ips')
 @app.route('/ips/')
 def ips():
+    log_ep.log('/ips')
     title = "IP search"
     form = IPFilterForm(request.args)
     cfg_max_event_history = config.get('max_event_history', '?')
@@ -907,6 +935,7 @@ def ips():
 
 @app.route('/_ips_count', methods=['POST'])
 def ips_count():
+    log_ep.log('/ips_count')
     #Excepts query as JSON encoded POST data.
     form_values = request.get_json()
     form = IPFilterForm(obj=form_values)
@@ -927,6 +956,7 @@ class SingleIPForm(FlaskForm):
 @app.route('/ip/')
 @app.route('/ip/<ipaddr>')
 def ip(ipaddr=None):
+    log_ep.log('/ip')
     # Validate IP address
     form = SingleIPForm(data={'ip':ipaddr})
     if form.validate():
@@ -974,6 +1004,7 @@ def ajax_request_ip_data(ipaddr):
 
     This cost 10 rate-limit tokens (9 are taken here since 1 is taken in @before_request)
     """
+    log_ep.log('/ajax/fetch_ip_data')
     user_id = get_user_id()
     ok = rate_limiter.try_request(user_id, cost=9)
     if not ok:
@@ -986,9 +1017,11 @@ def ajax_request_ip_data(ipaddr):
 
 @app.route('/ajax/is_ip_prepared/<ipaddr>')
 def ajax_is_ip_prepared(ipaddr):
+    log_ep.log('/ajax/is_ip_prepared')
     try:
         ipaddress.IPv4Address(ipaddr)
     except AddressValueError:
+        log_err.log('400_bad_request')
         return Response(json.dumps({'err_n' : 400, 'error' : "Invalid IP address"}), 400, mimetype='application/json')
 
     ipnum = ipstr2int(ipaddr)
@@ -1002,6 +1035,7 @@ def ajax_is_ip_prepared(ipaddr):
 @app.route('/ajax/ip_events/<ipaddr>')
 def ajax_ip_events(ipaddr):
     """Return events related to given IP (as HTML snippet to be loaded via AJAX)"""
+    log_ep.log('/ajax/ip_events')
 
     if not ipaddr:
         return make_response('ERROR')
@@ -1054,6 +1088,7 @@ def ajax_ip_events(ipaddr):
 @app.route('/misp_event/')
 @app.route('/misp_event/<event_id>')
 def misp_event(event_id=None):
+    log_ep.log('/misp_event')
     if not misp_inst:
         return render_template("misp_event.html", error="Cannot connect to MISP instance")
     if not event_id:
@@ -1088,6 +1123,7 @@ class SingleASForm(FlaskForm):
 @app.route('/asn/')
 @app.route('/asn/<asn>')
 def asn(asn=None): # Can't be named "as" since it's a Python keyword
+    log_ep.log('/asn')
     form = SingleASForm(asn=asn)
     #print(asn,form.data)
     title = 'ASN detail search'
@@ -1117,6 +1153,7 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
 @app.route('/ipblock/')
 @app.route('/ipblock/<ipblock>')
 def ipblock(ipblock=None):
+    log_ep.log('/ipblock')
 #     form = SingleIPForm(ip=ipaddr)
     #if form.validate():
     if not ipblock:
@@ -1140,6 +1177,7 @@ def ipblock(ipblock=None):
 @app.route('/org/')
 @app.route('/org/<org>')
 def org(org=None):
+    log_ep.log('/org')
     if not org:
         return make_response("ERROR: No Organization ID given.")
     if g.ac('orgsearch'):
@@ -1166,6 +1204,7 @@ def org(org=None):
 @app.route('/bgppref/')
 @app.route('/bgppref/<bgppref>')
 def bgppref(bgppref=None):
+    log_ep.log('/bgppref')
     if not bgppref:
         return make_response("ERROR: No BGP Prefix given.")
     bgppref = bgppref.replace('_','/')
@@ -1186,6 +1225,7 @@ def bgppref(bgppref=None):
 
 @app.route('/status')
 def get_status():
+    log_ep.log('/status')
     cnt_ip = mongo.db.ip.count()
     cnt_bgppref = mongo.db.bgppref.count()
     cnt_asn = mongo.db.asn.count()
@@ -1218,13 +1258,16 @@ def get_status():
 @app.route('/iplist')
 @app.route('/iplist/')
 def iplist():
+    log_ep.log('/iplist')
 
     form = IPFilterFormUnlimitedDef(request.args)
     
     if not g.user or not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
         return Response('ERROR: Unauthorized', 403, mimetype='text/plain')
     
     if not form.validate():
+        log_err.log('400_bad_request')
         return Response('ERROR: Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items()), 400, mimetype='text/plain')
     
     sortby = sort_mapping[form.sortby.data]
@@ -1238,12 +1281,14 @@ def iplist():
             results.sort(sortby, 1 if form.asc.data else -1)
         return Response(''.join(int2ipstr(res['_id'])+'\n' for res in results), 200, mimetype='text/plain')
     except pymongo.errors.ServerSelectionTimeoutError:
+        log_err.log('503_db_error')
         return Response('ERROR: Database connection error', 503, mimetype='text/plain')
 
 
 # ******************** Map ********************
 @app.route('/map/')
 def map_index():
+    log_ep.log('/map')
     return render_template("map.html", **locals())
 
 # ******************** Static/precomputed data ********************
@@ -1252,6 +1297,7 @@ FILE_IP_REP = "/data/web_data/ip_rep.csv"
 
 @app.route('/data/')
 def data_index():
+    log_ep.log('/data')
     try:
         ip_rep_file_size = os.stat(FILE_IP_REP).st_size
     except OSError:
@@ -1260,9 +1306,11 @@ def data_index():
 
 @app.route('/data/ip_rep.csv')
 def data_ip_rep():
+    log_ep.log('/data/ip_rep.csv')
     try:
         return flask.send_file(FILE_IP_REP, mimetype="text/plain", as_attachment=True)
     except OSError:
+        log_err.log('5xx_other')
         return Response('ERROR: File not found on the server', 500, mimetype='text/plain')
 
 
@@ -1273,7 +1321,9 @@ def data_ip_rep():
 @app.route('/api/v1/user_info')
 def api_user_info():
     """Return account information if user is successfully authenticated"""
+    log_ep.log('/api/user_info')
     if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
     data = {
         'userid': g.user.get('fullid'),
@@ -1295,10 +1345,12 @@ def get_ip_info(ipaddr, full):
     }
 
     if not ipaddr:
+        log_err.log('400_bad_request')
         return False, Response(json.dumps(data), 400, mimetype='application/json')
 
     form = SingleIPForm(ip=ipaddr)
     if not form.validate():
+        log_err.log('400_bad_request')
         data['error'] = "Bad IP address"
         return False, Response(json.dumps(data), 400, mimetype='application/json')
 
@@ -1309,6 +1361,7 @@ def get_ip_info(ipaddr, full):
     else:
         ipinfo = mongo.db.ip.find_one({'_id':ipint}, {'rep': 1, 'fmp': 1, 'hostname': 1, 'bgppref': 1, 'ipblock': 1, 'geo': 1, 'bl': 1, 'tags': 1})
     if not ipinfo:
+        log_err.log('404_api_ip_not_found')
         data['err_n'] = 404
         data['error'] = "IP address not found"
         return False, Response(json.dumps(data), 404, mimetype='application/json')
@@ -1453,12 +1506,14 @@ def get_basic_info_dic_short(val):
 # ***** NERD API BasicInfo *****
 @app.route('/api/v1/ip/<ipaddr>')
 def get_basic_info(ipaddr=None):
+    log_ep.log('/api/ip')
     if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
 
     ret, val = get_ip_info(ipaddr, False)
     if not ret:
-        return val
+        return val # val is an error Response
 
     binfo = get_basic_info_dic(val)
 
@@ -1469,13 +1524,16 @@ def get_basic_info(ipaddr=None):
 
 @app.route('/api/v1/ip/<ipaddr>/rep')
 def get_ip_rep(ipaddr=None):
+    log_ep.log('/api/ip/rep')
     if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
 
     # Check validity of ipaddr
     try:
         ipaddress.IPv4Address(ipaddr)
     except ValueError:
+        log_err.log('400_bad_request')
         data = {'err_n': 400, 'error': 'Bad IP address'}
         return Response(json.dumps(data), 400, mimetype='application/json')
 
@@ -1484,6 +1542,7 @@ def get_ip_rep(ipaddr=None):
     # Load 'rep' field of the IP from MongoDB
     ipinfo = mongo.db.ip.find_one({'_id': ipint}, {'rep': 1})
     if not ipinfo:
+        log_err.log('404_api_ip_not_found')
         data = {'err_n': 404, 'error': 'IP address not found', 'ip': ipaddr}
         return Response(json.dumps(data), 404, mimetype='application/json')
 
@@ -1497,13 +1556,16 @@ def get_ip_rep(ipaddr=None):
 
 @app.route('/api/v1/ip/<ipaddr>/fmp')
 def get_ip_fmp(ipaddr=None):
+    log_ep.log('/api/ip/fmp')
     if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
 
     # Check validity of ipaddr
     try:
         ipaddress.IPv4Address(ipaddr)
     except ValueError:
+        log_err.log('400_bad_request')
         data = {'err_n': 400, 'error': 'Bad IP address'}
         return Response(json.dumps(data), 400, mimetype='application/json')
 
@@ -1512,6 +1574,7 @@ def get_ip_fmp(ipaddr=None):
     # Load 'fmp' field of the IP from MongoDB
     ipinfo = mongo.db.ip.find_one({'_id': ipint}, {'fmp': 1})
     if not ipinfo:
+        log_err.log('404_api_ip_not_found')
         data = {'err_n': 404, 'error': 'IP address not found', 'ip': ipaddr}
         return Response(json.dumps(data), 404, mimetype='application/json')
 
@@ -1526,7 +1589,9 @@ def get_ip_fmp(ipaddr=None):
 
 @app.route('/api/v1/ip/<ipaddr>/test') # No query to database - for performance comparison
 def get_ip_rep_test(ipaddr=None):
+    log_ep.log('/api/ip/test')
     #if not g.ac('ipsearch'):
+    #    log_err.log('403_unauthorized')
     #    return API_RESPONSE_403
 
     # Return simple JSON
@@ -1540,12 +1605,14 @@ def get_ip_rep_test(ipaddr=None):
 
 @app.route('/api/v1/ip/<ipaddr>/full')
 def get_full_info(ipaddr=None):
+    log_ep.log('/api/ip/full')
     if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
 
     ret, val = get_ip_info(ipaddr, True)
     if not ret:
-        return val
+        return val # val is an error Response
 
     data = {
         'ip' : val['_id'],
@@ -1581,13 +1648,16 @@ def get_full_info(ipaddr=None):
 
 @app.route('/api/v1/search/ip/')
 def ip_search(full = False):
+    log_ep.log('/api/search/ip')
     err = {}
     if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
 
     # Get output format
     output = request.args.get('o', 'json')
     if output not in ('json', 'list', 'short'):
+        log_err.log('400_bad_request')
         err['err_n'] = 400
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
@@ -1603,6 +1673,7 @@ def ip_search(full = False):
         form = IPFilterForm(request.args) # otherwise limit must be between 1 and 1000 (TODO: allow more?)
 
     if not form.validate():
+        log_err.log('400_bad_request')
         err['err_n'] = 400
         err['error'] = 'Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items())
         return Response(json.dumps(err), 400, mimetype='application/json')
@@ -1624,6 +1695,7 @@ def ip_search(full = False):
             results.sort(sortby, 1 if form.asc.data else -1)
         results = list(results)
     except pymongo.errors.ServerSelectionTimeoutError:
+        log_err.log('503_db_error')
         err['err_n'] = 503
         err['error'] = 'Database connection error'
         return Response(json.dumps(err), 503, mimetype='application/json')
@@ -1656,18 +1728,22 @@ def ip_search(full = False):
 
 @app.route('/api/v1/prefix/<prefix>/<length>')
 def prefix(prefix, length):
+    log_ep.log('/api/prefix')
     err = {}
     if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
     
     # Check parameters
     try:
         network = ipaddress.IPv4Network(prefix + '/' + length, strict=False)
     except ValueError:
+        log_err.log('400_bad_request')
         err['err_n'] = 400
         err['error'] = 'Bad parameters: invalid prefix'
         return Response(json.dumps(err), 400, mimetype='application/json')
     if network.prefixlen < 16:
+        log_err.log('400_bad_request')
         err['err_n'] = 400
         err['error'] = 'Bad parameters: the shortest supported prefix is /16'
         return Response(json.dumps(err), 400, mimetype='application/json')
@@ -1680,6 +1756,7 @@ def prefix(prefix, length):
         results = mongo.db.ip.find(query)
         results = list(results)
     except pymongo.errors.ServerSelectionTimeoutError:
+        log_err.log('503_db_error')
         err['err_n'] = 503
         err['error'] = 'Database connection error'
         return Response(json.dumps(err), 503, mimetype='application/json')
@@ -1708,13 +1785,16 @@ def prefix(prefix, length):
 
 @app.route('/api/v1/bad_prefixes')
 def bad_prefixes():
+    log_ep.log('/api/bad_prefixes')
     err = {}
     if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
 
     # Parse parameters (threshold, limit)
 #     form = BadPrefixForm(request.args)
 #     if not form.validate():
+#         log_err.log('400_bad_request')
 #         err['err_n'] = 400
 #         err['error'] = 'Bad parameters: ' + '; '.join('{}: {}'.format(name, ', '.join(errs)) for name, errs in form.errors.items())
 #         return Response(json.dumps(err), 400, mimetype='application/json')
@@ -1724,6 +1804,7 @@ def bad_prefixes():
         t = float(request.args.get('t', 0.01))
         limit = int(request.args.get('limit', 100))
     except ValueError:
+        log_err.log('400_bad_request')
         err['err_n'] = 400
         err['error'] = 'Bad parameters'
         return Response(json.dumps(err), 400, mimetype='application/json')
@@ -1733,6 +1814,7 @@ def bad_prefixes():
         cursor = mongo.db.bgppref.find({"rep": {"$gt": t}}, {"rep": 1}).sort("rep", -1).limit(limit)
         results = list(cursor)
     except pymongo.errors.ServerSelectionTimeoutError:
+        log_err.log('503_db_error')
         err['err_n'] = 503
         err['error'] = 'Database connection error'
         return Response(json.dumps(err), 503, mimetype='application/json')
@@ -1745,6 +1827,7 @@ def bad_prefixes():
     elif output == "text":
         return Response('\n'.join(res['_id']+'\t'+str(res['rep']) for res in results), 200, mimetype='text/plain')
     else:
+        log_err.log('400_bad_request')
         err['err_n'] = 400
         err['error'] = 'Unrecognized value of output parameter: ' + output
         return Response(json.dumps(err), 400, mimetype='application/json')
@@ -1764,7 +1847,9 @@ Returned data contain an octet stream. Each 8 bytes represent a double precision
 
 @app.route('/api/v1/ip/bulk/', methods=['POST'])
 def bulk_request():
+    log_ep.log('/api/ip/bulk')
     if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
 
     ips = request.get_data()
@@ -1779,6 +1864,7 @@ def bulk_request():
             addr, = struct.unpack('!I', ips[x * 4 : x * 4 + 4])
             ip_list.append(addr)
     else:
+        log_err.log('400_bad_request')
         return Response(json.dumps({'err_n': 400, 'error': 'Unsupported input data format: ' + f}), 400, mimetype='application/json')
 
     results = {el:0.0 for el in ip_list}
@@ -1801,6 +1887,7 @@ def bulk_request():
 @app.errorhandler(404)
 def page_not_found(e):
     if request.path.startswith("/api"):
+        log_err.log('404_api_bad_path')
         # API -> return error in JSON
         err = {
             'err_n': 404,
@@ -1815,29 +1902,36 @@ def page_not_found(e):
 # ***** Passive DNS gateway *****
 @app.route('/pdns/ip/<ipaddr>', methods=['GET'])
 def pdns_ip(ipaddr=None):
+    log_ep.log('/pdns/ip')
     if not g.ac('pdns'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
     url = config.get('pdns.url', None)
     token = config.get('pdns.token', None)
     if not url or not token:
+        log_err.log('5xx_other')
         return Response(json.dumps({'status': 500, 'error': 'Passive DNS not configured'}), 500, mimetype='application/json')
     try:
         response = requests.get('{}ip/{}?token={}'.format(url, ipaddr, token))
     except requests.RequestException as e: # Connection error, just in case
         print(str(e), file=sys.stderr)
+        log_err.log('5xx_other')
         return Response(json.dumps({'status': 502, 'error': 'Bad Gateway - cannot get information from PDNS server'}), 502, mimetype='application/json')
     if response.status_code == 200:
         return Response(json.dumps(response.json()), 200, mimetype='application/json')
     elif response.status_code == 404: # Return "not found" as success, just with empty list
         return Response("[]", 200, mimetype='application/json')
     else:
+        log_err.log('5xx_other')
         return Response(json.dumps({'status': 502, 'error': 'Bad Gateway. Received response ({}): {}'.format(response.status_code, response.text)}), 502, mimetype='application/json')
 
 
 # ***** Shodan gateway *****
 @app.route('/api/shodan-info/<ipaddr>', methods=['GET'])
 def get_shodan_response(ipaddr=None):
+    log_ep.log('/api/shodan-info')
     if not g.ac('shodan'):
+        log_err.log('403_unauthorized')
         return API_RESPONSE_403
     #print("(Shodan) got an incoming request {}".format(ipaddr))
     shodan_client = ShodanRpcClient()

@@ -1,0 +1,66 @@
+# Configuration of a EventCountLogger system, which allows to count arbitrary events across multiple processes
+# (using shared counters in Redis) and in various time intervals.
+redis:
+  host: localhost
+  port: 6379
+  db: 2 # Index of Redis DB used for the counters (it shouldn't be used for anything else)
+
+# Each "group" specifies a set of "events" which are handled together.
+groups:
+  # Web - access to individual endpoints
+  web_endpoints:
+    events:
+      - '/'
+      - '/noaccount'
+      - '/account'
+      - '/set_effective_groups'
+      - '/ips'
+      - '/ips_count'
+      - '/ip'
+      - '/ajax/fetch_ip_data'
+      - '/ajax/is_ip_prepared'
+      - '/ajax/ip_events'
+      - '/misp_event'
+      - '/asn'
+      - '/ipblock'
+      - '/org'
+      - '/bgppref'
+      - '/status'
+      - '/iplist'
+      - '/map'
+      - '/data'
+      - '/data/ip_rep.csv'
+      - '/api/user_info'
+      - '/api/ip'
+      - '/api/ip/rep'
+      - '/api/ip/fmp'
+#      - '/api/ip/test'
+      - '/api/ip/full'
+      - '/api/search/ip'
+      - '/api/prefix'
+      - '/api/bad_prefixes'
+      - '/api/ip/bulk'
+      - '/pdns/ip'
+      - '/api/shodan-info'
+    # 5 min interval for Munin
+    intervals: ["5m"]
+    # Cache counts locally, push to Redis every 5 seconds
+    sync-interval: 5
+
+  # Web - error responses
+  web_errors:
+    events:
+      - 400_bad_request
+      - 403_no_auth_header
+      - 403_invalid_token
+      - 403_unauthorized
+      - 404_api_bad_path
+      - 404_api_ip_not_found
+      - 429_rate_limit_api
+      - 429_rate_limit_web
+      - 503_db_error
+      - 5xx_other
+    # 5 min interval for Munin
+    intervals: [ "5m" ]
+    # Cache counts locally, push to Redis every 5 seconds
+    sync-interval: 5
