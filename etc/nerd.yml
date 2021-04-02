@@ -137,6 +137,7 @@ hostname_tagging:
     - [shadowserver.org, research_scanner]
     - [internet-census.org, research_scanner]
     - [security.criminalip.com, research_scanner]
+    - [censys-scanner.com, research_scanner]
     - [myvzw.com, mobile_isp]
     - [comcast.net, isp]
     - [ertelecom.ru, isp]
