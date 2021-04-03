@@ -1,4 +1,8 @@
 {% extends "layout.html" %}
+{% block scripts %}
+<!-- custom script specific for this page -->
+<script src="{{ url_for('static', filename='ips.js') }}"></script>
+{% endblock %}
 {% block body %}
 
 <h1>Known IP addresses</h1>
@@ -32,8 +36,7 @@
   {{ formfield(form.limit, size=10) }}<br>
   <input type="submit">
 </form>
-
-<script src="{{ url_for('static', filename='ips.js') }}"></script>
+<script>set_up_search_form();</script>
 
 {% if results %}
 

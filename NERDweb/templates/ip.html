@@ -1,4 +1,11 @@
 {% extends "layout.html" %}
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js" integrity="sha512-d9xgZrVZpmmQlfonhQUvTR7lMPtO7NkZMkA0ABN3PHCbKA5nqylQ/yWlFAyY6hYgdF1Qh6nYiuADWwKB4C2WSw==" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.css" integrity="sha512-/zs32ZEJh+/EO2N1b0PEdoA10JkdC3zJ8L5FTiQu82LR9S/rOQNfQN7U59U9BC12swNeRAz3HSzIL2vpp4fv3w==" crossorigin="anonymous" />
+<!-- custom script specific for this page -->
+<script src="{{ url_for('static', filename='ip.js') }}"></script>
+{% endblock %}
 {% block body %}
 
 <h1>IP address</h1>
@@ -105,6 +112,14 @@ Search at other sites: <a href="https://www.shodan.io/search?query={{ ip }}" tit
 {% endfor %}
 </div>
 
+{# Event plot -#}
+<canvas id="plot-events" width="100em" height="20em"></canvas>
+<script>
+let event_data = {{ ipinfo.events|tojson if ipinfo.events else [] }};
+$( function() {create_event_graph('plot-events', event_data)} );
+</script>
+
+{# All attributes #}
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
  {% if (attr.startswith("_") or attr == 'events_meta') and not ac('internal_attrs') %}
