@@ -1289,6 +1289,8 @@ def iplist():
 @app.route('/map/')
 def map_index():
     log_ep.log('/map')
+    ipvis_url = config.get("ipmap.url", None)
+    ipvis_token = config.get("ipmap.token", None)
     return render_template("map.html", **locals())
 
 # ******************** Static/precomputed data ********************

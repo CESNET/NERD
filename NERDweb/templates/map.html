@@ -1,10 +1,95 @@
 {% extends "layout.html" %}
+{% block scripts %}
+{# additional scripts and stylesheets in the page head section #}
+<!-- Bootstrap CSS -->
+<!--<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">-->
+<link rel="stylesheet" href="{{url_for('static', filename='ipvisualizator.css')}}">
+<!-- D3.js scripts -->
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+<!-- main IPVizualizator script -->
+<script src="{{url_for('static', filename='ipvizualizator.js')}}"></script>
+{% endblock %}
 {% block body %}
-
 <h1>Visualization of IPv4 address space</h1>
 
-<p>Visualization uses Hilbert curve to display IPv4 address space. Pixel on visualization represents a certain network and its value is sum of reputation scores of IP addresses in given network. </p>
-<iframe src="https://ipvizualizator.sh.cvut.cz/map.html" scrolling="no" width="1000" height="900" style="border:none;">
-</iframe>
+<p>The visualization uses Hilbert curve to display IPv4 address space. Each pixel on the plane represents a certain network, its value (and color) is the sum of reputation scores of IP addresses in that network.</p>
+
+{% if ipvis_url and ipvis_token %}
+<div id="visualizator" class="ipvisualizator"></div>
+
+<script>
+$(document).ready(function(){
+    const vis = new IPVizualizator({
+        "id": "#visualizator",
+        "api": "{{ ipvis_url }}",
+        "token": "{{ ipvis_token }}",
+        "network": "0.0.0.0",
+        "mask": 0,
+        "resolution": 16,
+        "config": {
+            "size": "regular",
+            "skip_zeros": false,
+            "bordered_pixel": true,
+            "static": false,
+            "show_overlay": true,
+            "zoom_mask": 8,
+            "map_opacity": 1,
+            "overlay_opacity": 0.4,
+            "zoom_opacity": 1,
+            "zoom_thickness": 1,
+            "overlay_thickness": 1,
+            "overlay_color": "#ffff00",
+            "zoom_color": "#ff0000",
+            "overlay_text_position": "inside"
+        },
+        "overlay_networks": [
+            {
+                "text": "Reserved",
+                "network": "0.0.0.0/8"
+            },
+            {
+                "text": "Private",
+                "network": "10.0.0.0/8"
+            },
+            {
+                "text": "Reserved",
+                "network": "100.64.0.0/10"
+            },
+            {
+                "text": "Loopback",
+                "network": "127.0.0.0/8"
+            },
+            {
+                "text": "Reserved",
+                "network": "169.254.0.0/16"
+            },
+            {
+                "text": "Private",
+                "network": "172.16.0.0/12"
+            },
+            {
+                "text": "Private",
+                "network": "192.168.0.0/16"
+            },
+            {
+                "text": "Reserved",
+                "network": "198.18.0.0/15"
+            },
+            {
+                "text": "Multicast",
+                "network": "224.0.0.0/4"
+            },
+            {
+                "text": "Reserved",
+                "network": "240.0.0.0/4"
+            },
+        ]
+    });
+});
+</script>
+{% else %}
+<p class="error">IP visualization backend not configured.</p>
+{% endif %}
 
 {% endblock %}

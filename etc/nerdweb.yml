@@ -67,6 +67,12 @@ rate-limit:
     # port: 6379
     db-index: 1
 
+# Connection parameters for IPVisualizator backend (used in map.html), which runs as a standalone service.
+# See https://github.com/CESNET/IPVisualizator for details about IPVisualizator
+#ipmap:
+  #url: https://example.com/ipvis
+  #token: ""
+
 # (Optional) URL to find alert of an IP in Mentat ('$IP' is replaced by the IP)
 # Link is shown to users with "mentat" permission only.
 mentat_url: https://mentat-hub.cesnet.cz/mentat/events/search?source_addrs=$IP&submit=Search
