@@ -6,6 +6,7 @@
 <ul>
 <li>List of all IPs with their reputation scores (updated once per hour):
 {% if ip_rep_file_size %}<a href="{{url_for("data_ip_rep")}}">ip_rep.csv</a> ({{ip_rep_file_size|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
+  <ul style="margin-top: 0.5em; color: #888;"><li>Note: If used as a blacklist, we recommend to select only the IPs with the reputation score greater than some threshold (e.g. &ge; 0.5, which should result in a very low chance of false positives).</li></ul>
 </li>
 </ul>
 
