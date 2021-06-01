@@ -1,8 +1,11 @@
 /*
-* ipvisualizator.js v0.9
+* ipvisualizator.js v0.9.1
 *
-* Copyright (c) 2020 Jakub Jancicka <jancijak@fit.cvut.cz>
-* Released under Apache license v2.0
+* Copyright (c) 2021 CESNET, z.s.p.o.
+* Original author: Jakub Jancicka <jancijak@fit.cvut.cz>
+* Fork author(s): Miroslav Harag
+* 
+* SPDX-License-Identifier: Apache-2.0
 * */
 
 /*jslint bitwise: true */
