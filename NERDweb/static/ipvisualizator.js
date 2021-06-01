@@ -1,5 +1,5 @@
 /*
-* ipvizualizator.js v0.9
+* ipvisualizator.js v0.9
 *
 * Copyright (c) 2020 Jakub Jancicka <jancijak@fit.cvut.cz>
 * Released under Apache license v2.0
@@ -9,7 +9,7 @@
 /*jslint esversion: 6 */
 
 
-class IPVizualizator {
+class IPVisualizator {
 
     constructor(args) {
         this.Size = {'small': 512, 'regular': 768, 'large': 1024, 'xlarge': 4096};
@@ -18,7 +18,7 @@ class IPVizualizator {
         // Check if required parameters are not missing
         for(const parameter of RequiredParameters) {
             if(!(parameter in args)) {
-                console.error('IPVizualizator: required "' + parameter + '" key missing in constructor.');
+                console.error('IPVisualizator: required "' + parameter + '" key missing in constructor.');
                 return;
             }
         }
@@ -53,7 +53,7 @@ class IPVizualizator {
             for (const net of args.overlay_networks) {
                 var network = this.convert_network_from_string(net.network);
                 if(network[0] == false) {
-                    console.error('IPVizualizator: Overlay network "' + net.network + '" has wrong format - ' + network[1] + '.');
+                    console.error('IPVisualizator: Overlay network "' + net.network + '" has wrong format - ' + network[1] + '.');
                 }
 
                 var subnet = {'text': net.text, 'ip': network[1], 'mask': network[2]};
@@ -70,13 +70,14 @@ class IPVizualizator {
         this.network_history = [];
         this.zoomed_subnet = null;
         this.next_color = 1;
+        this.rotation = [0, 0];
 
         // Pixels and network_data hold data sent from server
         this.pixels = {};
         this.network_data = {};
 
         // Inject html elements
-        this.create_ipvizualizator();
+        this.create_ipvisualizator();
 
         // Load data from server and render maps
         this.update();
@@ -129,6 +130,24 @@ class IPVizualizator {
         return [true, ip, mask];
     }
 
+    calculate_rotation() {
+        var network = this.convert_ip_from_string(this.network);
+        var major_diagonal = 0;
+        var sub_diagonal = 0;
+    
+        for(var i = 30; i >= 32-this.mask; i -= 2){
+            var position = ((network & (3 << i)) >> i) & 3;
+            if(position == 0){
+                sub_diagonal += 1;
+            }
+            else if(position == 3){
+                major_diagonal += 1;
+            }
+        }
+
+        this.rotation = [major_diagonal%2, sub_diagonal%2];
+    }
+
     hilbert_i_to_xy(index, order) {
         var state = 0;
         var x = 0;
@@ -139,6 +158,14 @@ class IPVizualizator {
             x = (x << 1) | ((0x936C >> row) & 1);
             y = (y << 1) | ((0x39C6 >> row) & 1);
             state = (0x3E6B94C1 >> 2 * row) & 3;
+        }
+
+        if(this.rotation[1] == 1){
+            [x,y] = [y,x];
+        }
+        if(this.rotation[0] == 1){
+            var size = Math.pow(2, order);
+            [x,y] = [size-y-1,size-x-1];
         }
 
         return [x, y];
@@ -193,7 +220,7 @@ class IPVizualizator {
 
         this.canvas_size = size;
 
-        // Resize IPVizualizator's html elements
+        // Resize IPVisualizator's html elements
         this.canvas
             .attr('width', this.canvas_size)
             .attr('height', this.canvas_size)
@@ -224,7 +251,7 @@ class IPVizualizator {
     // ------- Data binding --------
 
     create_api_call_url() {
-        return this.api + "/vizualizator/" + this.token +
+        return this.api + "/visualizator/" + this.token +
                           "/map/" + this.network +
                           "/" + this.mask +
                           "?resolution=" + (this.mask + this.resolution) +
@@ -241,6 +268,7 @@ class IPVizualizator {
         // Get data from server
         $.get(api_call_url, data => {
             this.network_data = data;
+            this.calculate_rotation();
             this.databind();
             this.draw(false);
             this.draw(true);
@@ -544,13 +572,13 @@ class IPVizualizator {
 
     // ------- Methods for visual interaction --------
 
-    create_ipvizualizator() {
-        // Create tooltip - only one for all existing IPVizualizators on page
-        if (d3.select(".ipvizualizator-tooltip").empty() == true) {
+    create_ipvisualizator() {
+        // Create tooltip - only one for all existing IPVisualizators on page
+        if (d3.select(".ipvisualizator-tooltip").empty() == true) {
             this.tooltip = d3
                 .select(document.body)
                 .append("div")
-                .classed("ipvizualizator-tooltip", true)
+                .classed("ipvisualizator-tooltip", true)
                 .style("position", "absolute")
                 .style("display", "inline-block")
                 .style("padding", "10px")
@@ -563,10 +591,10 @@ class IPVizualizator {
                 .style("opacity", "0")
                 .style("z-index", "99");
         } else {
-            this.tooltip = d3.select(".ipvizualizator-tooltip");
+            this.tooltip = d3.select(".ipvisualizator-tooltip");
         }
 
-        // Create container for whole IPVizualizator
+        // Create container for whole IPVisualizator
         this.container = d3
             .select(this.id)
             .classed("card", true)
@@ -648,7 +676,7 @@ class IPVizualizator {
             .style("width", this.canvas_size + "px")
             .style("height", this.canvas_size + "px");
 
-        // Loading status - appears when IPVizualizator is updating
+        // Loading status - appears when IPVisualizator is updating
         this.status_loading = this.map
             .append("div")
             .classed("spinner-border text-primary", true)

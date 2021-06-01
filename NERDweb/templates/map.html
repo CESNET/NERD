@@ -8,7 +8,7 @@
 <script src="https://d3js.org/d3.v5.min.js"></script>
 <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
 <!-- main IPVizualizator script -->
-<script src="{{url_for('static', filename='ipvizualizator.js')}}"></script>
+<script src="{{url_for('static', filename='ipvisualizator.js')}}"></script>
 {% endblock %}
 {% block body %}
 <h1>Visualization of IPv4 address space</h1>
@@ -20,7 +20,7 @@
 
 <script>
 $(document).ready(function(){
-    const vis = new IPVizualizator({
+    const vis = new IPVisualizator({
         "id": "#visualizator",
         "api": "{{ ipvis_url }}",
         "token": "{{ ipvis_token }}",
