@@ -10,3 +10,4 @@ psycopg2-binary
 redis
 hiredis
 cachetools
+event_count_logger
