@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
-# TODO
-# - p�i spu�t�n� zkontrolovat �as posledn�ho updatu v DB
-#   - pokud tam bl nen�, ihned st�hnout
-#   - pokud tam je, ale se starou �asovou zn�mkou, ihned st�hnout
+# TODO: on startup, check time of the last update of each blacklist in DB,
+# if it's too old, download it immediately
 
 
 """
@@ -106,7 +104,7 @@ def download_blacklist(blacklist_url, params={}):
         except requests.exceptions.ConnectionError as e:
             print("ERROR: Can't download list '{}' from '{}': {}".format(id, blacklist_url, str(e)))
             return ""
-        # Load from local file
+    # Load from local file
     elif blacklist_url.startswith("file://"):
         with open(blacklist_url[7:], encoding='utf-8', errors='ignore') as f:
             return f.read()
@@ -123,7 +121,7 @@ def compile_regex(regex):
         # replace "special" configuration character for CIDR IP address (192.168.0.0/16)
         regex = regex.replace("\\CA", "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}")
     if "\\P" in regex:
-        # replace "special" configuration character to
+        # replace "special" configuration character for IP or CIDR
         regex = regex.replace("\\P", "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(\/\d{1,2})?")
     return re.compile(regex)
 
@@ -272,7 +270,7 @@ def save_blacklist_to_redis(bl_records, bl_id, bl_name, bl_type, prefix_bl_lengt
                 pipe.zadd(key_prefix + "list", {str(record.network_address): int(record.network_address)})
                 pipe.zadd(key_prefix + "list", {'/' + str(record.broadcast_address): int(record.broadcast_address)})
         else:
-            vprint("{} blacklist {} is empty! Maybe the service stopped working.".format(
+            vprint("WARNING: {} blacklist {} is empty! Maybe the service stopped working.".format(
                 bl_all_types[bl_type]['singular'], bl_id))
         pipe.execute()
         vprint("Done, {} {} stored into Redis under '{}list'".format(len(bl_records) if isinstance(bl_records, list)
