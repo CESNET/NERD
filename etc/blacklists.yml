@@ -32,30 +32,12 @@ iplists:
   - ""
   - hour: 4
     minute: 50
-- - tor
-  - TOR
-  - http://torstatus.blutmagie.de/ip_list_exit.php
-  - ""
-  - hour: '6,18'
-    minute: 50
-- - ransomware
-  - Ransomware (IP)
-  - https://ransomwaretracker.abuse.ch/downloads/RW_IPBL.txt
-  - "(\\A)"
-  - hour: 4
-    minute: 50
 - - bruteforceblocker
   - Daniel Gerzo's BruteForceBlocker
   - http://danger.rulez.sk/projects/bruteforceblocker/blist.php
   - "^(\\A)"
   - hour: 4
     minute: 52
-- - urlvir
-  - URL Vir
-  - http://www.urlvir.com/export-ip-addresses
-  - ""
-  - hour: 6
-    minute: 0
 - - andoniafMiners
   - Andoniaf Miners
   - https://raw.githubusercontent.com/andoniaf/mining-pools-list/master/mining-pools_IP.lst
@@ -65,12 +47,6 @@ iplists:
 - - ciarmy
   - CI Army - BadGuys
   - http://cinsscore.com/list/ci-badguys.txt
-  - ""
-  - hour: 4
-    minute: 50
-- - malc0de
-  - Malc0de
-  - https://malc0de.com/bl/IP_Blacklist.txt
   - ""
   - hour: 4
     minute: 50
@@ -203,18 +179,6 @@ prefixiplists:
   - hour: "0,6,12,18"
     minute: 5
 domainlists:
-- - ransomware
-  - Ransomware (domains)
-  - https://ransomwaretracker.abuse.ch/downloads/RW_DOMBL.txt
-  - ""
-  - hour: 4
-    minute: 50
-- - malwaredomains
-  - malwaredomains.com
-  - http://mirror2.malwaredomains.com/files/domains.txt
-  - "^\\t\\t([^\\s]*)"
-  - hour: 4
-    minute: 55
 - - openphish
   - openphis.com
   - https://openphish.com/feed.txt
