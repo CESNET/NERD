@@ -82,7 +82,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 {% endif %}
 
 {#- ********** Admin box ********** -#}
-{%- if 'admin' in user['groups'] -%}
+{%- if user and 'admin' in user['groups'] -%}
  <div id="admin-box">
   Admin box
   <div id="group-select">
