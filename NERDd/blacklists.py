@@ -14,6 +14,8 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 import ipaddress
 
+# TODO: use only one of logging and vprint, don't mix both
+
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 
@@ -21,14 +23,16 @@ from common.utils import parse_rfc_time
 import common.config
 import common.task_queue
 
-# script global variables
-running_flag = True  # read_dir function terminates when this is set to False
+scheduler = None
 
 LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
 LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
 logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
 
-log = logging.getLogger('Blacklists:')
+log = logging.getLogger('Blacklists')
+
+# set higher logging level for apscheduler messages
+logging.getLogger('apscheduler.scheduler').setLevel('WARNING')
 
 # dictionary of supported blacklist types
 # 'singular' and 'plural' is just for correct printing purposes
@@ -96,13 +100,10 @@ def parse_blacklist(bl_data, bl_type, regex=None):
     """
     Parses downloaded blacklist to the list of individual blacklist records
     :param bl_data: Blacklist data, which will be parsed
-    :param bl_type: Type of blacklist (ip|prefixIP|domain)
+    :param bl_type: Type of blacklist (ip|prefixIP|domain) - currently not used
     :param regex: Regular expression, which may be used for parsing records
-    :return: List of individual blacklist records and length of blacklist (len of prefixIP blacklist needs to be
-        calculated before collapsing range)
+    :return: List of individual blacklist records
     """
-    bl_records = []
-    prefix_bl_length = 0
     if regex:
         cregex = compile_regex(regex)
         bl_records = parse_bl_with_regex(bl_data, cregex)
@@ -155,30 +156,17 @@ def get_blacklist(id, name, url, regex, bl_type, params):
     data = download_blacklist(url, params)
     bl_records = parse_blacklist(data, bl_type, regex)
 
-    now_plus_3days = datetime.now() + timedelta(days=3)
-    download_time = datetime.now()
+    download_time = datetime.utcnow()
+    now_plus_3days = download_time + timedelta(days=3)
+
+    vprint("{} IPs found, sending tasks to NERD workers".format(len(bl_records)))
 
     for ip in bl_records:
         task_queue_writer.put_task('ip', ip, [
             ('setmax', '_ttl.bl', now_plus_3days),
-            ('array_upsert', 'bl', {'n': id}, [('set', 'v', 1), ('set', 't',
-                                                                 download_time), ('append', 'h', download_time)])
+            ('array_upsert', 'bl', {'n': id},
+                [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)])
         ])
-
-
-def process_blacklist(config_path, bl_type):
-    """
-    Process all blacklists from list in file. Then download all blacklists.
-    :param config_path: path to blacklist type settings in configuration file
-    :param bl_type: type of blacklist (ip|prefixIP|domain)
-    :return: None
-    """
-    for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
-        if len(other_params) > 1:
-            print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(
-                config_path, id), file=sys.stderr)
-        other_params = other_params[0] if other_params else {}
-        get_blacklist(id, name, url, regex, bl_type, other_params)
 
 
 def stop(signal, frame):
@@ -186,10 +174,9 @@ def stop(signal, frame):
     Stop receiving events.
     Will be evoked on catching SIGINT signal.
     """
-    global running_flag
-    running_flag = False
     log.info("exiting")
-    scheduler.shutdown()
+    if scheduler is not None and scheduler.running:
+        scheduler.shutdown()
 
 
 
@@ -209,7 +196,10 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--source', metavar="FILE", dest='cfg_file', default='/etc/nerd/blacklists.yml',
                         help='Path to file with blacklists to download (default: /etc/nerd/blacklists.yml)')
     parser.add_argument("-o", "--one-shot", action="store_true",
-                        help="Force download of all blacklists upon start and exit.")
+                        help="Download and process all blacklists immediately after start and exit.")
+    parser.add_argument("--now", action="store_true",
+                        help="Download and process all blacklists immediately after start, then continue with periodic "
+                             "processing as configured.")
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
     parser.add_argument("-q", "--quiet", action="store_true",
                         help="No verbose output (print only errors)")
@@ -232,43 +222,53 @@ if __name__ == "__main__":
 
     # Get number of processes from config
     num_processes = config.get('worker_processes')
-    assert (isinstance(num_processes,
-                       int) and num_processes > 0), "Number of processes ('num_processes' in config) must be" \
-                                                    "a positive integer "
-    # Create main task queue
-    task_queue_writer = common.task_queue.TaskQueueWriter(num_processes, rabbit_config)
-    task_queue_writer.connect()
+    assert (isinstance(num_processes, int) and num_processes > 0),\
+        "Number of processes ('num_processes' in config) must be a positive integer"
 
     # Read config for blacklists
     config = yaml.safe_load(open(args.cfg_file))
 
-    signal.signal(signal.SIGINT, stop)
-    signal.signal(signal.SIGTERM, stop)
+    # Create main task queue
+    task_queue_writer = common.task_queue.TaskQueueWriter(num_processes, rabbit_config)
+    task_queue_writer.connect()
 
-    # IP lists
-    process_blacklist("iplists", "ip")
+    # Only plain IP lists are supported by this module
+    config_path = 'iplists'
+    bl_type = 'ip'
 
+    # Process all blacklists now
+    if args.now or args.one_shot:
+        for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
+            if len(other_params) > 1:
+                print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(
+                    config_path, id), file=sys.stderr)
+            other_params = other_params[0] if other_params else {}
+            assert isinstance(other_params, dict), "The additional parameter must be a dict (in config of {}.{})".format(
+                config_path, id)
+            # Process the blacklist
+            get_blacklist(id, name, url, regex, bl_type, other_params)
+
+    # Schedule periodic processing...
     if not args.one_shot:
         scheduler = BlockingScheduler(timezone='UTC')
 
-    if not args.one_shot:
-        for config_path, bl_type in [('iplists', 'ip')]:
-            # other_params should be empty or a dict containing optional parameters such as 'url_params' or 'headers'
-            for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
-                if len(other_params) > 1:
-                    print(
-                        "WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(
-                            config_path, id), file=sys.stderr)
-                other_params = other_params[0] if other_params else {}
-                trigger = CronTrigger(**refresh_time)
-                job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, other_params),
-                                        trigger=trigger, coalesce=True, max_instances=1)
-                vprint("{} blacklist '{}' scheduled to be downloaded at every: {}".format(
-                    bl_all_types[bl_type]['singular'],
-                    id, refresh_time))
+        # Load config of each blacklist and schedule its processing
+        # (other_params should be empty or a dict containing optional parameters such as 'url_params' or 'headers')
+        for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
+            if len(other_params) > 1 and not args.now: # if args.now, the warning was already printed by the code above
+                print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(
+                      config_path, id), file=sys.stderr)
+            other_params = other_params[0] if other_params else {}
 
-    if not args.one_shot:
+            trigger = CronTrigger(**refresh_time)
+            job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, other_params),
+                                    trigger=trigger, coalesce=True, max_instances=1)
+            vprint("{} blacklist '{}' scheduled to be downloaded at every: {}".format(
+                   bl_all_types[bl_type]['singular'], id, refresh_time))
+
         vprint("Starting scheduler to periodically update the blacklists ...")
+        signal.signal(signal.SIGINT, stop)
+        signal.signal(signal.SIGTERM, stop)
         scheduler.start()
 
     vprint("All work done, exiting")
