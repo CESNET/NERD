@@ -114,153 +114,185 @@ iplists:
 - - turris_greylist
   - Turris by CZ.NIC greylist
   - https://view.sentinel.turris.cz/greylist-data/greylist-latest.csv
-  - "^([0-9]*.[0-9]*.[0-9]*.[0-9]*),(.*?)$"
+  - "^(\\A)"
+# The time of updating the list was viewed here: https://view.sentinel.turris.cz/greylist-data/
   - hour: 23
   - minute: 15
 - - threat_sourcing_ips
   - Threat Sourcing IPs
   - https://www.threatsourcing.com/ipall-free.txt
   - ""
-  - hour: "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23"
+# The time of updating the list was viewed here: https://www.threatsourcing.com/
+  - hour: "*/4"
   - minute: 10
 - - mirai_tracker_ips
   - Mirai tracker IPs
   - https://mirai.security.gives/data/ip_list.txt
   - ""
-  - hour: 8
-  - minute: 20
+# The time of updating the list was viewed in the file: https://mirai.security.gives/data/ip_list.txt
+  - hour: 1
+  - minute: 40
 - - threatfox_ips
   - ThreatFox by abuse.ch IPs
   - https://threatfox.abuse.ch/export/csv/ip-port/recent/
   - ".*?(\\A)"
-  - hour: 6
-  - minute: 15
+# The time of updating the list was viewed here: https://threatfox.abuse.ch/export/
+  - hour: "*/4"
+  - minute: 10
 - - ssl_blacklist_ips
   - SSL Blacklist by abuse.ch IPs
   - https://sslbl.abuse.ch/blacklist/sslipblacklist.txt
   - ""
-  - hour: 8
-  - minute: 50
+# The time of updating the list was viewed in the file: https://sslbl.abuse.ch/blacklist/sslipblacklist.txt 
+  - hour: 19
+  - minute: 30
 - - urlhouse_ips
   - URLHouse by abuse.ch IPs
   - https://urlhaus.abuse.ch/downloads/text_online/
   - ".*?(\\A)"
-  - hour: 8
-  - minute: 15
+# The time of updating the list was viewed here: https://urlhaus.abuse.ch/api/
+  - hour: "*/4"
+  - minute: 10
 - - blacklists_co_ssh
   - Blacklists.co SSH
   - http://blacklists.co/download/ssh.txt
   - ""
-  - hour: 8
+# The time of updating the list was viewed in the file: http://blacklists.co/download/ssh.txt 
+  - hour: 7
   - minute: 5
 - - blacklists_co_www
   - Blacklists.co WWW
   - http://blacklists.co/download/www.txt
   - "" 
-  - hour: 8
+# The time of updating the list was viewed in the file: http://blacklists.co/download/www.txt
+  - hour: 7
   - minute: 5
 - - blacklists_co_email
   - Blacklists.co EMAIL
   - http://blacklists.co/download/email.txt
-  - "" 
-  - hour: 8
+  - ""
+# The time of updating the list was viewed in the file: http://blacklists.co/download/email.txt  
+  - hour: 7
   - minute: 5
 - - blacklists_co_mssql
   - Blacklists.co MSSQL
   - http://blacklists.co/download/mssql.txt
   - ""
-  - hour: 8
+# The time of updating the list was viewed in the file: http://blacklists.co/download/mssql.txt 
+  - hour: 7
   - minute: 5
 - - blacklists_co_mysql
   - Blacklists.co MYSQL
   - http://blacklists.co/download/mysql.txt
   - "" 
-  - hour: 8
+# The time of updating the list was viewed in the file: http://blacklists.co/download/mysql.txt 
+  - hour: 7
   - minute: 5
 - - blacklists_co_rdp
   - Blacklists.co RDP
   - http://blacklists.co/download/rdp.txt
-  - "" 
-  - hour: 8
+  - ""
+# The time of updating the list was viewed in the file: http://blacklists.co/download/rdp.txt 
+  - hour: 7
   - minute: 5
 - - blacklists_co_sip
   - Blacklists.co SIP
   - http://blacklists.co/download/sip.txt
   - "" 
-  - hour: 8
+# The time of updating the list was viewed in the file: http://blacklists.co/download/sip.txt 
+  - hour: 7
   - minute: 5
 - - tor_project_org_ips
   - TorProject.org IPs
   - https://check.torproject.org/torbulkexitlist
   - ""
-  - hour: 8 
-  - minute: 5 
+# The time of updating the list was not found 
+  - hour: "*/4"
+  - minute: 10 
 - - dan_me_uk_ips
   - dan.me.uk TOR Node List IPs
   - https://www.dan.me.uk/torlist/
   - ""
-  - hour: 8
-  - minute: 5
+# The time of updating the list was viewed here: https://www.dan.me.uk/tornodes
+  - hour: "*/4"
+  - minute: 10
 - - dataplane_org_sshclient
   - DataPlane.org SSH
   - https://dataplane.org/sshclient.txt
   - ".*?(\\A)"
-  - hour: 10
+# The time of updating the list was viewed here: https://dataplane.org/
+  - hour: "*/4"
   - minute: 10
 - - dataplane_org_sshpwauth
   - DataPlane.org SSH
   - https://dataplane.org/sshpwauth.txt
   - ".*?(\\A)"
-  - hour: 10
+# The time of updating the list was viewed here: https://dataplane.org/
+  - hour: "*/4"
   - minute: 10
 - - dataplane_org_vnc_rfb
   - DataPlane.org VNC RFB
   - https://dataplane.org/vncrfb.txt
   - ".*?(\\A)"
-  - hour: 10
+# The time of updating the list was viewed here: https://dataplane.org/
+  - hour: "*/4"
   - minute: 10
 - - dataplane_org_telnet_login
   - DataPlane.org TELNET login
   - https://dataplane.org/telnetlogin.txt
   - ".*?(\\A)"
-  - hour: 10
+# The time of updating the list was viewed here: https://dataplane.org/
+  - hour: "*/4"
   - minute: 10
 - - dataplane_org_smtp_greet
   - DataPlane.org SMTP greeting
   - https://dataplane.org/smtpgreet.txt
   - ".*?(\\A)"
-  - hour: 10
+# The time of updating the list was viewed here: https://dataplane.org/
+  - hour: "*/4"
   - minute: 10
 - - dataplane_org_smtp_data
   - DataPlane.org SMTP data
   - https://dataplane.org/smtpdata.txt
   - ".*?(\\A)"
-  - hour: 10
+# The time of updating the list was viewed here: https://dataplane.org/
+  - hour: "*/4"
   - minute: 10
 - - dataplane_org_proto41
   - DataPlane.org IP protocol-41 
   - https://dataplane.org/proto41.txt
   - ".*?(\\A)"
-  - hour: 10
+# The time of updating the list was viewed here: https://dataplane.org/
+  - hour: "*/4"
   - minute: 10
 - - dataplane_org_sipinvitation
   - DataPlane.org SIP invitation 
   - https://dataplane.org/sipinvitation.txt
   - ".*?(\\A)"
-  - hour: 10
+# The time of updating the list was viewed here: https://dataplane.org/
+  - hour: "*/4"
   - minute: 10
 - - dataplane_org_sipquery
   - DataPlane.org SIP query
   - https://dataplane.org/sipquery.txt
   - ".*?(\\A)"
-  - hour: 10
+# The time of updating the list was viewed here: https://dataplane.org/
+  - hour: "*/4"
   - minute: 10
 - - dataplane_org_sipregistration
   - DataPlane.org SIP registration
   - https://dataplane.org/sipregistration.txt
   - ".*?(\\A)"
-  - hour: 10
+# The time of updating the list was viewed here: https://dataplane.org/
+  - hour: "*/4"
   - minute: 10
+- - krisk_intel_ips
+  - KRISK INTEL IPs
+  - https://kriskintel.com/feeds/ktip_malicious_Ips.txt
+  - ""
+# The time of updating the list was viewed in the file: https://kriskintel.com/feeds/ktip_malicious_Ips.txt
+  - hour: 7
+  - minute: 0 
 
 # Lists from FireHOL
 - - firehol_anonymous
@@ -310,6 +342,13 @@ iplists:
 # then start of IP network should be caught as group 1 in regex and end of IP network should be caught as group 2
 # (without regex, CIDR format is assumed)
 prefixiplists:
+- - botscout_7d
+  - BotScout.com
+  - https://iplists.firehol.org/files/botscout_7d.ipset
+  - ""
+# The time of updating the list was viewed here: https://iplists.firehol.org/?ipset=botscout_7d
+  - hour: "*/4"
+  - minute: 10
 - - dshield
   - DShield.org Recommended Block List
   - https://www.dshield.org/block.txt
@@ -329,6 +368,13 @@ prefixiplists:
   - hour: "0,6,12,18"
     minute: 5
 domainlists:
+- - krisk_intel_domains
+  - KRISK INTEL domains
+  - https://kriskintel.com/feeds/ktip_malicious_domains.txt
+  - ""
+# The time of updating the list was viewed in the file: https://kriskintel.com/feeds/ktip_malicious_domains.txt
+  - hour: 7
+  - minute: 0
 - - openphish
   - openphis.com
   - https://openphish.com/feed.txt
