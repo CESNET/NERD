@@ -9,7 +9,39 @@ echob "=============== Install basic dependencies ==============="
 echob "** Installing basic RPM packages **"
 yum install -y -q https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 yum install -y -q git wget gcc vim python36 python36-devel python36-setuptools
+yum install -y -q centos-release-scl # needed to get llvm-toolset-7-clang, a dependency of postgresql11-devel
 
+
+echob "** Installing PostgreSQL **"
+if ! yum list installed postgresql11-server >/dev/null 2>&1 ; then
+  yum install -y -q https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+  yum install -y -q postgresql11-server postgresql11-devel
+fi
+
+export PATH="$PATH:/usr/pgsql-11/bin/"
+
+# Initialize database (creates DB files in /var/lib/pgsql/11/data/)
+if ! [ -e /var/lib/pgsql/11/data/PG_VERSION ] ; then
+  /usr/pgsql-11/bin/postgresql-11-setup initdb
+fi
+
+# Non-default DB path:
+# mkdir -p /data/pgsql
+# chown -R postgres /data/pgsql
+# sudo -u postgres /usr/pgsql-11/bin/initdb -D /data/pgsql
+# sed -i "s,PGDATA=.*$,PGDATA=/data/pgsql," /lib/systemd/system/postgresql-11.service
+
+# Edit /db/pgsql/pg_hba.conf to trust all local connections
+# It allows to use "psql -U user" instead of "sudo -u USER psql"
+# and it allows easier connection from web server
+sed -i -E '/^local|127\.0\.0\.1\/32|::1\/128/ s/[^ ]+$/trust/' /var/lib/pgsql/11/data/pg_hba.conf
+
+# Start PostgreSQL
+systemctl enable postgresql-11.service
+systemctl restart postgresql-11.service
+
+
+# Note: Installation of Python packages must be after installation of postgresql11-devel, since psycopg2 package is compiled from source and needs it.
 echob "** Installing pip **"
 easy_install-3.6 --prefix /usr pip
 # for some reason, this creates file /usr/bin/pip3.7 instead of pip3.6 (but everything works OK)
@@ -132,40 +164,10 @@ if ! [ -f /usr/bin/rabbitmqadmin ] ; then
 fi
 
 
-
 echob "** Installing Supervisor **"
 pip -q install "supervisor==4.*"
 ln -s /usr/local/bin/supervisord /usr/bin/supervisord
 ln -s /usr/local/bin/supervisorctl /usr/bin/supervisorctl
-
-
-echob "** Installing PostgreSQL **"
-if ! yum list installed postgresql11-server >/dev/null 2>&1 ; then
-  yum install -y -q https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-  # There are some unsatisfiable dependensies, but it works well without them,
-  # so "--skip-broken" is used to ignore the errors
-  yum install -y -q postgresql11-server postgresql11-devel --skip-broken
-fi
-
-# Initialize database (creates DB files in /var/lib/pgsql/11/data/)
-if ! [ -e /var/lib/pgsql/11/data/PG_VERSION ] ; then
-  /usr/pgsql-11/bin/postgresql-11-setup initdb
-fi
-
-# Non-default DB path:
-# mkdir -p /data/pgsql
-# chown -R postgres /data/pgsql
-# sudo -u postgres /usr/pgsql-11/bin/initdb -D /data/pgsql
-# sed -i "s,PGDATA=.*$,PGDATA=/data/pgsql," /lib/systemd/system/postgresql-11.service
-
-# Edit /db/pgsql/pg_hba.conf to trust all local connections
-# It allows to use "psql -U user" instead of "sudo -u USER psql"
-# and it allows easier connection from web server
-sed -i -E '/^local|127\.0\.0\.1\/32|::1\/128/ s/[^ ]+$/trust/' /var/lib/pgsql/11/data/pg_hba.conf
-
-# Start PostgreSQL
-systemctl enable postgresql-11.service
-systemctl restart postgresql-11.service
 
 
 echob "** All main dependencies installed **"
