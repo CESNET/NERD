@@ -5,10 +5,13 @@ After=network.target mongod.service redis.service rabbitmq-server.service named.
 
 [Service]
 Type=forking
+User=nerd
+Group=nerd
+RuntimeDirectory=nerd
+RuntimeDirectoryMode=775
 ExecStart=/usr/bin/supervisord -c /etc/nerd/supervisord.conf
 ExecReload=/usr/bin/supervisorctl -c /etc/nerd/supervisord.conf reread
 ExecStop=/usr/bin/supervisorctl -c /etc/nerd/supervisord.conf shutdown
-User=nerd
 
 [Install]
 WantedBy=multi-user.target

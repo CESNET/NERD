@@ -31,10 +31,10 @@ mkdir -p /var/log/nerd
 chown -R nerd:nerd /var/log/nerd/
 chmod -R 775 /var/log/nerd
 
-# Run directory
-mkdir -p /var/run/nerd
-chown -R nerd:nerd /var/run/nerd/
-chmod -R 775 /var/run/nerd
+# Run directory - not needed, is created automatically by systemd thanks to RuntimeDirectory in nerd-supervisor.service
+#mkdir -p /var/run/nerd
+#chown -R nerd:nerd /var/run/nerd/
+#chmod -R 775 /var/run/nerd
 
 # Data directory
 mkdir -p /data
