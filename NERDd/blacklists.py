@@ -14,7 +14,6 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 import ipaddress
 
-# TODO: use only one of logging and vprint, don't mix both
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -25,8 +24,8 @@ import common.task_queue
 
 scheduler = None
 
-LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
-LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
+LOGFORMAT = " %(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
+LOGDATEFORMAT = "%Y-%m-%d %H:%M:%S"
 logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
 
 log = logging.getLogger('Blacklists')
@@ -42,13 +41,6 @@ bl_all_types = {
 
 
 ###############################################################################
-
-def vprint(*_args, **kwargs):
-    # Verbose print
-    if not args.quiet:
-        print("[{}] ".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), end="")
-        print(*_args, **kwargs)
-
 
 def compile_regex(regex):
     if "\\A" in regex:
@@ -152,14 +144,14 @@ def get_blacklist(id, name, url, regex, bl_type, params):
     :return:
     """
 
-    vprint("Getting {} blacklist '{}' from '{}'".format(bl_all_types[bl_type]['singular'], id, url))
+    log.info("Getting {} blacklist '{}' from '{}'".format(bl_all_types[bl_type]['singular'], id, url))
     data = download_blacklist(url, params)
     bl_records = parse_blacklist(data, bl_type, regex)
 
     download_time = datetime.utcnow()
     now_plus_3days = download_time + timedelta(days=3)
 
-    vprint("{} IPs found, sending tasks to NERD workers".format(len(bl_records)))
+    log.info("{} IPs found, sending tasks to NERD workers".format(len(bl_records)))
 
     for ip in bl_records:
         task_queue_writer.put_task('ip', ip, [
@@ -263,12 +255,13 @@ if __name__ == "__main__":
             trigger = CronTrigger(**refresh_time)
             job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, other_params),
                                     trigger=trigger, coalesce=True, max_instances=1)
-            vprint("{} blacklist '{}' scheduled to be downloaded at every: {}".format(
+
+            log.info("{} blacklist '{}' scheduled to be downloaded at every: {}".format(
                    bl_all_types[bl_type]['singular'], id, refresh_time))
 
-        vprint("Starting scheduler to periodically update the blacklists ...")
+        log.info("Starting scheduler to periodically update the blacklists ...")
         signal.signal(signal.SIGINT, stop)
         signal.signal(signal.SIGTERM, stop)
         scheduler.start()
 
-    vprint("All work done, exiting")
+    log.info("All work done, exiting")
