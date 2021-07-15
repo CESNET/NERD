@@ -53,7 +53,26 @@ class RateLimiter:
 
     def get_tokens(self, id):
         """Get the current number of tokens available for the given user"""
-        return self._check_and_set_tokens(id, cost=0, wait=False)[1]
+        # Get user's rate-limit params
+        bs,tps = self.get_user_params(id)
+        if tps == INF:
+            return bs
+
+        current_time = time.time()
+        # Read count and last update time from Redis
+        # (do it in transaction, so both values are read at the same time)
+        with self.redis.pipeline() as pipe:
+            pipe.multi()
+            pipe.get(id+':c')
+            pipe.get(id+':t')
+            r_count, r_time = pipe.execute()
+        # Compute current number of tokens
+        if r_count is None or r_time is None:
+            # If no record is found, no query has been made recently - bucket is full
+            return bs
+        else:
+            # Otherwise, add tokens_per_sec * time_from_last_update to the bucket
+            return min(float(r_count) + (current_time - float(r_time)) * tps, bs)
 
     def try_request(self, id, cost=1, wait=False):
         """
@@ -109,12 +128,13 @@ class RateLimiter:
         # Token-bucket algorithm
         current_time = time.time()
         while True:
-            try:
+            with self.redis.pipeline() as pipe:
                 # Watch id:c and id:t for changes by someone else
-                self.redis.watch(key_c, key_t)
+                #print("watch:", key_c, key_t)
+                pipe.watch(key_c, key_t)
                 # Read count and last update time from Redis
-                r_count = self.redis.get(key_c)
-                r_time = self.redis.get(key_t)
+                r_count = pipe.get(key_c)
+                r_time = pipe.get(key_t)
                 # Compute current number of tokens
                 if r_count is None or r_time is None:
                     # If no record is found, no query has been made recently - bucket is full
@@ -129,7 +149,7 @@ class RateLimiter:
                 else:
                     result = False
                 # Set new number of tokens (in transaction)
-                pipe = self.redis.pipeline()
+                pipe.multi()
                 pipe.set(key_c, tokens)
                 pipe.set(key_t, current_time)
                 # Set expiration (keys should expire when the bucket would be filled,
@@ -138,10 +158,16 @@ class RateLimiter:
                 ttl = int(ttl) + 1 # Round up (it's not a problem if it expire later)
                 pipe.expire(key_c, ttl)
                 pipe.expire(key_t, ttl)
-                pipe.execute()
-                break
-            except redis.WatchError:
-                continue # If someone modified the number of tokens, try again
+                #print("sleep 5")
+                #time.sleep(5)
+                try:
+                    #print("execute")
+                    pipe.execute()
+                    #print("ok")
+                    break
+                except redis.WatchError:
+                    #print("watch error")
+                    continue # Someone else modified the number of tokens, try again
         #print("[RateLimiter] ID: {}, tokens: {}, tps: {}, result: {}".format(id, tokens, tps, result))
         return result, tokens
 
