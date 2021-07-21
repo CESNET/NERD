@@ -74,7 +74,7 @@ class RateLimiter:
             # Otherwise, add tokens_per_sec * time_from_last_update to the bucket
             return min(float(r_count) + (current_time - float(r_time)) * tps, bs)
 
-    def try_request(self, id, cost=1, wait=False):
+    def try_request(self, id, cost=1, wait=True):
         """
         Check if request can be made, return True or False.
         
@@ -109,7 +109,7 @@ class RateLimiter:
             pipe.execute()
         return float(bs), float(tps)
 
-    def _check_and_set_tokens(self, id, cost=1, wait=False):
+    def _check_and_set_tokens(self, id, cost=1, wait=True):
         """
         Same as try_request, but also return remaining tokens.
         
@@ -131,7 +131,6 @@ class RateLimiter:
         while True:
             with self.redis.pipeline() as pipe:
                 # Watch id:c and id:t for changes by someone else
-                #print("watch:", key_c, key_t)
                 pipe.watch(key_c, key_t)
                 # Read count and last update time from Redis
                 r_count = pipe.get(key_c)
@@ -149,9 +148,9 @@ class RateLimiter:
                     # from the tokens, result is True
                     tokens -= cost
                     result = True
-                elif tokens < cost and tokens >= 0:
+                elif tokens < cost and tokens >= 0 and wait:
                     # If the number of tokens is less than cost and greater than or equal to zero,
-                    # substract the cost from the tokens, wait is True
+                    # and wait is True, substract the cost from the tokens, wait is True
                     tokens -= cost
                     do_wait = True
                 else:
@@ -168,14 +167,9 @@ class RateLimiter:
                 ttl = int(ttl) + 1 # Round up (it's not a problem if it expire later)
                 pipe.expire(key_c, ttl)
                 pipe.expire(key_t, ttl)
-                #print("sleep 5")
-                #time.sleep(5)
                 try:
-                    #print("execute")
                     pipe.execute()
-                    #print("ok")
                 except redis.WatchError:
-                    #print("watch error")
                     continue # Someone else modified the number of tokens, try again
                 if do_wait:
                     # If wait is True, then will sleep until the number of tokens becomes
@@ -183,7 +177,6 @@ class RateLimiter:
                     time.sleep(-tokens/tps)
                     result = True
                 break
-        #print("[RateLimiter] ID: {}, tokens: {}, tps: {}, result: {}".format(id, tokens, tps, result))
         return result, tokens
 
 # Simple non-automated unit test
