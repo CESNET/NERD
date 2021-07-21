@@ -127,6 +127,7 @@ class RateLimiter:
         
         # Token-bucket algorithm
         current_time = time.time()
+        do_wait = False
         while True:
             with self.redis.pipeline() as pipe:
                 # Watch id:c and id:t for changes by someone else
@@ -152,7 +153,7 @@ class RateLimiter:
                     # If the number of tokens is less than cost and greater than or equal to zero,
                     # substract the cost from the tokens, wait is True
                     tokens -= cost
-                    wait = True
+                    do_wait = True
                 else:
                     # Otherwise, the number of tokens is a negative number, which means that 
                     # one process is waiting 
@@ -169,20 +170,19 @@ class RateLimiter:
                 pipe.expire(key_t, ttl)
                 #print("sleep 5")
                 #time.sleep(5)
-                if wait:
-                    # If wait is True, then will sleep until the number of tokens becomes
-                    # greater than or equal to zero
-                    wait = False
-                    time.sleep(-tokens/tps)
-                    result = True
                 try:
                     #print("execute")
                     pipe.execute()
                     #print("ok")
-                    break
                 except redis.WatchError:
                     #print("watch error")
                     continue # Someone else modified the number of tokens, try again
+                if do_wait:
+                    # If wait is True, then will sleep until the number of tokens becomes
+                    # greater than or equal to zero
+                    time.sleep(-tokens/tps)
+                    result = True
+                break
         #print("[RateLimiter] ID: {}, tokens: {}, tps: {}, result: {}".format(id, tokens, tps, result))
         return result, tokens
 
