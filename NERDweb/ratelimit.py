@@ -144,10 +144,19 @@ class RateLimiter:
                     tokens = min(float(r_count) + (current_time - float(r_time)) * tps, bs)
                 # Try to consume tokens
                 if tokens >= cost:
+                    # If the number of tokens is greater than the cost, substract the cost
+                    # from the tokens, result is True
                     tokens -= cost
                     result = True
+                elif tokens < cost and tokens >= 0:
+                    # If the number of tokens is less than cost and greater than or equal to zero,
+                    # substract the cost from the tokens, wait is True
+                    tokens -= cost
+                    wait = True
                 else:
-                    result = False
+                    # Otherwise, the number of tokens is a negative number, which means that 
+                    # one process is waiting 
+                    return False, tokens
                 # Set new number of tokens (in transaction)
                 pipe.multi()
                 pipe.set(key_c, tokens)
@@ -160,6 +169,12 @@ class RateLimiter:
                 pipe.expire(key_t, ttl)
                 #print("sleep 5")
                 #time.sleep(5)
+                if wait:
+                    # If wait is True, then will sleep until the number of tokens becomes
+                    # greater than or equal to zero
+                    wait = False
+                    time.sleep(-tokens/tps)
+                    result = True
                 try:
                     #print("execute")
                     pipe.execute()
