@@ -28,6 +28,7 @@ LIMITS_CACHE_EXPIRE = 60
 INF = float('inf')
 
 class RateLimiter:
+    # TODO: Add global "wait" parameter here (and wait_on_failure), use as default for "wait" param in try_request()
     def __init__(self, config, get_user_limits=lambda id: None):
         """
         Initialize RateLimiter.
@@ -100,7 +101,7 @@ class RateLimiter:
         if bs is None or tps is None:
             # Nothing cached, load user-specific params or use defaults
             bs, tps = self.get_user_limits(id) or (self.def_bucket_size, self.def_tokens_per_sec)
-            # Sotre params to cache
+            # Store params to cache
             pipe = self.redis.pipeline()
             pipe.set(key_bs, bs)
             pipe.set(key_tps, tps)
@@ -135,6 +136,7 @@ class RateLimiter:
                 # Read count and last update time from Redis
                 r_count = pipe.get(key_c)
                 r_time = pipe.get(key_t)
+
                 # Compute current number of tokens
                 if r_count is None or r_time is None:
                     # If no record is found, no query has been made recently - bucket is full
@@ -142,21 +144,25 @@ class RateLimiter:
                 else:
                     # Otherwise, add tokens_per_sec * time_from_last_update to the bucket
                     tokens = min(float(r_count) + (current_time - float(r_time)) * tps, bs)
+
                 # Try to consume tokens
                 if tokens >= cost:
                     # If the number of tokens is greater than the cost, substract the cost
                     # from the tokens, result is True
                     tokens -= cost
                     result = True
-                elif tokens < cost and tokens >= 0 and wait:
+                elif wait and tokens < cost and tokens >= 0:
                     # If the number of tokens is less than cost and greater than or equal to zero,
-                    # and wait is True, substract the cost from the tokens, wait is True
+                    # and wait is True, subtract the cost from the tokens and enable waiting
                     tokens -= cost
                     do_wait = True
                 else:
-                    # Otherwise, the number of tokens is a negative number, which means that 
-                    # one process is waiting 
+                    # Otherwise, either there is not enough tokens and wait is False, or the number of tokens is
+                    # negative, which means that one process is already waiting -> failure (rate limit exceeded)
+                    if wait:
+                        time.sleep(1) # sleep 1 sec before returning failure to slow down requests
                     return False, tokens
+
                 # Set new number of tokens (in transaction)
                 pipe.multi()
                 pipe.set(key_c, tokens)
@@ -171,9 +177,9 @@ class RateLimiter:
                     pipe.execute()
                 except redis.WatchError:
                     continue # Someone else modified the number of tokens, try again
+
+                # If do_wait is True, sleep until the number of tokens becomes greater than or equal to zero
                 if do_wait:
-                    # If wait is True, then will sleep until the number of tokens becomes
-                    # greater than or equal to zero
                     time.sleep(-tokens/tps)
                     result = True
                 break
