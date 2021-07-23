@@ -14,32 +14,53 @@
   {%- if field.errors %} <span class="error">{{ ', '.join(field.errors) }}</span>{% endif %}
 {%- endmacro %}
 
-<form method="GET" action="{{ url_for('ips') }}">
-  {# form.csrf_token #}
-  {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
-  {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
-  {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
-  {{ formfield(form.asn, size=7) }}
-  <br>
-  {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
-  {%- if ac('nodenames') %}
-  &nbsp; &amp; &nbsp;
-  {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
-  {% endif %}
-  <br>
-  {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
-  {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
-  {{ formfield(form.tag_conf, size=1)}}
-  <br>
-  {{ formfield(form.sortby) }}
-  {{ formfield(form.asc) }}<br>
-  {{ formfield(form.limit, size=10) }}<br>
-  <input type="submit">
-</form>
-<script>set_up_search_form();</script>
+
+    <div class="tabContainer">
+        <div class="buttonContainer">
+            <button onclick="changeTab(0,'#0061a2')">Specified IP Search</button>
+            <button onclick="changeTab(1,'#0061a2')">Multiple IP Search</button>
+        </div>
+        <div class="tabPanel">
+            <form method="GET"  action="{{ url_for('ips') }}">
+                {#   form.csrf_token#}
+                {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
+                {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
+                {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
+                {{ formfield(form.asn, size=7) }}
+                <br>
+                {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
+                {%- if ac('nodenames') %}
+                    &nbsp; &amp; &nbsp;
+                    {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
+                {% endif %}
+                <br>
+                {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+                {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
+                {{ formfield(form.tag_conf, size=1)}}
+                <br>
+                {{ formfield(form.sortby) }}
+                {{ formfield(form.asc) }}<br>
+                {{ formfield(form.limit, size=10) }}<br>
+                <input type="submit">
+            </form>
+        </div>
+
+        <div class="tabPanel">
+            <form method="GET"  action="{{ url_for('ips') }}">
+                {{ formfield(form.ip_list) }}
+                <button type="button" onclick="parser()">Parse IPs</button>
+                <br>
+                {{ formfield(form.sortby) }}
+                {{ formfield(form.asc) }}<br>
+                <br>
+                <input type="submit" onclick="parser()">
+            </form>
+        </div>
+        <script>set_up_search_form();</script>
+    </div>
+<script src="{{ url_for('static', filename='search_options.js') }}"></script>
 
 {% if results %}
-
 <!-- hidden form to allow links to blacklist check at whatismyipaddress.com -->
 <form id="bl-check-form" action="https://whatismyipaddress.com/blacklist-check" method="POST" target="_blank">
 <input type="hidden" id="bl-check-form-ip" name="LOOKUPADDRESS" value="">
@@ -88,7 +109,7 @@
 <td class="country">
   {% if 'geo' in ip and 'ctry' in ip.geo %}
   <a href="http://country.io/{{ip.geo.ctry|lower}}/">
-  <span title="{{ctrydata.names.get(ip.geo.ctry, '?')}}, 
+  <span title="{{ctrydata.names.get(ip.geo.ctry, '?')}},
                  {{ctrydata.continent_names.get(ctrydata.continent.get(ip.geo.ctry, '?'), '?')}}
                  ({{ip.geo.ctry}}/{{ctrydata.iso3.get(ip.geo.ctry, '?')}})">
     <span class="flag flag-{{ip.geo.ctry|lower}}"></span>{{ip.geo.ctry}}
@@ -161,7 +182,7 @@
         </span>
       {% endif %}
     {% endfor %}
-  {% endif %} 
+  {% endif %}
 
   {% if ip.bl %}
   {% for bl_entry in ip.bl -%}

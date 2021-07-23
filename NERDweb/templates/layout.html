@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+
 {% macro rep_css_color(rep) %}
 hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70%'}})
 {% endmacro -%}
@@ -11,8 +13,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
    opacity: {{ 0.5 + conf / 2.0 }};
  {%- endif %}
 {%- endmacro %}
-{#- **************************************** -#}
-<!doctype html>
+
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -29,7 +30,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
   <!-- local stylesheets -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='flags.css') }}">
-  
+
   <!-- local scripts -->
   <script>
   var ROOT = "{{ url_for('main') }}";
@@ -63,11 +64,11 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 <div style="display: none">
 <table>
 <tr><td>Records in DB:</td><td></td>
-<tr><td><span style="margin-left: 1em">IP</td><td><span id="status-cnt-ip">??</span></td></tr>
-<tr><td><span style="margin-left: 1em">BGP prefix</td><td><span id="status-cnt-bgppref">??</span></td></tr>
-<tr><td><span style="margin-left: 1em">ASN</td><td><span id="status-cnt-asn">??</span></td></tr>
-<tr><td><span style="margin-left: 1em">IP block</td><td><span id="status-cnt-ipblock">??</span></td></tr>
-<tr><td><span style="margin-left: 1em">Organization</td><td><span id="status-cnt-org">??</span></td></tr>
+    <tr><td><span style="margin-left: 1em">IP</span></td><td><span id="status-cnt-ip">??</span></td></tr>
+    <tr><td><span style="margin-left: 1em">BGP prefix</span></td><td><span id="status-cnt-bgppref">??</span></td></tr>
+    <tr><td><span style="margin-left: 1em">ASN</span></td><td><span id="status-cnt-asn">??</span></td></tr>
+    <tr><td><span style="margin-left: 1em">IP block</span></td><td><span id="status-cnt-ipblock">??</span></td></tr>
+    <tr><td><span style="margin-left: 1em">Organization</span></td><td><span id="status-cnt-org">??</span></td></tr>
 </table>
 <table><tr><td>Data disk usage:</td><td><span id="status-disk-usage">??</span></td></tr></table>
 <table>
@@ -82,7 +83,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 {% endif %}
 
 {#- ********** Admin box ********** -#}
-{%- if 'admin' in user['groups'] -%}
+{%- if user and 'admin' in user['groups'] -%}
  <div id="admin-box">
   Admin box
   <div id="group-select">
