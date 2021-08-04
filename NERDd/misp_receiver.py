@@ -15,6 +15,7 @@ import argparse
 import os
 import re
 from datetime import timedelta, datetime
+import threading
 
 
 from pymisp import ExpandedPyMISP
@@ -28,6 +29,7 @@ from common.task_queue import TaskQueueWriter
 from common.utils import int2ipstr
 
 running_flag = True
+zmq_alive = False
 
 LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
 LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
@@ -430,6 +432,31 @@ def process_new_attribute(json_message):
             attrib_add_or_edit(attrib_value, event_id, attrib_id)
 
 
+def check_zmq_connection(init: bool = False) -> None:
+    """
+    Every 15 seconds the Timer is set to check if some notification from ZMQ channel was received, because every
+    10 seconds should arrive at least one keep-alive message. If it does not arrive, something is wrong, so
+    log an error (or exit the program if the first connection does not work).
+    :param init: set to True, when the Timer and ZMQ channel is initialized, to exit program when connection is not
+                 successful
+    :return: None
+    """
+    global zmq_alive
+    if init:
+        if not zmq_alive:
+            logger.error("Cannot connect to MISP's ZMQ notification channel! The module will be stopped!")
+            sys.exit(2)
+    else:
+        if not zmq_alive:
+            logger.error("Cannot connect to MISP's ZMQ notification channel!")
+        else:
+            logger.debug("MISP's ZMQ notification channel is alive!")
+    # and set health check Timer again
+    zmq_alive = False
+    zmq_availability_timer = threading.Timer(15, check_zmq_connection)
+    zmq_availability_timer.start()
+
+
 def receive_events():
     """
     Connect to MISP's ZeroMQ and listen for MISP's changes and react on them
@@ -442,18 +469,21 @@ def receive_events():
     socket.connect(misp_zmq_url)
     socket.setsockopt(zmq.SUBSCRIBE, b'')
 
+    # init periodical connection health check
+    zmq_availability_timer = threading.Timer(15, check_zmq_connection, (True, ))
+    zmq_availability_timer.start()
+    global zmq_alive
+
     while running_flag:
-        # wait for new message (using nonblocking receive and sleep allows to
-        # the exit program gracefully even if no message arrives)
         try:
-            message = socket.recv(flags=zmq.NOBLOCK)
+            message = socket.recv()
+            zmq_alive = True
         except zmq.ZMQError:
             time.sleep(2)
             continue
 
         message = message.decode("utf-8")
         logger.debug("Message received:\n" + message)
-        # save json part of the message
         # message starts with its category (misp_json_audit, misp_json_event ...) followed by dictionary of message data
         # whole message looks like:
         # "misp_json_audit {'Log': { 'model_id': "5822",
@@ -463,44 +493,42 @@ def receive_events():
         #                            'xxx': "yyy",
         #                            ...... },
         #                   'action': "log"}
-        # so split message on '{' with the second parameter 1, which will give: "Log": {....}, 'action': "log"} so the
-        # starting bracket has to be added.
-        json_message = json.loads("{" + message.split("{", 1)[1])
+        notification_prefix, _, notification = message.partition(" ")
 
         # check message prefix, which defines actions
-        if message.startswith("misp_json_audit"):
-            if json_message['Log']['model'] == "Event" and json_message['Log']['action'] == "publish" and \
-                    json_message['Log']['change'] == "":
-                process_publish_of_event(json_message)
+        if notification_prefix == "misp_json_audit":
+            if notification['Log']['model'] == "Event" and notification['Log']['action'] == "publish" and \
+                    notification['Log']['change'] == "":
+                process_publish_of_event(notification)
 
-            elif json_message['Log']['model'] == "Attribute" and json_message['Log']['action'] == "delete":
-                process_deletion_of_attribute(json_message)
+            elif notification['Log']['model'] == "Attribute" and notification['Log']['action'] == "delete":
+                process_deletion_of_attribute(notification)
 
-            elif json_message['Log']['model'] == "Attribute" and json_message['Log']['action'] == "edit":
+            elif notification['Log']['model'] == "Attribute" and notification['Log']['action'] == "edit":
                 # edit of attribute
-                process_edit_of_attribute(json_message)
+                process_edit_of_attribute(notification)
 
-            elif json_message['Log']['model'] == "Attribute" and json_message['Log']['action'] == "add":
+            elif notification['Log']['model'] == "Attribute" and notification['Log']['action'] == "add":
                 # new attribute
-                process_new_attribute(json_message)
+                process_new_attribute(notification)
 
-        elif message.startswith("misp_json_sighting"):
+        elif notification_prefix == "misp_json_sighting":
             # sighting edit
-            sighting = json_message['Sighting']
+            sighting = notification['Sighting']
             # was it sighting of an ip address?
             if sighting['Attribute']['type'] in IP_MISP_TYPES:
                 process_sighting_notification(sighting)
 
-        elif message.startswith("misp_json_event"):
-            if json_message['action'] == "delete":
+        elif notification_prefix == "misp_json_event":
+            if notification['action'] == "delete":
                 # deletion of MISP event
                 # find all ip records, which contains deleted MISP event
-                outdated_records = db.aggregate('ip', {'$match': {"misp_events.event_id": json_message['Event']['id']}})
+                outdated_records = db.aggregate('ip', {'$match': {"misp_events.event_id": notification['Event']['id']}})
                 for ip_record in outdated_records:
                     # from every ip record delete outdated misp record
                     # first id of ip record has to be converted to string IP address
                     ip_address = int2ipstr(ip_record['_id'])
-                    remove_misp_event(ip_address, json_message['Event']['id'])
+                    remove_misp_event(ip_address, notification['Event']['id'])
 
 
 if __name__ == "__main__":
