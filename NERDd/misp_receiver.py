@@ -432,13 +432,15 @@ def process_new_attribute(json_message):
             attrib_add_or_edit(attrib_value, event_id, attrib_id)
 
 
-def check_zmq_connection(init: bool = False) -> None:
+def check_zmq_connection(init: bool = False, error_logged: bool = False) -> None:
     """
     Every 15 seconds the Timer is set to check if some notification from ZMQ channel was received, because every
     10 seconds should arrive at least one keep-alive message. If it does not arrive, something is wrong, so
     log an error (or exit the program if the first connection does not work).
     :param init: set to True, when the Timer and ZMQ channel is initialized, to exit program when connection is not
                  successful
+    :param error_logged: flag indicating, whether connection error has been logged into log file or not to prevent
+                         flooding of the log
     :return: None
     """
     global zmq_alive
@@ -446,14 +448,18 @@ def check_zmq_connection(init: bool = False) -> None:
         if not zmq_alive:
             logger.error("Cannot connect to MISP's ZMQ notification channel! The module will be stopped!")
             sys.exit(2)
-    else:
-        if not zmq_alive:
-            logger.error("Cannot connect to MISP's ZMQ notification channel!")
         else:
-            logger.debug("MISP's ZMQ notification channel is alive!")
+            logger.info("Connection to MISP's ZMQ notification channel works!")
+    else:
+        if not zmq_alive and not error_logged:
+            logger.error("Cannot connect to MISP's ZMQ notification channel!")
+            error_logged = True
+        elif zmq_alive and error_logged:
+            logger.error("Connection to MISP's ZMQ notification channel works!")
+            error_logged = False
     # and set health check Timer again
     zmq_alive = False
-    zmq_availability_timer = threading.Timer(15, check_zmq_connection)
+    zmq_availability_timer = threading.Timer(15, check_zmq_connection, (False, error_logged))
     zmq_availability_timer.start()
 
 
