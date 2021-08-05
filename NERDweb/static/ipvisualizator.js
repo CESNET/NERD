@@ -46,6 +46,7 @@ class IPVisualizator {
         this.overlay_color = 'overlay_color' in config ? config.overlay_color : '#ffff00';
         this.overlay_text_position = 'overlay_text_position' in config ? config.overlay_text_position : 'inside';
         this.show_overlay = 'show_overlay' in config ? config.show_overlay : true;
+        this.show_metadata = 'show_metadata' in config ? config.show_metadata : false;
         this.zoom_opacity = 'zoom_opacity' in config ? config.zoom_opacity : 1.0;
         this.zoom_thickness = 'zoom_thickness' in config ? config.zoom_thickness : 1;
         this.zoom_color = 'zoom_color' in config ? config.zoom_color : '#ff0000';
@@ -78,6 +79,7 @@ class IPVisualizator {
         // Pixels and network_data hold data sent from server
         this.pixels = {};
         this.network_data = {};
+        this.metadata = {};
 
         // Inject html elements
         this.create_ipvisualizator();
@@ -251,6 +253,23 @@ class IPVisualizator {
             .style('width', this.canvas_size + 'px');
     }
 
+    set_metadata(){
+        var options = {
+          year: 'numeric', month: 'numeric', day: 'numeric',
+          hour: 'numeric', minute: 'numeric',
+          hour12: false,
+        };
+        var created = new Date(this.metadata.dataset_created * 1000);
+        var created_str = new Intl.DateTimeFormat('en-GB',options).format(created);
+        var updated = new Date(this.metadata.dataset_updated * 1000);
+        var updated_str = new Intl.DateTimeFormat('en-GB',options).format(updated);
+
+        this.modal_metadata_created_value.html(created_str);
+        this.modal_metadata_updated_value.html(updated_str);
+        this.modal_metadata_size_value.html(this.metadata.size);
+        this.modal_metadata_token_value.html(this.metadata.token);
+    }
+
     // ------- Data binding --------
 
     create_api_call_url() {
@@ -291,6 +310,12 @@ class IPVisualizator {
                 }
             }
             );
+
+        const api_call_url_md = this.api + "/visualizator/" + this.token;
+        $.get(api_call_url_md, data => {
+            this.metadata = data;
+            this.set_metadata();
+            });
     }
 
     databind() {
@@ -656,6 +681,22 @@ class IPVisualizator {
                 "d",
                 "M3.5 0l-.5 1.19c-.1.03-.19.08-.28.13l-1.19-.5-.72.72.5 1.19c-.05.1-.09.18-.13.28l-1.19.5v1l1.19.5c.04.1.08.18.13.28l-.5 1.19.72.72 1.19-.5c.09.04.18.09.28.13l.5 1.19h1l.5-1.19c.09-.04.19-.08.28-.13l1.19.5.72-.72-.5-1.19c.04-.09.09-.19.13-.28l1.19-.5v-1l-1.19-.5c-.03-.09-.08-.19-.13-.28l.5-1.19-.72-.72-1.19.5c-.09-.04-.19-.09-.28-.13l-.5-1.19h-1zm.5 2.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5z"
             );
+        this.button_metadata = menu
+            .append("div")
+            .classed("button-config align-middle border-left float-left", true)
+            .style("padding-left", "5px")
+            .style("padding-right", "5px")
+            .style("width", "30px")
+            .style("cursor", "pointer")
+            .style("display", "none");
+        this.button_metadata_svg = this.button_metadata
+            .append("svg")
+            .attr("viewBox", "0 0 7 7")
+            .append("path")
+            .attr(
+                "d",
+                "M 5.976562 1.027344 C 4.609375 -0.339844 2.394531 -0.34375 1.027344 1.023438 C -0.339844 2.390625 -0.34375 4.605469 1.023438 5.972656 C 2.390625 7.339844 4.605469 7.34375 5.972656 5.976562 C 7.339844 4.609375 7.34375 2.394531 5.976562 1.027344 Z M 3.988281 5.71875 C 3.988281 5.773438 3.945312 5.820312 3.890625 5.820312 L 3.109375 5.820312 C 3.054688 5.820312 3.011719 5.773438 3.011719 5.71875 L 3.011719 2.816406 C 3.011719 2.765625 3.054688 2.71875 3.109375 2.71875 L 3.890625 2.71875 C 3.945312 2.71875 3.988281 2.765625 3.988281 2.816406 Z M 3.5 2.316406 C 3.1875 2.316406 2.933594 2.0625 2.933594 1.75 C 2.933594 1.4375 3.1875 1.179688 3.5 1.179688 C 3.8125 1.179688 4.066406 1.4375 4.066406 1.75 C 4.066406 2.0625 3.8125 2.316406 3.5 2.316406 Z M 3.5 2.316406 "
+            );
         this.button_screenshot = menu
             .append("div")
             .classed("button-screenshot align-middle border-left float-left", true)
@@ -925,6 +966,85 @@ class IPVisualizator {
         this.modal_config.style("opacity", "0.95");
         this.modal_config.style("display", "none");
 
+        // Modal window for dataset metadata 
+        this.modal_metadata = this.map
+            .append("div")
+            .classed("card", true)
+            .style("width", "320px")
+            .style("height", "170px")
+            .style("position", "absolute")
+            .style("left", this.canvas_size - 320 + "px")
+            .style("top", "0px")
+            .style("z-index", "3");
+        var modal_metadata_body = this.modal_metadata
+            .append("div")
+            .classed("card-body", true);
+
+        var modal_metadata_created = modal_metadata_body
+            .append("div")
+            .classed("row", true);
+        this.modal_metadata_created_label = modal_metadata_created
+            .append("div")
+            .classed("col-5", true)
+            .append("label")
+            .attr("for", "resolution_range")
+            .html("Created:");
+        this.modal_metadata_created_value = modal_metadata_created
+            .append("div")
+            .classed("col-7", true)
+            .append("span")
+            .classed("font-weight-bold text-primary", true);
+
+        var modal_metadata_updated = modal_metadata_body
+            .append("div")
+            .classed("row", true);
+        this.modal_metadata_updated_label = modal_metadata_updated
+            .append("div")
+            .classed("col-5", true)
+            .append("label")
+            .attr("for", "resolution_range")
+            .html("Updated:");
+        this.modal_metadata_updated_value = modal_metadata_updated
+            .append("div")
+            .classed("col-7", true)
+            .append("span")
+            .classed("font-weight-bold text-primary", true);
+
+        var modal_metadata_size = modal_metadata_body
+            .append("div")
+            .classed("row", true);
+        this.modal_metadata_size_label = modal_metadata_size
+            .append("div")
+            .classed("col-5", true)
+            .append("label")
+            .attr("for", "resolution_range")
+            .html("Dataset size:");
+        this.modal_metadata_size_value = modal_metadata_size
+            .append("div")
+            .classed("col-7", true)
+            .append("span")
+            .classed("font-weight-bold text-primary", true);
+
+        var modal_metadata_token = modal_metadata_body
+            .append("div")
+            .classed("row", true);
+        this.modal_metadata_token_label = modal_metadata_token
+            .append("div")
+            .classed("col-3", true)
+            .append("label")
+            .attr("for", "resolution_range")
+            .html("Token:");
+        this.modal_metadata_token_value = modal_metadata_token
+            .append("div")
+            .classed("col-9", true)
+            .append("span")
+            .classed("font-weight-bold text-primary", true);
+
+
+
+        this.modal_metadata.style("opacity", "0.95");
+        this.modal_metadata.style("display", "none");
+
         // Main canvas with map
         this.canvas = this.map
             .append("canvas")
@@ -970,6 +1090,9 @@ class IPVisualizator {
 
     draw_menu() {
         this.network_heading.html("<b>" + this.network + "/" + this.mask + "</b>");
+        if(this.show_metadata){
+            this.button_metadata.style('display', 'initial');
+        }
     }
 
     zoom() {
@@ -1142,6 +1265,7 @@ class IPVisualizator {
                 this.modal_network_form_network.attr('placeholder', this.network + "/" + this.mask);
                 this.modal_network.style('display', 'initial');
                 this.modal_config.style('display', 'none');
+                this.modal_metadata.style('display', 'none');
             }
             else {
                 this.modal_network.style('display', 'none');
@@ -1228,6 +1352,7 @@ class IPVisualizator {
 
                 this.modal_config.style('display', 'initial');
                 this.modal_network.style('display', 'none');
+                this.modal_metadata.style('display', 'none');
             }
             else {
                 this.modal_config.style('display', 'none');
@@ -1303,6 +1428,27 @@ class IPVisualizator {
             this.draw_overlay();
         });
 
+        this.button_metadata.on('mouseout',  d => {
+            this.button_metadata_svg.attr('fill', 'black');
+            this.hide_tooltip();
+        });
+
+        this.button_metadata.on('mousemove',  d => {
+            this.button_metadata_svg.attr('fill', '#0275d8');
+            this.show_tooltip('Show information about dataset');
+        });
+        this.button_metadata.on('click',  d => {
+            if(this.modal_metadata.style('display') == 'none') { 
+                this.modal_metadata.style('display', 'initial');
+                this.modal_config.style('display', 'none');
+                this.modal_network.style('display', 'none');
+            }
+            else {
+                this.modal_metadata.style('display', 'none');
+            }
+        });
+
+
         this.button_screenshot.on('mouseout',  d => {
             this.button_screenshot_svg.attr('fill', 'black');
             this.hide_tooltip();
@@ -1316,6 +1462,18 @@ class IPVisualizator {
         this.button_screenshot.on('click',  d => {
             this.take_screenshot();
         });
+    } 
+    get_dataset_metadata(){
+        const api_call_url_md = this.api + "/visualizator/" + this.token;
+        return new Promise(function (resolve, reject) {
+            $.get(api_call_url_md).then(
+                (response) => {
+                    resolve(response);
+                },
+                (error) => {
+                    reject(error);
+                }
+            );
+        });
     }
-    
 }

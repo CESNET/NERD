@@ -17,6 +17,10 @@
 
 {% if ipvis_url and ipvis_token %}
 <div id="visualizator" class="ipvisualizator"></div>
+<div id="visualizator-update-time" style="width: 770px; text-align: center;">
+    Based on a database snapshot taken at:
+    <span id="dataset_update"></span>
+</div>
 
 <script>
 $(document).ready(function(){
@@ -33,6 +37,7 @@ $(document).ready(function(){
             "bordered_pixel": true,
             "static": false,
             "show_overlay": true,
+            "show_metadata": false,
             "zoom_mask": 8,
             "map_opacity": 1,
             "overlay_opacity": 0.4,
@@ -90,7 +95,19 @@ $(document).ready(function(){
             },
         ]
     });
+    get_metadata(visualizator);
 });
+async function get_metadata(visualizator){
+    var metadata = await visualizator.get_dataset_metadata();
+    var options = {
+      year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: 'numeric', minute: 'numeric',
+      hour12: false,
+    };
+    var updated = new Date(metadata.dataset_updated * 1000);
+    var updated_str = new Intl.DateTimeFormat('en-GB',options).format(updated);
+    document.getElementById("dataset_update").innerText = updated_str;
+}
 </script>
 {% else %}
 <p class="error">IP visualization backend not configured.</p>
