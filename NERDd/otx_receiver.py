@@ -41,7 +41,7 @@ config.update(read_config(common_cfg_file))
 
 inactive_pulse_time = config.get('record_life_length.otx', 30)
 
-API_KEY = ""
+otx_api_key = config.get('otx_api_key', None)
 
 rabbit_config = config.get("rabbitmq")
 db = mongodb.MongoEntityDatabase(config)
@@ -99,7 +99,7 @@ def receive_pulses():
     Connect to OTX Alienvault and get subscribed pulses
     :return: None
     """
-    otx = OTXv2(API_KEY)
+    otx = OTXv2(otx_api_key)
     # params max_page, limit control how many pulses will be downloaded
     # now it's max_page=1, limit=15 for testing
     pulses = otx.getall(max_page=1, limit=15)
