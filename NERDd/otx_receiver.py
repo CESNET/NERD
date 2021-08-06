@@ -3,7 +3,10 @@ import sys
 import logging
 import argparse
 import os
+import os.path
+from os import path
 from datetime import timedelta, datetime
+from apscheduler.schedulers.background import BlockingScheduler
 
 from OTXv2 import OTXv2
 
@@ -42,6 +45,11 @@ config.update(read_config(common_cfg_file))
 inactive_pulse_time = config.get('record_life_length.otx', 30)
 
 otx_api_key = config.get('otx_api_key', None)
+if not otx_api_key:
+    logger.error("Cannot load OTX Alienvault API key, make sure it is properly configured in {}.".format(args.config))
+    sys.exit(1)
+
+otx = OTXv2(otx_api_key)
 
 rabbit_config = config.get("rabbitmq")
 db = mongodb.MongoEntityDatabase(config)
@@ -50,6 +58,8 @@ db = mongodb.MongoEntityDatabase(config)
 num_processes = config.get('worker_processes')
 tq_writer = TaskQueueWriter(num_processes, rabbit_config)
 tq_writer.connect()
+
+scheduler = BlockingScheduler(timezone='UTC')
 
 
 def create_new_pulse(pulse, indicator):
@@ -94,24 +104,71 @@ def upsert_new_pulse(pulse, indicator):
     ])
 
 
-def receive_pulses():
+def write_time():
     """
-    Connect to OTX Alienvault and get subscribed pulses
+    Gets the current time and write it to a text file 'otx_last_update', that is in the /data/
     :return: None
     """
-    otx = OTXv2(otx_api_key)
-    # params max_page, limit control how many pulses will be downloaded
-    # now it's max_page=1, limit=15 for testing
-    pulses = otx.getall(max_page=1, limit=15)
+    current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    f = open('otx_last_update.txt', 'w')
+    f.write(current_time)
+    f.close()
 
-    # Go through all pulses and each pulse indicators. Take only indicators with the type IPv4
+
+def processing_pulses(pulses):
+    """
+    Processes the pulse's indicators, selects only with a parameter 'IPv4'
+    :return: None
+    """
     for pulse in pulses:
-        pulse_json = json.loads(json.dumps(pulse))
-        indicators = pulse_json.get("indicators", [])
+        pulse_to_json = json.loads(json.dumps(pulse))
+        indicators = pulse_to_json.get('indicators', [])
         for indicator in indicators:
             if indicator["type"] == "IPv4":
-                upsert_new_pulse(pulse_json, indicator)
+                upsert_new_pulse(pulse_to_json, indicator)
+
+
+def get_new_pulses():
+    """
+    Gets pulses from OTX Alienvault from time of the last update that got from 'otx_last_update'
+    :return: None
+    """
+    f = open('otx_last_update.txt', 'r+')
+    last_updated_time = f.readline()
+    f.close()
+    pulses = otx.getall(max_page=1, limit=15, modified_since=last_updated_time)
+    processing_pulses(pulses)
+    write_time()
+
+
+def get_all_pulses():
+    """
+    Get all pulses from OTX Alienvault
+    :return: None
+    """
+    pulses = otx.getall(max_page=1, limit=15)
+    processing_pulses(pulses)
+    write_time()
+
+
+def pulses_manager():
+    """
+    Manages getting pulses. If it the first launch, will get all subscribed pulses,
+    otherwise will get new pulses that have appeared science last update
+    """
+    if path.exists('/data'):
+        os.chdir('/data')
+        if path.exists('otx_last_update.txt'):
+            get_new_pulses()
+        else:
+            get_all_pulses()
+    else:
+        print("Error: directory doesn't exist")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    receive_pulses()
+    pulses_manager()
+    # now it launches function that gets pulses every 5 minutes(mase it for testing)
+    scheduler.add_job(pulses_manager, 'cron', minute='*/5')
+    scheduler.start()
