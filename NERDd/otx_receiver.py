@@ -3,6 +3,7 @@ import sys
 import logging
 import argparse
 import os
+from datetime import timedelta, datetime
 
 from OTXv2 import OTXv2
 
@@ -12,8 +13,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(
 import NERDd.core.mongodb as mongodb
 from common.config import read_config
 from common.task_queue import TaskQueueWriter
-
-API_KEY = "705e25c7cb86a97985aaf70426a590771c22e7f2b012b166aa99b8d237c65804"
 
 LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
 LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
@@ -39,6 +38,10 @@ config_base_path = os.path.dirname(os.path.abspath(args.config))
 common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
 logger.info("Loading config file {}".format(common_cfg_file))
 config.update(read_config(common_cfg_file))
+
+inactive_pulse_time = config.get('record_life_length.otx', 30)
+
+API_KEY = ""
 
 rabbit_config = config.get("rabbitmq")
 db = mongodb.MongoEntityDatabase(config)
@@ -83,9 +86,10 @@ def upsert_new_pulse(pulse, indicator):
     updates = []
     for k, v in new_pulse.items():
         updates.append(('set', k, v))
+    live_till = datetime.strptime(indicator['expiration'], '%Y-%m-%dT%H:%M:%S') + timedelta(days=inactive_pulse_time)
     tq_writer.put_task('ip', ip_addr, [
         ('array_upsert', 'otx_pulses', {'pulse_id': pulse['id']}, updates),
-        ('setmax', '_ttl.otx', indicator['expiration']),
+        ('setmax', '_ttl.otx', live_till),
         ('setmax', 'last_activity', pulse['created'])
     ])
 
