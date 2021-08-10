@@ -23,6 +23,8 @@ logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
 
 logger = logging.getLogger('OTXReceiver')
 
+file_path = '/data/otx_last_update.txt'
+
 # parse arguments
 parser = argparse.ArgumentParser(
     prog="OTX_receiver.py",
@@ -96,21 +98,23 @@ def upsert_new_pulse(pulse, indicator):
     updates = []
     for k, v in new_pulse.items():
         updates.append(('set', k, v))
-    live_till = datetime.strptime(indicator['expiration'], '%Y-%m-%dT%H:%M:%S') + timedelta(days=inactive_pulse_time)
+    if indicator['expiration'] == None:
+        live_till = datetime.now().strftime('%Y-%m-%dT%H:%M:%S') + timedelta(days=inactive_pulse_time)
+    else:
+        live_till = datetime.strptime(indicator['expiration'], '%Y-%m-%dT%H:%M:%S') + timedelta(days=inactive_pulse_time)
     tq_writer.put_task('ip', ip_addr, [
         ('array_upsert', 'otx_pulses', {'pulse_id': pulse['id']}, updates),
-        ('setmax', '_ttl.otx', live_till),
+        ('setmax', '_ttl.otx', str(live_till)),
         ('setmax', 'last_activity', pulse['created'])
     ])
 
 
-def write_time():
+def write_time(current_time):
     """
     Gets the current time and write it to a text file 'otx_last_update', that is in the /data/
     :return: None
     """
-    current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-    f = open('otx_last_update.txt', 'w')
+    f = open(file_path, 'w')
     f.write(current_time)
     f.close()
 
@@ -133,12 +137,14 @@ def get_new_pulses():
     Gets pulses from OTX Alienvault from time of the last update that got from 'otx_last_update'
     :return: None
     """
-    f = open('otx_last_update.txt', 'r+')
+    f = open(file_path, 'r+')
     last_updated_time = f.readline()
     f.close()
-    pulses = otx.getall(max_page=1, limit=15, modified_since=last_updated_time)
+    current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    #pulses = otx.getall(max_page=1, limit=15, modified_since=last_updated_time)
+    pulses = otx.getall(modified_since=last_updated_time)
     processing_pulses(pulses)
-    write_time()
+    write_time(current_time)
 
 
 def get_all_pulses():
@@ -146,9 +152,11 @@ def get_all_pulses():
     Get all pulses from OTX Alienvault
     :return: None
     """
-    pulses = otx.getall(max_page=1, limit=15)
+    current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    #pulses = otx.getall(max_page=1, limit=15)
+    pulses = otx.getall()
     processing_pulses(pulses)
-    write_time()
+    write_time(current_time)
 
 
 def pulses_manager():
@@ -156,19 +164,15 @@ def pulses_manager():
     Manages getting pulses. If it the first launch, will get all subscribed pulses,
     otherwise will get new pulses that have appeared science last update
     """
-    if path.exists('/data'):
-        os.chdir('/data')
-        if path.exists('otx_last_update.txt'):
-            get_new_pulses()
-        else:
-            get_all_pulses()
+    if path.exists(file_path):
+        get_new_pulses()
     else:
-        print("Error: directory doesn't exist")
-        sys.exit(1)
+        get_all_pulses()
 
 
 if __name__ == "__main__":
     pulses_manager()
     # now it launches function that gets pulses every 5 minutes(mase it for testing)
-    scheduler.add_job(pulses_manager, 'cron', minute='*/5')
+    #scheduler.add_job(pulses_manager, 'cron', minute='*/5')
+    scheduler.add_job(pulses_manager, 'cron', hour='0')
     scheduler.start()
