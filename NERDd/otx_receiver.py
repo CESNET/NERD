@@ -99,7 +99,7 @@ def upsert_new_pulse(pulse, indicator):
     for k, v in new_pulse.items():
         updates.append(('set', k, v))
     if indicator['expiration'] == None:
-        live_till = datetime.now().strftime('%Y-%m-%dT%H:%M:%S') + timedelta(days=inactive_pulse_time)
+        live_till = datetime.now().strftime('%Y-%m-%dT%H:%M:%S') + str(timedelta(days=inactive_pulse_time))
     else:
         live_till = datetime.strptime(indicator['expiration'], '%Y-%m-%dT%H:%M:%S') + timedelta(days=inactive_pulse_time)
     tq_writer.put_task('ip', ip_addr, [
@@ -172,7 +172,5 @@ def pulses_manager():
 
 if __name__ == "__main__":
     pulses_manager()
-    # now it launches function that gets pulses every 5 minutes(mase it for testing)
-    #scheduler.add_job(pulses_manager, 'cron', minute='*/5')
-    scheduler.add_job(pulses_manager, 'cron', hour='0')
+    scheduler.add_job(pulses_manager, 'cron', hour='*/4')
     scheduler.start()
