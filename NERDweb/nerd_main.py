@@ -844,24 +844,29 @@ def ips():
         # Convert _id from int to dotted-decimal string        
         for ip in results:
             ip['_id'] = int2ipstr(ip['_id'])
-        
-        for ip in results:    
+
+        # Add info about ASNs
+        # Additional DB queries are needed (IP record only links to bgppref, bgppref links to ASN(s))
+        # TODO: similar functionality is in attach_whois_info(), use it
+        for ip in results:
             if "bgppref" in ip:
+                # Get bgppref record
                 asn_list = []
                 bgppref = mongo.db.bgppref.find_one({'_id':ip['bgppref']})
                 if not bgppref or 'asn' not in bgppref:
-                    continue # an inconsistence in DB, it may happen temporarily
+                    continue # an inconsistence in DB, it may happen temporarily, TODO: print warning?
 
-                for i in  bgppref['asn']:
-                    i = mongo.db.asn.find_one({'_id':i})
-                    if not i or 'bgppref' not in i:
-                        continue
-                    del i['bgppref']
-                    asn_list.append(i)
+                # Load all ASN records linked from bgppref
+                for as_num in bgppref['asn']:
+                    as_rec = mongo.db.asn.find_one({'_id': as_num})
+                    if not as_rec or 'bgppref' not in as_rec:
+                        continue # AS record not found or doesn't link back to any bgppref - an inconsistence in DB which may happen temporarily
+                    del as_rec['bgppref']
+                    asn_list.append(as_rec)
 
                 del bgppref['asn']
                 ip['bgppref'] = bgppref
-                ip['asn'] = asn_list
+                ip['asn'] = asn_list # List of full ASN records
 
         # Add metainfo about events for easier creation of event table in the template
         for ip in results:
@@ -1382,6 +1387,12 @@ def conv_dates(rec):
 
 
 def attach_whois_data(ipinfo, full):
+    """
+    Attach records of related entities to given IP record.
+
+    If full==True, attach full records of BGP prefix, ASNs, IP block, Org entities (as 'bgppref, 'asn', 'ipblock' and 'org' keys),
+    otherwise only attach list of ASN numbers (as 'asn' key).
+    """
     if not full:
         # Only attach ASN number(s)
         if 'bgppref' in ipinfo:
