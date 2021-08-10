@@ -5,23 +5,20 @@ from datetime import datetime, timedelta, timezone
 import os
 import subprocess
 import re
-import pytz
 import ipaddress
 import struct
 import hashlib
 import requests
 import flask
 from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
-from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
+from flask_pymongo import pymongo, PyMongo
 import pymongo.errors
 from flask_wtf import FlaskForm
 from flask_mail import Mail, Message
 from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 import dateutil.parser
-import jinja2
 import pymisp
 from pymisp import ExpandedPyMISP
-import signal
 from ipaddress import IPv4Address, AddressValueError
 from event_count_logger import EventCountLogger, EventGroup, DummyEventGroup
 
@@ -823,8 +820,6 @@ def ips():
         form.tag.choices = [(tag_id, tag_name) for tag_id, tag_name in form.tag.choices if tag_id != 'misp_tlp_green']
 
     if g.ac('ipsearch') and form.validate():
-        tz_utc = pytz.utc 
-        timezone = pytz.timezone('Europe/Prague') # TODO autodetect (probably better in javascript)
         sortby = sort_mapping[form.sortby.data]
         
         try:
