@@ -124,12 +124,14 @@ def processing_pulses(pulses):
     Processes the pulse's indicators, selects only with a parameter 'IPv4'
     :return: None
     """
+    logger.info("Processing pulses")
     for pulse in pulses:
         pulse_to_json = json.loads(json.dumps(pulse))
         indicators = pulse_to_json.get('indicators', [])
         for indicator in indicators:
             if indicator["type"] == "IPv4":
                 upsert_new_pulse(pulse_to_json, indicator)
+    logger.info("Done, {} IPv4 indicators added/updated".format(len(indicators)))
 
 
 def get_new_pulses():
@@ -141,8 +143,9 @@ def get_new_pulses():
     last_updated_time = f.readline()
     f.close()
     current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-    #pulses = otx.getall(max_page=1, limit=15, modified_since=last_updated_time)
+    logger.info("Downloading new pulses since {}".format(current_time))
     pulses = otx.getall(modified_since=last_updated_time)
+    logger.info("Downloaded {} new pulses".format(len(pulses)))
     processing_pulses(pulses)
     write_time(current_time)
 
@@ -153,8 +156,9 @@ def get_all_pulses():
     :return: None
     """
     current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-    #pulses = otx.getall(max_page=1, limit=15)
+    logger.info("Downloading all subscribed pulses")
     pulses = otx.getall()
+    logger.info("Downloaded {} new pulses".format(len(pulses)))
     processing_pulses(pulses)
     write_time(current_time)
 
