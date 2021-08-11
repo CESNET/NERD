@@ -131,7 +131,7 @@ def processing_pulses(pulses):
         for indicator in indicators:
             if indicator["type"] == "IPv4":
                 upsert_new_pulse(pulse_to_json, indicator)
-    logger.info("Done, {} IPv4 indicators added/updated".format(len(indicators)))
+        logger.info("Done, {} IPv4 indicators added/updated".format(len(indicators)))
 
 
 def get_new_pulses():
