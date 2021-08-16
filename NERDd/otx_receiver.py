@@ -98,14 +98,15 @@ def upsert_new_pulse(pulse, indicator):
     updates = []
     for k, v in new_pulse.items():
         updates.append(('set', k, v))
+    current_time = datetime.strptime(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), '%Y-%m-%dT%H:%M:%S')    
     if indicator['expiration'] == None:
-        live_till = datetime.now().strftime('%Y-%m-%dT%H:%M:%S') + str(timedelta(days=inactive_pulse_time))
+        live_till = current_time + timedelta(days=inactive_pulse_time)
     else:
         live_till = datetime.strptime(indicator['expiration'], '%Y-%m-%dT%H:%M:%S') + timedelta(days=inactive_pulse_time)
     tq_writer.put_task('ip', ip_addr, [
         ('array_upsert', 'otx_pulses', {'pulse_id': pulse['id']}, updates),
-        ('setmax', '_ttl.otx', str(live_till)),
-        ('setmax', 'last_activity', pulse['created'])
+        ('setmax', '_ttl.otx', live_till),
+        ('setmax', 'last_activity', current_time)
     ])
 
 
@@ -142,7 +143,7 @@ def get_new_pulses():
     f = open(file_path, 'r+')
     last_updated_time = f.readline()
     f.close()
-    current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    current_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
     logger.info("Downloading new pulses since {}".format(current_time))
     pulses = otx.getall(modified_since=last_updated_time)
     logger.info("Downloaded {} new pulses".format(len(pulses)))
@@ -155,7 +156,7 @@ def get_all_pulses():
     Get all pulses from OTX Alienvault
     :return: None
     """
-    current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    current_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
     logger.info("Downloading all subscribed pulses")
     pulses = otx.getall()
     logger.info("Downloaded {} new pulses".format(len(pulses)))
