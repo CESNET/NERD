@@ -7,6 +7,9 @@ import logging
 import threading
 import signal
 
+# EventCountLogger - count number of events across multiple processes using shared counters in Redis
+from event_count_logger import EventCountLogger
+
 def main(cfg_file, process_index):
 
     ################################################
@@ -48,6 +51,10 @@ def main(cfg_file, process_index):
     log.debug("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
 
+    # Read event_logging config (and store it separately)
+    ecl_config_file = os.path.join(config_base_path, config.get('event_logging_config'))
+    log.debug("Loading config file {}".format(ecl_config_file))
+    ecl_config = common.config.read_config(ecl_config_file)
 
     # Get number of processes from config
     num_processes = config.get('worker_processes')
@@ -65,6 +72,9 @@ def main(cfg_file, process_index):
     import g
     g.config = config
     g.config_base_path = config_base_path
+    g.ecl_config = ecl_config
+    g.ecl_config_file = ecl_config_file
+    g.ecl = EventCountLogger(g.ecl_config.get("groups"), g.ecl_config.get("redis"))
     g.scheduler = core.scheduler.Scheduler()
     g.db = core.mongodb.MongoEntityDatabase(config)
     g.um = core.update_manager.UpdateManager(config, g.db, process_index, num_processes)

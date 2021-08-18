@@ -298,33 +298,9 @@ class UpdateManager:
         # Register watchdog to scheduler
         g.scheduler.register(self._watchdog, second="*/30")
 
-        # Count of update requests processed (per update type)
-        # TODO: reimplement using EventCountLogger
-        self._update_counter = OrderedDict([
-            ('ip_new_entity',0), # New entity (usually because of new event)
-            ('ip_event',0), # New event added to existing entity
-            ('ip_regular_1d',0), # Regular daily update
-            ('ip_regular_1w',0), # Regular weekly update
-            ('ip_other',0), # Other updates
-            ('asn_new_entity',0), # New entity (usually because of new event)
-            ('asn_event',0), # New event added to existing entity
-            ('asn_regular_1d',0), # Regular daily update
-            ('asn_regular_1w',0), # Regular weekly update
-            ('asn_other',0), # Other updates
-        ])
-        self._last_update_counter = self._update_counter.copy()
-
-        # Log number of update requests processed every 2 seconds
-        # (temporarily disabled)
-        if False or "upd_cnt_file" in g.config:
-            # Use a new scheduler, because the default one is stopped when
-            # NERDd daemon is going to exit, but we want to keep logging
-            # till the end
-            self.logging_scheduler = core.scheduler.Scheduler()
-            self.logging_scheduler.register(self._log_update_counter, second="*/2")
-            self.logging_scheduler.start()
-        else:
-            self.logging_scheduler = None
+        # Get EventGroups (of EventCountLogger) for easier event logging
+        self.elog_op = g.ecl.get_group("rec_ops", True) # True = return DummyEventGroup if there's no configuration for given group name
+        self.elog_by_src = g.ecl.get_group("tasks_by_src", True)
 
         # This is here for performance debugging - measuring the time spent in each handler function
 #        self.t_handlers = Counter()
@@ -423,18 +399,6 @@ class UpdateManager:
         self._task_queue_reader.disconnect()
         self._task_queue_writer.disconnect()
 
-        # Stop logging scheduler
-        # TODO won't be needed when EventCountLogger is used
-        if self.logging_scheduler:
-            self.logging_scheduler.stop()
-        # Delete file with updates count log
-        filename = g.config.get("upd_cnt_file", None)
-        if filename:
-            for i in range(self.num_threads):
-                try:
-                    os.remove(filename + "_" + str(i))
-                except Exception:
-                    pass
         # Cleanup
         self._worker_threads = []
 
@@ -504,20 +468,6 @@ class UpdateManager:
             #self.log.debug("Task {} finished in {:.3f} seconds.".format(msg_id, duration))
             if duration > 1.0:
                 self.log.debug("Task {} took {} seconds: {}/{} {}{}".format(msg_id, duration, etype, eid, updreq, " (new record created)" if created else ""))
-
-            # # Increment corresponding update counter
-            # # TODO: replace this by event_count_logger
-            # if etype in ['ip', 'asn']:
-            #     if new_rec_created:
-            #         self._update_counter[etype+'_new_entity'] += 1
-            #     elif any(u == ('add', 'events_meta.total', 1) for u in updreq):
-            #         self._update_counter[etype+'_event'] += 1
-            #     elif any(u[1] == '!every1w' for u in updreq):
-            #         self._update_counter[etype+'_regular_1w'] += 1
-            #     elif any(u[1] == '!every1d' for u in updreq):
-            #         self._update_counter[etype+'_regular_1d'] += 1
-            #     else:
-            #         self._update_counter[etype+'_other'] += 1
 
 
     def _watchdog(self):
@@ -637,9 +587,11 @@ class UpdateManager:
                 # New record was created -> add "!NEW" event to update_request
                 #self.log.debug("New record ({},{}) was created, injecting event '!NEW'".format(etype,eid))
                 update_requests.insert(0,('event','!NEW'))
+                self.elog_op.log(etype+'_created')
         
         # Short-circuit if update_requests is empty (used to only create a record if it doesn't exist)
         if not update_requests:
+            self.elog_op.log(etype+'_noop') # task with no operations or only weak operations and the record doesn't exist
             return False
         
         requests_to_process = update_requests
@@ -745,6 +697,7 @@ class UpdateManager:
             except Exception as e:
                 self.log.exception("Unhandled exception during call of {}(({}, {}), rec, {}). Traceback follows:"
                     .format(get_func_name(func), etype, eid, updates) )
+                g.ecl['errors'].log('error_in_module')
                 reqs = []
 #            t_handler2 = time.time()
 #            t_handlers[get_func_name(func)] = t_handler2 - t_handler1
@@ -774,8 +727,10 @@ class UpdateManager:
         if deletion:
             self.db.delete(etype, eid)
             self.log.debug("Entity '{}' of type '{}' was removed from the database.".format(eid, etype))
+            self.elog_op.log(etype+'_removed')
         else:
             self.db.put(etype, eid, rec)
+            self.elog_op.log(etype+'_updated') # normal record update
 
         
 #        t4 = time.time()
@@ -808,33 +763,6 @@ class UpdateManager:
         for k,v in self._attr2func[etype].items():
             s += "{} -> {}\n".format(k,list(map(get_func_name,v)))
         return s
-
-
-    def _log_update_counter(self):
-        # TODO: won't be needed when EventCountLogger is used
-        # Write update counter to file (every 2 sec)
-        # Lines 1-5: (IP) total number of updates (per update type)
-        # Lines 6-10: (ASN) total number of updates (per update type)
-        # Lines 11-15: (IP) number of updates from last period
-        # Lines 16-20: (ASN) number of updates from last period
-        # Line 21: current length of update request queue
-        filename = g.config.get("upd_cnt_file", None)
-        if not filename:
-            return
-        # Add process index to the filename
-        filename += "_" + str(self.process_index)
-        # Write to a temp file and then rename, so at no time there is a partially written file (rename is atomic operation)
-        tmp_filename = filename + "_tmp$"
-        with open(tmp_filename, "w") as f:
-            for _, cnt in self._update_counter.items():
-                f.write('{}\n'.format(cnt))
-            for (_, last), (_, cnt) in zip(self._last_update_counter.items(), self._update_counter.items()):
-                f.write('{}\n'.format(cnt - last))
-            f.write("{}\n".format(
-                0))  # sum(self.get_queue_size(i) for i in range(self.num_threads)))) # Takes a long time - disabled
-        os.replace(tmp_filename, filename)
-        self._last_update_counter = self._update_counter.copy()
-
 
     def log_t_handlers(self):
         print("Handler function running times:")

@@ -7,6 +7,51 @@ redis:
 
 # Each "group" specifies a set of "events" which are handled together.
 groups:
+  rec_ops:
+    # Number of tasks processed by entity type and record operation.
+    # Each task is counted as exactly one event:
+    #  - updated = normal task, one or more attributes of an existing record were updated
+    #  - created = task resulted in creation of a new record
+    #  - removed = task resulted in deletion of a record
+    #  - noop = task with no operations (or only weak operations and the record doesn't exist), no change in DB
+    events:
+      - ip_updated
+      - ip_created
+      - ip_removed
+      - ip_noop
+      - asn_updated
+      - asn_created
+      - asn_removed
+      - asn_noop
+      - bgppref_updated
+      - bgppref_created
+      - bgppref_removed
+      - bgppref_noop
+      - ipblock_updated
+      - ipblock_created
+      - ipblock_removed
+      - ipblock_noop
+      - org_updated
+      - org_created
+      - org_removed
+      - org_noop
+    auto_declare_events: true
+    intervals: [ "5s", "5m" ]
+    sync-interval: 1
+
+  # Number of processed tasks by their source (TODO)
+  tasks_by_src:
+    events: []
+    auto_declare_events: true
+    intervals: ["5s", "5m"]
+    sync-interval: 1
+
+  # Logging of various errors (currently only errors in modules)
+  errors:
+    events: ["error_in_module"]
+    auto_declare_events: true
+    intervals: ["5m"]
+
   # Web - access to individual endpoints
   web_endpoints:
     events:
