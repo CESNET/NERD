@@ -127,11 +127,16 @@ app.jinja_env.trim_blocks = True
 app.jinja_env.lstrip_blocks = True
 
 # Configuration of PyMongo
-app.config['MONGO_URI'] = "mongodb://{}:{}/{}".format(
-    config.get('mongodb.host', 'localhost'),
-    config.get('mongodb.port', 27017),
-    config.get('mongodb.dbname', 'nerd')
-)
+mongo_dbname = config.get('mongodb.dbname', 'nerd')
+mongo_host = config.get('mongodb.host', 'localhost:27017')
+if isinstance(mongo_host, list):
+    mongo_host = ','.join(mongo_host)
+mongo_uri = "mongodb://{}/{}".format(mongo_host, mongo_dbname)
+mongo_rs = config.get('mongodb.rs', None)
+if mongo_rs:
+    mongo_uri += '?replicaSet='+mongo_rs
+app.config['MONGO_URI'] = mongo_uri
+print("MongoDB: Connecting to: {}".format(mongo_uri))
 
 mongo = PyMongo(app)
 

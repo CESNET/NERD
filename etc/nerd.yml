@@ -22,9 +22,15 @@ max_event_history: 90
 
 # MongoDB settings
 mongodb:
-  host: localhost
-  port: 27017
   dbname: nerd
+  # Standalone - just specify host:port
+  host: localhost:27017
+  # Replica-set - specify the list of host:port combinations of all nodes and the replica-set name
+  #host:
+  #  - mongo1.example.com:27017
+  #  - mongo2.example.com:27017
+  #  - mongo3.example.com:27017
+  #rs: rs_NERD
 
 # RabbitMQ settings
 rabbitmq:
