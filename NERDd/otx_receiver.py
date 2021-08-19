@@ -1,3 +1,18 @@
+#!/usr/bin/env python3
+
+"""
+NERD standalone script for receiving IPv4 addresses from OTX Alienvault pulses.
+
+At the first launch, it downloads all subscribed pulses from OTX Alienvault,
+then processing indicators from pulses and gets only with IPv4 type, that 
+are then projected to NERD. After first launch will be created file 'otx_last_update.txt',
+where will be stored time of the last pulse update. 
+This file also playes role of a flag, on the basis of which either all pulses will
+be downloaded(if this file doesn't exist) or new pulses will be downloaded(if this file exists).
+New pulses are pulses that have appeared since the time of the last update.
+Module updates pulses every 4 hours, and after every update write new time to the 'otx_last_update.txt'.
+"""
+
 import json
 import sys
 import logging
@@ -13,7 +28,6 @@ from OTXv2 import OTXv2
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 
-import NERDd.core.mongodb as mongodb
 from common.config import read_config
 from common.task_queue import TaskQueueWriter
 
@@ -23,6 +37,7 @@ logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
 
 logger = logging.getLogger('OTXReceiver')
 
+# path to the file where is writen time of the last pulses update
 file_path = '/data/otx_last_update.txt'
 
 # parse arguments
@@ -47,6 +62,7 @@ config.update(read_config(common_cfg_file))
 inactive_pulse_time = config.get('record_life_length.otx', 30)
 
 otx_api_key = config.get('otx_api_key', None)
+
 if not otx_api_key:
     logger.error("Cannot load OTX Alienvault API key, make sure it is properly configured in {}.".format(args.config))
     sys.exit(1)
@@ -54,7 +70,6 @@ if not otx_api_key:
 otx = OTXv2(otx_api_key)
 
 rabbit_config = config.get("rabbitmq")
-db = mongodb.MongoEntityDatabase(config)
 
 # rabbitMQ
 num_processes = config.get('worker_processes')
@@ -98,8 +113,9 @@ def upsert_new_pulse(pulse, indicator):
     updates = []
     for k, v in new_pulse.items():
         updates.append(('set', k, v))
-    current_time = datetime.strptime(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), '%Y-%m-%dT%H:%M:%S')    
-    if indicator['expiration'] == None:
+    # get current time and change it format to '%Y-%m-%dT%H:%M:%S'
+    current_time = datetime.strptime(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), '%Y-%m-%dT%H:%M:%S')   
+    if indicator['expiration'] is None:
         live_till = current_time + timedelta(days=inactive_pulse_time)
     else:
         live_till = datetime.strptime(indicator['expiration'], '%Y-%m-%dT%H:%M:%S') + timedelta(days=inactive_pulse_time)
@@ -125,14 +141,15 @@ def processing_pulses(pulses):
     Processes the pulse's indicators, selects only with a parameter 'IPv4'
     :return: None
     """
+    ipv4_counter = 0
     logger.info("Processing pulses")
     for pulse in pulses:
-        pulse_to_json = json.loads(json.dumps(pulse))
-        indicators = pulse_to_json.get('indicators', [])
+        indicators = pulse.get('indicators', [])
         for indicator in indicators:
             if indicator["type"] == "IPv4":
-                upsert_new_pulse(pulse_to_json, indicator)
-        logger.info("Done, {} IPv4 indicators added/updated".format(len(indicators)))
+                ipv4_counter += 1
+                upsert_new_pulse(pulse, indicator)
+        logger.info("Done, {} IPv4 indicators added/updated".format(ipv4_counter))
 
 
 def get_new_pulses():
@@ -143,8 +160,13 @@ def get_new_pulses():
     f = open(file_path, 'r+')
     last_updated_time = f.readline()
     f.close()
+    try:
+        validtime = datetime.strptime(last_updated_time, '%Y-%m-%dT%H:%M:%S')
+    except ValueError:
+        logger.error("Wrong time format in otx_last_update.txt, must be '%Y-%m-%dT%H:%M:%S', not '{}'".format(last_updated_time))
+        sys.exit(1)
     current_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
-    logger.info("Downloading new pulses since {}".format(current_time))
+    logger.info("Downloading new pulses since {}".format(last_updated_time))
     pulses = otx.getall(modified_since=last_updated_time)
     logger.info("Downloaded {} new pulses".format(len(pulses)))
     processing_pulses(pulses)
