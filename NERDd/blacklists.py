@@ -70,6 +70,11 @@ def parse_bl_with_regex(bl_data, cregex):
                 bl_records.append(str(ipaddress.IPv4Address(bl_data[record_start:record_end])))
             except ipaddress.AddressValueError:
                 continue
+    else:
+        for line in bl_data.split('\n'):
+            match = cregex.search(line)
+            if match:
+                bl_records.append(str(ipaddress.IPv4Address(match.group(1))))
     return bl_records
 
 

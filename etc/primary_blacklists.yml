@@ -105,6 +105,48 @@ iplists:
   - ""
   - hour: "0,6,12,18"
     minute: 5
+- - sblam_ips
+  - Sblam! IPs blacklist
+  - https://sblam.com/blacklist.txt
+  - ""
+# The time of updating the list was viewed here: https://sblam.com/blacklist.txt
+  - hour: 4
+  - minute: 15
+- - blocklist_net_ua_ips
+  - Blocklist.net.ua IPs
+  - https://blocklist.net.ua/blocklist.csv
+  - "^(\\A)"
+# The time of updating the list was viewed here: https://blocklist.net.ua/providers/  
+  - hour: "*/4"
+  - minute: 15
+- - darklist_de_ips
+  - Darklist.de IPs
+  - http://www.darklist.de/raw.php
+  - ""
+# The time of updating the list was viewed here: https://iplists.firehol.org/?ipset=darklist_de
+  - hour: "*/4"
+  - minute: 10
+- - charles_the_haleys_ssh_dico_ips
+  - Charles B. Haley SSH Dictionary Attacks
+  - http://charles.the-haleys.org/ssh_dico_attack_with_timestamps.php?days=7
+  - ".*?(\\A)"
+# The time of updating the list was viewed here: http://charles.the-haleys.org/ssh_dico_attack_with_timestamps.php?days=7
+  - hour: "*/4"
+  - minute: 10
+- - charles_the_haleys_wp_attack_ips
+  - Charles B. Haley Attacks on their WordPress
+  - http://charles.the-haleys.org/wp_attack_with_timestamps.php?days=7
+  - "^(\\A)"
+# The time of updating the list was viewed here: http://charles.the-haleys.org/wp_attack_with_timestamps.php?days=7
+  - hour: "*/4"
+  - minute: 10
+- - charles_the_haleys_smtp_dico_ips
+  - Charles B. Haley SMTP AUTH dictionary attacks
+  - http://charles.the-haleys.org/smtp_dico_attack_with_timestamps.php?days=7
+  - "^(\\A)"
+# The time of updating the list was viewed here: http://charles.the-haleys.org/smtp_dico_attack_with_timestamps.php?days=7
+  - hour: "*/4"
+  - minute: 10
 - - turris_greylist
   - Turris by CZ.NIC greylist
   - https://view.sentinel.turris.cz/greylist-data/greylist-latest.csv
