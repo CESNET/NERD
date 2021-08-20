@@ -114,7 +114,7 @@ def upsert_new_pulse(pulse, indicator):
     for k, v in new_pulse.items():
         updates.append(('set', k, v))
     # get current time and change it format to '%Y-%m-%dT%H:%M:%S'
-    current_time = datetime.strptime(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'), '%Y-%m-%dT%H:%M:%S')   
+    current_time = datetime.utcnow()
     if indicator['expiration'] is None:
         live_till = current_time + timedelta(days=inactive_pulse_time)
     else:
@@ -141,9 +141,9 @@ def processing_pulses(pulses):
     Processes the pulse's indicators, selects only with a parameter 'IPv4'
     :return: None
     """
-    ipv4_counter = 0
     logger.info("Processing pulses")
     for pulse in pulses:
+        ipv4_counter = 0
         indicators = pulse.get('indicators', [])
         for indicator in indicators:
             if indicator["type"] == "IPv4":
