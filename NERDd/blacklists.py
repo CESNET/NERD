@@ -163,7 +163,7 @@ def get_blacklist(id, name, url, regex, bl_type, params):
             ('setmax', '_ttl.bl', now_plus_3days),
             ('array_upsert', 'bl', {'n': id},
                 [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)])
-        ])
+        ], "blacklists")
 
 
 def stop(signal, frame):

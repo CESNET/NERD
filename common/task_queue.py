@@ -200,7 +200,7 @@ class TaskQueueWriter(RobustAMQPConnection):
         self.exchange = exchange
         self.exchange_pri = priority_exchange
 
-    def put_task(self, etype, eid, requested_changes, priority=False):
+    def put_task(self, etype, eid, requested_changes, src, priority=False):
         """Put task (update_request) to the queue of corresponding worker"""
         if not self.channel:
             self.connect()
@@ -209,7 +209,8 @@ class TaskQueueWriter(RobustAMQPConnection):
         msg = {
             'etype': etype,
             'eid': eid,
-            'op': requested_changes
+            'op': requested_changes,
+            'src': src
         }
         body = json.dumps(msg, default=conv_to_json).encode('utf8')
         key = etype + ':' + str(eid)
@@ -387,6 +388,7 @@ class TaskQueueReader(RobustAMQPConnection):
                 etype = task['etype']
                 eid = task['eid']
                 op = task['op']
+                src = task['src']
             except (ValueError, TypeError, KeyError) as e:
                 # Print error, acknowledge reception of the message and drop it
                 self.log.error("Erroneous message received from main task queue. Error: {}, Message: '{}'".format(str(e), body))
@@ -394,7 +396,7 @@ class TaskQueueReader(RobustAMQPConnection):
                 continue
 
             # Pass message to user's callback function
-            self.callback(tag, etype, eid, op)
+            self.callback(tag, etype, eid, op, src)
 
     def _stop_consuming_thread(self):
         if self._consuming_thread:

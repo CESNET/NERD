@@ -41,7 +41,15 @@ groups:
 
   # Number of processed tasks by their source (TODO)
   tasks_by_src:
-    events: []
+    events: 
+      - blacklists
+      - misp_receiver
+      - otx_receiver
+      - updater
+      - warden_receiver
+      - updater_manager
+      - nerd_main
+      - misp_updater
     auto_declare_events: true
     intervals: ["5s", "5m"]
     sync-interval: 1

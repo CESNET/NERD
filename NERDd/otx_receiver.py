@@ -123,7 +123,7 @@ def upsert_new_pulse(pulse, indicator):
         ('array_upsert', 'otx_pulses', {'pulse_id': pulse['id']}, updates),
         ('setmax', '_ttl.otx', live_till),
         ('setmax', 'last_activity', current_time)
-    ])
+    ], "otx_receiver")
 
 
 def write_time(current_time):

@@ -63,7 +63,7 @@ tqw.connect()
 
 # Put task
 logger.debug("Sending task for {}/{}: {}".format(args.etype, args.eid, requested_changes))
-tqw.put_task(args.etype, args.eid, requested_changes)
+tqw.put_task(args.etype, args.eid, requested_changes, "")
 
 # Close connection
 tqw.disconnect()
