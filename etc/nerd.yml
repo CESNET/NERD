@@ -6,6 +6,7 @@
 record_life_length:
   warden: 14
   misp: 180
+  otx: 30
   highly_active: 14
   long_active: 28
 
@@ -85,6 +86,9 @@ warden_filer_path: "/data/warden_filer/warden_receiver"
 
 # API key for Shodan requester
 shodan_api_key: ""
+
+# API key for OTX Alienvault pulses receiver
+otx_api_key: ""
 
 # (Optional) CESNET's Passive DNS (used by both web interface and passive_dns module)
 pdns:

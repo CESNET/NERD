@@ -26,91 +26,27 @@ redis:
 #     headers - dict of key-value pairs specyfing additional HTTP headers
 #   Example of url_params and headers usage can be viewed below in Abuse IP DB blacklist specification.
 iplists:
-- - feodo
-  - Feodo tracker
-  - https://feodotracker.abuse.ch/downloads/ipblocklist.txt
-  - ""
-  - hour: 4
-    minute: 50
-- - bruteforceblocker
-  - Daniel Gerzo's BruteForceBlocker
-  - http://danger.rulez.sk/projects/bruteforceblocker/blist.php
-  - "^(\\A)"
-  - hour: 4
-    minute: 52
+
 - - andoniafMiners
   - Andoniaf Miners
   - https://raw.githubusercontent.com/andoniaf/mining-pools-list/master/mining-pools_IP.lst
   - ""
   - hour: 4
     minute: 50
-- - ciarmy
-  - CI Army - BadGuys
-  - http://cinsscore.com/list/ci-badguys.txt
+- - tor_project_org_ips
+  - TorProject.org IPs
+  - https://check.torproject.org/torbulkexitlist
   - ""
-  - hour: 4
-    minute: 50
-
-- - blocklist_de-ssh
-  - blocklist.de ssh
-  - https://lists.blocklist.de/lists/ssh.txt
+# The time of updating the list was not found 
+  - hour: "*/4"
+  - minute: 10 
+- - dan_me_uk_ips
+  - dan.me.uk TOR Node List IPs
+  - https://www.dan.me.uk/torlist/
   - ""
-  - hour: "0,6,12,18"
-    minute: 5
-- - blocklist_de-mail
-  - blocklist.de mail
-  - https://lists.blocklist.de/lists/mail.txt
-  - ""
-  - hour: "0,6,12,18"
-    minute: 5
-- - blocklist_de-apache
-  - blocklist.de apache
-  - https://lists.blocklist.de/lists/apache.txt
-  - ""
-  - hour: "0,6,12,18"
-    minute: 5
-- - blocklist_de-imap
-  - blocklist.de imap
-  - https://lists.blocklist.de/lists/imap.txt
-  - ""
-  - hour: "0,6,12,18"
-    minute: 5
-- - blocklist_de-ftp
-  - blocklist.de ftp
-  - https://lists.blocklist.de/lists/ftp.txt
-  - ""
-  - hour: "0,6,12,18"
-    minute: 5
-- - blocklist_de-sip
-  - blocklist.de sip
-  - https://lists.blocklist.de/lists/sip.txt
-  - ""
-  - hour: "0,6,12,18"
-    minute: 5
-- - blocklist_de-bots
-  - blocklist.de bots
-  - https://lists.blocklist.de/lists/bots.txt
-  - ""
-  - hour: "0,6,12,18"
-    minute: 5
-- - blocklist_de-strongips
-  - blocklist.de strong IPs
-  - https://lists.blocklist.de/lists/strongips.txt
-  - ""
-  - hour: "0,6,12,18"
-    minute: 5
-- - blocklist_de-ircbot
-  - blocklist.de ircbot
-  - https://lists.blocklist.de/lists/ircbot.txt
-  - ""
-  - hour: "0,6,12,18"
-    minute: 5
-- - blocklist_de-bruteforcelogin
-  - blocklist.de brute force login
-  - https://lists.blocklist.de/lists/bruteforcelogin.txt
-  - ""
-  - hour: "0,6,12,18"
-    minute: 5
+# The time of updating the list was viewed here: https://www.dan.me.uk/tornodes
+  - hour: "*/4"
+  - minute: 10
 
 # Lists from FireHOL
 - - firehol_anonymous
@@ -119,47 +55,19 @@ iplists:
   - "^(\\A)"
   - hour: "0,6,12,18"
     minute: 5
-- - bambenek_c2
-  - Bambenek Consulting C&Cs IPs
-  - https://iplists.firehol.org/files/bambenek_c2.ipset
-  - "^(\\A)"
-  - hour: "0,6,12,18"
-    minute: 5
-
-# AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key
-#- - abuseipdb
-#  - Abuse IP DB
-#  - https://api.abuseipdb.com/api/v2/blacklist
-#  - ""
-#  - hour: 6
-#    minute: 0
-#  - params:
-#      confidenceMinimum: "50"
-#    headers:
-#      Accept: "text/plain"
-#      Key: ""
-
-# The following blacklists should be rsynced to local files by scripts in
-# cron, therefore they're not available until those scripts are set up and
-# therefore they're disabled by default.
-#- - uceprotect
-#  - UCEPROTECT Level 1
-#  - file:///data/blacklists/uceprotect-level1
-#  - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
-#  - hour: 1,9,17
-#    minute: 45
-#- - psbl
-#  - PSBL (spam)
-#  - file:///data/blacklists/psbl.txt
-#  - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
-#  - hour: 1,9,17
-#    minute: 45
 
 # Lists of IP ranges or CIDR prefixes.
 # Same format as in normal iplists is used, except 'regex'. If the prefix is formatted as start and end of IP network,
 # then start of IP network should be caught as group 1 in regex and end of IP network should be caught as group 2
 # (without regex, CIDR format is assumed)
 prefixiplists:
+- - botscout_7d
+  - BotScout.com
+  - https://iplists.firehol.org/files/botscout_7d.ipset
+  - ""
+# The time of updating the list was viewed here: https://iplists.firehol.org/?ipset=botscout_7d
+  - hour: "*/4"
+  - minute: 10
 - - dshield
   - DShield.org Recommended Block List
   - https://www.dshield.org/block.txt
@@ -179,6 +87,13 @@ prefixiplists:
   - hour: "0,6,12,18"
     minute: 5
 domainlists:
+- - krisk_intel_domains
+  - KRISK INTEL domains
+  - https://kriskintel.com/feeds/ktip_malicious_domains.txt
+  - ""
+# The time of updating the list was viewed in the file: https://kriskintel.com/feeds/ktip_malicious_domains.txt
+  - hour: 7
+  - minute: 0
 - - openphish
   - openphis.com
   - https://openphish.com/feed.txt
