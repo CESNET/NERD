@@ -1,0 +1,34 @@
+#!/bin/bash
+
+etypes="ip
+asn
+bgppref
+ipblock
+org
+"
+
+if [ "$1" == "config" ]; then
+  cat <<'END'
+graph_title Tasks processed by entity and operation type
+graph_category nerd
+graph_vlabel Number of tasks per minute
+graph_period minute
+END
+  for etype in ${etypes}; do
+    echo "${etype}_updated.label ${etype} record updated"
+    echo "${etype}_updated.draw AREASTACK"
+    echo "${etype}_updated.min 0"
+    echo "${etype}_created.label ${etype} record created"
+    echo "${etype}_created.draw AREASTACK"
+    echo "${etype}_created.min 0"
+    echo "${etype}_removed.label ${etype} record removed"
+    echo "${etype}_removed.draw AREASTACK"
+    echo "${etype}_removed.min 0"
+    echo "${etype}_noop.label ${etype} (noop)"
+    echo "${etype}_noop.draw AREASTACK"
+    echo "${etype}_noop.min 0"
+  done
+  exit 0
+fi
+
+ecl_reader /etc/nerd/event_logging.yml -g rec_ops -i 5m | sed -E 's/:([0-9]+)$/.value \1/'

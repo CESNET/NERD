@@ -133,7 +133,7 @@ def issue_events(db, task_queue_writer, log, fetch_limit):
             for add_event in additional_events[etype]:
                 requests.append(('*event', add_event))
             # Issue update requests
-            task_queue_writer.put_task(etype, id, requests)
+            task_queue_writer.put_task(etype, id, requests, "updater")
             if (n+1) % 100 == 0:
                 log.debug("Requests for {} records submitted.".format(n+1))
 

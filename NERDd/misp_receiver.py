@@ -261,7 +261,7 @@ def remove_misp_event(ip_addr, event_id):
     """
     # remove the event from 'misp_events' array
     tq_writer.put_task("ip", ip_addr, [('array_remove', 'misp_events',
-                                           {'misp_instance': misp_url, 'event_id': event_id})])
+                                           {'misp_instance': misp_url, 'event_id': event_id})], "misp_receiver")
 
 
 def upsert_new_event(event, attrib, sighting_list, role=None):
@@ -284,7 +284,7 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
         ('array_upsert', 'misp_events', {'misp_instance': misp_url, 'event_id': event['id']}, updates),
         ('setmax', '_ttl.misp', live_till),
         ('setmax', 'last_activity', new_event['date'])
-    ])
+    ], "misp_receiver")
 
 
 def process_sighting_notification(sighting):
@@ -315,7 +315,7 @@ def process_sighting_notification(sighting):
                 # ip record found, just rewrite sightings
                 tq_writer.put_task("ip", ip_addr, [('array_upsert', 'misp_events', {'misp_instance': misp_url,
                                                     'event_id': sighting['event_id']}, [('set', 'sightings',
-                                                    get_sightings_for_nerd(sighting_list))])])
+                                                    get_sightings_for_nerd(sighting_list))])], "misp_receiver")
                 return
         # ip address not even in NERD or not found correct 'misp_event', create new 'misp_event'
         # find correct attribute to pass it to event creation

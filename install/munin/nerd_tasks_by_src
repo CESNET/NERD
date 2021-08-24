@@ -1,0 +1,28 @@
+#!/bin/bash
+
+sources="blacklists
+misp_receiver
+otx_receiver
+updater
+warden_receiver
+updater_manager
+web
+misp_updater
+"
+
+if [ "$1" == "config" ]; then
+  cat <<'END'
+graph_title Tasks processed by source
+graph_category nerd
+graph_vlabel Number of tasks per minute
+graph_period minute
+END
+  for each_source in ${sources}; do
+    echo "${each_source}.label ${each_source}"
+    echo "${each_source}.draw AREASTACK"
+    echo "${each_source}.min 0"
+  done
+  exit 0
+fi
+
+ecl_reader /etc/nerd/event_logging.yml -g tasks_by_src -i 5m | sed -E 's/:([0-9]+)$/.value \1/'

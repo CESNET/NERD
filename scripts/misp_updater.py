@@ -384,12 +384,12 @@ def process_ip(ip_addr, ip_info):
                 # construct new update request and send it
                 update_requests = [('set', 'misp_events', events), ('set', '_ttl.misp', live_till),
                                    ('setmax', 'last_activity', youngest_date)]
-                tq.put_task('ip', ip_addr, update_requests)
+                tq.put_task('ip', ip_addr, update_requests, "misp_updater")
         else:
             # ip address not even in NERD --> insert it
             update_requests = [('set', 'misp_events', events), ('set', '_ttl.misp', live_till), ('setmax',
                                                                 'last_activity', youngest_date)]
-            tq.put_task('ip', ip_addr, update_requests)
+            tq.put_task('ip', ip_addr, update_requests, "misp_updater")
 
 
 def main():
@@ -414,7 +414,7 @@ def main():
             "{} NERD IPs don't have a (recent) entry in MISP anymore, removing corresponding misp_events keys...".format(
                 len(db_ip_misp_events)))
         for ip in db_ip_misp_events:
-            tq.put_task('ip', ip, [('remove', 'misp_events')])
+            tq.put_task('ip', ip, [('remove', 'misp_events')], "misp_updater")
 
     logger.info("Checking and updating NERD records for all the IPs ...")
 

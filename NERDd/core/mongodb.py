@@ -12,8 +12,7 @@ from operator import itemgetter
 from common.utils import ipstr2int, int2ipstr
 
 # Defaults (may be overridden by config values mongodb.host, mongodb.port, mongodb.dbname)
-DEFAULT_MONGO_HOST = 'localhost'
-DEFAULT_MONGO_PORT = 27017
+DEFAULT_MONGO_HOST = 'localhost:27017'
 DEFAULT_MONGO_DBNAME = 'nerd'
 
 class UnknownEntityType(ValueError):
@@ -32,12 +31,18 @@ class MongoEntityDatabase():
         """
         self.log = logging.getLogger("MongoDB")
         host = config.get('mongodb.host', DEFAULT_MONGO_HOST)
-        port = config.get('mongodb.port', DEFAULT_MONGO_PORT)
+        rs = config.get('mongodb.rs', None)
         dbname = config.get('mongodb.dbname', DEFAULT_MONGO_DBNAME)
-        self.log.info("Connecting to {}:{}/{}".format(host,port,dbname))
-        self._mongo_client = pymongo.MongoClient(host, port)
-        self._db = self._mongo_client[dbname]
-
+        if isinstance(host, list) and not rs: # Multiple hosts but no replica-set
+            assert rs is not None, "Replica-set name ('mongo.rs' parameter) must be set if multiple MongoDB hosts are specified."
+        if rs: # Replica-set
+            self.log.info("Connecting to MongoDB replica set '{}' at {} (DB '{}')".format(rs, host, dbname))
+            self._mongo_client = pymongo.MongoClient(host, replicaset=rs)
+            self._db = self._mongo_client[dbname]
+        else: # Standalone
+            self.log.info("Connecting to standalone MongoDB instance at {} (DB '{}')".format(host, dbname))
+            self._mongo_client = pymongo.MongoClient(host)
+            self._db = self._mongo_client[dbname]
     
     def __del__(self):
         """
