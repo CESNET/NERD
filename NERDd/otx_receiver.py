@@ -90,13 +90,14 @@ def create_new_pulse(pulse, indicator):
         'pulse_id': pulse['id'],
         'pulse_name': pulse['name'],
         'author_name': pulse['author_name'],
-        'pulse_created': datetime.strptime(pulse['created'], '%Y-%m-%dT%H:%M:%S'),
-        'pulse_modified': datetime.strptime(pulse['modified'], '%Y-%m-%dT%H:%M:%S'),
+        'pulse_created': datetime.strptime(pulse['created'], '%Y-%m-%dT%H:%M:%S.%f'),
+        'pulse_modified': datetime.strptime(pulse['modified'], '%Y-%m-%dT%H:%M:%S.%f'),
         'indicator_created': datetime.strptime(indicator['created'], '%Y-%m-%dT%H:%M:%S'),
-        'indicator_expiration': datetime.strptime(indicator['expiration'], '%Y-%m-%dT%H:%M:%S'),
         'indicator_role': indicator['role'],
         'indicator_title': indicator['title']
     }
+    if indicator['expiration'] is not None:
+        new_pulse['indicator_expiration'] = datetime.strptime(indicator['expiration'], '%Y-%m-%dT%H:%M:%S')
     return new_pulse
 
 
