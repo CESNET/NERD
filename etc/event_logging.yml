@@ -48,7 +48,7 @@ groups:
       - updater
       - warden_receiver
       - updater_manager
-      - nerd_main
+      - web
       - misp_updater
     auto_declare_events: true
     intervals: ["5s", "5m"]

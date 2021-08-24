@@ -1016,7 +1016,7 @@ def ajax_request_ip_data(ipaddr):
         return exceeded_rate_limit(user_id)
 
     record_ttl = datetime.utcnow() + timedelta(hours=3)
-    task_queue_writer.put_task('ip', ipaddr, [('set', '_ttl.web', record_ttl)], "nerd_main", priority=True)
+    task_queue_writer.put_task('ip', ipaddr, [('set', '_ttl.web', record_ttl)], "web", priority=True)
     return make_response("OK")
 
 
