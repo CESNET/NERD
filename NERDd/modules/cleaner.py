@@ -44,7 +44,7 @@ class Cleaner(NERDModule):
 
     def clear_events(self, ekey, rec, updates):
         """
-        Handler function to clear old events metadata.
+        Handler function to clear old Warden events metadata.
         
         Remove all items under events with "date" older then current
         day minus 'max_event_history' days.
@@ -112,8 +112,11 @@ class Cleaner(NERDModule):
 
     def check_ip_expiration(self, ekey, rec, updates):
         """
-        Handler function to issue !every1d event in case the IP record is still valid.
-        If the IP record is no longer valid, a !DELETE event is issued.
+        Check record's TTL tokens, and either issue normal !every1d or delete the record.
+
+        Event !check_and_update_1d is called by Updater instead of normal !every1d, in order to first check if the
+        record still has some valid TTL token. If not (all token has expired), the record is no longer valid and !DELETE
+        event is issued. Otherwise, any expired tokens are removed from '_ttl' dict and normal !every1d event is issued.
         """
         etype, key = ekey
         if etype != 'ip':
@@ -121,26 +124,25 @@ class Cleaner(NERDModule):
 
         now = datetime.utcnow()
         actions = []
-        if rec.get('_ttl'):
-            # copy() has to be present to prevent "dictionary changed size during iteration" RuntimeError while removing
-            # expired token
-            for name, expiration in rec['_ttl'].copy().items():
-                if expiration == '*':
-                    # record should be alive forever
-                    continue
-                elif now >= expiration:
-                    # token expired, remove it
-                    rec['_ttl'].pop(name)
+        ttl_tokens = rec.get('_ttl', {})
+        new_ttl_tokens = ttl_tokens.copy()
+        for name, expiration in ttl_tokens.items():
+            if expiration == '*':
+                # record should be alive forever
+                continue
+            elif now >= expiration:
+                # token expired, remove it
+                new_ttl_tokens.pop(name)
 
-            if not rec['_ttl']:
-                # if all tokens are expired (_ttl empty), then delete the record
-                actions.append(('event', '!DELETE'))
-                return actions
-            else:
-                # otherwise update _ttl
-                actions.append(('set', '_ttl', rec['_ttl']))
+        if not new_ttl_tokens:
+            # all tokens are expired (_ttl empty), delete the record
+            actions.append(('event', '!DELETE'))
+            return actions
 
-        # last event is recent enough or not set at all - keep record and
-        # issue normal !every1d event        
+        if new_ttl_tokens != ttl_tokens:
+            # some token was removed, update _ttl
+            actions.append(('set', '_ttl', rec['_ttl']))
+
+        # there is still at least one _ttl token - keep the record and issue normal !every1d event
         actions.append(('event', '!every1d'))
         return actions
