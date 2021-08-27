@@ -21,6 +21,8 @@ sed -i -e 's/^host \*$/# host \*/' -e 's/^#\s*host 127.0.0.1/host 127.0.0.1/' /e
 cp $BASEDIR/munin/* /usr/share/munin/plugins/
 chmod +x /usr/share/munin/plugins/nerd_*
 ln -s /usr/share/munin/plugins/nerd_* /etc/munin/plugins/
+# except nerd_mongo_rs, since Mongo Replica-set is not configured by default - remove the symlink to disable plugin
+rm /etc/munin/plugins/nerd_mongo_rs
 
 # Enable Apache and named (BIND) plugins
 ln -s /usr/share/munin/plugins/apache_* /etc/munin/plugins/
