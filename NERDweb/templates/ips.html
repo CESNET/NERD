@@ -223,6 +223,9 @@
 {% endfor %}
 </table>
 
+<a href={{url_for('ips_download') + '?' + query_params_url}}>
+    <button class="download-btn">Download</button>
+</a>
 {% elif error %}
 <p class="error">{{
 {

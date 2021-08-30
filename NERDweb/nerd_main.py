@@ -1,5 +1,9 @@
 import sys
+import csv
 import json
+import tempfile
+import urllib.parse
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import os
 import subprocess
@@ -10,7 +14,7 @@ import struct
 import hashlib
 import requests
 import flask
-from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
+from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response,  send_file
 from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
 import pymongo.errors
 from flask_wtf import FlaskForm
@@ -883,6 +887,7 @@ def ips():
             query = create_query(form)
             # Query parameters to be used in AJAX requests
             query_params = json.dumps(form.data)
+            query_params_url = urllib.parse.urlencode(form.data, doseq=True)
 
             # Perform DB query
             results = mongo.db.ip.find(query).limit(form.limit.data)
@@ -998,6 +1003,123 @@ def ips_count():
     else:
         return make_response("ERROR")
 
+def _strip_str_for_list(string):
+    string = string.lstrip('[').rstrip(']')
+    values = [x.strip("'") for x in string.split(', ') if x]
+    return values
+
+def _format_converter(form_values):
+    if form_values['asc'] == 'True':
+        form_values['asc'] = True
+    else:
+        form_values['asc'] = False
+
+    form_values['blacklist'] = _strip_str_for_list(form_values['blacklist'])
+    form_values['cat'] = _strip_str_for_list(form_values['cat'])
+    form_values['limit'] = int(form_values['limit'])
+    form_values['node'] = _strip_str_for_list(form_values['node'])
+    form_values['tag'] = _strip_str_for_list(form_values['tag'])
+    form_values['tag_conf'] = float(form_values['tag_conf'])
+
+def _return_string_from_class(object):
+    string = ""
+    for element in object:
+        if string == "":
+            string += element
+        else:
+            string += "|" + element
+    return string
+
+@app.route('/_ips_download', methods=['POST', 'GET'])
+@app.route('/_ips_download/', methods=['POST', 'GET'])
+def ips_download():
+    log_ep.log('/ips_download')
+    if g.ac('export'):
+        form = IPFilterForm(request.args)
+        if g.ac('ipsearch') and form.validate():
+            query = create_query(form)
+            results = mongo.db.ip.find(query)
+
+            with open("/tmp/results.csv", mode='w+', newline="\n") as csvfile:
+                my_writer = csv.writer(csvfile, delimiter=';')
+                my_writer.writerow(["ip", "hostname", "asn", "country", "events", "event_nodes", "event_categories_c",
+                                    "event_categories", "rep_score", "blacklists", "tags", "ts_added", "ts_last_event"])
+
+                for count, result in enumerate(results):
+                    row_entry = defaultdict(str)
+
+                    if not g.ac('unlimited_export'):
+                        if count >= 1000:
+                            break
+
+                    row_entry['ip'] = int2ipstr(result['_id'])
+
+                    if 'hostname' in result and result['hostname'] is not None:
+                        row_entry['hostname'] = str(result['hostname'])[::-1]
+
+                    if 'bgppref' in result:
+                        bgppref_rec = mongo.db.bgppref.find_one({'_id': result['bgppref']}, {'asn': 1})
+                        if bgppref_rec:
+                            if 'asn' in bgppref_rec:
+                                result['asn'] = bgppref_rec['asn']
+
+                            row_entry['asn'] = str(result['asn']).replace('[', '').replace(']', '').replace(' ', '').replace(',', "|")
+
+                    if 'geo' in result:
+                        row_entry['country'] = (result["geo"])["ctry"]
+
+                    if 'events_meta' in result:
+                        row_entry['events'] = str((result['events_meta'])['total'])
+                    else:
+                        row_entry['events'] = "0"
+
+                    events = result.get('events', [])
+                    # Get sets of all cats and nodes
+                    cats = set()
+                    nodes = set()
+                    for evtrec in events:
+                        cats.add(evtrec['cat'])
+                        nodes.add(evtrec['node'])
+
+                    cats = sorted(cats)
+
+                    row_entry['event_nodes'] = str(len(nodes))
+                    row_entry['event_categories_c'] = str(len(cats))
+                    row_entry['event_categories'] = _return_string_from_class(cats)
+
+                    if 'rep' in result:
+                        row_entry['rep'] = result["rep"]
+
+                    if "bl" in result:
+                        bl_data = result["bl"]
+                        for record in bl_data:
+                            if 'n' in record:
+                                if row_entry['blacklists'] == "":
+                                    row_entry['blacklists'] += record['n']
+                                else :
+                                    row_entry['blacklists'] += "|" + record['n']
+
+                    if 'tags' in result:
+                        tags_data = result['tags']
+                        tags_data = tags_data.keys()
+                        row_entry['tags'] = _return_string_from_class(tags_data)
+
+                    if 'ts_added' in result:
+                        row_entry['ts_added'] = (result['ts_added'].replace(microsecond=0)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                    if 'last_activity' in result:
+                        row_entry['ts_last_event'] = (result['last_activity'].replace(microsecond=0)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                    my_writer.writerow([row_entry['ip'], row_entry['hostname'], row_entry['asn'], row_entry['country'], row_entry['events'],
+                                        row_entry['event_nodes'], row_entry['event_categories_c'], row_entry['event_categories'],
+                                        row_entry['rep'], row_entry['blacklists'], row_entry['tags'], row_entry['ts_added'], row_entry['ts_last_event']])
+
+            return send_file("/tmp/results.csv", mimetype="text/csv", attachment_filename="results.csv", as_attachment=True)
+        else:
+            return make_response("UNEXPECTED ERROR")
+    else:
+        flash("You are not authorized to download search results.")
+        return redirect("/nerd/ips/")
 
 # ***** Detailed info about individual IP *****
 

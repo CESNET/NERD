@@ -13,12 +13,14 @@ bgpprefsearch   *
 
 pdns            *
 shodan          *
+export          *
 
-nodenames       trusted
-warden_alerts   trusted
-eml_rank        trusted
-tlp-green       trusted
-mentat          mentat
+unlimited_export   trusted
+nodenames          trusted
+warden_alerts      trusted
+eml_rank           trusted
+tlp-green          trusted
+mentat             mentat
 
 # Admin tools
 internal_attrs  admin
