@@ -142,12 +142,14 @@ def processing_pulses(pulses):
     Processes the pulse's indicators, selects only with a parameter 'IPv4'
     :return: None
     """
+    # get current time minus 30 days to get fresh pulses
+    time_for_upsert = datetime.utcnow() - timedelta(days=30)
     logger.info("Processing pulses")
     for pulse in pulses:
         ipv4_counter = 0
         indicators = pulse.get('indicators', [])
         for indicator in indicators:
-            if indicator["type"] == "IPv4":
+            if (indicator["type"] == "IPv4") and (datetime.strptime(indicator['created'], '%Y-%m-%dT%H:%M:%S') >= time_for_upsert):
                 ipv4_counter += 1
                 upsert_new_pulse(pulse, indicator)
         logger.info("Done, {} IPv4 indicators added/updated".format(ipv4_counter))

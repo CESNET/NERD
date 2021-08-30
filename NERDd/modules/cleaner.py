@@ -37,9 +37,9 @@ class Cleaner(NERDModule):
         )
         g.um.register_handler(
             self.clear_otx_pulses,
-            'ip'
+            'ip',
             ('!every1d',),
-            tuple()
+            tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
         )
         g.um.register_handler(
             self.check_ip_expiration,
@@ -125,19 +125,13 @@ class Cleaner(NERDModule):
         etype, key = ekey
         if etype != 'ip':
             return None
-        
-        cut_time = datetime.utcnow() - self.max_event_history
 
+        cut_time = datetime.utcnow()-timedelta(days=30)-self.max_event_history
         actions = []
-
+        
         for otx_pulse in rec.get('otx_pulses', []):
-            if otx_pulse['indicator_expiration']:
-                if (otx_pulse['indicator_expiration'] + timedelta(days=30)) < cut_time:
-                    actions.append('array_remove', 'otx_pulses', {'pulse_id': otx_pulse['pulse_id'], 'indicator_role': otx_pulse['indicator_role'], 'indicator_title': otx_pulse['indicator_title']})
-            else:
-                if (otx_pulse['indicator_created'] + timedelta(days=30)) < cut_time:
-                    actions.append('array_remove', 'otx_pulses', {'pulse_id': otx_pulse['pulse_id'], 'indicator_role': otx_pulse['indicator_role'], 'indicator_title': otx_pulse['indicator_title']})
-
+            if (otx_pulse.get('indicator_expiration') and (otx_pulse.get('indicator_expiration') < cut_time)) or ((otx_pulse.get('indicator_expiration') is None) and (otx_pulse.get('indicator_created') < cut_time)):
+                actions.append(('array_remove', 'otx_pulses', {'pulse_id': otx_pulse['pulse_id']}))
         return actions
 
     def check_ip_expiration(self, ekey, rec, updates):

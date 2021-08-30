@@ -24,8 +24,8 @@ parser = argparse.ArgumentParser(
     prog="put_task.py",
     description="Put a single task (aka update_request) to the main NERD Task Queue."
 )
-parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
-                    help='Path to backend configuration file (default: /etc/nerd/nerdd.yml)')
+parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerd.yml',
+                    help='Path to main NERD configuration file (default: /etc/nerd/nerd.yml)')
 parser.add_argument("-v", dest="verbose", action="store_true", help="Verbose mode")
 parser.add_argument("etype", metavar="TYPE", help="Entity type (e.g. 'ip', 'asn')")
 parser.add_argument("eid", metavar="ID", help="Entity ID (e.g. '1.2.3.4')")
