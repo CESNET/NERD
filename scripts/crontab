@@ -1,9 +1,9 @@
 # Remove old IDEA messages from PostgeSQL every day at 03:00 (only if PSQL is enabled)
 0 03 * * * psql -lt | grep -Eq '^\s+nerd_warden\s' && /nerd/scripts/nerd_clean_eventdb.sh > /dev/null
 # Update metainformation about numbers of IPs with particular event Category and Node
-*/30 * * * * mongo --quiet nerd /nerd/scripts/update_db_meta_info.js
+*/30 * * * * mongosh --quiet nerd /nerd/scripts/update_db_meta_info.js >/dev/null
 # Compute reputation scores of BGP prefixes once an hour
-55 * * * * mongo --quiet nerd /nerd/scripts/set_prefix_repscore.js
+55 * * * * mongosh --quiet nerd /nerd/scripts/set_prefix_repscore.js
 
 # Download GeoIP database every Monday at 05:05
 # TODO: It's probalby needed to somehow notify NERDd that it needs to reload the database

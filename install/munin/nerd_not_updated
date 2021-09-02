@@ -15,8 +15,9 @@ END
 fi
 
 date="$(date --rfc-3339=seconds --utc -d "-1 hour")"
-mongo nerd --quiet --eval "
+# grep is used because mongosh puts an empty line at the end that we don't want there
+mongosh nerd --quiet --eval "
   print('ip.value', db.ip.find({_nru1d: {\$lt: ISODate(\"${date}\")}}).count());
   print('asn.value', db.asn.find({_nru1d: {\$lt: ISODate(\"${date}\")}}).count());
-"
+" | grep -v "^$"
 

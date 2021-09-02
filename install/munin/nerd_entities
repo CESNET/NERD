@@ -14,11 +14,12 @@ END
   exit 0
 fi
 
-mongo nerd --quiet --eval "
+# grep is used because mongosh puts an empty line at the end that we don't want there
+mongosh nerd --quiet --eval "
   print('ip.value', db.ip.count());
   print('bgppref.value', db.bgppref.count());
   print('ipblock.value', db.ipblock.count());
   print('asn.value', db.asn.count());
   print('org.value', db.org.count());
-"
+" | grep -v "^$"
 

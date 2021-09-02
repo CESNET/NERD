@@ -14,7 +14,7 @@ END
 fi
 
 # Simple version using "last_activity", but this is set by MISP events as well, so it's not perfect for checking dealy of Warden events
-#echo "delay.value $(mongo nerd --quiet --eval 'print((ISODate().getTime() - db.ip.find({}, {last_activity: 1, _id: 0}).sort({last_activity: -1}).limit(1).next().last_activity.getTime())/60000)')"
+#echo "delay.value $(mongosh nerd --quiet --eval 'print((ISODate().getTime() - db.ip.find({}, {last_activity: 1, _id: 0}).sort({last_activity: -1}).limit(1).next().last_activity.getTime())/60000)')"
 
 # This version uses "_ttl.warden" minus configured "record_life_length.warden", which should result in the time of the last added warden alert
 warden_rec_ttl=$(python3 -c 'import yaml,sys; c=yaml.safe_load(open("/etc/nerd/nerd.yml")); print(c.get("record_life_length",{}).get("warden") or sys.exit(1))' 2>/dev/null)
@@ -22,4 +22,4 @@ if [ "$?" != 0 ] || ! egrep -q "^[0-9]+$" <<<"$warden_rec_ttl"; then
   # Can't load "record_life_length.warden" or it's not a number, use default (14 days)
   warden_rec_ttl=14
 fi
-echo "delay.value $(mongo nerd --quiet --eval "print((ISODate().getTime() - (db.ip.find({\"_ttl.warden\": {\$exists: true}}, {\"_ttl.warden\": 1, _id: 0}).sort({\"_ttl.warden\": -1}).limit(1).next()._ttl.warden.getTime() - ($warden_rec_ttl*24*3600000)))/60000)")"
+echo "delay.value $(mongosh nerd --quiet --eval "print((ISODate().getTime() - (db.ip.find({\"_ttl.warden\": {\$exists: true}}, {\"_ttl.warden\": 1, _id: 0}).sort({\"_ttl.warden\": -1}).limit(1).next()._ttl.warden.getTime() - ($warden_rec_ttl*24*3600000)))/60000)")"
