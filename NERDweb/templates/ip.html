@@ -173,6 +173,22 @@ $( function() {create_event_graph('plot-events', event_data)} );
        {% endfor %}
       </dd>
   {% endif %}
+ {% elif attr == "otx_pulses"%}
+  <dt> OTX pulses </dt>
+  <dd class="scrollable">
+    {% for otx_pulse in val %}
+    <div><b>[<a href="https://otx.alienvault.com/pulse/{{otx_pulse.pulse_id}}">{{ otx_pulse.pulse_id }}</a>] {{ otx_pulse.pulse_created }} | {{ otx_pulse.pulse_name }}</b>
+         <table style="padding-left: 30px; padding-bottom: 10px">
+          <tr><td>Author name:</td><td>{{ otx_pulse.author_name }}</td></tr>
+          <tr><td>Pulse modified:</td><td>{{ otx_pulse.pulse_modified }}</td></tr>
+          <tr><td>Indicator created:</td><td>{{ otx_pulse.indicator_created }}</td></tr>
+          <tr><td>Indicator role:</td><td>{{ otx_pulse.indicator_role }}</td></tr>
+          <tr><td>Indicator title:</td><td>{{ otx_pulse.indicator_title }}</td></tr>
+          {% if otx_pulse.get('indicator_expiration')%}
+           <tr><td>Indicator expiration:</td><td>{{ otx_pulse.indicator_expiration }}</td></tr>
+          {% endif%}
+         </table>
+    {% endfor%}
  {% elif attr == "geo" %}
   <dt>geo</dt><dd><span class="country">
     <a href="http://country.io/{{val.ctry|lower}}/">
