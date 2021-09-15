@@ -52,6 +52,19 @@ def get_all_groups():
     return sorted(list(groups))
 
 
+# ***** User management functions *****
+def create_user(email, password, provider, name=None, surname=None, organization=None):
+    try:
+        cur = db.cursor()
+        cur.execute("""INSERT INTO users (id, groups, name, email, org, password) 
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (provider + ":" + email, ["registered"], name + " " + surname, email, organization, password))
+        db.commit()
+        cur.close()
+    except (Exception, psycopg2.DatabaseError) as e:
+        return e
+
+
 # ***** Access control functions *****
 
 def get_user_groups(full_id):
@@ -78,15 +91,92 @@ def get_ac_func(user_groups):
     return ac
 
 
+def get_user_by_email(email):
+    cur = db.cursor()
+    cur.execute("SELECT * FROM users WHERE email=%s", (email,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    col_names = [col.name for col in cur.description]
+    return dict(zip(col_names, row))
+
+
+def get_user_data_for_login(user_id):
+    cur = db.cursor()
+    cur.execute("SELECT id, password, name FROM users WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    return {'id': row[0], 'password': row[1], 'name': row[2]}
+
+
+def verify_user(user_id):
+    try:
+        cur = db.cursor()
+        cur.execute("""UPDATE users SET groups=%s, verified=TRUE WHERE id = %s""", (["registered"], user_id,))
+        db.commit()
+        cur.close()
+    except (Exception, psycopg2.DatabaseError) as e:
+        return e
+
+
+def set_verification_email_sent(date_time, email):
+    try:
+        cur = db.cursor()
+        cur.execute("""UPDATE users SET verification_email_sent=%s WHERE email = %s""", (date_time, email))
+        db.commit()
+        cur.close()
+    except (Exception, psycopg2.DatabaseError) as e:
+        return e
+
+
+def set_last_login(date_time, email):
+    try:
+        cur = db.cursor()
+        cur.execute("""UPDATE users SET last_login=%s WHERE email = %s""", (date_time, email))
+        db.commit()
+        cur.close()
+    except (Exception, psycopg2.DatabaseError) as e:
+        return e
+
+
+def get_verification_email_sent(user_email):
+    cur = db.cursor()
+    cur.execute("SELECT verification_email_sent FROM users WHERE email = %s", (user_email,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    return row[0]
+
+
+def get_user_name(user_email):
+    cur = db.cursor()
+    cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    return row[0]
+
+
+def set_new_password(new_password, email):
+    try:
+        cur = db.cursor()
+        cur.execute("""UPDATE users SET password=%s WHERE email = %s""", (new_password, email))
+        db.commit()
+        cur.close()
+    except (Exception, psycopg2.DatabaseError) as e:
+        return e
+
+
 # TODO - split authentication and authorization/get_user_information
 
 def get_user_info(session):
     """
-    Returun info about current user (or None if noone is logged in) and 
+    Return info about current user (or None if no one is logged in) and
     the access control function.
      
     To be called by all page handlers as:
-      user, ac = get_user_info(session)
+      user, ac, verified = get_user_info(session)
     
     'user' contains:
       login_type, id, fullid, groups, name, email, org, api_token, rl-bs, rl-tps
@@ -99,7 +189,7 @@ def get_user_info(session):
         user['fullid'] = user['login_type'] + ':' + user['id']
     else:
         # No user logged in
-        return None, get_ac_func(set())
+        return None, get_ac_func(set()), None
     
     # Get user info from DB
     # TODO: get only what is normally needed (id, groups, name (to show in web header), rl-*)
@@ -110,7 +200,7 @@ def get_user_info(session):
     if not row:
         # User not found in DB = user is authenticated (e.g. via shibboleth) but has no account yet
         user['groups'] = set()
-        return user, get_ac_func(user['groups'])
+        return user, get_ac_func(user['groups']), False
     
     # Put all fields from DB into 'user' dict
     col_names[0] = 'fullid' # rename column 'id' to 'fullid', other columns can be mapped directly as they are in DB
@@ -130,7 +220,8 @@ def get_user_info(session):
         ac = get_ac_func(set(user['selected_groups']))
     else:
         ac = get_ac_func(user['groups'])
-    return user, ac
+    session['user']['verified'] = user['verified']
+    return user, ac, user['verified']
 
 
 def authenticate_with_token(token):

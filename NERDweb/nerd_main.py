@@ -8,19 +8,21 @@ import re
 import ipaddress
 import struct
 import hashlib
+from ipaddress import IPv4Address, AddressValueError
+
 import requests
 import flask
-from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
+from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response, Markup, url_for
 from flask_pymongo import pymongo, PyMongo
 import pymongo.errors
 from flask_wtf import FlaskForm
-from flask_mail import Mail, Message
+from flask_mail import Mail
 from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 import dateutil.parser
 import pymisp
 from pymisp import ExpandedPyMISP
-from ipaddress import IPv4Address, AddressValueError
-from event_count_logger import EventCountLogger, EventGroup, DummyEventGroup
+
+from event_count_logger import EventCountLogger, DummyEventGroup
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -119,6 +121,11 @@ userdb.init(config, cfg_dir)
 
 # **** Create and initialize Flask application *****
 
+# Override render_template to always include some variables
+def render_template(template, **kwargs):
+    return flask.render_template(template, config=config, config_tags=config_tags['tags'], userdb=userdb, user=g.user,
+                                 ac=g.ac, verified=g.verified, **kwargs)
+
 app = Flask(__name__)
 
 app.secret_key = config.get('secret_key')
@@ -158,7 +165,6 @@ mailer = Mail(app)
 # work for me (form.validate fails then)
 app.config['WTF_CSRF_ENABLED'] = False
 #app.config['WTF_CSRF_CHECK_DEFAULT'] = False
-
 
 # ***** Jinja2 filters *****
 
@@ -415,6 +421,7 @@ API_RESPONSE_403 = Response(
 )
 
 
+# TODO user - move this to user management source file: https://stackoverflow.com/questions/15446276/before-request-for-multiple-blueprints
 @app.before_request
 def store_user_info():
     """Store user info to 'g' (request-wide global variable)"""
@@ -447,7 +454,8 @@ def store_user_info():
 
     else:
         # Normal authentication using session cookie
-        g.user, g.ac = get_user_info(session)
+        g.user, g.ac, verified = get_user_info(session)
+        g.verified = False if g.user is not None and not verified else True
 
 
 def exceeded_rate_limit(user_id):
@@ -516,21 +524,11 @@ def add_user_header(resp):
     return resp
 
 
-# ***** Override render_template to always include some variables *****
-
-def render_template(template, **kwargs):
-    return flask.render_template(template, config=config, config_tags=config_tags['tags'], userdb=userdb, user=g.user, ac=g.ac, **kwargs)
-
-
 # ***** Main page *****
 # TODO: rewrite as before_request (to check for this situation at any URL)
 @app.route('/')
 def main():
     log_ep.log('/')
-    # User is authenticated but has no account
-    if g.user and g.ac('notregistered'):
-        return redirect(BASE_URL+'/noaccount')
-    
     return redirect(BASE_URL+'/ips/')
 
 
@@ -539,41 +537,6 @@ class AccountRequestForm(FlaskForm):
     email = TextField('Contact email', [validators.Required()], description='Used to send information about your request and in case admins need to contact you.')
     message = TextAreaField("", [validators.Optional()])
     action = HiddenField('action')
-
-@app.route('/noaccount', methods=['GET','POST'])
-def noaccount():
-    log_ep.log('/noaccount')
-    if not g.user:
-        return make_response("ERROR: no user is authenticated")
-    if not g.ac('notregistered'):
-        return redirect(BASE_URL+'/ips/')
-    if g.user['login_type'] != 'shibboleth':
-        return make_response("ERROR: You've successfully authenticated to web server but there is no matching user account. This is probably a configuration error. Contact NERD administrator.")
-    
-    form = AccountRequestForm(request.values)
-    # Prefill user's default email from his/her account info (we expect a list of emails separated by ';')
-    if not form.email.data and 'email' in g.user:
-        form.email.data = g.user['email'].split(';')[0]
-    
-    request_sent = False
-    if form.validate() and form.action.data == 'request_account':
-        # Check presence of config login.request-email
-        if not config.get('login.request-email', None):
-            return make_response("ERROR: No destination email address configured. This is a server configuration error. Please, report this to NERD administrator if possible.")
-        # Send email
-        name = g.user.get('name', '[name not available]')
-        id = g.user['id']
-        email = form.email.data
-        message = form.message.data
-        msg = Message(subject="[NERD] New account request from {} ({})".format(name,id),
-                      recipients=[config.get('login.request-email')],
-                      reply_to=email,
-                      body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}\n\nMessage:\n{}".format(id,name,g.user.get('email',''),email,message),
-                     )
-        mailer.send(msg)
-        request_sent = True
-        
-    return render_template('noaccount.html', **locals())
 
 
 # ***** Account info & password change *****
@@ -1952,6 +1915,12 @@ def get_shodan_response(ipaddr=None):
     return render_template('shodan_response.html', data=data)
 
 # **********
+
+# register blueprints - generally definitions of routes in separate files
+from user_management import user_management
+
+app.register_blueprint(user_management, url_prefix="/user")
+
 
 if __name__ == "__main__":
     # Set global testing flag

@@ -131,13 +131,14 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
  </div>
  <div id="login">
   {% if not user %}
-  Log in using:
-  {%- for method_name, params in config.login.methods.items() -%}
-    <a href="{{ url_for('login_'+method_name) }}">{{ params.display }}</a>
-  {%- endfor -%}
-  {%- if config.testing %}
-    <a href="{{ url_for('login_devel') }}">= devel autologin =</a>
-  {%- endif %}
+      Log in using:
+      {%- for method_name, params in config.login.methods.items() -%}
+        <a href="{{ url_for('user_management.login_local') }}">Local account</a>
+      {%- endfor -%}
+      {%- if config.testing %}
+        <a href="{{ url_for('login_devel') }}">= devel autologin =</a>
+      {%- endif %}
+      <a href="{{ url_for('user_management.register_user') }}">Register</a>
   {% else %}
   Logged in:<a href="{{ url_for('account_info') }}" class="username">{{ user.id }}{% if user.name %} ({{ user.name }}){% endif %}</a>&bull;<a href="{{ url_for('logout') }}">Log out</a>
   {% endif %}
@@ -150,6 +151,13 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 {% endblock %}
 
 <div id="content">
+{% if not verified %}
+    <div class="msg error">Your email address is still not verified. Please check your email inbox and follow the
+        instructions to verify your email address! Cannot find the verification email in your inbox?
+        <a class='ml-2' href='{{ url_for('user_management.resend_verification_mail') }}'>Resend verification email</a>
+        <a class="close" href="#" onclick="$(this).parent().hide(); return false;">&#x274C;</a>
+    </div>
+{% endif %}
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     {% for category, message in messages %}
