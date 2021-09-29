@@ -7,12 +7,17 @@ from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp
 from bcrypt import hashpw, checkpw, gensalt
 from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer
+from flask_dance.contrib.google import make_google_blueprint, google
 
 # needed overridden render_template method because it passes some needed attributes to Jinja templates
 from nerd_main import render_template, BASE_URL, config, mailer
 from userdb import create_user, get_user_data_for_login, get_user_by_email, verify_user, get_verification_email_sent, \
     set_verification_email_sent, set_last_login, get_user_name, set_new_password
 
+google_blueprint = make_google_blueprint(client_id=config.get('oauth.google.client_id'),
+                                         client_secret=config.get('oauth.google.client_secret'),
+                                         scope=["profile", "email"],
+                                         redirect_url=BASE_URL + '/')
 
 # variable name and name of blueprint is recommended to be same as filename
 user_management = Blueprint("user_management", __name__, static_folder="static", template_folder="templates")
@@ -237,4 +242,16 @@ def resend_verification_mail():
         send_verification_email(user_email, user_name)
         set_verification_email_sent(get_current_datetime(), user_email)
         flash("New verification email was sent, check your inbox!", "success")
+    return redirect(BASE_URL + '/')
+
+
+@user_management.route("/login/google")
+def google_login():
+    if not google.authorized:
+        return redirect(url_for("google.login"))
+    # https://www.googleapis.com/auth/userinfo.email
+    # account_info = google.get("https://www.googleapis.com/auth/userinfo.email")
+    # account_info = google.get("https://www.googleapis.com/oauth2/v2/userinfo?fields=id,email,name,picture")
+    account_info = google.get("/oauth2/v1/userinfo")
+    flash(f"User info is test: {account_info.json()}")
     return redirect(BASE_URL + '/')

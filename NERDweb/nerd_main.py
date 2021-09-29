@@ -38,6 +38,7 @@ import ratelimit
 from userdb import get_user_info, authenticate_with_token, generate_unique_token
 
 # ***** Load configuration *****
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 DEFAULT_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "/etc/nerd/nerdweb.yml"))
 
@@ -1917,9 +1918,10 @@ def get_shodan_response(ipaddr=None):
 # **********
 
 # register blueprints - generally definitions of routes in separate files
-from user_management import user_management
+from user_management import user_management, google_blueprint
 
 app.register_blueprint(user_management, url_prefix="/user")
+app.register_blueprint(google_blueprint)
 
 
 if __name__ == "__main__":

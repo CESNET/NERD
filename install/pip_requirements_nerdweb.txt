@@ -13,3 +13,4 @@ cachetools
 event_count_logger
 bcrypt
 email_validator
+flask_dance
