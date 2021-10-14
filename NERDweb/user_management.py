@@ -7,12 +7,17 @@ from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp
 from bcrypt import hashpw, checkpw, gensalt
 from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from flask_dance.contrib.google import make_google_blueprint, google
 
 # needed overridden render_template method because it passes some needed attributes to Jinja templates
 from nerd_main import render_template, BASE_URL, config, mailer
 from userdb import create_user, get_user_data_for_login, get_user_by_email, verify_user, get_verification_email_sent, \
     set_verification_email_sent, set_last_login, get_user_name, set_new_password
 
+google_blueprint = make_google_blueprint(client_id=config.get('oauth.google.client_id'),
+                                         client_secret=config.get('oauth.google.client_secret'),
+                                         scope=["profile", "email"],
+                                         redirect_url=BASE_URL + '/')
 
 # variable name and name of blueprint is recommended to be same as filename
 user_management = Blueprint("user_management", __name__, static_folder="static", template_folder="templates")
@@ -41,7 +46,7 @@ def confirm_token(token, expiration=3600):
 
 
 def get_current_datetime():
-    return datetime.now() # TODO? shouldn't it be utcnow()? uklad√°d√° se do DB
+    return datetime.now() # TODO? shouldn't it be utcnow()? uklad·d· se do DB
 
 
 def send_verification_email(user_email, name):
@@ -124,7 +129,7 @@ def register_user():
         hashed_password = get_hashed_password(reg_form.password.data)
         res = create_user(reg_form.email.data, hashed_password, "local", reg_form.name.data, reg_form.organization.data)
         if isinstance(res, Exception):
-            if res.args[0].startswith("duplicate key") and "Key (id)" in res.args[0]: #TODO? neexistuje lep≈°√≠ zp≈Øsob kontroly typu cyhby? Pr√Ω na to speci√°ln√≠ typ Exc asi nen√≠
+            if res.args[0].startswith("duplicate key") and "Key (id)" in res.args[0]: #TODO? neexistuje lepöÌ zp˘sob kontroly typu cyhby? Pr˝ na to speci·lnÌ typ Exc asi nenÌ
                 flash(f"User with email address {reg_form.email.data} already exists! You can either log in or try to "
                       f"reset your password in log-in section.", "error")
             else:
@@ -237,3 +242,15 @@ def resend_verification_mail():
     return redirect(BASE_URL + '/')
 
 # TODO: create some simpler html template/layout for these login/verify/reset pages (?)
+
+
+@user_management.route("/login/google")
+def google_login():
+    if not google.authorized:
+        return redirect(url_for("google.login"))
+    # https://www.googleapis.com/auth/userinfo.email
+    # account_info = google.get("https://www.googleapis.com/auth/userinfo.email")
+    # account_info = google.get("https://www.googleapis.com/oauth2/v2/userinfo?fields=id,email,name,picture")
+    account_info = google.get("/oauth2/v1/userinfo")
+    flash(f"User info is test: {account_info.json()}")
+    return redirect(BASE_URL + '/')
