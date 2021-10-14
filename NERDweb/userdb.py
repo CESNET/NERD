@@ -53,12 +53,12 @@ def get_all_groups():
 
 
 # ***** User management functions *****
-def create_user(email, password, provider, name=None, surname=None, organization=None):
+def create_user(email, password, provider, name=None, organization=None):
     try:
         cur = db.cursor()
         cur.execute("""INSERT INTO users (id, groups, name, email, org, password) 
                        VALUES (%s, %s, %s, %s, %s, %s)""",
-                    (provider + ":" + email, ["registered"], name + " " + surname, email, organization, password))
+                    (provider + ":" + email, [], name, email, organization, password))
         db.commit()
         cur.close()
     except (Exception, psycopg2.DatabaseError) as e:
@@ -99,7 +99,7 @@ def get_user_by_email(email):
         return None
     col_names = [col.name for col in cur.description]
     return dict(zip(col_names, row))
-
+# TODO? je opravdu potreba vracet vsechny sloupce? Podívat se, kde se to používá a případně upravit.
 
 def get_user_data_for_login(user_id):
     cur = db.cursor()
@@ -108,7 +108,7 @@ def get_user_data_for_login(user_id):
     if not row:
         return None
     return {'id': row[0], 'password': row[1], 'name': row[2]}
-
+# TODO? Proc se vraci "name"?
 
 def verify_user(user_id):
     try:
@@ -116,9 +116,9 @@ def verify_user(user_id):
         cur.execute("""UPDATE users SET groups=%s, verified=TRUE WHERE id = %s""", (["registered"], user_id,))
         db.commit()
         cur.close()
-    except (Exception, psycopg2.DatabaseError) as e:
+    except psycopg2.Error as e:
+        print(f"verify_user() failed: {e.pgerror}")
         return e
-
 
 def set_verification_email_sent(date_time, email):
     try:
@@ -126,8 +126,10 @@ def set_verification_email_sent(date_time, email):
         cur.execute("""UPDATE users SET verification_email_sent=%s WHERE email = %s""", (date_time, email))
         db.commit()
         cur.close()
-    except (Exception, psycopg2.DatabaseError) as e:
+    except psycopg2.Error as e:
+        print(f"set_verification_email_sent() failed: {e.pgerror}")
         return e
+# TODO? nejsem si jisty, jestli je idealni ukladat toho do databaze. Jestli to slouzi jen k tomu, aby se nedalo odeslat prilis moc mailu, mozna by to slo vyresit spis rate-limiterem?
 
 
 def set_last_login(date_time, email):
@@ -136,8 +138,10 @@ def set_last_login(date_time, email):
         cur.execute("""UPDATE users SET last_login=%s WHERE email = %s""", (date_time, email))
         db.commit()
         cur.close()
-    except (Exception, psycopg2.DatabaseError) as e:
+    except psycopg2.Error as e:
+        print(f"set_last_login() failed: {e.pgerror}")
         return e
+# TODO? Nebylo by lepsi last_login ukládat podle "id" a ne podle mailu?
 
 
 def get_verification_email_sent(user_email):
@@ -156,7 +160,7 @@ def get_user_name(user_email):
     if not row:
         return None
     return row[0]
-
+# TODO? proc je to podle emailu a ne id?
 
 def set_new_password(new_password, email):
     try:
@@ -164,8 +168,10 @@ def set_new_password(new_password, email):
         cur.execute("""UPDATE users SET password=%s WHERE email = %s""", (new_password, email))
         db.commit()
         cur.close()
-    except (Exception, psycopg2.DatabaseError) as e:
+    except psycopg2.Error as e:
+        print(f"set_new_password() failed: {e.pgerror}")
         return e
+# TODO? proc je to podle emailu a ne id?
 
 
 # TODO - split authentication and authorization/get_user_information
@@ -222,7 +228,8 @@ def get_user_info(session):
         ac = get_ac_func(user['groups'])
     session['user']['verified'] = user['verified']
     return user, ac, user['verified']
-
+# TODO? Proc se vraci "verified" samostante, kdyz je to soucast "user"?
+# Není k tomu důvod může to být v "user"
 
 def authenticate_with_token(token):
     """Like get_user_info, but authentication uses API token"""

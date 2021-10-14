@@ -154,7 +154,8 @@ app.config['MAIL_USE_TLS'] = config.get('mail.tls', False)
 app.config['MAIL_USE_SSL'] = config.get('mail.ssl', False)
 app.config['MAIL_USERNAME'] = config.get('mail.username', None)
 app.config['MAIL_PASSWORD'] = config.get('mail.password', None)
-app.config['MAIL_DEFAULT_SENDER'] = config.get('mail.sender', 'NERD <noreply@nerd.example.com>')
+app.config['MAIL_DEFAULT_SENDER'] = config.get('mail.sender', 'NERD <noreply@nerd.example.com>') #TODO: this should be determined automatically, or it must be present in config, so it's crear it should be redefined
+app.config['MAIL_SUPPRESS_SEND '] = False # default is True if app.testing is True
 
 mailer = Mail(app)
 
@@ -541,6 +542,7 @@ class AccountRequestForm(FlaskForm):
 
 # ***** Account info & password change *****
 
+# TODO? toto a vše související je potřeba nahradit novým formulářem na změnu hesla
 class PasswordChangeForm(FlaskForm):
     old_passwd = PasswordField('Old password', [validators.InputRequired()])
     new_passwd = PasswordField('New password', [validators.InputRequired(), validators.length(8, -1, 'Password must have at least 8 characters')])

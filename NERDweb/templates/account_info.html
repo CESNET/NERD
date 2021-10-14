@@ -7,6 +7,7 @@
 <p>Name: {{ user.get('name', '[unknown]') }}</p>
 <p>User ID: {{ user.id }}</p>
 <p>Login type: {{ user.login_type }}</p>
+<p>Email: {{ user.email }}{{ " (not verified yet!)" if not user.verified else "" }}</p>
 <p>Groups: {{ user.groups|join(', ') }}</p>
 
 <hr>

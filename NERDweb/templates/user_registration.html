@@ -14,13 +14,6 @@
                 {% endif %}
             </div>
             <div class="form-group">
-                {{ form.surname.label(class="form-control-label") }}<br />
-                {{ form.surname(class="form-control form-control-lg") }}
-                {% if form.surname.errors %}
-                    <span class="error">{{ ', '.join(form.surname.errors) }}</span><br />
-                {% endif %}
-            </div>
-            <div class="form-group">
                 {{ form.email.label(class="form-control-label") }}<br />
                 {{ form.email(class="form-control form-control-lg") }}
                 {% if form.email.errors %}
