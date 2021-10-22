@@ -58,7 +58,9 @@ config_tags = common.config.read_config(tags_cfg_file)
 
 # Read blacklists config (to separate dict)
 bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
+p_bl_cfg_file = os.path.join(cfg_dir, config.get('p_bl_config'))
 config_bl = common.config.read_config(bl_cfg_file)
+config_bl = common.config.read_config(p_bl_cfg_file)
 
 # Read EventCountLogger config (to separate dict) and initialize loggers
 ecl_cfg_filename = config.get('event_logging_config', None)
@@ -686,14 +688,14 @@ def get_ip_blacklists():
     # DNSBL (IP only)
     blacklists = [(bl_name, bl_name) for bl_group in config.get('dnsbl.blacklists', []) for bl_name in bl_group[2].values()]
     # Blacklists cached in Redis (IP and prefix)
-    blacklists += [(bl[0], bl[1]) for bl in config_bl.get('iplists', [])]
-    blacklists += [(bl[0], bl[1]) for bl in config_bl.get('prefixiplists', [])]
+    blacklists += [(bl['id'], bl['name']) for bl in config_bl.get('iplists', [])]
+    blacklists += [(bl['id'], bl['name']) for bl in config_bl.get('prefixiplists', [])]
     blacklists.sort()
     return blacklists
 
 def get_domain_blacklists():
     # Get the list of all configured domain blacklists. Return array of (id, name).
-    blacklists = [(bl[0], bl[1]) for bl in config_bl.get('domainlists', [])]
+    blacklists = [(bl['id'], bl['name']) for bl in config_bl.get('domainlists', [])]
     blacklists.sort()
     return blacklists
 

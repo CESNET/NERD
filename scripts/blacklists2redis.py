@@ -314,7 +314,7 @@ def process_blacklist_type(config_path, bl_type):
     :return: None
     """
     # Get list of blacklists (their IDs) in configuration
-    config_lists = set(cfg_item[0] for cfg_item in config.get(config_path, []))
+    config_lists = set(cfg_item['id'] for cfg_item in config.get(config_path, []))
     # Get list of blacklists present in Redis
     keys = r.keys(bl_all_types[bl_type]['db_prefix'] + '*')
     redis_lists = set(key.decode().split(':')[1] for key in keys)
@@ -325,11 +325,13 @@ def process_blacklist_type(config_path, bl_type):
         r.delete(*r.keys(bl_all_types[bl_type]['db_prefix'] + id + ':*'))
 
     # other_params should be empty or a dict containing optional parameters such as 'url_params' or 'headers'
-    for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
-        if len(other_params) > 1:
-            print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(
-                config_path, id), file=sys.stderr)
-        other_params = other_params[0] if other_params else {}
+    for bl in config.get(config_path, []):
+        id = bl['id']
+        name = bl['name']
+        url = bl['url']
+        regex = bl.get('regex', '')
+        refresh_time = bl['time']
+        other_params = bl.get('params', {})
         # TODO: check how old the list is and re-download if it's too old (complicated since cron-spec may be very complex)
         if args.force_refresh:
             get_blacklist(id, name, url, regex, bl_type, other_params)
@@ -373,11 +375,13 @@ process_blacklist_type("domainlists", "domain")
 if not args.one_shot:
     for config_path, bl_type in [('iplists', 'ip'), ('prefixiplists', 'prefixIP'), ('domainlists', 'domain')]:
         # other_params should be empty or a dict containing optional parameters such as 'url_params' or 'headers'
-        for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
-            if len(other_params) > 1:
-                print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(
-                    config_path, id), file=sys.stderr)
-            other_params = other_params[0] if other_params else {}
+        for bl in config.get(config_path, []):
+            id = bl['id']
+            name = bl['name']
+            url = bl['url']
+            regex = bl.get('regex', '')
+            refresh_time = bl['time']
+            other_params = bl.get('params', {})
             trigger = CronTrigger(**refresh_time)
             job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, other_params),
                                     trigger=trigger, coalesce=True, max_instances=1)

@@ -27,33 +27,41 @@ redis:
 #   Example of url_params and headers usage can be viewed below in Abuse IP DB blacklist specification.
 iplists:
 
-- - andoniafMiners
-  - Andoniaf Miners
-  - https://raw.githubusercontent.com/andoniaf/mining-pools-list/master/mining-pools_IP.lst
-  - ""
-  - hour: 4
+- id: andoniafMiners
+  name: Andoniaf Miners
+  descr: TODO...
+  url: https://raw.githubusercontent.com/andoniaf/mining-pools-list/master/mining-pools_IP.lst
+  regex: ""
+  time:
+    hour: 4
     minute: 50
-- - tor_project_org_ips
-  - TorProject.org IPs
-  - https://check.torproject.org/torbulkexitlist
-  - ""
-# The time of updating the list was not found 
-  - hour: "*/4"
-  - minute: 10 
-- - dan_me_uk_ips
-  - dan.me.uk TOR Node List IPs
-  - https://www.dan.me.uk/torlist/
-  - ""
-# The time of updating the list was viewed here: https://www.dan.me.uk/tornodes
-  - hour: "*/4"
-  - minute: 10
+- id: tor_project_org_ips
+  name: TorProject.org IPs
+  descr: TODO...
+  url: https://check.torproject.org/torbulkexitlist
+  regex: ""
+  # The time of updating the list was not found
+  time: 
+    hour: "*/4"
+    minute: 10 
+- id: dan_me_uk_ips
+  name: dan.me.uk TOR Node List IPs
+  descr: TODO...
+  url: https://www.dan.me.uk/torlist/
+  regex: ""
+  # The time of updating the list was viewed here: https://www.dan.me.uk/tornodes
+  time:
+    hour: "*/4"
+    minute: 10
 
 # Lists from FireHOL
-- - firehol_anonymous
-  - List of all anonymizing IPs of the world, aggregated from multiple lists by FireHOL.
-  - https://iplists.firehol.org/files/firehol_anonymous.netset
-  - "^(\\A)"
-  - hour: "0,6,12,18"
+- id: firehol_anonymous
+  name: List of all anonymizing IPs of the world, aggregated from multiple lists by FireHOL.
+  descr: TODO...
+  url: https://iplists.firehol.org/files/firehol_anonymous.netset
+  regex: "^(\\A)"
+  time:
+    hour: "0,6,12,18"
     minute: 5
 
 # Lists of IP ranges or CIDR prefixes.
@@ -61,18 +69,22 @@ iplists:
 # then start of IP network should be caught as group 1 in regex and end of IP network should be caught as group 2
 # (without regex, CIDR format is assumed)
 prefixiplists:
-- - botscout_7d
-  - BotScout.com
-  - https://iplists.firehol.org/files/botscout_7d.ipset
-  - ""
-# The time of updating the list was viewed here: https://iplists.firehol.org/?ipset=botscout_7d
-  - hour: "*/4"
-  - minute: 10
-- - dshield
-  - DShield.org Recommended Block List
-  - https://www.dshield.org/block.txt
-  - "(\\A)\\s*(\\A)"
-  - hour: 4
+- id: botscout_7d
+  name: BotScout.com
+  descr: TODO...
+  url: https://iplists.firehol.org/files/botscout_7d.ipset
+  regex: ""
+  # The time of updating the list was viewed here: https://iplists.firehol.org/?ipset=botscout_7d
+  time:
+    hour: "*/4"
+    minute: 10
+- id: dshield
+  name: DShield.org Recommended Block List
+  descr: TODO...
+  url: https://www.dshield.org/block.txt
+  regex: "(\\A)\\s*(\\A)"
+  time:
+    hour: 4
     minute: 50
 #- - amazonAWS
 #  - Amazon AWS
@@ -80,30 +92,37 @@ prefixiplists:
 #  - "\"ip_prefix\": \"(\\CA)\""
 #  - hour: 4
 #    minute: 50
-- - spamhaus_edrop
-  - Spamhaus Extended DROP List (EDROP)
-  - https://www.spamhaus.org/drop/edrop.txt
-  - "^(\\CA)"
-  - hour: "0,6,12,18"
+- id: spamhaus_edrop
+  name: Spamhaus Extended DROP List (EDROP)
+  descr: TODO...
+  url: https://www.spamhaus.org/drop/edrop.txt
+  regex: "^(\\CA)"
+  time:
+    hour: "0,6,12,18"
     minute: 5
 domainlists:
-- - krisk_intel_domains
-  - KRISK INTEL domains
-  - https://kriskintel.com/feeds/ktip_malicious_domains.txt
-  - ""
-# The time of updating the list was viewed in the file: https://kriskintel.com/feeds/ktip_malicious_domains.txt
-  - hour: 7
-  - minute: 0
-- - openphish
-  - openphis.com
-  - https://openphish.com/feed.txt
-  - ""
-  - hour: 4
+- id: krisk_intel_domains
+  name: KRISK INTEL domains
+  descr: TODO...
+  url: https://kriskintel.com/feeds/ktip_malicious_domains.txt
+  regex: ""
+  # The time of updating the list was viewed in the file: https://kriskintel.com/feeds/ktip_malicious_domains.txt
+  time:
+    hour: 7
+    minute: 0
+- id: openphish
+  name: openphis.com
+  descr: TODO...
+  url: https://openphish.com/feed.txt
+  regex: ""
+  time:
+    hour: 4
     minute: 50
-- - booters
-  - Booters
-  - https://raw.githubusercontent.com/jjsantanna/booters_ecosystem_analysis/master/booterblacklist.csv
-  - "^[0-9]*?,(.*?)$"
-  - hour: 4
+- id: booters
+  name: Booters
+  descr: TODO...
+  url: https://raw.githubusercontent.com/jjsantanna/booters_ecosystem_analysis/master/booterblacklist.csv
+  regex: "^[0-9]*?,(.*?)$"
+  time:
+    hour: 4
     minute: 50
-

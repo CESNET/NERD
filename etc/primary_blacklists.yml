@@ -26,313 +26,445 @@ redis:
 #     headers - dict of key-value pairs specyfing additional HTTP headers
 #   Example of url_params and headers usage can be viewed below in Abuse IP DB blacklist specification.
 iplists:
-- - feodo
-  - Feodo tracker
-  - https://feodotracker.abuse.ch/downloads/ipblocklist.txt
-  - ""
-  - hour: 4
+- id: feodo
+  name: Feodo tracker
+  descr: TODO...
+  url: https://feodotracker.abuse.ch/downloads/ipblocklist.txt
+  regex: ""
+  time:
+    hour: 4
     minute: 50
-- - bruteforceblocker
-  - Daniel Gerzo's BruteForceBlocker
-  - http://danger.rulez.sk/projects/bruteforceblocker/blist.php
-  - "^(\\A)"
-  - hour: 4
+  
+- id: bruteforceblocker
+  name: Daniel Gerzo's BruteForceBlocker
+  descr: TODO...
+  url: http://danger.rulez.sk/projects/bruteforceblocker/blist.php
+  regex: "^(\\A)"
+  time:
+    hour: 4
     minute: 52
-- - ciarmy
-  - CI Army - BadGuys
-  - http://cinsscore.com/list/ci-badguys.txt
-  - ""
-  - hour: 4
+  
+- id: ciarmy
+  name: CI Army - BadGuys
+  descr:
+  url: http://cinsscore.com/list/ci-badguys.txt
+  regex: ""
+  time:
+    hour: 4
     minute: 50
+  
 
-- - blocklist_de-ssh
-  - blocklist.de ssh
-  - https://lists.blocklist.de/lists/ssh.txt
-  - ""
-  - hour: "0,6,12,18"
+- id: blocklist_de-ssh
+  name: blocklist.de ssh
+  descr: TODO...
+  url: https://lists.blocklist.de/lists/ssh.txt
+  regex: ""
+  time:
+    hour: "0,6,12,18"
     minute: 5
-- - blocklist_de-mail
-  - blocklist.de mail
-  - https://lists.blocklist.de/lists/mail.txt
-  - ""
-  - hour: "0,6,12,18"
+  
+- id: blocklist_de-mail
+  name: blocklist.de mail
+  descr: TODO...
+  url: https://lists.blocklist.de/lists/mail.txt
+  regex: ""
+  time:
+    hour: "0,6,12,18"
     minute: 5
-- - blocklist_de-apache
-  - blocklist.de apache
-  - https://lists.blocklist.de/lists/apache.txt
-  - ""
-  - hour: "0,6,12,18"
+  
+- id: blocklist_de-apache
+  name: blocklist.de apache
+  descr: TODO...
+  url: https://lists.blocklist.de/lists/apache.txt
+  regex: ""
+  time:
+    hour: "0,6,12,18"
     minute: 5
-- - blocklist_de-imap
-  - blocklist.de imap
-  - https://lists.blocklist.de/lists/imap.txt
-  - ""
-  - hour: "0,6,12,18"
+  
+- id: blocklist_de-imap
+  name: blocklist.de imap
+  descr: TODO...
+  url: https://lists.blocklist.de/lists/imap.txt
+  regex: ""
+  time:
+    hour: "0,6,12,18"
     minute: 5
-- - blocklist_de-ftp
-  - blocklist.de ftp
-  - https://lists.blocklist.de/lists/ftp.txt
-  - ""
-  - hour: "0,6,12,18"
+  
+- id: blocklist_de-ftp
+  name: blocklist.de ftp
+  descr: TODO...
+  url: https://lists.blocklist.de/lists/ftp.txt
+  regex: ""
+  time:
+    hour: "0,6,12,18"
     minute: 5
-- - blocklist_de-sip
-  - blocklist.de sip
-  - https://lists.blocklist.de/lists/sip.txt
-  - ""
-  - hour: "0,6,12,18"
+  
+- id: blocklist_de-sip
+  name: blocklist.de sip
+  descr: TODO...
+  url: https://lists.blocklist.de/lists/sip.txt
+  regex: ""
+  time:
+    hour: "0,6,12,18"
     minute: 5
-- - blocklist_de-bots
-  - blocklist.de bots
-  - https://lists.blocklist.de/lists/bots.txt
-  - ""
-  - hour: "0,6,12,18"
+  
+- id: blocklist_de-bots
+  name: blocklist.de bots
+  descr: TODO...
+  url: https://lists.blocklist.de/lists/bots.txt
+  regex: ""
+  time:
+    hour: "0,6,12,18"
     minute: 5
-- - blocklist_de-strongips
-  - blocklist.de strong IPs
-  - https://lists.blocklist.de/lists/strongips.txt
-  - ""
-  - hour: "0,6,12,18"
+  
+- id: blocklist_de-strongips
+  name: blocklist.de strong IPs
+  descr: TODO...
+  url: https://lists.blocklist.de/lists/strongips.txt
+  regex: ""
+  time:
+    hour: "0,6,12,18"
     minute: 5
-- - blocklist_de-ircbot
-  - blocklist.de ircbot
-  - https://lists.blocklist.de/lists/ircbot.txt
-  - ""
-  - hour: "0,6,12,18"
+  
+- id: blocklist_de-ircbot
+  name: blocklist.de ircbot
+  descr: TODO...
+  url: https://lists.blocklist.de/lists/ircbot.txt
+  regex: ""
+  time:
+    hour: "0,6,12,18"
     minute: 5
-- - blocklist_de-bruteforcelogin
-  - blocklist.de brute force login
-  - https://lists.blocklist.de/lists/bruteforcelogin.txt
-  - ""
-  - hour: "0,6,12,18"
+  
+- id: blocklist_de-bruteforcelogin
+  name: blocklist.de brute force login
+  descr: TODO...
+  url: https://lists.blocklist.de/lists/bruteforcelogin.txt
+  regex: ""
+  time:
+    hour: "0,6,12,18"
     minute: 5
-- - sblam_ips
-  - Sblam! IPs blacklist
-  - https://sblam.com/blacklist.txt
-  - ""
-# The time of updating the list was viewed here: https://sblam.com/blacklist.txt
-  - hour: 4
-  - minute: 15
-- - blocklist_net_ua_ips
-  - Blocklist.net.ua IPs
-  - https://blocklist.net.ua/blocklist.csv
-  - "^(\\A)"
-# The time of updating the list was viewed here: https://blocklist.net.ua/providers/  
-  - hour: "*/4"
-  - minute: 15
-- - darklist_de_ips
-  - Darklist.de IPs
-  - http://www.darklist.de/raw.php
-  - ""
-# The time of updating the list was viewed here: https://iplists.firehol.org/?ipset=darklist_de
-  - hour: "*/4"
-  - minute: 10
-- - charles_the_haleys_ssh_dico_ips
-  - Charles B. Haley SSH Dictionary Attacks
-  - http://charles.the-haleys.org/ssh_dico_attack_with_timestamps.php?days=7
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: http://charles.the-haleys.org/ssh_dico_attack_with_timestamps.php?days=7
-  - hour: "*/4"
-  - minute: 10
-- - charles_the_haleys_wp_attack_ips
-  - Charles B. Haley Attacks on their WordPress
-  - http://charles.the-haleys.org/wp_attack_with_timestamps.php?days=7
-  - "^(\\A)"
-# The time of updating the list was viewed here: http://charles.the-haleys.org/wp_attack_with_timestamps.php?days=7
-  - hour: "*/4"
-  - minute: 10
-- - charles_the_haleys_smtp_dico_ips
-  - Charles B. Haley SMTP AUTH dictionary attacks
-  - http://charles.the-haleys.org/smtp_dico_attack_with_timestamps.php?days=7
-  - "^(\\A)"
-# The time of updating the list was viewed here: http://charles.the-haleys.org/smtp_dico_attack_with_timestamps.php?days=7
-  - hour: "*/4"
-  - minute: 10
-- - turris_greylist
-  - Turris by CZ.NIC greylist
-  - https://view.sentinel.turris.cz/greylist-data/greylist-latest.csv
-  - "^(\\A)"
-# The time of updating the list was viewed here: https://view.sentinel.turris.cz/greylist-data/
-  - hour: 23
-  - minute: 15
-- - threat_sourcing_ips
-  - Threat Sourcing IPs
-  - https://www.threatsourcing.com/ipall-free.txt
-  - ""
-# The time of updating the list was viewed here: https://www.threatsourcing.com/
-  - hour: "*/4"
-  - minute: 10
-- - mirai_tracker_ips
-  - Mirai tracker IPs
-  - https://mirai.security.gives/data/ip_list.txt
-  - ""
-# The time of updating the list was viewed in the file: https://mirai.security.gives/data/ip_list.txt
-  - hour: 1
-  - minute: 40
-- - threatfox_ips
-  - ThreatFox by abuse.ch IPs
-  - https://threatfox.abuse.ch/export/csv/ip-port/recent/
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://threatfox.abuse.ch/export/
-  - hour: "*/4"
-  - minute: 10
-- - ssl_blacklist_ips
-  - SSL Blacklist by abuse.ch IPs
-  - https://sslbl.abuse.ch/blacklist/sslipblacklist.txt
-  - ""
-# The time of updating the list was viewed in the file: https://sslbl.abuse.ch/blacklist/sslipblacklist.txt 
-  - hour: 19
-  - minute: 30
-- - urlhouse_ips
-  - URLHouse by abuse.ch IPs
-  - https://urlhaus.abuse.ch/downloads/text_online/
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://urlhaus.abuse.ch/api/
-  - hour: "*/4"
-  - minute: 10
-- - blacklists_co_ssh
-  - Blacklists.co SSH
-  - http://blacklists.co/download/ssh.txt
-  - ""
-# The time of updating the list was viewed in the file: http://blacklists.co/download/ssh.txt 
-  - hour: 7
-  - minute: 5
-- - blacklists_co_www
-  - Blacklists.co WWW
-  - http://blacklists.co/download/www.txt
-  - "" 
-# The time of updating the list was viewed in the file: http://blacklists.co/download/www.txt
-  - hour: 7
-  - minute: 5
-- - blacklists_co_email
-  - Blacklists.co EMAIL
-  - http://blacklists.co/download/email.txt
-  - ""
-# The time of updating the list was viewed in the file: http://blacklists.co/download/email.txt  
-  - hour: 7
-  - minute: 5
-- - blacklists_co_mssql
-  - Blacklists.co MSSQL
-  - http://blacklists.co/download/mssql.txt
-  - ""
-# The time of updating the list was viewed in the file: http://blacklists.co/download/mssql.txt 
-  - hour: 7
-  - minute: 5
-- - blacklists_co_mysql
-  - Blacklists.co MYSQL
-  - http://blacklists.co/download/mysql.txt
-  - "" 
-# The time of updating the list was viewed in the file: http://blacklists.co/download/mysql.txt 
-  - hour: 7
-  - minute: 5
-- - blacklists_co_rdp
-  - Blacklists.co RDP
-  - http://blacklists.co/download/rdp.txt
-  - ""
-# The time of updating the list was viewed in the file: http://blacklists.co/download/rdp.txt 
-  - hour: 7
-  - minute: 5
-- - blacklists_co_sip
-  - Blacklists.co SIP
-  - http://blacklists.co/download/sip.txt
-  - "" 
-# The time of updating the list was viewed in the file: http://blacklists.co/download/sip.txt 
-  - hour: 7
-  - minute: 5
-- - dataplane_org_sshclient
-  - DataPlane.org SSH
-  - https://dataplane.org/sshclient.txt
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://dataplane.org/
-  - hour: "*/4"
-  - minute: 10
-- - dataplane_org_sshpwauth
-  - DataPlane.org SSH
-  - https://dataplane.org/sshpwauth.txt
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://dataplane.org/
-  - hour: "*/4"
-  - minute: 10
-- - dataplane_org_vnc_rfb
-  - DataPlane.org VNC RFB
-  - https://dataplane.org/vncrfb.txt
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://dataplane.org/
-  - hour: "*/4"
-  - minute: 10
-- - dataplane_org_telnet_login
-  - DataPlane.org TELNET login
-  - https://dataplane.org/telnetlogin.txt
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://dataplane.org/
-  - hour: "*/4"
-  - minute: 10
-- - dataplane_org_smtp_greet
-  - DataPlane.org SMTP greeting
-  - https://dataplane.org/smtpgreet.txt
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://dataplane.org/
-  - hour: "*/4"
-  - minute: 10
-- - dataplane_org_smtp_data
-  - DataPlane.org SMTP data
-  - https://dataplane.org/smtpdata.txt
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://dataplane.org/
-  - hour: "*/4"
-  - minute: 10
-- - dataplane_org_proto41
-  - DataPlane.org IP protocol-41 
-  - https://dataplane.org/proto41.txt
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://dataplane.org/
-  - hour: "*/4"
-  - minute: 10
-- - dataplane_org_sipinvitation
-  - DataPlane.org SIP invitation 
-  - https://dataplane.org/sipinvitation.txt
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://dataplane.org/
-  - hour: "*/4"
-  - minute: 10
-- - dataplane_org_sipquery
-  - DataPlane.org SIP query
-  - https://dataplane.org/sipquery.txt
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://dataplane.org/
-  - hour: "*/4"
-  - minute: 10
-- - dataplane_org_sipregistration
-  - DataPlane.org SIP registration
-  - https://dataplane.org/sipregistration.txt
-  - ".*?(\\A)"
-# The time of updating the list was viewed here: https://dataplane.org/
-  - hour: "*/4"
-  - minute: 10
-- - krisk_intel_ips
-  - KRISK INTEL IPs
-  - https://kriskintel.com/feeds/ktip_malicious_Ips.txt
-  - ""
-# The time of updating the list was viewed in the file: https://kriskintel.com/feeds/ktip_malicious_Ips.txt
-  - hour: 7
-  - minute: 0 
-
+  
+- id: sblam_ips
+  name: Sblam! IPs blacklist
+  descr: TODO...
+  url: https://sblam.com/blacklist.txt
+  regex: ""
+  # The time of updating the list was viewed here: https://sblam.com/blacklist.txt
+  time:
+    hour: 4
+    minute: 15
+  
+- id: blocklist_net_ua_ips
+  name: Blocklist.net.ua IPs
+  descr: TODO...
+  url: https://blocklist.net.ua/blocklist.csv
+  regex: "^(\\A)"
+  # The time of updating the list was viewed here: https://blocklist.net.ua/providers/  
+  time:
+    hour: "*/4"
+    minute: 15
+  
+- id: darklist_de_ips
+  name: Darklist.de IPs
+  descr: TODO...
+  url: http://www.darklist.de/raw.php
+  regex: ""
+  # The time of updating the list was viewed here: https://iplists.firehol.org/?ipset=darklist_de
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: charles_the_haleys_ssh_dico_ips
+  name: Charles B. Haley SSH Dictionary Attacks
+  descr: TODO...
+  url: http://charles.the-haleys.org/ssh_dico_attack_with_timestamps.php?days=7
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: http://charles.the-haleys.org/ssh_dico_attack_with_timestamps.php?days=7
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: charles_the_haleys_wp_attack_ips
+  name: Charles B. Haley Attacks on their WordPress
+  descr: TODO...
+  url: http://charles.the-haleys.org/wp_attack_with_timestamps.php?days=7
+  regex: "^(\\A)"
+  # The time of updating the list was viewed here: http://charles.the-haleys.org/wp_attack_with_timestamps.php?days=7
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: charles_the_haleys_smtp_dico_ips
+  name: Charles B. Haley SMTP AUTH dictionary attacks
+  descr: TODO...
+  url: http://charles.the-haleys.org/smtp_dico_attack_with_timestamps.php?days=7
+  regex: "^(\\A)"
+  # The time of updating the list was viewed here: http://charles.the-haleys.org/smtp_dico_attack_with_timestamps.php?days=7
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: turris_greylist
+  name: Turris by CZ.NIC greylist
+  descr: TODO...
+  url: https://view.sentinel.turris.cz/greylist-data/greylist-latest.csv
+  regex: "^(\\A)"
+  # The time of updating the list was viewed here: https://view.sentinel.turris.cz/greylist-data/
+  time:
+    hour: 23
+    minute: 15
+  
+- id: threat_sourcing_ips
+  name: Threat Sourcing IPs
+  descr: TODO...
+  url: https://www.threatsourcing.com/ipall-free.txt
+  regex: ""
+  # The time of updating the list was viewed here: https://www.threatsourcing.com/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: mirai_tracker_ips
+  name: Mirai tracker IPs
+  descr: TODO...
+  url: https://mirai.security.gives/data/ip_list.txt
+  regex: ""
+  # The time of updating the list was viewed in the file: https://mirai.security.gives/data/ip_list.txt
+  time:
+    hour: 1
+    minute: 40
+  
+- id: threatfox_ips
+  name: ThreatFox by abuse.ch IPs
+  descr: TODO...
+  url: https://threatfox.abuse.ch/export/csv/ip-port/recent/
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://threatfox.abuse.ch/export/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: ssl_blacklist_ips
+  name: SSL Blacklist by abuse.ch IPs
+  descr: TODO...
+  url: https://sslbl.abuse.ch/blacklist/sslipblacklist.txt
+  regex: ""
+  # The time of updating the list was viewed in the file: https://sslbl.abuse.ch/blacklist/sslipblacklist.txt 
+  time:
+    hour: 19
+    minute: 30
+  
+- id: urlhouse_ips
+  name: URLHouse by abuse.ch IPs
+  descr: TODO...
+  url: https://urlhaus.abuse.ch/downloads/text_online/
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://urlhaus.abuse.ch/api/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: blacklists_co_ssh
+  name: Blacklists.co SSH
+  descr: TODO...
+  url: http://blacklists.co/download/ssh.txt
+  regex: ""
+  # The time of updating the list was viewed in the file: http://blacklists.co/download/ssh.txt 
+  time:
+    hour: 7
+    minute: 5
+  
+- id: blacklists_co_www
+  name: Blacklists.co WWW
+  descr: TODO...
+  url: http://blacklists.co/download/www.txt
+  regex: "" 
+  # The time of updating the list was viewed in the file: http://blacklists.co/download/www.txt
+  time:
+    hour: 7
+    minute: 5
+  
+- id: blacklists_co_email
+  name: Blacklists.co EMAIL
+  descr: TODO...
+  url: http://blacklists.co/download/email.txt
+  regex: ""
+  # The time of updating the list was viewed in the file: http://blacklists.co/download/email.txt  
+  time:
+    hour: 7
+    minute: 5
+  
+- id: blacklists_co_mssql
+  name: Blacklists.co MSSQL
+  descr: TODO...
+  url: http://blacklists.co/download/mssql.txt
+  regex: ""
+  # The time of updating the list was viewed in the file: http://blacklists.co/download/mssql.txt 
+  time:
+    hour: 7
+    minute: 5
+  
+- id: blacklists_co_mysql
+  name: Blacklists.co MYSQL
+  descr: TODO...
+  url: http://blacklists.co/download/mysql.txt
+  regex: "" 
+  # The time of updating the list was viewed in the file: http://blacklists.co/download/mysql.txt 
+  time:
+    hour: 7
+    minute: 5
+  
+- id: blacklists_co_rdp
+  name: Blacklists.co RDP
+  descr: TODO...
+  url: http://blacklists.co/download/rdp.txt
+  regex: ""
+  # The time of updating the list was viewed in the file: http://blacklists.co/download/rdp.txt 
+  time:
+    hour: 7
+    minute: 5
+  
+- id: blacklists_co_sip
+  name: Blacklists.co SIP
+  descr: TODO...
+  url: http://blacklists.co/download/sip.txt
+  regex: "" 
+  # The time of updating the list was viewed in the file: http://blacklists.co/download/sip.txt 
+  time:
+    hour: 7
+    minute: 5
+  
+- id: dataplane_org_sshclient
+  name: DataPlane.org SSH
+  descr: TODO...
+  url: https://dataplane.org/sshclient.txt
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://dataplane.org/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: dataplane_org_sshpwauth
+  name: DataPlane.org SSH
+  descr: TODO...
+  url: https://dataplane.org/sshpwauth.txt
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://dataplane.org/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: dataplane_org_vnc_rfb
+  name: DataPlane.org VNC RFB
+  descr: TODO...
+  url: https://dataplane.org/vncrfb.txt
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://dataplane.org/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: dataplane_org_telnet_login
+  name: DataPlane.org TELNET login
+  descr: TODO...
+  url: https://dataplane.org/telnetlogin.txt
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://dataplane.org/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: dataplane_org_smtp_greet
+  name: DataPlane.org SMTP greeting
+  descr: TODO...
+  url: https://dataplane.org/smtpgreet.txt
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://dataplane.org/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: dataplane_org_smtp_data
+  name: DataPlane.org SMTP data
+  descr: TODO...
+  url: https://dataplane.org/smtpdata.txt
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://dataplane.org/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: dataplane_org_proto41
+  name: DataPlane.org IP protocol-41 
+  descr: TODO...
+  url: https://dataplane.org/proto41.txt
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://dataplane.org/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: dataplane_org_sipinvitation
+  name: DataPlane.org SIP invitation 
+  descr: TODO...
+  url: https://dataplane.org/sipinvitation.txt
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://dataplane.org/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: dataplane_org_sipquery
+  name: DataPlane.org SIP query
+  descr: TODO...
+  url: https://dataplane.org/sipquery.txt
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://dataplane.org/
+  time:
+    hour: "*/4"
+    minute: 10
+  
+- id: dataplane_org_sipregistration
+  name: DataPlane.org SIP registration
+  descr: TODO...
+  url: https://dataplane.org/sipregistration.txt
+  regex: ".*?(\\A)"
+  # The time of updating the list was viewed here: https://dataplane.org/
+  time:
+    hour: "*/4"
+    minute: 10
+      
+- id: krisk_intel_ips
+  name: KRISK INTEL IPs
+  descr: TODO...
+  url: https://kriskintel.com/feeds/ktip_malicious_Ips.txt
+  regex: ""
+  # The time of updating the list was viewed in the file: https://kriskintel.com/feeds/ktip_malicious_Ips.txt
+  time:
+    hour: 7
+    minute: 0 
+  
 # Lists from FireHOL
-- - bambenek_c2
-  - Bambenek Consulting C&Cs IPs
-  - https://iplists.firehol.org/files/bambenek_c2.ipset
-  - "^(\\A)"
-  - hour: "0,6,12,18"
+- id: bambenek_c2
+  name: Bambenek Consulting C&Cs IPs
+  descr: TODO...
+  url: https://iplists.firehol.org/files/bambenek_c2.ipset
+  regex: "^(\\A)"
+  time:
+    hour: "0,6,12,18"
     minute: 5
-
+  
 # AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key
-- - abuseipdb
-  - Abuse IP DB
-  - https://api.abuseipdb.com/api/v2/blacklist
-  - ""
-  - hour: 6
+- id: abuseipdb
+  name: Abuse IP DB
+  descr: TODO...
+  url: https://api.abuseipdb.com/api/v2/blacklist
+  regex: ""
+  time:
+    hour: 6
     minute: 0
-  - params:
-      confidenceMinimum: "50"
+  params:
+    confidenceMinimum: "50"
     headers:
       Accept: "text/plain"
       Key: ""
@@ -340,15 +472,20 @@ iplists:
 # The following blacklists should be rsynced to local files by scripts in
 # cron, therefore they're not available until those scripts are set up and
 # therefore they're disabled by default.
-- - uceprotect
-  - UCEPROTECT Level 1
-  - file:///data/blacklists/uceprotect-level1
-  - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
-  - hour: 1,9,17
+- id: uceprotect
+  name: UCEPROTECT Level 1
+  descr: TODO...
+  url: file:///data/blacklists/uceprotect-level1
+  regex: "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
+  time:
+    hour: 1,9,17
     minute: 45
-- - psbl
-  - PSBL (spam)
-  - file:///data/blacklists/psbl.txt
-  - "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
-  - hour: 1,9,17
+  
+- id: psbl
+  name: PSBL (spam)
+  descr: TODO...
+  url: file:///data/blacklists/psbl.txt
+  regex: "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
+  time:
+    hour: 1,9,17
     minute: 45

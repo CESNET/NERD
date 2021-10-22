@@ -57,6 +57,9 @@ tags_config: tags.yml
 # Blacklists configuration file
 bl_config: blacklists.yml
 
+# Primary blacklists configuration file
+p_bl_config: primary_blacklists.yml
+
 # Configuration file for EventCountLogger
 event_logging_config: event_logging.yml
 
