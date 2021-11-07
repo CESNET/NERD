@@ -26,6 +26,8 @@ graph_period minute
 /bgppref.label /bgppref
 /data.label /data
 /data/ip_rep_csv.label /data/ip_rep_csv
+/data/bad_ips_txt.label /data/bad_ips_txt
+/data/bad_ips_med_conf_txt.label /data/bad_ips_med_conf_txt
 /ip.label /ip
 /ipblock.label /ipblock
 /iplist.label /iplist

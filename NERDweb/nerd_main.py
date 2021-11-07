@@ -1300,27 +1300,38 @@ def map_index():
 
 # ******************** Static/precomputed data ********************
 
-FILE_IP_REP = "/data/web_data/ip_rep.csv"
+#TODO: move to config
+DATA_DIR = "/data/web_data"
+# List of supported files - needed to get their size for data.html template
+# (also, it's safer to check client request against a fixed set of files, rather than to check for file existence,
+# handle attempts like "../../something" etc.)
+FILES = [
+    "ip_rep.csv",
+    "bad_ips.txt",
+    "bad_ips_med_conf.txt",
+]
 
 @app.route('/data/')
 def data_index():
     log_ep.log('/data')
+    file_sizes = {}
+    for f in FILES:
+        try:
+            file_sizes[f] = os.stat(os.path.join(DATA_DIR, f)).st_size
+        except OSError:
+            file_sizes[f] = None
+    return render_template("data.html", file_sizes=file_sizes)
+
+@app.route('/data/<filename>')
+def data_file(filename):
+    if filename not in FILES:
+        return flask.abort(404)
+    log_ep.log('/data/' + filename.replace('.', '_')) # replace dots with underscores, dot in event name makes problems with Munin
     try:
-        ip_rep_file_size = os.stat(FILE_IP_REP).st_size
-    except OSError:
-        ip_rep_file_size = None
-    return render_template("data.html", **locals())
-
-@app.route('/data/ip_rep.csv')
-def data_ip_rep():
-    log_ep.log('/data/ip_rep_csv') # use _csv, not .csv, dot in event name makes problems with Munin
-    try:
-        return flask.send_file(FILE_IP_REP, mimetype="text/plain", as_attachment=True)
-    except OSError:
-        log_err.log('5xx_other')
-        return Response('ERROR: File not found on the server', 500, mimetype='text/plain')
-
-
+        return flask.send_file(os.path.join(DATA_DIR, filename), mimetype="text/plain", as_attachment=True)
+    except OSError as e:
+        print(f"data_file(): Can't access file '{os.path.join(DATA_DIR, filename)}'")
+        return flask.abort(404)
 
 
 # ****************************** API ******************************

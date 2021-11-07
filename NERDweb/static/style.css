@@ -960,6 +960,23 @@ div.idea .nodes li:first-child:last-child::before {
   content: '\2022';
 }
 
+/****************************************/
+/* Downloadable data */
+
+ul.data-list {
+  padding-left: 1.5em;
+}
+
+ul.data-list li {
+  margin-top: 1em;
+}
+
+ul.data-list li ul li {
+  margin-top: 0.4em;
+  color: #777;
+}
+
+
 /***********************************************/
 /* NERD status block */
 #status-block {
