@@ -28,7 +28,10 @@ redis:
 iplists:
 - id: feodo
   name: Feodo tracker
-  descr: TODO...
+  descr: Feodo Tracker is a project of abuse.ch. Shares botnet C&C<br>servers associated with the Feodo malware family(Dridex, Emotet/Heodo)<br>as well as TrickBot and QakBot (aka QuakBot / Qbot)
+  firehol_link: http://iplists.firehol.org/?ipset=feodo
+  provider_link: https://feodotracker.abuse.ch/
+  feed_type: primary
   url: https://feodotracker.abuse.ch/downloads/ipblocklist.txt
   regex: ""
   time:
@@ -37,7 +40,10 @@ iplists:
   
 - id: bruteforceblocker
   name: Daniel Gerzo's BruteForceBlocker
-  descr: TODO...
+  descr: Feed is made by BruteForceBlocker perl script,<br>that works along with pf - OpenBSD's firewall and it's main<br>purpose is to block SSH bruteforce attacks via firewall.
+  firehol_link: http://iplists.firehol.org/?ipset=bruteforceblocker
+  provider_link: https://danger.rulez.sk/index.php/bruteforceblocker/
+  feed_type: primary
   url: http://danger.rulez.sk/projects/bruteforceblocker/blist.php
   regex: "^(\\A)"
   time:
@@ -46,7 +52,10 @@ iplists:
   
 - id: ciarmy
   name: CI Army - BadGuys
-  descr:
+  descr: Collective Intelligence Network Security is a Threat Intelligence<br>database that provides scores for IPs. Source of unspecified malicious attacks<br>most of them will be active attackers/scanners
+  firehol_link: http://iplists.firehol.org/?ipset=ciarmy
+  provider_link: https://cinsscore.com/#list
+  feed_type: primary
   url: http://cinsscore.com/list/ci-badguys.txt
   regex: ""
   time:
@@ -56,7 +65,10 @@ iplists:
 
 - id: blocklist_de-ssh
   name: blocklist.de ssh
-  descr: TODO...
+  descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing SSH attacks.
+  firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_ssh
+  provider_link: http://www.blocklist.de/en/index.html
+  feed_type: primary
   url: https://lists.blocklist.de/lists/ssh.txt
   regex: ""
   time:
@@ -65,7 +77,10 @@ iplists:
   
 - id: blocklist_de-mail
   name: blocklist.de mail
-  descr: TODO...
+  descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing Mail attacks.
+  firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_mail
+  provider_link: http://www.blocklist.de/en/index.html
+  feed_type: primary
   url: https://lists.blocklist.de/lists/mail.txt
   regex: ""
   time:
@@ -74,7 +89,10 @@ iplists:
   
 - id: blocklist_de-apache
   name: blocklist.de apache
-  descr: TODO...
+  descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing attacks on the service<br>Apache, Apache-DDOS, RFI-Attacks.
+  firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_apache
+  provider_link: http://www.blocklist.de/en/index.html
+  feed_type: primary
   url: https://lists.blocklist.de/lists/apache.txt
   regex: ""
   time:
@@ -83,7 +101,10 @@ iplists:
   
 - id: blocklist_de-imap
   name: blocklist.de imap
-  descr: TODO...
+  descr: Blocklist.de feed is a free and voluntary service<br>provided by a Fraud/Abuse-specialist. IPs performing attacks<br>on the Service imap, sasl, pop3.
+  firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_imap
+  provider_link: http://www.blocklist.de/en/index.html
+  feed_type: primary
   url: https://lists.blocklist.de/lists/imap.txt
   regex: ""
   time:
@@ -92,7 +113,10 @@ iplists:
   
 - id: blocklist_de-ftp
   name: blocklist.de ftp
-  descr: TODO...
+  descr: Blocklist.de feed is a free and voluntary service<br>provided by a Fraud/Abuse-specialist. IPs performing attacks<br>on the Service FTP.
+  firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_ftp
+  provider_link: http://www.blocklist.de/en/index.html
+  feed_type: primary
   url: https://lists.blocklist.de/lists/ftp.txt
   regex: ""
   time:
@@ -101,7 +125,10 @@ iplists:
   
 - id: blocklist_de-sip
   name: blocklist.de sip
-  descr: TODO...
+  descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IP addresses that tried to login in a SIP,<br>VOIP or Asterisk Server.
+  firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_sip
+  provider_link: http://www.blocklist.de/en/index.html
+  feed_type: primary
   url: https://lists.blocklist.de/lists/sip.txt
   regex: ""
   time:
@@ -110,7 +137,10 @@ iplists:
   
 - id: blocklist_de-bots
   name: blocklist.de bots
-  descr: TODO...
+  descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing attacks on the RFI-Attacks,<br>REG-Bots, IRC-Bots or BadBots.
+  firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_bots
+  provider_link: http://www.blocklist.de/en/index.html
+  feed_type: primary
   url: https://lists.blocklist.de/lists/bots.txt
   regex: ""
   time:
@@ -119,7 +149,10 @@ iplists:
   
 - id: blocklist_de-strongips
   name: blocklist.de strong IPs
-  descr: TODO...
+  descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs that are older then two month and have<br>more then 5.000 attacks.
+  firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_strongips
+  provider_link: http://www.blocklist.de/en/index.html
+  feed_type: primary
   url: https://lists.blocklist.de/lists/strongips.txt
   regex: ""
   time:
@@ -128,7 +161,10 @@ iplists:
   
 - id: blocklist_de-ircbot
   name: blocklist.de ircbot
-  descr: TODO...
+  descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing attacks on the IRC-Bots.
+  firehol_link: # TODO probably won't have this, should add processing in template 
+  provider_link: http://www.blocklist.de/en/index.html
+  feed_type: primary
   url: https://lists.blocklist.de/lists/ircbot.txt
   regex: ""
   time:
@@ -137,7 +173,10 @@ iplists:
   
 - id: blocklist_de-bruteforcelogin
   name: blocklist.de brute force login
-  descr: TODO...
+  descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs that attacks Joomla, Wordpress and<br>other Web-Logins with Brute-Force Logins.
+  firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_bruteforce
+  provider_link: http://www.blocklist.de/en/index.html
+  feed_type: primary
   url: https://lists.blocklist.de/lists/bruteforcelogin.txt
   regex: ""
   time:
@@ -146,7 +185,10 @@ iplists:
   
 - id: sblam_ips
   name: Sblam! IPs blacklist
-  descr: TODO...
+  descr: Sblam! is a service that effectively protects forms for<br>comments in blogs, forums and guestbooks from spam.
+  firehol_link: http://iplists.firehol.org/?ipset=sblam
+  provider_link: https://sblam.com/
+  feed_type: primary
   url: https://sblam.com/blacklist.txt
   regex: ""
   # The time of updating the list was viewed here: https://sblam.com/blacklist.txt
@@ -156,7 +198,10 @@ iplists:
   
 - id: blocklist_net_ua_ips
   name: Blocklist.net.ua IPs
-  descr: TODO...
+  descr: BlockList contains IP addresses that perform attacks,<br>send spam or brute force passwords to the blocking list.
+  firehol_link: http://iplists.firehol.org/?ipset=blocklist_net_ua
+  provider_link: https://blocklist.net.ua/about/
+  feed_type: primary
   url: https://blocklist.net.ua/blocklist.csv
   regex: "^(\\A)"
   # The time of updating the list was viewed here: https://blocklist.net.ua/providers/  
@@ -166,7 +211,10 @@ iplists:
   
 - id: darklist_de_ips
   name: Darklist.de IPs
-  descr: TODO...
+  descr: Darklist.de is an IP blacklist that identifies<br>SSH brute force attacks and spam incidents.
+  firehol_link: http://iplists.firehol.org/?ipset=darklist_de
+  provider_link: http://www.darklist.de/
+  feed_type: primary
   url: http://www.darklist.de/raw.php
   regex: ""
   # The time of updating the list was viewed here: https://iplists.firehol.org/?ipset=darklist_de
@@ -176,7 +224,10 @@ iplists:
   
 - id: charles_the_haleys_ssh_dico_ips
   name: Charles B. Haley SSH Dictionary Attacks
-  descr: TODO...
+  descr: Feed provided by Charles B. Haley.<br>IPs launching SSH dictionary attacks.
+  firehol_link: http://iplists.firehol.org/?ipset=haley_ssh
+  provider_link: http://charles.the-haleys.org/
+  feed_type: primary
   url: http://charles.the-haleys.org/ssh_dico_attack_with_timestamps.php?days=7
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: http://charles.the-haleys.org/ssh_dico_attack_with_timestamps.php?days=7
@@ -186,7 +237,10 @@ iplists:
   
 - id: charles_the_haleys_wp_attack_ips
   name: Charles B. Haley Attacks on their WordPress
-  descr: TODO...
+  descr: Feed provided by Charles B. Haley.<br>IPs launching WordPress attacks.
+  firehol_link: #TODO
+  provider_link: http://charles.the-haleys.org/
+  feed_type: primary
   url: http://charles.the-haleys.org/wp_attack_with_timestamps.php?days=7
   regex: "^(\\A)"
   # The time of updating the list was viewed here: http://charles.the-haleys.org/wp_attack_with_timestamps.php?days=7
@@ -196,7 +250,10 @@ iplists:
   
 - id: charles_the_haleys_smtp_dico_ips
   name: Charles B. Haley SMTP AUTH dictionary attacks
-  descr: TODO...
+  descr: Feed provided by Charles B. Haley.<br>IPs launching SMTP AUTH dictionary attacks.
+  firehol_link: # TODO
+  provider_link: http://charles.the-haleys.org/
+  feed_type: primary
   url: http://charles.the-haleys.org/smtp_dico_attack_with_timestamps.php?days=7
   regex: "^(\\A)"
   # The time of updating the list was viewed here: http://charles.the-haleys.org/smtp_dico_attack_with_timestamps.php?days=7
@@ -205,8 +262,11 @@ iplists:
     minute: 10
   
 - id: turris_greylist
-  name: Turris by CZ.NIC greylist
-  descr: TODO...
+  name: Turris greylist by CZ.NIC 
+  descr: Greylist is the output of the Turris research project,<br>which collects data of malicious IPs.
+  firehol_link: # TODO
+  provider_link: https://view.sentinel.turris.cz/
+  feed_type: primary
   url: https://view.sentinel.turris.cz/greylist-data/greylist-latest.csv
   regex: "^(\\A)"
   # The time of updating the list was viewed here: https://view.sentinel.turris.cz/greylist-data/
@@ -216,7 +276,10 @@ iplists:
   
 - id: threat_sourcing_ips
   name: Threat Sourcing IPs
-  descr: TODO...
+  descr: Threat Sourcing is a collaborative project to collect<br>and study threats as they present themselves on the Internet.
+  firehol_link: # TODO
+  provider_link: https://www.threatsourcing.com/
+  feed_type: primary
   url: https://www.threatsourcing.com/ipall-free.txt
   regex: ""
   # The time of updating the list was viewed here: https://www.threatsourcing.com/
@@ -226,7 +289,10 @@ iplists:
   
 - id: mirai_tracker_ips
   name: Mirai tracker IPs
-  descr: TODO...
+  descr: Mirai malware scans the internet in a specific way<br>and look at incoming SYN packets.
+  firehol_link: # TODO
+  provider_link: https://mirai.security.gives/index.php
+  feed_type: primary
   url: https://mirai.security.gives/data/ip_list.txt
   regex: ""
   # The time of updating the list was viewed in the file: https://mirai.security.gives/data/ip_list.txt
@@ -236,7 +302,10 @@ iplists:
   
 - id: threatfox_ips
   name: ThreatFox by abuse.ch IPs
-  descr: TODO...
+  descr: ThreatFox is a free platform from abuse.ch with the goal of<br>sharing indicators of compromise (IOCs) associated with malware with the<br>infosec community, AV vendors and threat intelligence providers.
+  firehol_link: # TODO
+  provider_link: https://threatfox.abuse.ch/
+  feed_type: primary
   url: https://threatfox.abuse.ch/export/csv/ip-port/recent/
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://threatfox.abuse.ch/export/
@@ -246,7 +315,10 @@ iplists:
   
 - id: ssl_blacklist_ips
   name: SSL Blacklist by abuse.ch IPs
-  descr: TODO...
+  descr: The SSL Blacklist is a project of abuse.ch with the goal of<br>detecting malicious SSL connections and botnet activities.
+  firehol_link: http://iplists.firehol.org/?ipset=sslbl
+  provider_link: https://sslbl.abuse.ch/
+  feed_type: primary
   url: https://sslbl.abuse.ch/blacklist/sslipblacklist.txt
   regex: ""
   # The time of updating the list was viewed in the file: https://sslbl.abuse.ch/blacklist/sslipblacklist.txt 
@@ -256,7 +328,10 @@ iplists:
   
 - id: urlhouse_ips
   name: URLHouse by abuse.ch IPs
-  descr: TODO...
+  descr: URLhaus is a project from abuse.ch with the goal of sharing<br>malicious URLs that are being used for malware distribution.
+  firehol_link: # TODO
+  provider_link: https://urlhaus.abuse.ch/
+  feed_type: primary
   url: https://urlhaus.abuse.ch/downloads/text_online/
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://urlhaus.abuse.ch/api/
@@ -266,7 +341,10 @@ iplists:
   
 - id: blacklists_co_ssh
   name: Blacklists.co SSH
-  descr: TODO...
+  descr: Blacklists.co blocklist contains SSH Malicious Addresses.
+  firehol_link:  # TODO
+  provider_link: http://blacklists.co/
+  feed_type: primary
   url: http://blacklists.co/download/ssh.txt
   regex: ""
   # The time of updating the list was viewed in the file: http://blacklists.co/download/ssh.txt 
@@ -276,7 +354,10 @@ iplists:
   
 - id: blacklists_co_www
   name: Blacklists.co WWW
-  descr: TODO...
+  descr: Blacklists.co blocklist contains WWW Malicious Addresses.
+  firehol_link: # TODO
+  provider_link: http://blacklists.co/
+  feed_type: primary
   url: http://blacklists.co/download/www.txt
   regex: "" 
   # The time of updating the list was viewed in the file: http://blacklists.co/download/www.txt
@@ -286,7 +367,10 @@ iplists:
   
 - id: blacklists_co_email
   name: Blacklists.co EMAIL
-  descr: TODO...
+  descr: Blacklists.co blocklist contains EMAIL Malicious Addresses.
+  firehol_link: # TODO
+  provider_link: http://blacklists.co/
+  feed_type: primary
   url: http://blacklists.co/download/email.txt
   regex: ""
   # The time of updating the list was viewed in the file: http://blacklists.co/download/email.txt  
@@ -296,7 +380,10 @@ iplists:
   
 - id: blacklists_co_mssql
   name: Blacklists.co MSSQL
-  descr: TODO...
+  descr: Blacklists.co blocklist contains MSSQL Malicious Addresses.
+  firehol_link: # TODO
+  provider_link: http://blacklists.co/
+  feed_type: primary
   url: http://blacklists.co/download/mssql.txt
   regex: ""
   # The time of updating the list was viewed in the file: http://blacklists.co/download/mssql.txt 
@@ -306,7 +393,10 @@ iplists:
   
 - id: blacklists_co_mysql
   name: Blacklists.co MYSQL
-  descr: TODO...
+  descr: Blacklists.co blocklist contains MYSQL Malicious Addresses.
+  firehol_link: # TODO
+  provider_link: http://blacklists.co/
+  feed_type: primary
   url: http://blacklists.co/download/mysql.txt
   regex: "" 
   # The time of updating the list was viewed in the file: http://blacklists.co/download/mysql.txt 
@@ -316,7 +406,10 @@ iplists:
   
 - id: blacklists_co_rdp
   name: Blacklists.co RDP
-  descr: TODO...
+  descr: Blacklists.co blocklist contains RDP Malicious Addresses.
+  firehol_link: # TODO
+  provider_link: http://blacklists.co/
+  feed_type: primary
   url: http://blacklists.co/download/rdp.txt
   regex: ""
   # The time of updating the list was viewed in the file: http://blacklists.co/download/rdp.txt 
@@ -326,7 +419,10 @@ iplists:
   
 - id: blacklists_co_sip
   name: Blacklists.co SIP
-  descr: TODO...
+  descr: Blacklists.co blocklist contains SIP Malicious Addresses.
+  firehol_link: # TODO
+  provider_link: http://blacklists.co/
+  feed_type: primary
   url: http://blacklists.co/download/sip.txt
   regex: "" 
   # The time of updating the list was viewed in the file: http://blacklists.co/download/sip.txt 
@@ -336,7 +432,10 @@ iplists:
   
 - id: dataplane_org_sshclient
   name: DataPlane.org SSH
-  descr: TODO...
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>has been seen initiating an SSH connection to a remote host.
+  firehol_link: http://iplists.firehol.org/?ipset=dataplane_sshclient
+  provider_link: https://dataplane.org/
+  feed_type: primary
   url: https://dataplane.org/sshclient.txt
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://dataplane.org/
@@ -346,7 +445,10 @@ iplists:
   
 - id: dataplane_org_sshpwauth
   name: DataPlane.org SSH
-  descr: TODO...
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs performing<br>login to a host using SSH password authentication.
+  firehol_link: http://iplists.firehol.org/?ipset=dataplane_sshpwauth
+  provider_link: https://dataplane.org/
+  feed_type: primary
   url: https://dataplane.org/sshpwauth.txt
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://dataplane.org/
@@ -356,7 +458,10 @@ iplists:
   
 - id: dataplane_org_vnc_rfb
   name: DataPlane.org VNC RFB
-  descr: TODO...
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs initiating<br>a VNC remote frame buffer (RFB) session to a remote host.
+  firehol_link: http://iplists.firehol.org/?ipset=dataplane_vncrfb
+  provider_link: https://dataplane.org/
+  feed_type: primary
   url: https://dataplane.org/vncrfb.txt
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://dataplane.org/
@@ -366,7 +471,10 @@ iplists:
   
 - id: dataplane_org_telnet_login
   name: DataPlane.org TELNET login
-  descr: TODO...
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs performing<br>login via TELNET password authentication.
+  firehol_link: # TODO
+  provider_link: https://dataplane.org/
+  feed_type: primary
   url: https://dataplane.org/telnetlogin.txt
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://dataplane.org/
@@ -376,7 +484,10 @@ iplists:
   
 - id: dataplane_org_smtp_greet
   name: DataPlane.org SMTP greeting
-  descr: TODO...
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs that are<br>identified as SMTP clients issuing unsolicited HELO or EHLO commands.
+  firehol_link: # TODO
+  provider_link: https://dataplane.org/
+  feed_type: primary
   url: https://dataplane.org/smtpgreet.txt
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://dataplane.org/
@@ -386,7 +497,10 @@ iplists:
   
 - id: dataplane_org_smtp_data
   name: DataPlane.org SMTP data
-  descr: TODO...
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that <br>have been identified as SMTP clients sending DATA commands.
+  firehol_link: # TODO
+  provider_link: https://dataplane.org/
+  feed_type: primary
   url: https://dataplane.org/smtpdata.txt
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://dataplane.org/
@@ -396,7 +510,10 @@ iplists:
   
 - id: dataplane_org_proto41
   name: DataPlane.org IP protocol-41 
-  descr: TODO...
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>are identified as an open IPv4 protocol 41 relay (i.e. IPv6 over IPv4).
+  firehol_link: # TODO
+  provider_link: https://dataplane.org/
+  feed_type: primary
   url: https://dataplane.org/proto41.txt
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://dataplane.org/
@@ -406,7 +523,10 @@ iplists:
   
 - id: dataplane_org_sipinvitation
   name: DataPlane.org SIP invitation 
-  descr: TODO...
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>have been seen initiating a SIP INVITE operation to a remote host.
+  firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipinvitation
+  provider_link: https://dataplane.org/
+  feed_type: primary
   url: https://dataplane.org/sipinvitation.txt
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://dataplane.org/
@@ -416,7 +536,10 @@ iplists:
   
 - id: dataplane_org_sipquery
   name: DataPlane.org SIP query
-  descr: TODO...
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>has been seen initiating a SIP OPTIONS query to a remote host.
+  firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipquery
+  provider_link: https://dataplane.org/
+  feed_type: primary
   url: https://dataplane.org/sipquery.txt
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://dataplane.org/
@@ -426,7 +549,10 @@ iplists:
   
 - id: dataplane_org_sipregistration
   name: DataPlane.org SIP registration
-  descr: TODO...
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>have been seen initiating a SIP REGISTER operation to a remote host.
+  firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipregistration
+  provider_link: https://dataplane.org/
+  feed_type: primary
   url: https://dataplane.org/sipregistration.txt
   regex: ".*?(\\A)"
   # The time of updating the list was viewed here: https://dataplane.org/
@@ -436,7 +562,10 @@ iplists:
       
 - id: krisk_intel_ips
   name: KRISK INTEL IPs
-  descr: TODO...
+  descr: KRISK INTEL list of IPs being leveraged by malware/malicious actors.
+  firehol_link: # TODO
+  provider_link: https://kriskintel.com/
+  feed_type: primary
   url: https://kriskintel.com/feeds/ktip_malicious_Ips.txt
   regex: ""
   # The time of updating the list was viewed in the file: https://kriskintel.com/feeds/ktip_malicious_Ips.txt
@@ -447,7 +576,10 @@ iplists:
 # Lists from FireHOL
 - id: bambenek_c2
   name: Bambenek Consulting C&Cs IPs
-  descr: TODO...
+  descr: Bambenek Consulting master feed of known, active and non-sinkholed C&Cs IP addresses
+  firehol_link: http://iplists.firehol.org/?ipset=bambenek_c2
+  provider_link: https://osint.bambenekconsulting.com/feeds/
+  feed_type: primary
   url: https://iplists.firehol.org/files/bambenek_c2.ipset
   regex: "^(\\A)"
   time:
@@ -457,7 +589,10 @@ iplists:
 # AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key
 - id: abuseipdb
   name: Abuse IP DB
-  descr: TODO...
+  descr: AbuseIPDB is a project managed by Marathon Studios Inc.<br>IPs performing malicious activity(DDoS, spam, phishing...)
+  firehol_link: //TODO
+  provider_link: https://www.abuseipdb.com/
+  feed_type: primary
   url: https://api.abuseipdb.com/api/v2/blacklist
   regex: ""
   time:
@@ -474,7 +609,10 @@ iplists:
 # therefore they're disabled by default.
 - id: uceprotect
   name: UCEPROTECT Level 1
-  descr: TODO...
+  descr: UCEPROTECT-NETWORK list of spam IPs.
+  firehol_link: # TODO
+  provider_link: http://www.uceprotect.net/en/index.php
+  feed_type: primary
   url: file:///data/blacklists/uceprotect-level1
   regex: "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
   time:
@@ -483,7 +621,10 @@ iplists:
   
 - id: psbl
   name: PSBL (spam)
-  descr: TODO...
+  descr: The Passive Spam Block List uses the Spamikaze software to detect spam IPs.
+  firehol_link: # TODO
+  provider_link: https://psbl.org/about/
+  feed_type: primary
   url: file:///data/blacklists/psbl.txt
   regex: "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
   time:

@@ -166,8 +166,12 @@
   {% if ip.bl %}
   {% for bl_entry in ip.bl -%}
     {% if bl_entry.v %}
-      <span class="tag blacklist" title="IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">
-        {{-bl_entry.n-}}</span>
+        {% for bl_descr in config_bl.get('iplists', []) -%}
+            {% if bl_entry.n == bl_descr.id %}
+            <span class="tag blacklist" title="IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">
+              {{-bl_entry.n-}}</span>
+            {% endif %}
+        {%- endfor %}
     {% endif %}
   {%- endfor %}
   {% endif %}

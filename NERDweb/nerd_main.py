@@ -60,7 +60,8 @@ config_tags = common.config.read_config(tags_cfg_file)
 bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
 p_bl_cfg_file = os.path.join(cfg_dir, config.get('p_bl_config'))
 config_bl = common.config.read_config(bl_cfg_file)
-config_bl = common.config.read_config(p_bl_cfg_file)
+p_config_bl = common.config.read_config(p_bl_cfg_file)
+config_bl.update(p_config_bl)
 
 # Read EventCountLogger config (to separate dict) and initialize loggers
 ecl_cfg_filename = config.get('event_logging_config', None)
@@ -937,7 +938,7 @@ def ips():
         if g.user and not g.ac('ipsearch'):
             flash('Insufficient permissions to search/view IPs.', 'error')
     
-    return render_template('ips.html', json=json, ctrydata=ctrydata, **locals())
+    return render_template('ips.html', json=json, ctrydata=ctrydata, config_bl=config_bl, **locals())
 
 
 @app.route('/_ips_count', methods=['POST'])

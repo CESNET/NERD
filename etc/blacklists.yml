@@ -29,7 +29,10 @@ iplists:
 
 - id: andoniafMiners
   name: Andoniaf Miners
-  descr: TODO...
+  descr: List of crypto mining pools IPs.
+  firehol_link: # TODO
+  provider_link: https://github.com/andoniaf/mining-pools-list
+  feed_type: secondary
   url: https://raw.githubusercontent.com/andoniaf/mining-pools-list/master/mining-pools_IP.lst
   regex: ""
   time:
@@ -37,7 +40,10 @@ iplists:
     minute: 50
 - id: tor_project_org_ips
   name: TorProject.org IPs
-  descr: TODO...
+  descr: TorProject.org list of all current TOR exit points (TorDNSEL)
+  firehol_link: https://iplists.firehol.org/?ipset=tor_exits_30d
+  provider_link: https://check.torproject.org/
+  feed_type: secondary
   url: https://check.torproject.org/torbulkexitlist
   regex: ""
   # The time of updating the list was not found
@@ -46,7 +52,10 @@ iplists:
     minute: 10 
 - id: dan_me_uk_ips
   name: dan.me.uk TOR Node List IPs
-  descr: TODO...
+  descr: dan.me.uk TOR node list.
+  firehol_link: # TODO
+  provider_link: https://www.dan.me.uk/tornodes
+  feed_type: secondary
   url: https://www.dan.me.uk/torlist/
   regex: ""
   # The time of updating the list was viewed here: https://www.dan.me.uk/tornodes
@@ -57,7 +66,10 @@ iplists:
 # Lists from FireHOL
 - id: firehol_anonymous
   name: List of all anonymizing IPs of the world, aggregated from multiple lists by FireHOL.
-  descr: TODO...
+  descr: An ipset that includes all the anonymizing IPs of the world.
+  firehol_link: https://iplists.firehol.org/?ipset=firehol_anonymous
+  provider_link: https://iplists.firehol.org/
+  feed_type: secondary
   url: https://iplists.firehol.org/files/firehol_anonymous.netset
   regex: "^(\\A)"
   time:
@@ -71,7 +83,10 @@ iplists:
 prefixiplists:
 - id: botscout_7d
   name: BotScout.com
-  descr: TODO...
+  descr: List of bots IPs by BotScout.com.  
+  firehol_link: https://iplists.firehol.org/?ipset=botscout_7d
+  provider_link: http://botscout.com/
+  feed_type: secondary
   url: https://iplists.firehol.org/files/botscout_7d.ipset
   regex: ""
   # The time of updating the list was viewed here: https://iplists.firehol.org/?ipset=botscout_7d
@@ -80,7 +95,10 @@ prefixiplists:
     minute: 10
 - id: dshield
   name: DShield.org Recommended Block List
-  descr: TODO...
+  descr: List by DShield.org summarizes the top 20 attacking<br>class C (/24) subnets over the last three days. 
+  firehol_link: https://iplists.firehol.org/?ipset=dshield
+  provider_link: https://www.dshield.org/
+  feed_type: secondary
   url: https://www.dshield.org/block.txt
   regex: "(\\A)\\s*(\\A)"
   time:
@@ -94,7 +112,10 @@ prefixiplists:
 #    minute: 50
 - id: spamhaus_edrop
   name: Spamhaus Extended DROP List (EDROP)
-  descr: TODO...
+  descr: List of IPs by Spamhaus that performing spamming, scanning, harvesting,<br> DNS-hijacking and DDoS attacks originating on rogue netblocks.
+  firehol_link: https://iplists.firehol.org/?ipset=spamhaus_edrop
+  provider_link: https://www.spamhaus.org/
+  feed_type: secondary
   url: https://www.spamhaus.org/drop/edrop.txt
   regex: "^(\\CA)"
   time:
@@ -103,7 +124,10 @@ prefixiplists:
 domainlists:
 - id: krisk_intel_domains
   name: KRISK INTEL domains
-  descr: TODO...
+  descr: List of malicious domains being leveraged by malware/malicious actors.
+  firehol_link: # TODO
+  provider_link: https://kriskintel.com/
+  feed_type: secondary
   url: https://kriskintel.com/feeds/ktip_malicious_domains.txt
   regex: ""
   # The time of updating the list was viewed in the file: https://kriskintel.com/feeds/ktip_malicious_domains.txt
@@ -112,7 +136,10 @@ domainlists:
     minute: 0
 - id: openphish
   name: openphis.com
-  descr: TODO...
+  descr: List of malicious domains performing phishing.
+  firehol_link: # TODO
+  provider_link: https://openphish.com/
+  feed_type: secondary
   url: https://openphish.com/feed.txt
   regex: ""
   time:
@@ -120,7 +147,10 @@ domainlists:
     minute: 50
 - id: booters
   name: Booters
-  descr: TODO...
+  descr: List of Booters(Websites that publicly offer<br>DDoS attacks as a paid service) domains.
+  firehol_link: # TODO
+  provider_link: https://github.com/jjsantanna/booters_ecosystem_analysis
+  feed_type: secondary
   url: https://raw.githubusercontent.com/jjsantanna/booters_ecosystem_analysis/master/booterblacklist.csv
   regex: "^[0-9]*?,(.*?)$"
   time:
