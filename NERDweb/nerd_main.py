@@ -98,7 +98,7 @@ else:
     print("ERROR: unknown 'eventdb' configured, it will not be possible to show raw events in GUI", file=sys.stderr)
 
 try:
-    misp_inst = ExpandedPyMISP(config['misp']['url'], config['misp']['key'], None)
+    misp_inst = ExpandedPyMISP(config['misp']['url'], config['misp']['key'], ssl=config.get('misp.verify_cert', True))
 except KeyError:
     misp_inst = None # None means not configured
 except pymisp.exceptions.PyMISPError as e:
