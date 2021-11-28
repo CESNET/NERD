@@ -695,6 +695,10 @@ td.links img {
   border-left: 1px dotted #444;
 }
 
+.caption {
+  font-size: 1.5em;
+  font-weight: bold;
+}
 
 dl.attrs dt {
   font-weight: bold;
@@ -786,10 +790,6 @@ dd dl dt:first-child {
 
 #event-details {
   margin: 1em 0 0.5em 0;
-}
-#event-details .caption {
-  font-size: 1.5em;
-  font-weight: bold;
 }
 #event-details .counts {
   font-size: 1.0em;
