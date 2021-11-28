@@ -650,7 +650,8 @@ def account_info():
     else:
         if g.user['login_type'] == 'local':
             passwd_form = PasswordChangeForm()
-    
+
+    title = "Account information"
     return render_template('account_info.html', **locals())
 
 
@@ -1094,6 +1095,7 @@ def ajax_ip_events(ipaddr):
 @app.route('/misp_event/<event_id>')
 def misp_event(event_id=None):
     log_ep.log('/misp_event')
+    title = "MISP event detail"
     if not misp_inst:
         return render_template("misp_event.html", error="Cannot connect to MISP instance")
     if not event_id:
@@ -1113,7 +1115,7 @@ def misp_event(event_id=None):
                 tlp = tag['name'][4:]
                 break
 
-        return render_template('misp_event.html', event=event, tlp=tlp)
+        return render_template('misp_event.html', title=title, event=event, tlp=tlp)
 
 
 # ***** Detailed info about individual AS *****
@@ -1294,6 +1296,7 @@ def iplist():
 @app.route('/map/')
 def map_index():
     log_ep.log('/map')
+    title = "IP map"
     ipvis_url = config.get("ipmap.url", None)
     ipvis_token = config.get("ipmap.token", None)
     return render_template("map.html", **locals())
@@ -1314,13 +1317,14 @@ FILES = [
 @app.route('/data/')
 def data_index():
     log_ep.log('/data')
+    title = "Data"
     file_sizes = {}
     for f in FILES:
         try:
             file_sizes[f] = os.stat(os.path.join(DATA_DIR, f)).st_size
         except OSError:
             file_sizes[f] = None
-    return render_template("data.html", file_sizes=file_sizes)
+    return render_template("data.html", title=title, file_sizes=file_sizes)
 
 @app.route('/data/<filename>')
 def data_file(filename):
