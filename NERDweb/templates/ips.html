@@ -166,10 +166,10 @@
   {% if ip.bl %}
   {% for bl_entry in ip.bl -%}
     {% if bl_entry.v %}
-        {% for bl_descr in config_bl.get('iplists', []) -%}
+        {% for bl_descr in all_lists -%}
             {% if bl_entry.n == bl_descr.id %}
-            <span class="tag blacklist" title="IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">
-              {{-bl_entry.n-}}</span>
+            <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" title="IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">
+              {{-bl_entry.n-}}</span></a>
             {% endif %}
         {%- endfor %}
     {% endif %}
@@ -178,8 +178,12 @@
   {% if ip.dbl %}
   {% for bl_entry in ip.dbl -%}
     {% if bl_entry.v %}
-      <span class="tag blacklist" title="A domain name associated with the IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">
-        {{-bl_entry.n-}}</span>
+      {% for bl_descr in all_lists -%}
+          {% if bl_entry.n == bl_descr.id %}
+          <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" title="A domain name associated with the IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">
+              {{-bl_entry.n-}}</span></a>
+          {% endif %}
+      {%- endfor %}
     {% endif %}
   {%- endfor %}
   {% endif %}

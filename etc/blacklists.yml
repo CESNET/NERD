@@ -30,7 +30,6 @@ iplists:
 - id: andoniafMiners
   name: Andoniaf Miners
   descr: List of crypto mining pools IPs.
-  firehol_link: # TODO
   provider_link: https://github.com/andoniaf/mining-pools-list
   feed_type: secondary
   url: https://raw.githubusercontent.com/andoniaf/mining-pools-list/master/mining-pools_IP.lst
@@ -53,7 +52,6 @@ iplists:
 - id: dan_me_uk_ips
   name: dan.me.uk TOR Node List IPs
   descr: dan.me.uk TOR node list.
-  firehol_link: # TODO
   provider_link: https://www.dan.me.uk/tornodes
   feed_type: secondary
   url: https://www.dan.me.uk/torlist/
@@ -125,7 +123,6 @@ domainlists:
 - id: krisk_intel_domains
   name: KRISK INTEL domains
   descr: List of malicious domains being leveraged by malware/malicious actors.
-  firehol_link: # TODO
   provider_link: https://kriskintel.com/
   feed_type: secondary
   url: https://kriskintel.com/feeds/ktip_malicious_domains.txt
@@ -137,7 +134,6 @@ domainlists:
 - id: openphish
   name: openphis.com
   descr: List of malicious domains performing phishing.
-  firehol_link: # TODO
   provider_link: https://openphish.com/
   feed_type: secondary
   url: https://openphish.com/feed.txt
@@ -148,7 +144,6 @@ domainlists:
 - id: booters
   name: Booters
   descr: List of Booters(Websites that publicly offer<br>DDoS attacks as a paid service) domains.
-  firehol_link: # TODO
   provider_link: https://github.com/jjsantanna/booters_ecosystem_analysis
   feed_type: secondary
   url: https://raw.githubusercontent.com/jjsantanna/booters_ecosystem_analysis/master/booterblacklist.csv

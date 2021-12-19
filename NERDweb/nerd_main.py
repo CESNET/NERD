@@ -61,7 +61,8 @@ bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
 p_bl_cfg_file = os.path.join(cfg_dir, config.get('p_bl_config'))
 config_bl = common.config.read_config(bl_cfg_file)
 p_config_bl = common.config.read_config(p_bl_cfg_file)
-config_bl.update(p_config_bl)
+lists_without_domains = p_config_bl.get('iplists', []) + config_bl.get('iplists', []) + config_bl.get('prefixlists', [])
+all_lists = p_config_bl.get('iplists', []) + config_bl.get('iplists', []) + config_bl.get('prefixlists', []) + config_bl.get('domainlists', [])
 
 # Read EventCountLogger config (to separate dict) and initialize loggers
 ecl_cfg_filename = config.get('event_logging_config', None)
@@ -689,8 +690,7 @@ def get_ip_blacklists():
     # DNSBL (IP only)
     blacklists = [(bl_name, bl_name) for bl_group in config.get('dnsbl.blacklists', []) for bl_name in bl_group[2].values()]
     # Blacklists cached in Redis (IP and prefix)
-    blacklists += [(bl['id'], bl['name']) for bl in config_bl.get('iplists', [])]
-    blacklists += [(bl['id'], bl['name']) for bl in config_bl.get('prefixiplists', [])]
+    blacklists += [(bl['id'], bl['name']) for bl in lists_without_domains]
     blacklists.sort()
     return blacklists
 
@@ -938,7 +938,7 @@ def ips():
         if g.user and not g.ac('ipsearch'):
             flash('Insufficient permissions to search/view IPs.', 'error')
     
-    return render_template('ips.html', json=json, ctrydata=ctrydata, config_bl=config_bl, **locals())
+    return render_template('ips.html', json=json, ctrydata=ctrydata, all_lists=all_lists, **locals())
 
 
 @app.route('/_ips_count', methods=['POST'])
@@ -955,6 +955,18 @@ def ips_count():
         return make_response("ERROR")
 
 
+
+@app.route('/feed/<feedname>')
+def feed(feedname=None):
+    for feed in all_lists:
+        if feedname == feed['id']:
+            name = feed['name']
+            description = feed['descr'].replace("<br>", " ")
+            firehol_link = feed.get('firehol_link', None)
+            provider_link = feed['provider_link']
+            feed_type = feed['feed_type']
+            url = feed['url']
+    return render_template('feed.html', **locals())
 
 # ***** Detailed info about individual IP *****
 

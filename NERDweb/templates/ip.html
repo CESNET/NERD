@@ -202,7 +202,7 @@ $( function() {create_event_graph('plot-events', event_data)} );
   <dt>IP blacklists</dt>
   <dd><dl>
    {% for bl_entry in val %}
-    <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}">{{ bl_entry.n }}</span>
+   <a href="{{ url_for('feed', feedname=bl_entry.n) }}"> <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}">{{ bl_entry.n }}</span></a>
    {% endfor %}
    {%- if not val %}none{% endif %}
   </dl></dd>
@@ -210,7 +210,7 @@ $( function() {create_event_graph('plot-events', event_data)} );
   <dt>Domain blacklists<span class="help" title="Blacklisted domain names that were associated with the IP address according to Passive DNS"></dt>
   <dd><dl>
    {% for bl_entry in val %}
-    <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}">{{ bl_entry.n }} ({{  bl_entry.d }})</span>
+   <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}">{{ bl_entry.n }} ({{  bl_entry.d }})</span></a>
    {% endfor %}
    {%- if not val %}none{% endif %}
   </dl></dd>
