@@ -174,12 +174,17 @@ tags:
   misp_tlp_white:
     name: MISP (tlp:white)
     description: "IP is in MISP event(s) (with TLP white)"
-    tag_color: "#FFFFFF"
+    tag_color: "#2FA1DB"
     condition: "'white' in `$.misp_events[*].tlp`"
 
   misp_tlp_green:
     name: MISP (tlp:green)
     description: "IP is in MISP event(s) (with TLP green)"
-    tag_color: "#339900"
+    tag_color: "#2FA1DB"
     condition: "'green' in `$.misp_events[*].tlp`"
-    
+
+  whitelist:
+    name: Whitelisted
+    description: "IP is manually whitelisted"
+    tag_color: "#FFFFFF"
+    condition: "'research_scanner' in hostname_class or _id == '8.8.8.8' or _id == '8.8.4.4' or _id == '1.1.1.1'"
