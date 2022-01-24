@@ -59,11 +59,13 @@ config_tags = common.config.read_config(tags_cfg_file)
 # Read blacklists config (to separate dict)
 bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
 p_bl_cfg_file = os.path.join(cfg_dir, config.get('p_bl_config'))
+dnsbl_cfg_file = os.path.join(cfg_dir, config.get('dnsbl'))
+dnsbl_config = common.config.read_config(dnsbl_cfg_file)
 config_bl = common.config.read_config(bl_cfg_file)
 p_config_bl = common.config.read_config(p_bl_cfg_file)
 lists_without_domains = p_config_bl.get('iplists', []) + config_bl.get('iplists', []) + config_bl.get('prefixiplists', [])
 all_lists = p_config_bl.get('iplists', []) + config_bl.get('iplists', []) + config_bl.get('prefixiplists', []) + config_bl.get('domainlists', [])
-
+dnsbl_list = dnsbl_config.get('dnsbl', [])
 # Read EventCountLogger config (to separate dict) and initialize loggers
 ecl_cfg_filename = config.get('event_logging_config', None)
 if ecl_cfg_filename:
@@ -966,6 +968,15 @@ def feed(feedname=None):
             provider_link = feed['provider_link']
             feed_type = feed['feed_type']
             url = feed['url']
+    for feeds in dnsbl_list:
+        for feed in feeds[2]:
+            if feedname == feed['id']:
+                name = feed['name']
+                description = feed['descr'].replace("<br>", " ")
+                firehol_link = feed.get('firehol_link', None)
+                provider_link = feed['provider_link']
+                feed_type = feed['feed_type']
+                url = feed.get('url', None)
     return render_template('feed.html', **locals())
 
 # ***** Detailed info about individual IP *****

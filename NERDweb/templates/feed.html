@@ -21,8 +21,10 @@ FireHOL link: <a href="{{ firehol_link }}">{{ firehol_link }}</a>
 Provider link: <a href="{{ provider_link }}">{{ provider_link }}</a>
 </dd>
 
+{% if url %}
 <dd>
 Feed link: <a href="{{ url }}">{{ url }}</a>
 </dd>
+{% endif %}
 </dl>
 {% endblock %}

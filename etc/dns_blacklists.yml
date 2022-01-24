@@ -1,0 +1,165 @@
+# NERD config - primary blacklists
+# used by blacklists.py script
+---
+
+# List specification:
+#   id (used as key in records),
+#   name (for humans),
+#   url (http(s):// or file://, if local file is used, it should be updated by external cron script)
+#   regex to parse the file (should match on IP address) or empty if there are only IP addresses, one per line (lines beginning with '#' are ignored),
+#       or just fill regex with searching for IP, IP prefix or domain without group, if the whole blacklist is on one line or has multiple records on on line
+#       - you can use special substitutions for IP address or CIDR IP address
+#         - "//A" can be used for IP address, in interal part it will be substituted for IP regex
+#         - "//CA" can be used for CIDR prefix (192.168.0.0/16)
+#       IP address regex example, where IP address starts on every line:
+#         "^(//A)"
+#   refresh time (cron-like specification of when the list should be updated (in UTC), see https://apscheduler.readthedocs.io/en/latest/modules/triggers/cron.html for details)
+#   other params (optional)
+#
+#   The last parameter is a dictionary of other parameters. The following keys are recognized:
+#     url_params - dict of key-value pairs to pass as GET parameters in URL
+#     headers - dict of key-value pairs specyfing additional HTTP headers
+#   Example of url_params and headers usage can be viewed below in Abuse IP DB blacklist specification.
+dnsbl:
+- - Spamhaus
+  - zen.spamhaus.org
+  - - id: spamhaus-sbl
+      127.0.0.2: spamhaus-sbl
+      name: Spamhaus SBL
+      descr: The Spamhaus Block List ("SBL") Advisory is a database<br>of IP addresses from which Spamhaus does not recommend<br>the acceptance of electronic mail.
+      provider_link: https://www.spamhaus.org/sbl/
+      feed_type: secondary 
+
+    - id: spamhaus-sbl-css
+      127.0.0.3: spamhaus-sbl-css
+      name: Spamhaus SBL CSS
+      descr: The Spamhaus CSS is part of the SBL. CSS listings will have return<br>code 127.0.0.3 to differentiate from regular SBL listings,<br>which have return code 127.0.0.2.
+      provider_link: https://www.spamhaus.org/sbl/
+      feed_type: secondary 
+
+    - id: spamhaus-xbl-cbl
+      127.0.0.4: spamhaus-xbl-cbl
+      name: Spamhaus XBL CBL
+      descr: The Spamhaus Exploits Block List (XBL) is a realtime database<br>of IP addresses of hijacked PCs infected by illegal 3rd party<br>exploits, including open proxies, worms/viruses with built-in<br>spam engines, and other types of trojan-horse exploits.
+      provider_link: https://www.spamhaus.org/xbl/
+      feed_type: secondary 
+
+    - id: spamhaus-drop
+      127.0.0.9: spamhaus-drop
+      name: Spamhaus drop
+      descr: The Spamhaus DROP (Don't Route Or Peer) lists are advisory"drop all traffic" lists.<br>The DROP lists are a tiny subset<br>of the SBL, designed for use by firewalls<br>and routing equipment to filter out the malicious traffic from these netblocks.
+      firehol_link: http://iplists.firehol.org/?ipset=spamhaus_drop
+      provider_link: https://www.spamhaus.org/drop/
+      feed_type: secondary 
+
+    - id: spamhaus-pbl-isp
+      127.0.0.10: spamhaus-pbl-isp
+      name: Spamhaus PBL ISP
+      descr: The Spamhaus PBL is a DNSBL database of end-user IP address<br>ranges which should not be delivering unauthenticated SMTP<br>email to any Internet mail server except those provided<br>for specifically by an ISP for that customer's use.
+      provider_link: https://www.spamhaus.org/pbl/
+      feed_type: secondary 
+
+    - id: spamhaus-pbl
+      127.0.0.11: spamhaus-pbl
+      name: Spamhaus PBL
+      descr: The Spamhaus PBL is a DNSBL database of end-user IP address<br>ranges which should not be delivering unauthenticated SMTP<br>email to any Internet mail server except those provided<br>for specifically by an ISP for that customer's use.
+      provider_link: https://www.spamhaus.org/pbl/
+      feed_type: secondary 
+
+- - SORBS
+  - dnsbl.sorbs.net
+  - - id: sorbs-http
+      127.0.0.2: sorbs-http
+      name: Sorbs HTTP
+      descr: 
+      provider_link: http://www.sorbs.net/
+      feed_type: secondary 
+
+    - id: sorbs-socks
+      127.0.0.3: sorbs-socks
+      name: Sorbs SOCKS
+      descr: 
+      provider_link: http://www.sorbs.net/
+      feed_type: secondary 
+
+    - id: sorbs-misc
+      127.0.0.4: sorbs-misc
+      name: Sorbs MISC
+      descr: 
+      provider_link: http://www.sorbs.net/
+      feed_type: secondary 
+
+    - id: sorbs-smtp
+      127.0.0.5: sorbs-smtp
+      name: Sorbs SMTP
+      descr: List of SMTP Open Relays.
+      firehol_link: http://iplists.firehol.org/?ipset=sorbs_smtp
+      provider_link: http://www.sorbs.net/
+      feed_type: secondary 
+
+    - id: sorbs-spam
+      127.0.0.6: sorbs-spam
+      name: Sorbs SPAM
+      descr: List of hosts that have been noted as sending spam/UCE/UBE
+      firehol_link: http://iplists.firehol.org/?ipset=sorbs_recent_spam
+      provider_link: http://www.sorbs.net/
+      feed_type: secondary 
+
+    - id: sorbs-web
+      127.0.0.7: sorbs-web
+      name: Sorbs WEB
+      descr: List of IPs which have spammer abusable<br>vulnerabilities (e.g. FormMail scripts)
+      firehol_link: http://iplists.firehol.org/?ipset=sorbs_web
+      provider_link: http://www.sorbs.net/
+      feed_type: secondary 
+
+    - id: sorbs-block
+      127.0.0.8: sorbs-block
+      name: Sorbs BLOCK
+      descr: 
+      provider_link: http://www.sorbs.net/
+      feed_type: secondary 
+
+    - id: sorbs-zombie
+      127.0.0.9: sorbs-zombie
+      name: Sorbs ZOMBIE
+      descr: List of networks hijacked from their original owners,<br>some of which have already used for spamming.
+      firehol_link: http://iplists.firehol.org/?ipset=sorbs_zombie
+      provider_link: http://www.sorbs.net/
+      feed_type: secondary 
+
+    - id: sorbs-dul
+      127.0.0.10: sorbs-dul
+      name: Sorbs DUL
+      descr: Dynamic IP Addresses.
+      firehol_link: http://iplists.firehol.org/?ipset=sorbs_dul
+      provider_link: http://www.sorbs.net/
+      feed_type: secondary 
+
+    - id: sorbs-noserver
+      127.0.0.14: sorbs-noserver
+      name: Sorbs NOSERVER
+      descr: IP addresses and netblocks of where system administrators<br>and ISPs owning the network have indicated<br>that servers should not be present.
+      firehol_link: http://iplists.firehol.org/?ipset=sorbs_noserver
+      provider_link: http://www.sorbs.net/
+      feed_type: secondary 
+
+- - WPBL (spam)
+  - db.wpbl.info
+  - - id: wpbl
+      127.0.0.2: wpbl
+      name: WPBL SPAM
+      descr: WPBL is a private block list consisting of IP addresses<br>which connect to members' systems and deliver unsolicited<br>bulk mail (spam).
+      provider_link: http://www.wpbl.info/
+      feed_type: secondary 
+
+- - SpamCop
+  - bl.spamcop.net
+  - - id: spamcop
+      127.0.0.2: spamcop
+      name: SpamCop
+      descr: The SpamCop Blocking List (SCBL) lists IP addresses which<br>have transmitted reported email to SpamCop users.
+      provider_link: https://www.spamcop.net/
+      feed_type: secondary 
+
+
