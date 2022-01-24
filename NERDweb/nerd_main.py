@@ -940,7 +940,7 @@ def ips():
         if g.user and not g.ac('ipsearch'):
             flash('Insufficient permissions to search/view IPs.', 'error')
     
-    return render_template('ips.html', json=json, ctrydata=ctrydata, all_lists=all_lists, **locals())
+    return render_template('ips.html', json=json, ctrydata=ctrydata, all_lists=all_lists, dnsbl_list=dnsbl_list, **locals())
 
 
 @app.route('/_ips_count', methods=['POST'])
@@ -1024,7 +1024,7 @@ def ip(ipaddr=None):
     else:
         title = 'IP detail search'
         ipinfo = {}
-    return render_template('ip.html', ctrydata=ctrydata, ip=ipaddr, **locals())
+    return render_template('ip.html', ctrydata=ctrydata, ip=ipaddr, all_lists = all_lists, dnsbl_list = dnsbl_list, **locals())
 
 # Functions to asynchornously request creation of a new IP record
 # We use special endpoints, called by JavaScript, since that way we can easily disallow this functionality for robots
