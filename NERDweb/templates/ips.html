@@ -172,6 +172,14 @@
               {{-bl_entry.n-}}</span></a>
             {% endif %}
         {%- endfor %}
+        {% for feeds in dnsbl_list.items() -%}
+        {% for bl_descr in feeds[1].items() -%}
+          {% if bl_entry.n == bl_descr[1].id %}
+          <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" title="IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br>Description: {{bl_descr[1].descr}}.<br>Type of feed: <b>secondary (DNSBL)</b>">
+            {{-bl_entry.n-}}</span></a>
+          {% endif %}
+        {%- endfor %}    
+      {%- endfor %}
     {% endif %}
   {%- endfor %}
   {% endif %}
@@ -183,14 +191,6 @@
           <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" title="A domain name associated with the IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">
               {{-bl_entry.n-}}</span></a>
           {% endif %}
-      {%- endfor %}
-      {% for feeds in dnsbl_list -%}
-        {% for bl_descr in feeds[2] -%}
-          {% if bl_entry.n == bl_descr.id %}
-          <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" title="A domain name associated with the IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">
-              {{-bl_entry.n-}}</span></a>
-          {% endif %}
-        {%- endfor %}    
       {%- endfor %}
     {% endif %}
   {%- endfor %}

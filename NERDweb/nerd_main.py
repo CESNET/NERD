@@ -690,7 +690,7 @@ def set_effective_groups():
 def get_ip_blacklists():
     # Get the list of all configured IP blacklists. Return array of (id, name).
     # DNSBL (IP only)
-    blacklists = [(bl_name, bl_name) for bl_group in config.get('dnsbl.blacklists', []) for bl_name in bl_group[2].values()]
+    blacklists = [(bl_name[1]['id'], bl_name[1]['name']) for bl_group in dnsbl_list.items() for bl_name in bl_group[1].items()]
     # Blacklists cached in Redis (IP and prefix)
     blacklists += [(bl['id'], bl['name']) for bl in lists_without_domains]
     blacklists.sort()
@@ -968,15 +968,15 @@ def feed(feedname=None):
             provider_link = feed['provider_link']
             feed_type = feed['feed_type']
             url = feed['url']
-    for feeds in dnsbl_list:
-        for feed in feeds[2]:
-            if feedname == feed['id']:
-                name = feed['name']
-                description = feed['descr'].replace("<br>", " ")
-                firehol_link = feed.get('firehol_link', None)
-                provider_link = feed['provider_link']
-                feed_type = feed['feed_type']
-                url = feed.get('url', None)
+    for feeds in dnsbl_list.items():
+        for feed in feeds[1].items():
+            if feedname == feed[1]['id']:
+                name = feed[1]['name']
+                description = feed[1]['descr'].replace("<br>", " ")
+                firehol_link = feed[1].get('firehol_link', None)
+                provider_link = feed[1]['provider_link']
+                feed_type = "secondary (DNSBL)"
+                url = feed[1].get('url', None)
     return render_template('feed.html', **locals())
 
 # ***** Detailed info about individual IP *****

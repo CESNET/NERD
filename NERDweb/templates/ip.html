@@ -206,7 +206,14 @@ $( function() {create_event_graph('plot-events', event_data)} );
         {% if bl_entry.n == bl_descr.id %}
           <a href="{{ url_for('feed', feedname=bl_entry.n) }}"> <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">{{ bl_entry.n }}</span></a>
         {% endif %}
-      {% endfor %}    
+      {% endfor %} 
+      {% for feeds in dnsbl_list.items() -%}
+        {% for bl_descr in feeds[1].items() -%}
+          {% if bl_entry.n == bl_descr[1].id %}
+          <a href="{{ url_for('feed', feedname=bl_entry.n) }}"> <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_descr[1].descr}}.<br>Type of feed: <b>secondary (DNSBL)</b>">{{ bl_entry.n }}</span></a>
+          {% endif %}
+        {%- endfor %}    
+      {%- endfor %}   
     {% endfor %}
    {%- if not val %}none{% endif %}
   </dl></dd>
@@ -218,15 +225,7 @@ $( function() {create_event_graph('plot-events', event_data)} );
         {% if bl_entry.n == bl_descr.id %}
           <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">{{ bl_entry.n }} ({{  bl_entry.d }})</span></a>
         {% endif %}
-    {% endfor %}
-    
-    {% for feeds in dnsbl_list -%}
-        {% for bl_descr in feeds[2] -%}
-          {% if bl_entry.n == bl_descr.id %}
-          <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">{{ bl_entry.n }} ({{  bl_entry.d }})</span></a>
-          {% endif %}
-        {%- endfor %}    
-      {%- endfor %}
+    {% endfor %} 
    {% endfor %}
    {%- if not val %}none{% endif %}
   </dl></dd>
