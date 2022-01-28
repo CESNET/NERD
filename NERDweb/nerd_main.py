@@ -1011,6 +1011,8 @@ def ajax_request_ip_data(ipaddr):
     This cost 10 rate-limit tokens (9 are taken here since 1 is taken in @before_request)
     """
     log_ep.log('/ajax/fetch_ip_data')
+    if not g.ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions', 403)
     user_id = get_user_id()
     ok = rate_limiter.try_request(user_id, cost=9)
     if not ok:
@@ -1024,6 +1026,8 @@ def ajax_request_ip_data(ipaddr):
 @app.route('/ajax/is_ip_prepared/<ipaddr>')
 def ajax_is_ip_prepared(ipaddr):
     log_ep.log('/ajax/is_ip_prepared')
+    if not g.ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions')
     try:
         ipaddress.IPv4Address(ipaddr)
     except AddressValueError:
@@ -1043,10 +1047,10 @@ def ajax_ip_events(ipaddr):
     """Return events related to given IP (as HTML snippet to be loaded via AJAX)"""
     log_ep.log('/ajax/ip_events')
 
+    if not g.ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions', 403)
     if not ipaddr:
         return make_response('ERROR')
-    if not g.ac('ipsearch'):
-        return make_response('ERROR: Insufficient permissions')
 
     events = []
     error = None
@@ -1096,6 +1100,8 @@ def ajax_ip_events(ipaddr):
 def misp_event(event_id=None):
     log_ep.log('/misp_event')
     title = "MISP event detail"
+    if not g.ac('mispevent'):
+        return make_response('ERROR: Insufficient permissions', 403)
     if not misp_inst:
         return render_template("misp_event.html", error="Cannot connect to MISP instance")
     if not event_id:
@@ -1233,6 +1239,9 @@ def bgppref(bgppref=None):
 @app.route('/status')
 def get_status():
     log_ep.log('/status')
+    if not g.ac("statusbox"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
     cnt_ip = mongo.db.ip.count()
     cnt_bgppref = mongo.db.bgppref.count()
     cnt_asn = mongo.db.asn.count()
@@ -1296,6 +1305,9 @@ def iplist():
 @app.route('/map/')
 def map_index():
     log_ep.log('/map')
+    if not g.ac("map"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
     title = "IP map"
     ipvis_url = config.get("ipmap.url", None)
     ipvis_token = config.get("ipmap.token", None)
@@ -1317,6 +1329,9 @@ FILES = [
 @app.route('/data/')
 def data_index():
     log_ep.log('/data')
+    if not g.ac("data"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
     title = "Data"
     file_sizes = {}
     for f in FILES:
@@ -1328,6 +1343,9 @@ def data_index():
 
 @app.route('/data/<filename>')
 def data_file(filename):
+    if not g.ac("data"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
     if filename not in FILES:
         return flask.abort(404)
     log_ep.log('/data/' + filename.replace('.', '_')) # replace dots with underscores, dot in event name makes problems with Munin
@@ -1618,9 +1636,9 @@ def get_ip_fmp(ipaddr=None):
 @app.route('/api/v1/ip/<ipaddr>/test') # No query to database - for performance comparison
 def get_ip_rep_test(ipaddr=None):
     log_ep.log('/api/ip/test')
-    #if not g.ac('ipsearch'):
-    #    log_err.log('403_unauthorized')
-    #    return API_RESPONSE_403
+    if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
+        return API_RESPONSE_403
 
     # Return simple JSON
     data = {
