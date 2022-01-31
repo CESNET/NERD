@@ -10,6 +10,8 @@ assearch        *
 ipblocksearch   *
 orgsearch       *
 bgpprefsearch   *
+map             *
+data            *
 
 pdns            *
 shodan          *
@@ -17,6 +19,7 @@ shodan          *
 nodenames       trusted
 warden_alerts   trusted
 eml_rank        trusted
+mispevent       *
 tlp-green       trusted
 mentat          mentat
 

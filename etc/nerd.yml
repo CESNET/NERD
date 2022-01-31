@@ -82,10 +82,16 @@ warden_filer_path: "/data/warden_filer/warden_receiver"
 #misp:
   # URL of MISP instance
   #url: "https://misp.example.org"
-  # The MISP auth key can be found on the MISP web interface under the automation section
+  # MISP API auth key
   #key: ""
-  # URL of MISP instace ZMQ module (tcp://MISP_URL:50000)
+  # URL of MISP instance ZMQ module (tcp://MISP_URL:50000)
   #zmq: "tcp://misp.example.org:50000"
+  # Path to a custom CA bundle to use to verify the server certificate (useful when MISP uses a self-signed cert).
+  # Set to false to completely disable certificate verification. Default value (true) means validation against
+  # a default CA bundle that comes with Python's requests package.
+  # (ref: https://docs.python-requests.org/en/latest/user/advanced/#ssl-cert-verification)
+  #verify_cert: my_misp_server_cert.crt
+
 
 # API key for Shodan requester
 shodan_api_key: ""

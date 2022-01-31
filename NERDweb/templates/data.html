@@ -3,11 +3,21 @@
 
 <h1>Downloadable data</h1>
 
-<ul>
-<li>List of all IPs with their reputation scores (updated once per hour):
-{% if ip_rep_file_size %}<a href="{{url_for("data_ip_rep")}}">ip_rep.csv</a> ({{ip_rep_file_size|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
-  <ul style="margin-top: 0.5em; color: #888;"><li>Note: If used as a blacklist, we recommend to select only the IPs with the reputation score greater than some threshold (e.g. &ge; 0.5, which should result in a very low chance of false positives).</li></ul>
+<ul class="data-list">
+<li>List of all IPs in NERD database with their reputation scores:
+{% if file_sizes['ip_rep.csv'] is number %}<a href="{{ url_for("data_file", filename="ip_rep.csv") }}">ip_rep.csv</a> ({{file_sizes['ip_rep.csv']|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
+  <ul><li><span style="color: #844;"><b>Don't use this file as a blocklist as is!</b></span> It contains <b>every single IP</b> reported as malicious by some of our data sources and <b>it probably contains some false positives</b> (FP). Look at the associated reputation score, which summarizes the number of alerts, their age, and number of different sources that reported the IP. Higher score means lower probability of FP. So, if this data is to be used as a blocklist, we recommend to select only the IPs with reputation score greater than some threshold. Or use one of the files below, instead.</li></ul>
+</li>
+<li>List of malicious IPs (high confidence):
+{% if file_sizes['bad_ips.txt'] is number %}<a href="{{ url_for("data_file", filename="bad_ips.txt") }}">bad_ips.txt</a> ({{file_sizes['bad_ips.txt']|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
+  <ul><li>IP addresses with reputation score greater than 0.5 (means many recent reports from multiple sources). Very low chance of false positives. IPs tagged as research scanners are not included.</li></ul>
+</li>
+<li>List of malicious IPs (medium confidence):
+{% if file_sizes['bad_ips_med_conf.txt'] is number %}<a href="{{ url_for("data_file", filename="bad_ips_med_conf.txt") }}">bad_ips_med_conf.txt</a> ({{file_sizes['bad_ips_med_conf.txt']|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
+  <ul><li>IP addresses with reputation score greater than 0.2. This also includes less active IPs or those reported by just one source (but still multiple recent alerts are needed). Mostly reliable, but may contain a few false positives. IPs tagged as research scanners are not included.</li></ul>
 </li>
 </ul>
+
+All files are updated once per hour.
 
 {% endblock %}

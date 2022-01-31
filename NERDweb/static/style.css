@@ -695,6 +695,10 @@ td.links img {
   border-left: 1px dotted #444;
 }
 
+.caption {
+  font-size: 1.5em;
+  font-weight: bold;
+}
 
 dl.attrs dt {
   font-weight: bold;
@@ -786,10 +790,6 @@ dd dl dt:first-child {
 
 #event-details {
   margin: 1em 0 0.5em 0;
-}
-#event-details .caption {
-  font-size: 1.5em;
-  font-weight: bold;
 }
 #event-details .counts {
   font-size: 1.0em;
@@ -959,6 +959,23 @@ div.idea .nodes li:first-child::before {
 div.idea .nodes li:first-child:last-child::before {
   content: '\2022';
 }
+
+/****************************************/
+/* Downloadable data */
+
+ul.data-list {
+  padding-left: 1.5em;
+}
+
+ul.data-list li {
+  margin-top: 1em;
+}
+
+ul.data-list li ul li {
+  margin-top: 0.4em;
+  color: #777;
+}
+
 
 /***********************************************/
 /* NERD status block */

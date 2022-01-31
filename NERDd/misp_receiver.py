@@ -42,11 +42,6 @@ parser = argparse.ArgumentParser(
     prog="MISP_receiver.py",
     description="NERD standalone script for receiving MISP instance changes of events, attributes or sightings."
 )
-parser.add_argument("--cert", metavar='CA_FILE',
-                    help="Use this server certificate (or CA bundle) to check the certificate of MISP instance, useful "
-                         "when the server uses self-signed cert.")
-parser.add_argument("--insecure", action="store_true",
-                    help="Don't check the server certificate of MISP instance.")
 parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
                     help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
 parser.add_argument("-v", dest="verbose", action="store_true",
@@ -83,14 +78,11 @@ misp_zmq_url = config.get('misp.zmq', None)
 if not (misp_key and misp_url and misp_zmq_url):
     logger.error("Missing configuration of MISP instance in the configuration file!")
     sys.exit(1)
+misp_verify_cert = config.get('misp.verify_cert', True)  # path to CA bundle to check the server cert, or False to
+                                                         # disable cert verification, or True to use default CA bundle
+                                                         # (passed to "requests" as "verify" parameter)
 
-cert = True # set to check server certificate (default)
-if args.insecure:
-    cert = False # don't check certificate
-elif args.cert:
-    cert = args.cert # read the certificate (CA bundle) to check the cert
-
-misp_inst = ExpandedPyMISP(misp_url, misp_key, cert)
+misp_inst = ExpandedPyMISP(misp_url, misp_key, misp_verify_cert)
 
 # get attribute's type from str like: "distribution () => (5), type () => (hostname), category () => (Network activity)"
 re_attrib_type_change = re.compile("type \(\) => \(([\w|\-]+)\)")

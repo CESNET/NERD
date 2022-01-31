@@ -83,6 +83,8 @@ groups:
       - '/map'
       - '/data'
       - '/data/ip_rep_csv'
+      - '/data/bad_ips_txt'
+      - '/data/bad_ips_med_conf_txt'
       - '/api/user_info'
       - '/api/ip'
       - '/api/ip/rep'

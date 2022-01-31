@@ -104,7 +104,7 @@ else:
     print("ERROR: unknown 'eventdb' configured, it will not be possible to show raw events in GUI", file=sys.stderr)
 
 try:
-    misp_inst = ExpandedPyMISP(config['misp']['url'], config['misp']['key'], None)
+    misp_inst = ExpandedPyMISP(config['misp']['url'], config['misp']['key'], ssl=config.get('misp.verify_cert', True))
 except KeyError:
     misp_inst = None # None means not configured
 except pymisp.exceptions.PyMISPError as e:
@@ -656,7 +656,8 @@ def account_info():
     else:
         if g.user['login_type'] == 'local':
             passwd_form = PasswordChangeForm()
-    
+
+    title = "Account information"
     return render_template('account_info.html', **locals())
 
 
@@ -1036,6 +1037,8 @@ def ajax_request_ip_data(ipaddr):
     This cost 10 rate-limit tokens (9 are taken here since 1 is taken in @before_request)
     """
     log_ep.log('/ajax/fetch_ip_data')
+    if not g.ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions', 403)
     user_id = get_user_id()
     ok = rate_limiter.try_request(user_id, cost=9)
     if not ok:
@@ -1049,6 +1052,8 @@ def ajax_request_ip_data(ipaddr):
 @app.route('/ajax/is_ip_prepared/<ipaddr>')
 def ajax_is_ip_prepared(ipaddr):
     log_ep.log('/ajax/is_ip_prepared')
+    if not g.ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions')
     try:
         ipaddress.IPv4Address(ipaddr)
     except AddressValueError:
@@ -1068,10 +1073,10 @@ def ajax_ip_events(ipaddr):
     """Return events related to given IP (as HTML snippet to be loaded via AJAX)"""
     log_ep.log('/ajax/ip_events')
 
+    if not g.ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions', 403)
     if not ipaddr:
         return make_response('ERROR')
-    if not g.ac('ipsearch'):
-        return make_response('ERROR: Insufficient permissions')
 
     events = []
     error = None
@@ -1120,6 +1125,9 @@ def ajax_ip_events(ipaddr):
 @app.route('/misp_event/<event_id>')
 def misp_event(event_id=None):
     log_ep.log('/misp_event')
+    title = "MISP event detail"
+    if not g.ac('mispevent'):
+        return make_response('ERROR: Insufficient permissions', 403)
     if not misp_inst:
         return render_template("misp_event.html", error="Cannot connect to MISP instance")
     if not event_id:
@@ -1139,7 +1147,7 @@ def misp_event(event_id=None):
                 tlp = tag['name'][4:]
                 break
 
-        return render_template('misp_event.html', event=event, tlp=tlp)
+        return render_template('misp_event.html', title=title, event=event, tlp=tlp)
 
 
 # ***** Detailed info about individual AS *****
@@ -1257,6 +1265,9 @@ def bgppref(bgppref=None):
 @app.route('/status')
 def get_status():
     log_ep.log('/status')
+    if not g.ac("statusbox"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
     cnt_ip = mongo.db.ip.count()
     cnt_bgppref = mongo.db.bgppref.count()
     cnt_asn = mongo.db.asn.count()
@@ -1320,33 +1331,55 @@ def iplist():
 @app.route('/map/')
 def map_index():
     log_ep.log('/map')
+    if not g.ac("map"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
+    title = "IP map"
     ipvis_url = config.get("ipmap.url", None)
     ipvis_token = config.get("ipmap.token", None)
     return render_template("map.html", **locals())
 
 # ******************** Static/precomputed data ********************
 
-FILE_IP_REP = "/data/web_data/ip_rep.csv"
+#TODO: move to config
+DATA_DIR = "/data/web_data"
+# List of supported files - needed to get their size for data.html template
+# (also, it's safer to check client request against a fixed set of files, rather than to check for file existence,
+# handle attempts like "../../something" etc.)
+FILES = [
+    "ip_rep.csv",
+    "bad_ips.txt",
+    "bad_ips_med_conf.txt",
+]
 
 @app.route('/data/')
 def data_index():
     log_ep.log('/data')
+    if not g.ac("data"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
+    title = "Data"
+    file_sizes = {}
+    for f in FILES:
+        try:
+            file_sizes[f] = os.stat(os.path.join(DATA_DIR, f)).st_size
+        except OSError:
+            file_sizes[f] = None
+    return render_template("data.html", title=title, file_sizes=file_sizes)
+
+@app.route('/data/<filename>')
+def data_file(filename):
+    if not g.ac("data"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
+    if filename not in FILES:
+        return flask.abort(404)
+    log_ep.log('/data/' + filename.replace('.', '_')) # replace dots with underscores, dot in event name makes problems with Munin
     try:
-        ip_rep_file_size = os.stat(FILE_IP_REP).st_size
-    except OSError:
-        ip_rep_file_size = None
-    return render_template("data.html", **locals())
-
-@app.route('/data/ip_rep.csv')
-def data_ip_rep():
-    log_ep.log('/data/ip_rep_csv') # use _csv, not .csv, dot in event name makes problems with Munin
-    try:
-        return flask.send_file(FILE_IP_REP, mimetype="text/plain", as_attachment=True)
-    except OSError:
-        log_err.log('5xx_other')
-        return Response('ERROR: File not found on the server', 500, mimetype='text/plain')
-
-
+        return flask.send_file(os.path.join(DATA_DIR, filename), mimetype="text/plain", as_attachment=True)
+    except OSError as e:
+        print(f"data_file(): Can't access file '{os.path.join(DATA_DIR, filename)}'")
+        return flask.abort(404)
 
 
 # ****************************** API ******************************
@@ -1629,9 +1662,9 @@ def get_ip_fmp(ipaddr=None):
 @app.route('/api/v1/ip/<ipaddr>/test') # No query to database - for performance comparison
 def get_ip_rep_test(ipaddr=None):
     log_ep.log('/api/ip/test')
-    #if not g.ac('ipsearch'):
-    #    log_err.log('403_unauthorized')
-    #    return API_RESPONSE_403
+    if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
+        return API_RESPONSE_403
 
     # Return simple JSON
     data = {

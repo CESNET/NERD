@@ -55,6 +55,8 @@ function create_event_graph(elem, event_data) {
       },
       options: {
           animation: false,
+          responsive: true,
+          maintainAspectRatio: false,
           scales: {
               xAxes: [{
                   stacked: true
@@ -62,14 +64,20 @@ function create_event_graph(elem, event_data) {
               yAxes: [{
                   min: 0,
                   stacked: true,
-                  title: {
+                  scaleLabel: {
                       display: true,
-                      text: "Number of events",
+                      labelString: "Number of events",
                   },
                   ticks: {
                       precision: 0,
                   }
               }]
+          },
+          legend: {
+            position: 'bottom'
+          },
+          tooltips: {
+            mode: 'index'
           }
       }
   });
