@@ -535,18 +535,6 @@ iplists:
   time:
     hour: "*/4"
     minute: 10
-      
-- id: krisk_intel_ips
-  name: KRISK INTEL IPs
-  descr: KRISK INTEL list of IPs being leveraged by malware/malicious actors.
-  provider_link: https://kriskintel.com/
-  feed_type: primary
-  url: https://kriskintel.com/feeds/ktip_malicious_Ips.txt
-  regex: ""
-  # The time of updating the list was viewed in the file: https://kriskintel.com/feeds/ktip_malicious_Ips.txt
-  time:
-    hour: 7
-    minute: 0 
   
 # Lists from FireHOL
 - id: bambenek_c2
