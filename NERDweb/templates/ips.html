@@ -202,8 +202,8 @@
     <div class="links-dropdown">
         <button class="links-dropbtn">&#x25BC;</button>
         <div class="links-dropdown-content">
-            <a href="https://www.shodan.io/search?query={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"> &nbsp; Shodan</a>
-            <a href="https://censys.io/ipv4/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"> &nbsp; Censys</a>
+            <a href="https://www.shodan.io/host/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"> &nbsp; Shodan</a>
+            <a href="https://search.censys.io/hosts/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"> &nbsp; Censys</a>
             <a href="http://multirbl.valli.org/lookup/{{ ip._id }}.html" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"> &nbsp; valli.org</a>
             <a href="#" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"> &nbsp; whatismyipaddress.com</a>
             <a href="https://www.abuseipdb.com/check/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='abuse_ip_db_icon.png') }}"> &nbsp; AbuseIPDB</a>
