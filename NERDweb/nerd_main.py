@@ -57,15 +57,41 @@ tags_cfg_file = os.path.join(cfg_dir, config.get('tags_config'))
 config_tags = common.config.read_config(tags_cfg_file)
 
 # Read blacklists config (to separate dict)
-bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
-p_bl_cfg_file = os.path.join(cfg_dir, config.get('p_bl_config'))
-dnsbl_cfg_file = os.path.join(cfg_dir, config.get('dnsbl'))
+bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config')) # secondary blacklists
+p_bl_cfg_file = os.path.join(cfg_dir, config.get('p_bl_config')) # primary blacklists
+dnsbl_cfg_file = os.path.join(cfg_dir, config.get('dnsbl')) # dnsbl blacklists (secondary)
+bl_config = common.config.read_config(bl_cfg_file)
+p_bl_config = common.config.read_config(p_bl_cfg_file)
 dnsbl_config = common.config.read_config(dnsbl_cfg_file)
-config_bl = common.config.read_config(bl_cfg_file)
-p_config_bl = common.config.read_config(p_bl_cfg_file)
-lists_without_domains = p_config_bl.get('iplists', []) + config_bl.get('iplists', []) + config_bl.get('prefixiplists', [])
-all_lists = p_config_bl.get('iplists', []) + config_bl.get('iplists', []) + config_bl.get('prefixiplists', []) + config_bl.get('domainlists', [])
-dnsbl_list = dnsbl_config.get('dnsbl', [])
+
+# Dict: blacklist_id -> parameters
+#  parameters should contain:
+#    all: id, name, descr, feed_type
+#    dnsbl-only: zone, reply
+#    others: url
+#    optional: provider_link, firehol_link
+blacklist_info = {}
+for feed_info in p_bl_config.get('iplists', []):
+    feed_info["feed_type"] = "primary"
+    blacklist_info[feed_info['id']] = feed_info
+for feed_info in bl_config.get('iplists', []):
+    feed_info["feed_type"] = "secondary"
+    blacklist_info[feed_info['id']] = feed_info
+for feed_info in bl_config.get('prefixiplists', []):
+    feed_info["feed_type"] = "secondary"
+    blacklist_info[feed_info['id']] = feed_info
+for feed_info in bl_config.get('domainlists', []):
+    feed_info["feed_type"] = "secondary (domain)"
+    blacklist_info[feed_info['id']] = feed_info
+for zone, replies in dnsbl_config.get('dnsbl', {}).items():
+    for reply, feed_info in replies.items():
+        feed_info["feed_type"] = "secondary (DNSBL)"
+        feed_info['descr'] = feed_info['descr'].replace("<br>", " ")
+        feed_info["zone"] = zone
+        feed_info["reply"] = reply
+        blacklist_info[feed_info['id']] = feed_info
+
+
 # Read EventCountLogger config (to separate dict) and initialize loggers
 ecl_cfg_filename = config.get('event_logging_config', None)
 if ecl_cfg_filename:
@@ -690,18 +716,15 @@ def set_effective_groups():
 
 def get_ip_blacklists():
     # Get the list of all configured IP blacklists. Return array of (id, name).
-    # DNSBL (IP only)
-    blacklists = [(bl_name[1]['id'], bl_name[1]['name']) for bl_group in dnsbl_list.items() for bl_name in bl_group[1].items()]
-    # Blacklists cached in Redis (IP and prefix)
-    blacklists += [(bl['id'], bl['name']) for bl in lists_without_domains]
-    blacklists.sort()
-    return blacklists
+    ip_lists = [(id, info['name']) for id, info in blacklist_info.items() if info['feed_type'] != "secondary (domain)"]
+    ip_lists.sort()
+    return ip_lists
 
 def get_domain_blacklists():
     # Get the list of all configured domain blacklists. Return array of (id, name).
-    blacklists = [(bl['id'], bl['name']) for bl in config_bl.get('domainlists', [])]
-    blacklists.sort()
-    return blacklists
+    dom_lists = [(id, info['name']) for id, info in blacklist_info.items() if info['feed_type'] == "secondary (domain)"]
+    dom_lists.sort()
+    return dom_lists
 
 def get_tags():
     """Get list of all configured tags (list of IDs and names)"""
@@ -941,7 +964,7 @@ def ips():
         if g.user and not g.ac('ipsearch'):
             flash('Insufficient permissions to search/view IPs.', 'error')
     
-    return render_template('ips.html', json=json, ctrydata=ctrydata, all_lists=all_lists, dnsbl_list=dnsbl_list, **locals())
+    return render_template('ips.html', json=json, ctrydata=ctrydata, blacklist_info=blacklist_info, **locals())
 
 
 @app.route('/_ips_count', methods=['POST'])
@@ -961,23 +984,19 @@ def ips_count():
 
 @app.route('/feed/<feedname>')
 def feed(feedname=None):
-    for feed in all_lists:
-        if feedname == feed['id']:
-            name = feed['name']
-            description = feed['descr'].replace("<br>", " ")
-            firehol_link = feed.get('firehol_link', None)
-            provider_link = feed['provider_link']
-            feed_type = feed['feed_type']
-            url = feed['url']
-    for feeds in dnsbl_list.items():
-        for feed in feeds[1].items():
-            if feedname == feed[1]['id']:
-                name = feed[1]['name']
-                description = feed[1]['descr'].replace("<br>", " ")
-                firehol_link = feed[1].get('firehol_link', None)
-                provider_link = feed[1]['provider_link']
-                feed_type = "secondary (DNSBL)"
-                url = feed[1].get('url', None)
+    # Search for feedname in list of all (non-dnsbl) feeds
+    feed = blacklist_info.get(feedname)
+    if not feed:
+        return flask.abort(404)
+
+    name = feed['name']
+    description = feed['descr'].replace("<br>", " ")
+    firehol_link = feed.get('firehol_link', None)
+    provider_link = feed['provider_link']
+    feed_type = feed['feed_type']
+    url = feed.get('url', None)
+    # TODO use 'zone' and 'reply' od dnsbl lists
+
     return render_template('feed.html', **locals())
 
 # ***** Detailed info about individual IP *****
@@ -1025,7 +1044,7 @@ def ip(ipaddr=None):
     else:
         title = 'IP detail search'
         ipinfo = {}
-    return render_template('ip.html', ctrydata=ctrydata, ip=ipaddr, all_lists = all_lists, dnsbl_list = dnsbl_list, **locals())
+    return render_template('ip.html', ctrydata=ctrydata, ip=ipaddr, blacklist_info=blacklist_info, **locals())
 
 # Functions to asynchornously request creation of a new IP record
 # We use special endpoints, called by JavaScript, since that way we can easily disallow this functionality for robots

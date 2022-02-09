@@ -54,11 +54,14 @@ worker_processes: 2
 # Tag configuration file
 tags_config: tags.yml
 
-# Blacklists configuration file
-bl_config: blacklists.yml
-
 # Primary blacklists configuration file
 p_bl_config: primary_blacklists.yml
+
+# Secondary blacklists configuration file
+bl_config: blacklists.yml
+
+# DNS blacklists configuration file
+dnsbl: dns_blacklists.yml
 
 # Configuration file for EventCountLogger
 event_logging_config: event_logging.yml
@@ -103,51 +106,6 @@ otx_api_key: ""
 pdns:
   url: https://passivedns.cesnet.cz/api/v1/
   token: ""
-
-dnsbl: dns_blacklists.yml
-
-  # # List of blacklists to query (the rest of "dnsbl" config is in nerdd.yml)
-  # blacklists:
-  # # blacklist_name, zone, dict{response -> blacklist_id}
-  # # Note: blacklist_id mustn't contain '.'
-  # # Spamhaus, description: https://www.spamhaus.org/faq/section/DNSBL%20Usage#200
-  # - - Spamhaus
-  #   - zen.spamhaus.org
-  #     # Spamhaus block list
-  #   - 127.0.0.2: spamhaus-sbl
-  #     # Spamhaus block list (CSS component)
-  #     127.0.0.3: spamhaus-sbl-css
-  #     # Exploit block list (data from CBL)
-  #     127.0.0.4: spamhaus-xbl-cbl
-  #     # DROP/EDROP
-  #     127.0.0.9: spamhaus-drop
-  #     # Policy block list (ISP maintained)
-  #     127.0.0.10: spamhaus-pbl-isp
-  #     # Policy block list (Spamhaus maintained)
-  #     127.0.0.11: spamhaus-pbl
-  # # SORBS, description: http://www.sorbs.net/general/using.shtml
-  # - - SORBS
-  #   - dnsbl.sorbs.net
-  #   - 127.0.0.2: sorbs-http
-  #     127.0.0.3: sorbs-socks
-  #     127.0.0.4: sorbs-misc
-  #     127.0.0.5: sorbs-smtp
-  #     127.0.0.6: sorbs-spam
-  #     127.0.0.7: sorbs-web
-  #     127.0.0.8: sorbs-block
-  #     127.0.0.9: sorbs-zombie
-  #     127.0.0.10: sorbs-dul
-  #     #127.0.0.11: sorbs-badconf
-  #     #127.0.0.12: sorbs-nomail
-  #     127.0.0.14: sorbs-noserver
-  # # WPBL (Weighted Private Block List; spam blacklist), description: http://www.wpbl.info/
-  # - - WPBL (spam)
-  #   - db.wpbl.info
-  #   - 127.0.0.2: wpbl
-  # # SpamCop, description: https://www.spamcop.net/bl.shtml
-  # - - SpamCop
-  #   - bl.spamcop.net
-  #   - 127.0.0.2: spamcop
 
 hostname_tagging:
   known_domains:

@@ -195,30 +195,17 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
   <dt>IP blacklists</dt>
   <dd><dl>
    {% for bl_entry in val %}
-      {% for bl_descr in all_lists -%}
-        {% if bl_entry.n == bl_descr.id %}
-          <a href="{{ url_for('feed', feedname=bl_entry.n) }}"> <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">{{ bl_entry.n }}</span></a>
-        {% endif %}
-      {% endfor %} 
-      {% for feeds in dnsbl_list.items() -%}
-        {% for bl_descr in feeds[1].items() -%}
-          {% if bl_entry.n == bl_descr[1].id %}
-          <a href="{{ url_for('feed', feedname=bl_entry.n) }}"> <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_descr[1].descr}}.<br>Type of feed: <b>secondary (DNSBL)</b>">{{ bl_entry.n }}</span></a>
-          {% endif %}
-        {%- endfor %}    
-      {%- endfor %}   
-    {% endfor %}
+     {% set bl_info = blacklist_info[bl_entry.n] or {"name": "bl_entry.n"} -%}
+     <a href="{{ url_for('feed', feedname=bl_entry.n) }}"> <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_info.descr}}.<br>Type of feed: <b>{{bl_info.feed_type}}</b>">{{ bl_info.name }}</span></a>
+   {% endfor %}
    {%- if not val %}none{% endif %}
   </dl></dd>
  {% elif attr == "dbl" %}
   <dt>Domain blacklists<span class="help" title="Blacklisted domain names that were associated with the IP address according to Passive DNS"></dt>
   <dd><dl>
    {% for bl_entry in val %}
-    {% for bl_descr in all_lists -%}
-        {% if bl_entry.n == bl_descr.id %}
-          <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_descr.descr}}.<br>Type of feed: <b>{{bl_descr.feed_type}}</b>">{{ bl_entry.n }} ({{  bl_entry.d }})</span></a>
-        {% endif %}
-    {% endfor %} 
+     {% set bl_info = blacklist_info[bl_entry.n] or {"name": "bl_entry.n"} -%}
+     <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_info.descr}}.<br>Type of feed: <b>{{bl_info.feed_type}}</b>">{{ bl_info.name }} ({{  bl_entry.d }})</span></a>
    {% endfor %}
    {%- if not val %}none{% endif %}
   </dl></dd>

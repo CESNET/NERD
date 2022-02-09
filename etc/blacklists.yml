@@ -31,7 +31,6 @@ iplists:
   name: Andoniaf Miners
   descr: List of crypto mining pools IPs.
   provider_link: https://github.com/andoniaf/mining-pools-list
-  feed_type: secondary
   url: https://raw.githubusercontent.com/andoniaf/mining-pools-list/master/mining-pools_IP.lst
   regex: ""
   time:
@@ -42,7 +41,6 @@ iplists:
   descr: TorProject.org list of all current TOR exit points (TorDNSEL)
   firehol_link: https://iplists.firehol.org/?ipset=tor_exits_30d
   provider_link: https://check.torproject.org/
-  feed_type: secondary
   url: https://check.torproject.org/torbulkexitlist
   regex: ""
   # The time of updating the list was not found
@@ -53,7 +51,6 @@ iplists:
   name: dan.me.uk TOR Node List IPs
   descr: dan.me.uk TOR node list.
   provider_link: https://www.dan.me.uk/tornodes
-  feed_type: secondary
   url: https://www.dan.me.uk/torlist/
   regex: ""
   # The time of updating the list was viewed here: https://www.dan.me.uk/tornodes
@@ -67,7 +64,6 @@ iplists:
   descr: An ipset that includes all the anonymizing IPs of the world.
   firehol_link: https://iplists.firehol.org/?ipset=firehol_anonymous
   provider_link: https://iplists.firehol.org/
-  feed_type: secondary
   url: https://iplists.firehol.org/files/firehol_anonymous.netset
   regex: "^(\\A)"
   time:
@@ -84,7 +80,6 @@ prefixiplists:
   descr: List of bots IPs by BotScout.com.  
   firehol_link: https://iplists.firehol.org/?ipset=botscout_7d
   provider_link: http://botscout.com/
-  feed_type: secondary
   url: https://iplists.firehol.org/files/botscout_7d.ipset
   regex: ""
   # The time of updating the list was viewed here: https://iplists.firehol.org/?ipset=botscout_7d
@@ -96,7 +91,6 @@ prefixiplists:
   descr: List by DShield.org summarizes the top 20 attacking<br>class C (/24) subnets over the last three days. 
   firehol_link: https://iplists.firehol.org/?ipset=dshield
   provider_link: https://www.dshield.org/
-  feed_type: secondary
   url: https://www.dshield.org/block.txt
   regex: "(\\A)\\s*(\\A)"
   time:
@@ -113,7 +107,6 @@ prefixiplists:
   descr: List of IPs by Spamhaus that performing spamming, scanning, harvesting,<br> DNS-hijacking and DDoS attacks originating on rogue netblocks.
   firehol_link: https://iplists.firehol.org/?ipset=spamhaus_edrop
   provider_link: https://www.spamhaus.org/
-  feed_type: secondary
   url: https://www.spamhaus.org/drop/edrop.txt
   regex: "^(\\CA)"
   time:
@@ -124,7 +117,6 @@ domainlists:
   name: openphis.com
   descr: List of malicious domains performing phishing.
   provider_link: https://openphish.com/
-  feed_type: secondary
   url: https://openphish.com/feed.txt
   regex: ""
   time:
@@ -134,7 +126,6 @@ domainlists:
   name: Booters
   descr: List of Booters(Websites that publicly offer<br>DDoS attacks as a paid service) domains.
   provider_link: https://github.com/jjsantanna/booters_ecosystem_analysis
-  feed_type: secondary
   url: https://raw.githubusercontent.com/jjsantanna/booters_ecosystem_analysis/master/booterblacklist.csv
   regex: "^[0-9]*?,(.*?)$"
   time:

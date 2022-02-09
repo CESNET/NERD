@@ -61,6 +61,9 @@ login:
   # !!! Fill this when shibboleth is enabled !!!
   request-email: ''
 
+#mail:
+#  sender: 'NERD <noreply@nerd.example.org>'¨
+
 rate-limit:
   # Rate-limiter default parameters (applied unless overridden for specific user).
   # Token bucket algorithm is used. Bucket size: maximum number of tokens per 
