@@ -16,6 +16,8 @@ data            *
 pdns            *
 shodan          *
 
+unlimited_search admin
+
 nodenames       trusted
 warden_alerts   trusted
 eml_rank        trusted

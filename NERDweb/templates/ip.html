@@ -68,8 +68,8 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 
 {% if not ipinfo %}
 <p class="notfound">Record not found in database</p>
-<p class="notfound2">No malicious activity related to the IP address has been reported recently ({{ config.record_life_length.warden }} days for Warden, {{config.record_life_length.misp}} days for MISP).</p>
-<p class="notfound-fetching" style="display: none"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}">Fetching basic information now.</p>
+<p class="notfound2">No malicious activity related to the IP address has been reported recently.</p>
+<p class="notfound-fetching" style="display: none"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}">Fetching basic information now ...</p>
 <script src="{{ url_for('static', filename='ip_poll.js') }}"></script>
 <script>request_ip_data("{{ url_for('ajax_request_ip_data', ipaddr=ip) }}", "{{ url_for('ajax_is_ip_prepared', ipaddr=ip) }}");</script>
 {% else %}
@@ -158,7 +158,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
                   {% for tag in misp_event.tag_list %}<span class="tag" style="{{ tag_color_style(tag.colour) }}">{{ tag.name }}</span>{% endfor %}
                 </td></tr>
                 <tr><td>Sightings:</td><td>positive: {{ misp_event.get('sightings', {}).get('positive') }} | false positive: {{ misp_event.get('sightings', {}).get('false positive') }} | expired attribute: {{ misp_event.get('sightings', {}).get('expired attribute') }}</td></tr>
-                <tr><td>Last change:</td><td>{{ misp_event.last_change }}</td></tr>
+                <tr><td>Last change:</td><td class="time" data-time={{ misp_event.last_change|date_to_int }}>{{ misp_event.last_change }}</td></tr>
                 <tr><td>Threat level:</td><td>{{ misp_event.threat_level }}</td></tr>
                 <tr><td>Role of this IP:</td><td>{{ misp_event.role }}</td></tr>
                </table></div>
@@ -173,12 +173,12 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
     <div><b>[<a href="https://otx.alienvault.com/pulse/{{otx_pulse.pulse_id}}">{{ otx_pulse.pulse_id }}</a>] {{ otx_pulse.pulse_created }} | {{ otx_pulse.pulse_name }}</b>
          <table style="padding-left: 30px; padding-bottom: 10px">
           <tr><td>Author name:</td><td>{{ otx_pulse.author_name }}</td></tr>
-          <tr><td>Pulse modified:</td><td>{{ otx_pulse.pulse_modified }}</td></tr>
-          <tr><td>Indicator created:</td><td>{{ otx_pulse.indicator_created }}</td></tr>
+          <tr><td>Pulse modified:</td><td class="time" data-time={{ otx_pulse.pulse_modified|date_to_int }}>{{ otx_pulse.pulse_modified }}</td></tr>
+          <tr><td>Indicator created:</td><td class="time" data-time={{ otx_pulse.indicator_created|date_to_int }}>{{ otx_pulse.indicator_created }}</td></tr>
           <tr><td>Indicator role:</td><td>{{ otx_pulse.indicator_role }}</td></tr>
           <tr><td>Indicator title:</td><td>{{ otx_pulse.indicator_title }}</td></tr>
           {% if otx_pulse.get('indicator_expiration')%}
-           <tr><td>Indicator expiration:</td><td>{{ otx_pulse.indicator_expiration }}</td></tr>
+           <tr><td>Indicator expiration:</td><td class="time" data-time={{ otx_pulse.indicator_expiration|date_to_int }}>{{ otx_pulse.indicator_expiration }}</td></tr>
           {% endif%}
          </table>
     {% endfor%}
