@@ -33,8 +33,8 @@ iplists:
     minute: 50
   
 - id: bruteforceblocker
-  name: Daniel Gerzo's BruteForceBlocker
-  descr: Feed is made by BruteForceBlocker perl script,<br>that works along with pf - OpenBSD's firewall and it's main<br>purpose is to block SSH bruteforce attacks via firewall.
+  name: BruteForceBlocker
+  descr: Daniel Gerzo's BruteForceBlocker. The list is made by perl script,<br>that works along with pf - OpenBSD's firewall and it's main<br>purpose is to block SSH bruteforce attacks via firewall.
   firehol_link: http://iplists.firehol.org/?ipset=bruteforceblocker
   provider_link: https://danger.rulez.sk/index.php/bruteforceblocker/
   url: http://danger.rulez.sk/projects/bruteforceblocker/blist.php
@@ -44,7 +44,7 @@ iplists:
     minute: 52
   
 - id: ciarmy
-  name: CI Army - BadGuys
+  name: CI Army
   descr: Collective Intelligence Network Security is a Threat Intelligence<br>database that provides scores for IPs. Source of unspecified malicious attacks<br>most of them will be active attackers/scanners
   firehol_link: http://iplists.firehol.org/?ipset=ciarmy
   provider_link: https://cinsscore.com/#list
@@ -56,7 +56,7 @@ iplists:
   
 
 - id: blocklist_de-ssh
-  name: blocklist.de ssh
+  name: blocklist.de SSH
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing SSH attacks.
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_ssh
   provider_link: http://www.blocklist.de/en/index.html
@@ -78,7 +78,7 @@ iplists:
     minute: 5
   
 - id: blocklist_de-apache
-  name: blocklist.de apache
+  name: blocklist.de Apache
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing attacks on the service<br>Apache, Apache-DDOS, RFI-Attacks.
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_apache
   provider_link: http://www.blocklist.de/en/index.html
@@ -89,7 +89,7 @@ iplists:
     minute: 5
   
 - id: blocklist_de-imap
-  name: blocklist.de imap
+  name: blocklist.de IMAP
   descr: Blocklist.de feed is a free and voluntary service<br>provided by a Fraud/Abuse-specialist. IPs performing attacks<br>on the Service imap, sasl, pop3.
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_imap
   provider_link: http://www.blocklist.de/en/index.html
@@ -100,7 +100,7 @@ iplists:
     minute: 5
   
 - id: blocklist_de-ftp
-  name: blocklist.de ftp
+  name: blocklist.de FTP
   descr: Blocklist.de feed is a free and voluntary service<br>provided by a Fraud/Abuse-specialist. IPs performing attacks<br>on the Service FTP.
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_ftp
   provider_link: http://www.blocklist.de/en/index.html
@@ -111,7 +111,7 @@ iplists:
     minute: 5
   
 - id: blocklist_de-sip
-  name: blocklist.de sip
+  name: blocklist.de SIP
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IP addresses that tried to login in a SIP,<br>VOIP or Asterisk Server.
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_sip
   provider_link: http://www.blocklist.de/en/index.html
@@ -144,7 +144,7 @@ iplists:
     minute: 5
   
 - id: blocklist_de-ircbot
-  name: blocklist.de ircbot
+  name: blocklist.de IRC-bot
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing attacks on the IRC-Bots. 
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/ircbot.txt
@@ -154,7 +154,7 @@ iplists:
     minute: 5
   
 - id: blocklist_de-bruteforcelogin
-  name: blocklist.de brute force login
+  name: blocklist.de web-login
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs that attacks Joomla, Wordpress and<br>other Web-Logins with Brute-Force Logins.
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_bruteforce
   provider_link: http://www.blocklist.de/en/index.html
@@ -165,7 +165,7 @@ iplists:
     minute: 5
   
 - id: sblam_ips
-  name: Sblam! IPs blacklist
+  name: Sblam!
   descr: Sblam! is a service that effectively protects forms for<br>comments in blogs, forums and guestbooks from spam.
   firehol_link: http://iplists.firehol.org/?ipset=sblam
   provider_link: https://sblam.com/
@@ -177,7 +177,7 @@ iplists:
     minute: 15
   
 - id: blocklist_net_ua_ips
-  name: Blocklist.net.ua IPs
+  name: Blocklist.net.ua
   descr: BlockList contains IP addresses that perform attacks,<br>send spam or brute force passwords to the blocking list.
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_net_ua
   provider_link: https://blocklist.net.ua/about/
@@ -189,7 +189,7 @@ iplists:
     minute: 15
   
 - id: darklist_de_ips
-  name: Darklist.de IPs
+  name: Darklist.de
   descr: Darklist.de is an IP blacklist that identifies<br>SSH brute force attacks and spam incidents.
   firehol_link: http://iplists.firehol.org/?ipset=darklist_de
   provider_link: http://www.darklist.de/
@@ -201,8 +201,8 @@ iplists:
     minute: 10
   
 - id: charles_the_haleys_ssh_dico_ips
-  name: Charles B. Haley SSH Dictionary Attacks
-  descr: Feed provided by Charles B. Haley.<br>IPs launching SSH dictionary attacks.
+  name: Haley SSH
+  descr: IPs launching SSH dictionary attacks attacks against the server of Charles B. Haley.
   firehol_link: http://iplists.firehol.org/?ipset=haley_ssh
   provider_link: http://charles.the-haleys.org/
   url: http://charles.the-haleys.org/ssh_dico_attack_with_timestamps.php?days=7
@@ -213,8 +213,8 @@ iplists:
     minute: 10
   
 - id: charles_the_haleys_wp_attack_ips
-  name: Charles B. Haley Attacks on their WordPress
-  descr: Feed provided by Charles B. Haley.<br>IPs launching WordPress attacks.
+  name: Haley WordPress
+  descr: IPs launching attacks aginst WordPress running on the server of Charles B. Haley.
   provider_link: http://charles.the-haleys.org/
   url: http://charles.the-haleys.org/wp_attack_with_timestamps.php?days=7
   regex: "^(\\A)"
@@ -224,8 +224,8 @@ iplists:
     minute: 10
   
 - id: charles_the_haleys_smtp_dico_ips
-  name: Charles B. Haley SMTP AUTH dictionary attacks
-  descr: Feed provided by Charles B. Haley.<br>IPs launching SMTP AUTH dictionary attacks.
+  name: Haley SMTP AUTH
+  descr: IPs launching SMTP AUTH dictionary attacks aginst the server of Charles B. Haley.
   provider_link: http://charles.the-haleys.org/
   url: http://charles.the-haleys.org/smtp_dico_attack_with_timestamps.php?days=7
   regex: "^(\\A)"
@@ -235,8 +235,8 @@ iplists:
     minute: 10
   
 - id: turris_greylist
-  name: Turris greylist by CZ.NIC 
-  descr: Greylist is the output of the Turris research project,<br>which collects data of malicious IPs.
+  name: Turris greylist
+  descr: Greylist is the output of the Turris research project by CZ.NIC,<br>which collects data of malicious IPs.
   provider_link: https://view.sentinel.turris.cz/
   url: https://view.sentinel.turris.cz/greylist-data/greylist-latest.csv
   regex: "^(\\A)"
@@ -246,7 +246,7 @@ iplists:
     minute: 15
   
 - id: threat_sourcing_ips
-  name: Threat Sourcing IPs
+  name: Threat Sourcing
   descr: Threat Sourcing is a collaborative project to collect<br>and study threats as they present themselves on the Internet.
   provider_link: https://www.threatsourcing.com/
   url: https://www.threatsourcing.com/ipall-free.txt
@@ -257,8 +257,8 @@ iplists:
     minute: 10
   
 - id: mirai_tracker_ips
-  name: Mirai tracker IPs
-  descr: Mirai malware scans the internet in a specific way<br>and look at incoming SYN packets.
+  name: Mirai tracker
+  descr: IPs scanning the internet in a specific way known to be used by Mirai malware and its variants.
   provider_link: https://mirai.security.gives/index.php
   url: https://mirai.security.gives/data/ip_list.txt
   regex: ""
@@ -268,7 +268,7 @@ iplists:
     minute: 40
   
 - id: threatfox_ips
-  name: ThreatFox by abuse.ch IPs
+  name: ThreatFox
   descr: ThreatFox is a free platform from abuse.ch with the goal of<br>sharing indicators of compromise (IOCs) associated with malware with the<br>infosec community, AV vendors and threat intelligence providers.
   provider_link: https://threatfox.abuse.ch/
   url: https://threatfox.abuse.ch/export/csv/ip-port/recent/
@@ -279,7 +279,7 @@ iplists:
     minute: 10
   
 - id: ssl_blacklist_ips
-  name: SSL Blacklist by abuse.ch IPs
+  name: SSL Blacklist
   descr: The SSL Blacklist is a project of abuse.ch with the goal of<br>detecting malicious SSL connections and botnet activities.
   firehol_link: http://iplists.firehol.org/?ipset=sslbl
   provider_link: https://sslbl.abuse.ch/
@@ -291,7 +291,7 @@ iplists:
     minute: 30
   
 - id: urlhouse_ips
-  name: URLHouse by abuse.ch IPs
+  name: URLHouse
   descr: URLhaus is a project from abuse.ch with the goal of sharing<br>malicious URLs that are being used for malware distribution.
   provider_link: https://urlhaus.abuse.ch/
   url: https://urlhaus.abuse.ch/downloads/text_online/
@@ -324,7 +324,7 @@ iplists:
     minute: 5
   
 - id: blacklists_co_email
-  name: Blacklists.co EMAIL
+  name: Blacklists.co email
   descr: Blacklists.co blocklist contains EMAIL Malicious Addresses.
   provider_link: http://blacklists.co/
   url: http://blacklists.co/download/email.txt
@@ -379,7 +379,7 @@ iplists:
     minute: 5
   
 - id: dataplane_org_sshclient
-  name: DataPlane.org SSH
+  name: DataPlane SSH conn
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>has been seen initiating an SSH connection to a remote host.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sshclient
   provider_link: https://dataplane.org/
@@ -391,7 +391,7 @@ iplists:
     minute: 10
   
 - id: dataplane_org_sshpwauth
-  name: DataPlane.org SSH
+  name: DataPlane SSH login
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs performing<br>login to a host using SSH password authentication.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sshpwauth
   provider_link: https://dataplane.org/
@@ -403,7 +403,7 @@ iplists:
     minute: 10
   
 - id: dataplane_org_vnc_rfb
-  name: DataPlane.org VNC RFB
+  name: DataPlane VNC RFB
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs initiating<br>a VNC remote frame buffer (RFB) session to a remote host.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_vncrfb
   provider_link: https://dataplane.org/
@@ -415,7 +415,7 @@ iplists:
     minute: 10
   
 - id: dataplane_org_telnet_login
-  name: DataPlane.org TELNET login
+  name: DataPlane TELNET login
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs performing<br>login via TELNET password authentication.
   provider_link: https://dataplane.org/
   url: https://dataplane.org/telnetlogin.txt
@@ -426,7 +426,7 @@ iplists:
     minute: 10
   
 - id: dataplane_org_smtp_greet
-  name: DataPlane.org SMTP greeting
+  name: DataPlane SMTP greeting
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs that are<br>identified as SMTP clients issuing unsolicited HELO or EHLO commands.
   provider_link: https://dataplane.org/
   url: https://dataplane.org/smtpgreet.txt
@@ -448,7 +448,7 @@ iplists:
     minute: 10
   
 - id: dataplane_org_proto41
-  name: DataPlane.org IP protocol-41 
+  name: DataPlane IP protocol-41
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>are identified as an open IPv4 protocol 41 relay (i.e. IPv6 over IPv4).
   provider_link: https://dataplane.org/
   url: https://dataplane.org/proto41.txt
@@ -459,7 +459,7 @@ iplists:
     minute: 10
   
 - id: dataplane_org_sipinvitation
-  name: DataPlane.org SIP invitation 
+  name: DataPlane SIP invitation
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>have been seen initiating a SIP INVITE operation to a remote host.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipinvitation
   provider_link: https://dataplane.org/
@@ -471,7 +471,7 @@ iplists:
     minute: 10
   
 - id: dataplane_org_sipquery
-  name: DataPlane.org SIP query
+  name: DataPlane SIP query
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>has been seen initiating a SIP OPTIONS query to a remote host.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipquery
   provider_link: https://dataplane.org/
@@ -483,7 +483,7 @@ iplists:
     minute: 10
   
 - id: dataplane_org_sipregistration
-  name: DataPlane.org SIP registration
+  name: DataPlane SIP registration
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>have been seen initiating a SIP REGISTER operation to a remote host.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipregistration
   provider_link: https://dataplane.org/
@@ -496,7 +496,7 @@ iplists:
   
 # Lists from FireHOL
 - id: bambenek_c2
-  name: Bambenek Consulting C&Cs IPs
+  name: Bambenek C&Cs
   descr: Bambenek Consulting master feed of known, active and non-sinkholed C&Cs IP addresses
   firehol_link: http://iplists.firehol.org/?ipset=bambenek_c2
   provider_link: https://osint.bambenekconsulting.com/feeds/
@@ -508,7 +508,7 @@ iplists:
   
 # AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key
 - id: abuseipdb
-  name: Abuse IP DB
+  name: AbuseIPDB
   descr: AbuseIPDB is a project managed by Marathon Studios Inc.<br>IPs performing malicious activity(DDoS, spam, phishing...)
   provider_link: https://www.abuseipdb.com/
   url: https://api.abuseipdb.com/api/v2/blacklist
@@ -525,22 +525,22 @@ iplists:
 # The following blacklists should be rsynced to local files by scripts in
 # cron, therefore they're not available until those scripts are set up and
 # therefore they're disabled by default.
-- id: uceprotect
-  name: UCEPROTECT Level 1
-  descr: UCEPROTECT-NETWORK list of spam IPs.
-  provider_link: http://www.uceprotect.net/en/index.php
-  url: file:///data/blacklists/uceprotect-level1
-  regex: "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
-  time:
-    hour: 1,9,17
-    minute: 45
-  
-- id: psbl
-  name: PSBL (spam)
-  descr: The Passive Spam Block List uses the Spamikaze software to detect spam IPs.
-  provider_link: https://psbl.org/about/
-  url: file:///data/blacklists/psbl.txt
-  regex: "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
-  time:
-    hour: 1,9,17
-    minute: 45
+#- id: uceprotect
+#  name: UCEPROTECT L1
+#  descr: UCEPROTECT-NETWORK list of spam IPs.
+#  provider_link: http://www.uceprotect.net/en/index.php
+#  url: file:///data/blacklists/uceprotect-level1
+#  regex: "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
+#  time:
+#    hour: 1,9,17
+#    minute: 45
+#  
+#- id: psbl
+#  name: PSBL
+#  descr: The Passive Spam Block List uses the Spamikaze software to detect spam IPs.
+#  provider_link: https://psbl.org/about/
+#  url: file:///data/blacklists/psbl.txt
+#  regex: "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
+#  time:
+#    hour: 1,9,17
+#    minute: 45

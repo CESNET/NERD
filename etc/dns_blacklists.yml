@@ -23,7 +23,7 @@ dnsbl:
 
     127.0.0.9:
       id: spamhaus-drop
-      name: Spamhaus drop
+      name: Spamhaus DROP
       descr: The Spamhaus DROP (Don't Route Or Peer) lists are advisory"drop all traffic" lists.<br>The DROP lists are a tiny subset<br>of the SBL, designed for use by firewalls<br>and routing equipment to filter out the malicious traffic from these netblocks.
       firehol_link: http://iplists.firehol.org/?ipset=spamhaus_drop
       provider_link: https://www.spamhaus.org/drop/ 
@@ -43,66 +43,66 @@ dnsbl:
   dnsbl.sorbs.net:
     127.0.0.2:
       id: sorbs-http
-      name: Sorbs HTTP
+      name: SORBS HTTP
       descr: The SORBS (Spam and Open Relay Blocking System) provides free access<br>to its DNS-based Block List (DNSBL) to effectively block email from<br>more than 12 million host servers known to disseminate spam,<br>phishing attacks and other forms of malicious email.
       provider_link: http://www.sorbs.net/
 
     127.0.0.3:
       id: sorbs-socks
-      name: Sorbs SOCKS
+      name: SORBS SOCKS
       descr: The SORBS (Spam and Open Relay Blocking System) provides free access<br>to its DNS-based Block List (DNSBL) to effectively block email from<br>more than 12 million host servers known to disseminate spam,<br>phishing attacks and other forms of malicious email.
       provider_link: http://www.sorbs.net/ 
 
     127.0.0.4:
       id: sorbs-misc
-      name: Sorbs MISC
+      name: SORBS misc
       descr: The SORBS (Spam and Open Relay Blocking System) provides free access<br>to its DNS-based Block List (DNSBL) to effectively block email from<br>more than 12 million host servers known to disseminate spam,<br>phishing attacks and other forms of malicious email.
       provider_link: http://www.sorbs.net/
 
     127.0.0.5:
       id: sorbs-smtp
-      name: Sorbs SMTP
+      name: SORBS SMTP
       descr: List of SMTP Open Relays.
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_smtp
       provider_link: http://www.sorbs.net/
 
     127.0.0.6:
       id: sorbs-spam
-      name: Sorbs SPAM
+      name: SORBS Spam
       descr: List of hosts that have been noted as sending spam/UCE/UBE
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_recent_spam
       provider_link: http://www.sorbs.net/
 
     127.0.0.7:
       id: sorbs-web
-      name: Sorbs WEB
+      name: SORBS Web
       descr: List of IPs which have spammer abusable<br>vulnerabilities (e.g. FormMail scripts)
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_web
       provider_link: http://www.sorbs.net/ 
 
     127.0.0.8:
       id: sorbs-block
-      name: Sorbs BLOCK
+      name: SORBS Block
       descr: The SORBS (Spam and Open Relay Blocking System) provides free access<br>to its DNS-based Block List (DNSBL) to effectively block email from<br>more than 12 million host servers known to disseminate spam,<br>phishing attacks and other forms of malicious email.
       provider_link: http://www.sorbs.net/
 
     127.0.0.9:
       id: sorbs-zombie
-      name: Sorbs ZOMBIE
+      name: SORBS Zombie
       descr: List of networks hijacked from their original owners,<br>some of which have already used for spamming.
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_zombie
       provider_link: http://www.sorbs.net/
 
     127.0.0.10:
       id: sorbs-dul
-      name: Sorbs DUL
+      name: SORBS DUL
       descr: Dynamic IP Addresses.
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_dul
       provider_link: http://www.sorbs.net/
 
     127.0.0.14:
       id: sorbs-noserver
-      name: Sorbs NOSERVER
+      name: SORBS noserver
       descr: IP addresses and netblocks of where system administrators<br>and ISPs owning the network have indicated<br>that servers should not be present.
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_noserver
       provider_link: http://www.sorbs.net/

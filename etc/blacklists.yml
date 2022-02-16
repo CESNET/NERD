@@ -29,7 +29,7 @@ iplists:
 
 - id: andoniafMiners
   name: Andoniaf Miners
-  descr: List of crypto mining pools IPs.
+  descr: List of crypto mining pools (IP addresses).
   provider_link: https://github.com/andoniaf/mining-pools-list
   url: https://raw.githubusercontent.com/andoniaf/mining-pools-list/master/mining-pools_IP.lst
   regex: ""
@@ -37,7 +37,7 @@ iplists:
     hour: 4
     minute: 50
 - id: tor_project_org_ips
-  name: TorProject.org IPs
+  name: TorProject
   descr: TorProject.org list of all current TOR exit points (TorDNSEL)
   firehol_link: https://iplists.firehol.org/?ipset=tor_exits_30d
   provider_link: https://check.torproject.org/
@@ -48,8 +48,8 @@ iplists:
     hour: "*/4"
     minute: 10 
 - id: dan_me_uk_ips
-  name: dan.me.uk TOR Node List IPs
-  descr: dan.me.uk TOR node list.
+  name: dan.me.uk TOR Nodes
+  descr: List of TOR node IPs by dan.me.uk.
   provider_link: https://www.dan.me.uk/tornodes
   url: https://www.dan.me.uk/torlist/
   regex: ""
@@ -60,8 +60,8 @@ iplists:
 
 # Lists from FireHOL
 - id: firehol_anonymous
-  name: List of all anonymizing IPs of the world, aggregated from multiple lists by FireHOL.
-  descr: An ipset that includes all the anonymizing IPs of the world.
+  name: FireHOL anonymizers
+  descr: List of anonymizing IPs, aggregated from multiple lists by FireHOL.
   firehol_link: https://iplists.firehol.org/?ipset=firehol_anonymous
   provider_link: https://iplists.firehol.org/
   url: https://iplists.firehol.org/files/firehol_anonymous.netset
@@ -76,8 +76,8 @@ iplists:
 # (without regex, CIDR format is assumed)
 prefixiplists:
 - id: botscout_7d
-  name: BotScout.com
-  descr: List of bots IPs by BotScout.com.  
+  name: BotScout
+  descr: List of bots IPs by BotScout.com (IPs that appeared in last 7 days, as processed by FireHOL).
   firehol_link: https://iplists.firehol.org/?ipset=botscout_7d
   provider_link: http://botscout.com/
   url: https://iplists.firehol.org/files/botscout_7d.ipset
@@ -87,8 +87,8 @@ prefixiplists:
     hour: "*/4"
     minute: 10
 - id: dshield
-  name: DShield.org Recommended Block List
-  descr: List by DShield.org summarizes the top 20 attacking<br>class C (/24) subnets over the last three days. 
+  name: DShield Block
+  descr: Recommended Block List by DShield.org. It summarizes the top 20 attacking<br>class C (/24) subnets over the last three days.
   firehol_link: https://iplists.firehol.org/?ipset=dshield
   provider_link: https://www.dshield.org/
   url: https://www.dshield.org/block.txt
@@ -103,8 +103,8 @@ prefixiplists:
 #  - hour: 4
 #    minute: 50
 - id: spamhaus_edrop
-  name: Spamhaus Extended DROP List (EDROP)
-  descr: List of IPs by Spamhaus that performing spamming, scanning, harvesting,<br> DNS-hijacking and DDoS attacks originating on rogue netblocks.
+  name: Spamhaus EDROP
+  descr: Spamhaus Extended DROP List. Netblocks controlled by spammers or cyber criminals. The (E)DROP lists are a tiny subset of the SBL, designed for use by firewalls and routing equipment to filter out the malicious traffic from these netblocks.
   firehol_link: https://iplists.firehol.org/?ipset=spamhaus_edrop
   provider_link: https://www.spamhaus.org/
   url: https://www.spamhaus.org/drop/edrop.txt
@@ -114,8 +114,8 @@ prefixiplists:
     minute: 5
 domainlists:
 - id: openphish
-  name: openphis.com
-  descr: List of malicious domains performing phishing.
+  name: OpenPhish
+  descr: List of domains hosting phishing sites.
   provider_link: https://openphish.com/
   url: https://openphish.com/feed.txt
   regex: ""
@@ -124,7 +124,7 @@ domainlists:
     minute: 50
 - id: booters
   name: Booters
-  descr: List of Booters(Websites that publicly offer<br>DDoS attacks as a paid service) domains.
+  descr: List of Booter domains (websites that publicly offer DDoS attacks as a paid service).
   provider_link: https://github.com/jjsantanna/booters_ecosystem_analysis
   url: https://raw.githubusercontent.com/jjsantanna/booters_ecosystem_analysis/master/booterblacklist.csv
   regex: "^[0-9]*?,(.*?)$"
