@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 
 """
-NERD standalone script for receiving IPv4 addresses from OTX Alienvault pulses.
+NERD standalone script for receiving IPv4 addresses from AlienVault OTX pulses.
 
-At the first launch, it downloads all subscribed pulses from OTX Alienvault,
-then processing indicators from pulses and gets only with IPv4 type, that 
-are then projected to NERD. After first launch will be created file 'otx_last_update.txt',
-where will be stored time of the last pulse update. 
-This file also playes role of a flag, on the basis of which either all pulses will
-be downloaded(if this file doesn't exist) or new pulses will be downloaded(if this file exists).
-New pulses are pulses that have appeared since the time of the last update.
-Module updates pulses every 4 hours, and after every update write new time to the 'otx_last_update.txt'.
+At the first launch, it downloads all *subscribed* pulses from OTX (updated in last 180 days),
+then processes indicators from the pulses and gets only those with IPv4 type.
+These are then pushed to NERD. A file '/data/otx_last_update.txt' is created
+which stores time of the last pulse update. Next time, only new pusles and
+updates created after this time are requested.
+This file also plays a role of a flag, if it doesn't exist, all pusles are
+downloaded, otherwise only new ones.
+The module updates pulses every 4 hours, and every time writes a new time to
+the 'otx_last_update.txt'.
+
+Only pulses subscribed by the user whose API key is used are downloaded.
+Therefore, to configure which data should be used, you must set subscriptions
+in the settings of the OTX user.
 """
 
 import json
@@ -22,8 +27,12 @@ import os.path
 from os import path
 from datetime import timedelta, datetime
 from apscheduler.schedulers.background import BlockingScheduler
+import signal
 
 from OTXv2 import OTXv2
+
+# Set modified_since to this number of days if otx_last_update.txt is not present.
+MAX_DATA_AGE_ON_FIRST_RUN = 180
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -64,7 +73,7 @@ inactive_pulse_time = config.get('record_life_length.otx', 30)
 otx_api_key = config.get('otx_api_key', None)
 
 if not otx_api_key:
-    logger.error("Cannot load OTX Alienvault API key, make sure it is properly configured in {}.".format(args.config))
+    logger.error("Cannot load OTX API key, make sure it is properly configured in {}.".format(args.config))
     sys.exit(1)
 
 otx = OTXv2(otx_api_key)
@@ -137,70 +146,67 @@ def write_time(current_time):
     f.close()
 
 
-def processing_pulses(pulses):
+def process_pulses(pulses):
     """
-    Processes the pulse's indicators, selects only with a parameter 'IPv4'
+    Processes the pulse's indicators, selects only those with a parameter 'IPv4'
     :return: None
     """
     # get current time minus 30 days to get fresh pulses
+    # TODO try to find a way to update only indicators created (or updated if it's possible?) after the last_update_time.
+    #   There are pulses often adding a few IPs, now we always process all IPs in such a pulse, even the old ones that are already in NERD
     time_for_upsert = datetime.utcnow() - timedelta(days=30)
     logger.info("Processing pulses")
-    for pulse in pulses:
+    for i,pulse in enumerate(pulses):
         ipv4_counter = 0
         indicators = pulse.get('indicators', [])
         for indicator in indicators:
             if (indicator["type"] == "IPv4") and (datetime.strptime(indicator['created'], '%Y-%m-%dT%H:%M:%S') >= time_for_upsert):
                 ipv4_counter += 1
                 upsert_new_pulse(pulse, indicator)
-        logger.info("Done, {} IPv4 indicators added/updated".format(ipv4_counter))
+        logger.info("{}/{} done, pulse {}, {} IPv4 indicators added/updated".format(i+1, len(pulses), pulse.get('id', "(no id?)"), ipv4_counter))
 
 
 def get_new_pulses():
     """
-    Gets pulses from OTX Alienvault from time of the last update that got from 'otx_last_update'
+    Gets pulses from AlienVault OTX from time of the last update that got from 'otx_last_update'
     :return: None
-    """
-    f = open(file_path, 'r+')
-    last_updated_time = f.readline()
-    f.close()
-    try:
-        validtime = datetime.strptime(last_updated_time, '%Y-%m-%dT%H:%M:%S')
-    except ValueError:
-        logger.error("Wrong time format in otx_last_update.txt, must be '%Y-%m-%dT%H:%M:%S', not '{}'".format(last_updated_time))
-        sys.exit(1)
-    current_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
-    logger.info("Downloading new pulses since {}".format(last_updated_time))
-    pulses = otx.getall(modified_since=last_updated_time)
-    logger.info("Downloaded {} new pulses".format(len(pulses)))
-    processing_pulses(pulses)
-    write_time(current_time)
-
-
-def get_all_pulses():
-    """
-    Get all pulses from OTX Alienvault
-    :return: None
-    """
-    current_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
-    logger.info("Downloading all subscribed pulses")
-    pulses = otx.getall()
-    logger.info("Downloaded {} new pulses".format(len(pulses)))
-    processing_pulses(pulses)
-    write_time(current_time)
-
-
-def pulses_manager():
-    """
-    Manages getting pulses. If it the first launch, will get all subscribed pulses,
-    otherwise will get new pulses that have appeared science last update
     """
     if path.exists(file_path):
-        get_new_pulses()
+        # Get all pulses modified since the time stored in file
+        f = open(file_path, 'r+')
+        last_updated_time = f.readline()
+        f.close()
+        try:
+            datetime.strptime(last_updated_time, '%Y-%m-%dT%H:%M:%S')
+        except ValueError:
+            logger.error("Wrong time format in otx_last_update.txt, must be '%Y-%m-%dT%H:%M:%S', not '{}'".format(last_updated_time))
+            sys.exit(1)
+        logger.info("Downloading new pulses since {}".format(last_updated_time))
     else:
-        get_all_pulses()
+        # Get all pulses in last MAX_DATA_AGE_ON_FIRST_RUN days
+        last_updated_time = datetime.utcnow() - timedelta(days=MAX_DATA_AGE_ON_FIRST_RUN)
+        logger.info("Downloading all pulses not older than {} days (since {})".format(MAX_DATA_AGE_ON_FIRST_RUN, last_updated_time))
+
+    current_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
+    pulses = otx.getall(modified_since=last_updated_time)
+    logger.info("Downloaded {} new pulses".format(len(pulses)))
+    process_pulses(pulses)
+    write_time(current_time)
+
+
+# Signal handler to stop scheduler (and potentially running processing of pulses) gracefully
+def sigint_handler(signum, frame):
+    logger.info("Signal {} received, going to stop".format({signal.SIGINT: "SIGINT", signal.SIGTERM: "SIGTERM"}.get(signum, signum)))
+    scheduler.shutdown(wait=True)
 
 
 if __name__ == "__main__":
-    pulses_manager()
-    scheduler.add_job(pulses_manager, 'cron', hour='*/4')
+    # Get pulses on program start
+    get_new_pulses()
+    # Start scheduler to get new pulses every 4 hours, register signal handler
+    scheduler.add_job(get_new_pulses, 'cron', hour='*/4')
+    signal.signal(signal.SIGINT, sigint_handler)
+    signal.signal(signal.SIGTERM, sigint_handler)
+    signal.signal(signal.SIGABRT, sigint_handler)
     scheduler.start()
+    logger.info("Stopped")
