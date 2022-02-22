@@ -61,8 +61,11 @@ login:
   # !!! Fill this when shibboleth is enabled !!!
   request-email: ''
 
+# Parameters for sending emails (available params: server, port, tls (true/false), username, password, sender)
 #mail:
-#  sender: 'NERD <noreply@nerd.example.org>'¨
+#  server: localhost
+#  port: 25
+#  sender: 'NERD <noreply@nerd.example.org>'
 
 rate-limit:
   # Rate-limiter default parameters (applied unless overridden for specific user).
