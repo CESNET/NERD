@@ -437,7 +437,7 @@ iplists:
     minute: 10
   
 - id: dataplane_org_smtp_data
-  name: DataPlane.org SMTP data
+  name: DataPlane SMTP data
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that <br>have been identified as SMTP clients sending DATA commands.
   provider_link: https://dataplane.org/
   url: https://dataplane.org/smtpdata.txt
@@ -448,7 +448,7 @@ iplists:
     minute: 10
   
 - id: dataplane_org_proto41
-  name: DataPlane IP protocol-41
+  name: DataPlane proto-41
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>are identified as an open IPv4 protocol 41 relay (i.e. IPv6 over IPv4).
   provider_link: https://dataplane.org/
   url: https://dataplane.org/proto41.txt
