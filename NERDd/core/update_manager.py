@@ -563,13 +563,13 @@ class UpdateManager:
 
         # Check whether a new record should not be created in case every operation is 'weak' (starts with '*')
         weak_op = True
-        for ndx, updreq in enumerate(update_requests):
-            op = updreq[0]
+        for index, update_request in enumerate(update_requests):
+            op = update_request[0]
             if op[0] != '*':
                 weak_op = False
             else:
                 # Remove starting symbol '*'
-                update_requests[ndx] = [updreq[0][1:]] + updreq[1:] # first item without first char + all other items
+                update_requests[index] = [update_request[0][1:]] + update_request[1:] # first item without first char + all other items
 
         # Fetch the record from database or create a new one
         new_rec_created = False
@@ -618,9 +618,9 @@ class UpdateManager:
             if requests_to_process:
                 # Process update requests (perform updates, put hooked functions to call_queue and update may_change set)
                 #self.log.debug("UpdateManager: New update requests for ({},{}): {}".format(etype, eid, requests_to_process))
-                for updreq in requests_to_process:
-                    op = updreq[0]
-                    attr = updreq[1]
+                for update_request in requests_to_process:
+                    op = update_request[0]
+                    attr = update_request[1]
                     assert(op != 'event' or attr[0] == '!') # if op=event, attr must begin with '!'
                     
                     if op == 'event':
@@ -637,7 +637,7 @@ class UpdateManager:
                             break
                     else:
                         #self.log.debug("Initial update: Attribute update: ({}:{}).{} [{}] {}".format(etype,eid,attr,op,val))
-                        updated = perform_update(rec, updreq)
+                        updated = perform_update(rec, update_request)
                         if not updated:
                             #self.log.debug("Attribute value wasn't changed.")
                             continue
