@@ -50,7 +50,8 @@ class RateLimiter:
         redis_host = config.get("rate-limit.redis.host", "localhost")
         redis_port = config.get("rate-limit.redis.port", 6379)
         redis_db_index = config.get("rate-limit.redis.db_index", 1)
-        self.redis = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db_index) 
+        redis_password = config.get("rate-limit.redis.password", None)
+        self.redis = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db_index, password=redis_password)
 
     def get_tokens(self, id):
         """Get the current number of tokens available for the given user"""

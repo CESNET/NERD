@@ -355,7 +355,8 @@ if not args.one_shot:
 redis_host = config.get("redis", {}).get("host", "localhost")
 redis_port = config.get("redis", {}).get("port", 6379)
 redis_db = config.get("redis", {}).get("db", 0)
-r = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db)
+redis_password = config.get("redis", {}).get("password", None)
+r = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db, password=redis_password)
 try:
     r.ping()
 except redis.exceptions.ConnectionError as e:
