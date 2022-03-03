@@ -102,6 +102,11 @@ shodan_api_key: ""
 # API key for OTX Alienvault pulses receiver
 otx_api_key: ""
 
+dshield:
+  url: https://isc.sans.edu/feeds/daily_sources
+  min_reports: 200
+  min_targets: 200
+
 # (Optional) CESNET's Passive DNS (used by both web interface and passive_dns module)
 pdns:
   url: https://passivedns.cesnet.cz/api/v1/
