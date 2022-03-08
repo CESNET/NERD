@@ -222,6 +222,8 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
   <dd><a href="{{ url_for('bgppref') + val|replace('/','_') }}">{{ val }}</a></dd>
  {% elif attr == "dshield" %}
     <dt>DShield</dt>
+    <dd><a href="https://isc.sans.edu/ipinfo.html?ip={{ ip }}">IP summary</a>,
+        <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">reports</a></dd>
     <dd class="scrollable">
       {% for dshield in val %}
       <div><b>{{ dshield.date }}</b></div>
