@@ -391,7 +391,7 @@ class TaskQueueReader(RobustAMQPConnection):
                 src = task['src']
             except (ValueError, TypeError, KeyError) as e:
                 # Print error, acknowledge reception of the message and drop it
-                self.log.error("Erroneous message received from main task queue. Error: {}, Message: '{}'".format(str(e), body))
+                self.log.error("Erroneous message received from main task queue. Error: {} ({}), Message: '{}'".format(str(type(e)), str(e), body))
                 self.ack(tag)
                 continue
 
