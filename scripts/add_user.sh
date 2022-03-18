@@ -50,7 +50,7 @@ psql -U nerd nerd_users -c "$sql" || die
 if [[ $username =~ ^local: ]]; then
   HTPASSWD_FILE=/etc/nerd/htpasswd
   echo "Setting the password into $HTPASSWD_FILE"
-  htpasswd -b $HTPASSWD_FILE $username $pass || die
+  htpasswd -b $HTPASSWD_FILE ${username#local:} $pass || die
 fi
 
 echo "Done"
