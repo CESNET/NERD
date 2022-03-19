@@ -10,7 +10,7 @@ web
 misp_updater
 "
 
-if [ "$1" == "config" ]; then
+if [[ "$1" == "config" ]]; then
   cat <<'END'
 graph_title Tasks processed by source
 graph_category nerd

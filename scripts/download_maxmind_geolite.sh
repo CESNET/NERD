@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Download MaxMind's GeoLite2 database to /data/geoip/GeoLite2-City.mmdb
 #
@@ -20,7 +20,7 @@ if [ -z "$KEY" ]; then
 fi
 
 user=$(whoami)
-if [ "$user" != "nerd" -a "$user" != "root" ]; then
+if [[ "$user" != "nerd" && "$user" != "root" ]]; then
   echo "Run as user 'nerd' or root." >&2
   exit 2
 fi
@@ -38,7 +38,7 @@ wget -q "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Cit
 # current dir
 tar -xzf GeoLite2-City.tar.gz '*/GeoLite2-City.mmdb' --strip-components=1
 
-if [ "$user" == "root" ]; then
+if [[ "$user" == "root" ]]; then
   echo "Setting ownership to 'nerd' account"
   chown -R nerd:nerd /data/geoip
 fi

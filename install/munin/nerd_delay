@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-if [ "$1" == "config" ]; then
+if [[ "$1" == "config" ]]; then
   cat <<'END'
 graph_title Event processing delay
 graph_info Difference between current time and time of the latest processed event.
@@ -18,7 +18,7 @@ fi
 
 # This version uses "_ttl.warden" minus configured "record_life_length.warden", which should result in the time of the last added warden alert
 warden_rec_ttl=$(python3 -c 'import yaml,sys; c=yaml.safe_load(open("/etc/nerd/nerd.yml")); print(c.get("record_life_length",{}).get("warden") or sys.exit(1))' 2>/dev/null)
-if [ "$?" != 0 ] || ! egrep -q "^[0-9]+$" <<<"$warden_rec_ttl"; then
+if [[ "$?" != 0 ]] || ! egrep -q "^[0-9]+$" <<<"$warden_rec_ttl"; then
   # Can't load "record_life_length.warden" or it's not a number, use default (14 days)
   warden_rec_ttl=14
 fi
