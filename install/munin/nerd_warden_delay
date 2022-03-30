@@ -2,13 +2,13 @@
 
 if [[ "$1" == "config" ]]; then
   cat <<'END'
-graph_title Event processing delay
-graph_info Difference between current time and time of the latest processed event.
+graph_title Warden event processing delay
+graph_info Difference between current time and the highest end time of all the processed Warden events.
 graph_category nerd
 graph_vlabel Delay [minutes]
 graph_scale no
-delay.label delay
-delay.warning -5:30
+warden_delay.label Delay
+warden_delay.warning -5:30
 END
   exit 0
 fi
@@ -22,4 +22,4 @@ if [[ "$?" != 0 ]] || ! egrep -q "^[0-9]+$" <<<"$warden_rec_ttl"; then
   # Can't load "record_life_length.warden" or it's not a number, use default (14 days)
   warden_rec_ttl=14
 fi
-echo "delay.value $(mongosh nerd --quiet --eval "print((ISODate().getTime() - (db.ip.find({\"_ttl.warden\": {\$exists: true}}, {\"_ttl.warden\": 1, _id: 0}).sort({\"_ttl.warden\": -1}).limit(1).next()._ttl.warden.getTime() - ($warden_rec_ttl*24*3600000)))/60000)")"
+echo "warden_delay.value $(mongosh nerd --quiet --eval "print((ISODate().getTime() - (db.ip.find({\"_ttl.warden\": {\$exists: true}}, {\"_ttl.warden\": 1, _id: 0}).sort({\"_ttl.warden\": -1}).limit(1).next()._ttl.warden.getTime() - ($warden_rec_ttl*24*3600000)))/60000)")"
