@@ -54,7 +54,14 @@ def processFeed(feed_data):
     ips = {}
     for record in feed_data:
         record_data = record.split('\t')
-        ip_addr = record_data[0].lstrip('0')
+        ip_addr_splitted = record_data[0].split('.')
+        ip_addr = ""
+        for number in ip_addr_splitted:
+            number = number.lstrip('0')
+            if number == "":
+                number = '0'
+            ip_addr += number + '.'
+        ip_addr = ip_addr.rstrip('.')
         reports = int(record_data[3])
         targets = int(record_data[4])
         if(ip_addr in ips):
