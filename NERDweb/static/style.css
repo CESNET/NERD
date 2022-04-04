@@ -564,6 +564,34 @@ td.links img {
   background: #533;
 }
 
+
+.tag-list-container {
+  position: relative;
+}
+.tag-list-container .tag {
+  cursor: hand;
+}
+.tag.detail-opened {
+  box-shadow: 0px 0px 3px 3px rgba(127, 48, 0, 0.6);
+  position: relative;
+  top: 2px;
+}
+.tag-detail-box {
+  display: none;
+  position: absolute;
+  z-index: 2;
+  background: #fff;
+  color: #000;
+  border: 1px #777 solid;
+  box-shadow: 5px 5px 7px 0px rgba(0,0,0,0.5);
+  margin: 0.5em 0;
+  padding: 0.5em 0.5em;
+}
+.tag.detail-opened + .tag-detail-box {
+  display: block;
+}
+
+
 /**************/
 /* Dropdown menu for service links in ips.html */
 

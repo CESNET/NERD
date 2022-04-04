@@ -7,6 +7,27 @@
 <script src="{{ url_for('static', filename='ip.js') }}"></script>
 {% endblock %}
 {% block body %}
+{% macro blacklist_tag_with_box(bl_entry, ip, domain=False) -%}
+  {# Render a blacklist tag with a hidden (showable on click) box with more details. #}
+  {% set bl_info = blacklist_info[bl_entry.n] or {"name": bl_entry.n} -%}
+  {% set text = ip +
+                ((" is associated with the domain name \"" + bl_entry.d + "\" which") if domain else "") +
+                ((" is listed on the " + bl_info.name + " blacklist.") if bl_entry.v else (" was recently listed on the " + bl_info.name + " blacklist, but currently it is not."))
+  -%}
+  <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %}
+        title="{{text}}<br><br>Click for more information."
+        onclick="$('.tag').not(this).removeClass('detail-opened'); $(this).toggleClass('detail-opened');">{{ bl_info.name }}</span>
+  <div class="tag-detail-box">
+    <b>{{ text }}</b><br><br>
+    Description: {{bl_info.descr}}<br>
+    Type of feed: <b>{{bl_info.feed_type}}</b> (<a href="{{ url_for('feed', feedname=bl_entry.n) }}">feed detail page</a>)<br><br>
+    Last checked at: <span class="time" data-time={{ bl_entry.t|date_to_int }}>{{ bl_entry.t }}</span><br>
+    Was present on blacklist at:
+    {%- for dt in bl_entry.h %}
+      <span class="time" data-time="{{dt|date_to_int}}">{{dt|datetime('%Y-%m-%d %H:%M')}}</span>{{ ", " if not loop.last else "" }}
+    {%- endfor %}
+  </div>
+{%- endmacro %}
 
 <h1>IP address</h1>
 
@@ -117,22 +138,20 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 {# Blacklists #}
 {% if ipinfo.bl %}
   <dt>IP blacklists</dt>
-  <dd><dl>
+  <dd><div class="tag-list-container">
    {% for bl_entry in ipinfo.bl %}
-     {% set bl_info = blacklist_info[bl_entry.n] or {"name": "bl_entry.n"} -%}
-     <a href="{{ url_for('feed', feedname=bl_entry.n) }}"> <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_info.descr}}.<br>Type of feed: <b>{{bl_info.feed_type}}</b>">{{ bl_info.name }}</span></a>
+     {{ blacklist_tag_with_box(bl_entry, ip) }}
    {% endfor %}
-  </dl></dd>
+  </div></dd>
   {% set _ = ipinfo.pop('bl') %}
 {% endif %}
 {% if ipinfo.dbl %}
   <dt>Domain blacklists<span class="help" title="Blacklisted domain names that were associated with the IP address according to Passive DNS"></dt>
-  <dd><dl>
+  <dd><div class="tag-list-container">
    {% for bl_entry in ipinfo.dbl %}
-     {% set bl_info = blacklist_info[bl_entry.n] or {"name": "bl_entry.n"} -%}
-     <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_info.descr}}.<br>Type of feed: <b>{{bl_info.feed_type}}</b>">{{ bl_info.name }} ({{  bl_entry.d }})</span></a>
+     {{ blacklist_tag_with_box(bl_entry, ip, domain=True) }}
    {% endfor %}
-  </dl></dd>
+  </div></dd>
   {% set _ = ipinfo.pop('dbl') %}
 {% endif %}
 
