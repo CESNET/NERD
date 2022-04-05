@@ -68,7 +68,7 @@
 {% if ac('fmp') %}<th title="Future Maliciousness Probability score">FMP</th>{% endif %}
 <th>Other properties</th>
 <th>Time added</th>
-<th>Last event</th>
+<th>Last activity</th>
 <th title="Links to external services">Links</th>
 </tr>
 
@@ -184,7 +184,7 @@
   {% endif %}
 </td>
 <td class="time" {% if ip.ts_added %}data-time={{ ip.ts_added|date_to_int }}{% endif %}>{{ip.ts_added.strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
-<td class="time" {% if ip.last_activity %}data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
+<td {% if ip.last_activity %}class="time" data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
 <td class="links">
     <div class="links-dropdown">
         <button class="links-dropbtn">&#x25BC;</button>
