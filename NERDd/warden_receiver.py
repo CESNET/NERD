@@ -473,6 +473,13 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
 
                     node = event["Node"][-1]["Name"]
 
+                    if "ConnCount" in event:
+                        conns = int(event["ConnCount"])
+                    elif "FlowCount" in event:
+                        conns = int(event["FlowCount"])
+                    else:
+                        conns = 1
+
                     # calculate the timestamp, to which the record should be kept
                     live_till = end_time + life_span
 
@@ -480,10 +487,11 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
                         [
                             ('array_upsert', 'events',
                              {'date': date, 'node': node, 'cat': cat},
-                             [('add', 'n', 1)]),
+                             [('add', 'n', 1), ('add', 'conns', conns)]),
                             ('add', 'events_meta.total', 1),
                             ('setmax', 'last_activity', end_time),
                             ('setmax', '_ttl.warden', live_till),
+                            ('setmax', 'last_warden_event', end_time),
                         ],
                         "warden_receiver"
                     )

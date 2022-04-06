@@ -98,6 +98,13 @@ class FMP(NERDModule):
             ('fmp',)
         )
 
+        g.um.register_handler(
+            self.updateIntervalsBetweenEvents,
+            'ip',
+            ('last_warden_event',),
+            ('intervals_between_events',)
+        )
+
     def updateFMPGeneral(self, ekey, rec, updates):
         etype, ip = ekey
         if etype != 'ip' or 'general' not in self.models.keys():
@@ -236,3 +243,16 @@ class FMP(NERDModule):
             f.close()
         except IOError:
             self.log.warning('Unable to log "{}" to "{}".'.format(fv, os.path.join(path, 'results', fileSuffix)))
+
+    def updateIntervalsBetweenEvents(self, ekey, rec, updates):
+        if 'intervals_between_events' in rec:
+            timestamps = rec['intervals_between_events']
+            timestamps.append(rec['last_warden_event'])
+            if len(timestamps) > 20:
+                timestamps.popleft()
+        else:
+            timestamps = [rec['last_warden_event']]
+
+        return [
+            ('set', 'intervals_between_events', timestamps)
+        ]
