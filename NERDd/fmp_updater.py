@@ -499,12 +499,11 @@ if __name__ == "__main__":
         log.info("Successfully loaded xgBoost model")
     else:
         log.error(f"Unable to find model file \'{model_path}\'")
-        exit
+        exit()
 
     # Create scheduler
     scheduler = BlockingScheduler(timezone="UTC")
-    #scheduler.add_job(lambda: fmp_global_update(db, model, log), trigger='cron', day_of_week ='mon-sun', hour=9, minute=40)
-    scheduler.add_job(lambda: fmp_global_update(db, model, log), trigger='cron', minute='*')
+    scheduler.add_job(lambda: fmp_global_update(db, model, log), trigger='cron', day_of_week ='mon-sun', hour=0, minute=0)
 
     # Register SIGINT handler to stop the updater
     signal.signal(signal.SIGINT, stop)
