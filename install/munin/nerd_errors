@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$1" == "config" ]; then
+if [[ "$1" == "config" ]]; then
   cat <<'END'
 graph_title Errors
 graph_category nerd

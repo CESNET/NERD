@@ -7,6 +7,27 @@
 <script src="{{ url_for('static', filename='ip.js') }}"></script>
 {% endblock %}
 {% block body %}
+{% macro blacklist_tag_with_box(bl_entry, ip, domain=False) -%}
+  {# Render a blacklist tag with a hidden (showable on click) box with more details. #}
+  {% set bl_info = blacklist_info[bl_entry.n] or {"name": bl_entry.n} -%}
+  {% set text = ip +
+                ((" is associated with the domain name \"" + bl_entry.d + "\" which") if domain else "") +
+                ((" is listed on the " + bl_info.name + " blacklist.") if bl_entry.v else (" was recently listed on the " + bl_info.name + " blacklist, but currently it is not."))
+  -%}
+  <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %}
+        title="{{text}}<br><br>Click for more information."
+        onclick="$('.tag').not(this).removeClass('detail-opened'); $(this).toggleClass('detail-opened');">{{ bl_info.name }}</span>
+  <div class="tag-detail-box">
+    <b>{{ text }}</b><br><br>
+    Description: {{bl_info.descr}}<br>
+    Type of feed: <b>{{bl_info.feed_type}}</b> (<a href="{{ url_for('feed', feedname=bl_entry.n) }}">feed detail page</a>)<br><br>
+    Last checked at: <span class="time" data-time={{ bl_entry.t|date_to_int }}>{{ bl_entry.t }}</span><br>
+    Was present on blacklist at:
+    {%- for dt in bl_entry.h %}
+      <span class="time" data-time="{{dt|date_to_int}}">{{dt|datetime('%Y-%m-%d %H:%M')}}</span>{{ ", " if not loop.last else "" }}
+    {%- endfor %}
+  </div>
+{%- endmacro %}
 
 <h1>IP address</h1>
 
@@ -112,16 +133,34 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 {% endfor %}
 </div>
 
-{# All attributes #}
+{# ####################################################################### #}
 <dl class="attrs">
-{% for attr,val in ipinfo|dictsort %}
- {% if (attr.startswith("_") or attr == 'events_meta') and not ac('internal_attrs') %}
-  {# pass (hide attrs starting with '_' from normal users) #}
- {% elif attr == "events" %}
+{# Blacklists #}
+{% if ipinfo.bl %}
+  <dt>IP blacklists</dt>
+  <dd><div class="tag-list-container">
+   {% for bl_entry in ipinfo.bl %}
+     {{ blacklist_tag_with_box(bl_entry, ip) }}
+   {% endfor %}
+  </div></dd>
+  {% set _ = ipinfo.pop('bl') %}
+{% endif %}
+{% if ipinfo.dbl %}
+  <dt>Domain blacklists<span class="help" title="Blacklisted domain names that were associated with the IP address according to Passive DNS"></dt>
+  <dd><div class="tag-list-container">
+   {% for bl_entry in ipinfo.dbl %}
+     {{ blacklist_tag_with_box(bl_entry, ip, domain=True) }}
+   {% endfor %}
+  </div></dd>
+  {% set _ = ipinfo.pop('dbl') %}
+{% endif %}
+
+{# Warden events #}
+{% if ipinfo.events %}
   <dt>Warden events ({{ipinfo.events_meta.total}})</dt>
-  <dd><dl{% if val|length > 5%} class="scrollable"{% endif %}>
+  <dd><dl{% if ipinfo.events|length > 5%} class="scrollable"{% endif %}>
    {% set last_date = [''] %}
-   {% for evtrec in val|sort(attribute='date', reverse=True) %}
+   {% for evtrec in ipinfo.events|sort(attribute='date', reverse=True) %}
      {% if evtrec.date != last_date[0] %}
        <dt>{{evtrec.date}}</dt><dd>
        {# using last_day as array instead of variable, this hack is needed for changes to be visible outside the scope of this 'if' #}
@@ -137,13 +176,17 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
      </dd>
    {% endfor %}
   </dl></dd>
- {% elif attr == "misp_events" %}
-  {% set misp_events = namespace(showable=0) %}
-  {% for misp_event in val %}
-      {% if misp_event.tlp == "white" or (misp_event.tlp == "green" and ac('tlp-green')) %}
-          {% set misp_events.showable = misp_events.showable + 1 %}
-      {% endif %}
-  {% endfor %}
+  {% set _ = ipinfo.pop('events') %}
+{% endif %}
+
+{# MISP events #}
+{% if ipinfo.misp_events %}
+  {% set misp_events = namespace(showable=0) -%}
+  {% for misp_event in ipinfo.misp_events -%}
+      {% if misp_event.tlp == "white" or (misp_event.tlp == "green" and ac('tlp-green')) -%}
+          {% set misp_events.showable = misp_events.showable + 1 -%}
+      {% endif -%}
+  {% endfor -%}
   {% if misp_events.showable %}
       <dt> MISP events </dt>
       <dd{% if misp_events.showable > 1%} class="scrollable"{% endif %}>
@@ -166,10 +209,14 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
        {% endfor %}
       </dd>
   {% endif %}
- {% elif attr == "otx_pulses"%}
+{% set _ = ipinfo.pop('misp_events') %}
+{% endif %}
+
+{# OTX pulses #}
+{% if ipinfo.otx_pulses %}
   <dt> OTX pulses </dt>
   <dd class="scrollable">
-    {% for otx_pulse in val %}
+    {% for otx_pulse in ipinfo.otx_pulses %}
     <div><b>[<a href="https://otx.alienvault.com/pulse/{{otx_pulse.pulse_id}}">{{ otx_pulse.pulse_id }}</a>] {{ otx_pulse.pulse_created }} | {{ otx_pulse.pulse_name }}</b>
          <table style="padding-left: 30px; padding-bottom: 10px">
           <tr><td>Author name:</td><td>{{ otx_pulse.author_name }}</td></tr>
@@ -181,7 +228,18 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
            <tr><td>Indicator expiration:</td><td class="time" data-time={{ otx_pulse.indicator_expiration|date_to_int }}>{{ otx_pulse.indicator_expiration }}</td></tr>
           {% endif%}
          </table>
+    </div>
     {% endfor%}
+  </dd>
+{% set _ = ipinfo.pop('otx_pulses') %}
+{% endif %}
+</dl>
+
+{# All other attributes #}
+<dl class="attrs">
+{% for attr,val in ipinfo|dictsort %}
+ {% if (attr.startswith("_") or attr == 'events_meta') and not ac('internal_attrs') %}
+  {# pass (hide attrs starting with '_' from normal users) #}
  {% elif attr == "geo" %}
   <dt>geo</dt><dd><span class="country">
     <a href="http://country.io/{{val.ctry|lower}}/">
@@ -191,24 +249,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
  {% elif attr == "hostname" %}
   <dt>hostname</dt>
   <dd>{{ val|reverse if val else '(null)'}}</dd>
- {% elif attr == "bl" %}
-  <dt>IP blacklists</dt>
-  <dd><dl>
-   {% for bl_entry in val %}
-     {% set bl_info = blacklist_info[bl_entry.n] or {"name": "bl_entry.n"} -%}
-     <a href="{{ url_for('feed', feedname=bl_entry.n) }}"> <span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_info.descr}}.<br>Type of feed: <b>{{bl_info.feed_type}}</b>">{{ bl_info.name }}</span></a>
-   {% endfor %}
-   {%- if not val %}none{% endif %}
-  </dl></dd>
- {% elif attr == "dbl" %}
-  <dt>Domain blacklists<span class="help" title="Blacklisted domain names that were associated with the IP address according to Passive DNS"></dt>
-  <dd><dl>
-   {% for bl_entry in val %}
-     {% set bl_info = blacklist_info[bl_entry.n] or {"name": "bl_entry.n"} -%}
-     <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" {% if not bl_entry.v %}style="opacity: 0.4; text-decoration: line-through"{% endif %} title="Last checked at: {{ bl_entry.t }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d %H:%M')|join(', ')}}<br><br>Description: {{bl_info.descr}}.<br>Type of feed: <b>{{bl_info.feed_type}}</b>">{{ bl_info.name }} ({{  bl_entry.d }})</span></a>
-   {% endfor %}
-   {%- if not val %}none{% endif %}
-  </dl></dd>
+
  {% elif attr == "asns" %}
   <dt>Origin AS</dt>
   {% for asinfo in val %}
@@ -237,7 +278,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 </dl>
 
 {# Event plot -#}
-<p class="caption">Event timeline</p>
+<p class="caption">Warden event timeline</p>
 <div class="chart-container" style="position: relative; width: 100%; height: 20em">
 <canvas id="plot-events" width="100" height="100"></canvas>
 <script>
@@ -248,7 +289,7 @@ $( function() {create_event_graph('plot-events', event_data)} );
 
 {% if ac('warden_alerts') %}
 <div id="events">
-<p id="event-details"><span class="caption">Event details</span> <span class="counts">(...)</span>
+<p id="event-details"><span class="caption">Warden event details</span> <span class="counts">(...)</span>
 {#&nbsp; <span class="note">(Note: Events are stored for approx. 14 days only)</span>#}
 {%- if config.mentat_url and ac('mentat') %}<span class="mentat-link">Search in <a href="{{config.mentat_url.replace('$IP', ip)}}">Mentat</a></span>{% endif %}
 </p>

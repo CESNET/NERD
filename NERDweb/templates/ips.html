@@ -61,14 +61,14 @@
 <th>Hostname</th>
 <th title="Autonomous system number and name">ASN</th>
 <th>Country</th>
-<th title="Total number of alerts / nodes / categories in last {{ cfg_max_event_history }} days (from CESNET's Warden)">Events</th>
+<th title="Total number of Warden alerts / nodes / categories (in last {{ cfg_max_event_history }} days), second line shows events from other sources">Events</th>
 <!--<th>Shodan info</th>
 <th>Device type</th>-->
 <th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.</th>
 {% if ac('fmp') %}<th title="Future Maliciousness Probability score">FMP</th>{% endif %}
 <th>Other properties</th>
 <th>Time added</th>
-<th>Last event</th>
+<th>Last activity</th>
 <th title="Links to external services">Links</th>
 </tr>
 
@@ -113,6 +113,25 @@
 </td>
 {% endif %}
 <td class="other">
+  {% if ip.bl -%}
+    {% set bl_cnt = ip.bl|selectattr("v")|list|length -%}
+    {% set plural = "s" if bl_cnt > 1 else "" -%}
+    {% if bl_cnt > 0 -%}
+      <span class="tag blacklist" title="The IP address is present on {{ bl_cnt }} blacklist{{plural}}:<br>
+        {% for bl in ip.bl|selectattr("v") %}&bull; {{ (blacklist_info[bl.n] or {"name": bl.n}).name }}<br>{% endfor %}
+        More info in IP detail page.">{{ bl_cnt }} blacklist{{plural}}</span>
+    {% endif -%}
+  {% endif -%}
+  {% if ip.dbl -%}
+    {% set bl_cnt = ip.dbl|selectattr("v")|list|length -%}
+    {% set plural = "s" if bl_cnt > 1 else "" -%}
+    {% if bl_cnt > 0 -%}
+      <span class="tag blacklist" title="A domain name associated with the IP address is present on {{ bl_cnt }} domain blacklist{{plural}}:<br>
+        {% for bl in ip.dbl|selectattr("v") %}&bull; {{ (blacklist_info[bl.n] or {"name": bl.n}).name }}<br>{% endfor %}
+        More info in IP detail page.">{{ bl_cnt }} domain blacklist{{plural}}</span>
+    {% endif -%}
+  {% endif -%}
+
   {% if ip.shodan %}
     {% if ip.shodan.os %}<span class="tag os">{{ip.shodan.os}}</span>{% endif %}
     {% if ip.shodan.devicetype %}<span class="tag os">{{ip.shodan.devicetype}}</span>{% endif %}
@@ -162,27 +181,10 @@
         </span>
       {% endif %}
     {% endfor %}
-  {% endif %} 
-
-  {% if ip.bl %}
-  {% for bl_entry in ip.bl -%}
-    {% if bl_entry.v %}
-      {% set bl_info = blacklist_info[bl_entry.n] or {"name": bl_entry.n} -%}
-      <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" title="IP is present on blacklist '{{ bl_info.name }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br>Description: {{bl_info.descr}}<br>Type of feed: <b>{{bl_info.feed_type}}</b>">{{-bl_info.name-}}</span></a>
-    {% endif %}
-  {%- endfor %}
-  {% endif %}
-  {% if ip.dbl %}
-  {% for bl_entry in ip.dbl -%}
-    {% if bl_entry.v %}
-      {% set bl_info = blacklist_info[bl_entry.n] or {"name": bl_entry.n} -%}
-      <a href="{{ url_for('feed', feedname=bl_entry.n) }}"><span class="tag blacklist" title="A domain name associated with the IP is present on blacklist '{{ bl_info.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br>Description: {{bl_info.descr}}<br>Type of feed: <b>{{bl_info.feed_type}}</b>">{{-bl_info.name-}}</span></a>
-    {% endif %}
-  {%- endfor %}
   {% endif %}
 </td>
 <td class="time" {% if ip.ts_added %}data-time={{ ip.ts_added|date_to_int }}{% endif %}>{{ip.ts_added.strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
-<td class="time" {% if ip.last_activity %}data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
+<td {% if ip.last_activity %}class="time" data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
 <td class="links">
     <div class="links-dropdown">
         <button class="links-dropbtn">&#x25BC;</button>

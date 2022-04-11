@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-if [ "$1" == "config" ]; then
+if [[ "$1" == "config" ]]; then
   cat <<'END'
 graph_title Not updated entities
 graph_info Number of entities with '_nru' (next regular update) field older than 1 hour. Should always be zero if automatic updates work well.
