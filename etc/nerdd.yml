@@ -98,9 +98,6 @@ fmp:
   paths: {"general" : "/data/fmp/general/"}
   models: {"general" : "/data/fmp/models/model_access_nerd_xg200_7.bin"}
 
-#shodan:
-#   apikey: ""
-
 dshield:
   # DShield requires to include contact information in the User-Agent header of API requests
   # (see https://www.dshield.org/api).

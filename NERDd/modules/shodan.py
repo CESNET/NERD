@@ -42,7 +42,7 @@ class Shodan(NERDModule):
         self.errors = 0 # Number of API errors that has occurred
         self.enabled = True
         
-        self.apikey = g.config.get('shodan.apikey', None)
+        self.apikey = g.config.get('shodan_api_key', None)
         if not self.apikey:
             self.log.warning("No API key set, Shodan module disabled.")
             return
