@@ -96,10 +96,10 @@ warden_filer_path: "/data/warden_filer/warden_receiver"
   #verify_cert: my_misp_server_cert.crt
 
 
-# API key for Shodan requester
+# API key for Shodan requester (web component for on-line querying Shodan on IP detail page)
 shodan_api_key: ""
 
-# API key for OTX Alienvault pulses receiver
+# API key for AlienVault OTX, used by "otx_receiver"
 otx_api_key: ""
 
 # (Optional) CESNET's Passive DNS (used by both web interface and passive_dns module)

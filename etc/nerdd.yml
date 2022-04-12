@@ -98,6 +98,10 @@ fmp:
   paths: {"general" : "/data/fmp/general/"}
   models: {"general" : "/data/fmp/models/model_access_nerd_xg200_7.bin"}
 
+# Shodan API key for use in "shodan" secondary module (module is disabled when the key isn't set)
+# WARNING: The module queries Shodan for every IP record newly created (and then updates it every week).
+#   Since Shodan API doesn't allow more than approx. 1 query per second, it can limit the overal NERD performance,
+#   so the module should be enabled only if there is a low number of records in NERD.
 #shodan:
 #   apikey: ""
 
