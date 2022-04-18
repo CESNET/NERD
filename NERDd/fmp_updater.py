@@ -1,3 +1,60 @@
+#!/usr/bin/env python3
+
+"""
+FMP updater module - periodically updates the FMP score of each entity.
+
+For each known entity a feature vector is assembled and inserted into the trained model, which yields FMP score.
+The FMP score is then logged along with the feature vector.
+The module also logs whether an attack was observed from an entity in the last 24 hours for the purpose of retraining data models in the future.
+To improve performance all updates are executed directly by the database (at once), rather than issuing many new update requests.
+
+Currently supported features:
+[alert metadata]
+ 0 alerts_1d
+ 1 nodes_1d
+ 2 conns_1d
+ 3 alerts_7d
+ 4 nodes_7d
+ 5 conns_7d
+ 6 alerts_ewma
+ 7 conns_ewma
+ 8 binalerts_ewma
+ 9 last_alert_age
+[prefix alert metadata]
+ 10 intervals_avg
+ 11 intervals_med
+ 12 prefix_alerts_1d
+ 13 prefix_nodes_1d
+ 14 prefix_conns_1d
+ 15 prefix_ips_1d
+ 16 prefix_alerts_7d
+ 17 prefix_nodes_7d
+ 18 prefix_conns_7d
+ 19 prefix_ips_7d
+ 20 prefix_alerts_ewma
+ 21 prefix_conns_ewma
+ 22 prefix_binalerts_ewma
+[blacklists]
+ 23 tor
+ 24 blocklist-de-ssh
+ 25 uceprotect
+ 26 sorbs-dul
+ 27 sorbs-noserver
+ 28 sorbs-spam
+ 29 spamcop
+ 30 spamhaus-pbl
+ 31 spamhaus-pbl-isp
+ 32 spamhaus-xbl-cbl
+[tags]
+ 33 hostname_exists
+ 34 dynamic_static
+ 35 dsl
+ 36 ip_in_hostname
+[geolocation]
+ 37 ctry_badness
+ 38 asn_badness
+"""
+
 import sys
 import os
 import signal
@@ -20,58 +77,22 @@ from common.utils import ipstr2int, int2ipstr
 EWMA_ALPHA = 0.25 # a parameter (there's no strong reason for the value selected, I just feel that 0.25 gives reasonable weights for the 7 day long period)
 EWMA_WEIGHTS = [(EWMA_ALPHA * (1 - EWMA_ALPHA)**i) for i in range(7)]
 
-# Currently supported features:
-# [alert metadata]
-#  0 alerts_1d
-#  1 nodes_1d
-#  2 conns_1d
-#  3 alerts_7d
-#  4 nodes_7d
-#  5 conns_7d
-#  6 alerts_ewma
-#  7 conns_ewma
-#  8 binalerts_ewma
-#  9 last_alert_age
-# [prefix alert metadata]
-#  10 intervals_avg
-#  11 intervals_med
-#  12 prefix_alerts_1d
-#  13 prefix_nodes_1d
-#  14 prefix_conns_1d
-#  15 prefix_ips_1d
-#  16 prefix_alerts_7d
-#  17 prefix_nodes_7d
-#  18 prefix_conns_7d
-#  19 prefix_ips_7d
-#  20 prefix_alerts_ewma
-#  21 prefix_conns_ewma
-#  22 prefix_binalerts_ewma
-# [blacklists]
-#  23 tor
-#  24 blocklist-de-ssh
-#  25 uceprotect
-#  26 sorbs-dul
-#  27 sorbs-noserver
-#  28 sorbs-spam
-#  29 spamcop
-#  30 spamhaus-pbl
-#  31 spamhaus-pbl-isp
-#  32 spamhaus-xbl-cbl
-# [tags]
-#  33 hostname_exists
-#  34 dynamic_static
-#  35 dsl
-#  36 ip_in_hostname
-# [geolocation]
-#  37 ctry_badness
-#  38 asn_badness
-
 
 def stop(signal, frame):
+    """
+    Stop the module.
+
+    Will be evoked on catching SIGINT signal.
+    """
     scheduler.shutdown()
 
 
 def get_asn_sizes():
+    """
+    Parse the GeoLite2 database file(s) and convert them into a dict.
+
+    :return: dict containing ASNs as keys and corresponding number of IP addresses as values
+    """
     file_path = '/data/geo_data/GeoLite2-ASN-Blocks-IPv4.csv'
     asn_size_map = Counter()
 
@@ -92,6 +113,11 @@ def get_asn_sizes():
 
 
 def get_ctry_sizes():
+    """
+    Parse the GeoLite2 database file(s) and convert them into a dict.
+
+    :return: dict containing country codes as keys and corresponding number of IP addresses as values
+    """
     file_path = "/data/geo_data/GeoLite2-Country-Locations-en.csv"
     ctry_size_map = Counter()
     geoid_ctry_map = dict()
@@ -131,6 +157,14 @@ def get_ctry_sizes():
 
 
 def get_badness(attr, value, records, geo_data):
+    """
+    :param attr: attribute ID ('geo.ctry' or 'asn')
+    :param value: country code or ASN
+    :param records: pandas data frame containing all current records
+    :param geo_data: dict containing external geolocation data
+
+    :return: float between 0 and 1 representing the "badness" of given country / ASN
+    """
     if value not in geo_data['badness'][attr]:
         total_entities_count = geo_data['sizes'][attr][value]
         known_entities_count = records[records[attr] == value].index.size
@@ -139,6 +173,11 @@ def get_badness(attr, value, records, geo_data):
 
 
 def get_intervals_from_timestamps(timestamps):
+    """
+    :param timestamps: List of timestamps
+
+    :return: list of floats representing intervals between given timestamps (in days)
+    """
     timestamps = sorted(timestamps)
     intervals = []
     for i in range(1, len(timestamps)):
@@ -147,6 +186,14 @@ def get_intervals_from_timestamps(timestamps):
 
 
 def get_events_meta(rec, today):
+    """
+    Count total number of events in last 1 and 7 days for given IP address.
+
+    :param rec: Record of given IP address
+    :param today: Time of the update
+
+    :return: Dict containing event counts and other metadata
+    """
     total1 = 0
     total7 = 0
     conns1 = 0
@@ -190,6 +237,16 @@ def get_events_meta(rec, today):
 
 
 def get_prefix_meta(prefix, today, records, prefix_meta):
+    """
+    Count total number of events in last 1 and 7 days for given IP prefix (/24).
+
+    :param prefix: prefix identifier
+    :param today: time of the update
+    :param records: pandas data frame containing all current records
+    :param prefix_meta: dict containing metadata for each prefix (used as a cache)
+
+    :return: dict containing event counts and other metadata
+    """
     if prefix not in prefix_meta:
         total1 = 0
         total7 = 0
@@ -243,6 +300,18 @@ def get_prefix_meta(prefix, today, records, prefix_meta):
 
 
 def update_record(rec, model, records, updates, prefix_meta, geo_data, today, log):
+    """
+    Assemble feature vector of given IP, feed it to the model and update its current FMP score.
+
+    :param rec: record of given IP address
+    :param model: trained FMP prediction model (currently xgb classifier)
+    :param records: pandas data frame containing all current records
+    :param updates: dict of FMP score update requests (executed at once by the DB)
+    :param prefix_meta: dict containing metadata for each prefix (used as a cache)
+    :param geo_data: dict containing external geolocation data
+    :param today: time of the update
+    :param log: global logger
+    """
     watched_bl = {
             'tor' : 0,
             'blocklist-de-ssh' : 1,
@@ -400,6 +469,14 @@ def update_record(rec, model, records, updates, prefix_meta, geo_data, today, lo
 
 
 def logFMP(ip, fv, fmp, attacked, path, log):
+    """
+    :param ip: IP identifier
+    :param fv: feature vector
+    :param fmp: current fmp score
+    :param attacked: information whether the entity was reported in the last 24 hours
+    :param path: path to the log file
+    :param log: global logger
+    """
     # Acquire current UTC time.
     curTime = datetime.datetime.utcnow()
     logTime = curTime.strftime("%Y-%m-%dT%H:%M:%S")
@@ -442,6 +519,14 @@ def logFMP(ip, fv, fmp, attacked, path, log):
 
 
 def fmp_global_update(db, model, log):
+    """
+    Read all current records from the DB and apply the update_record() function to each one.
+    Resulting updates are written to DB using bulk_write() (instead of issuing new tasks) to improve performance.
+
+    :param db: database connection
+    :param model: trained FMP prediction model (currently xgb classifier)
+    :param log: global logger
+    """
     log.info("Launching FMP update script")
 
     t_beg = datetime.datetime.utcnow()
@@ -506,6 +591,8 @@ if __name__ == "__main__":
 
     # Create scheduler
     scheduler = BlockingScheduler(timezone="UTC")
+
+    # Register the update function to run each day at midnight
     scheduler.add_job(lambda: fmp_global_update(db, model, log), trigger='cron', day_of_week ='mon-sun', hour=0, minute=0)
 
     # Register SIGINT handler to stop the updater
