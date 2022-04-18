@@ -35,7 +35,7 @@ Currently supported features:
  21 prefix_conns_ewma
  22 prefix_binalerts_ewma
 [blacklists]
- 23 tor
+ 23 tor_project_org_ips
  24 blocklist-de-ssh
  25 uceprotect
  26 sorbs-dul
@@ -313,7 +313,7 @@ def update_record(rec, model, records, updates, prefix_meta, geo_data, today, lo
     :param log: global logger
     """
     watched_bl = {
-            'tor' : 0,
+            'tor_project_org_ips' : 0,
             'blocklist-de-ssh' : 1,
             'uceprotect' : 2,
             'sorbs-dul' : 3,
