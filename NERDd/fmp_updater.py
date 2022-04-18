@@ -416,9 +416,12 @@ def logFMP(ip, fv, fmp, attacked, path, log):
         fcntl.flock(f, fcntl.LOCK_EX)
         f.write(prefix +
             ','.join(
-                [str(int(f)) for f in fv[0:4]] +  # first 4 features are integers
-                ['{:.4f}'.format(f) for f in fv[4:7]] +  # next 3 featerues are floats
-                [str(int(f)) for f in fv[7:]]  # the rest are integers
+                [str(int(f)) for f in fv[0:6]] +            # first 6 features are integers
+                ['{:.4f}'.format(f) for f in fv[6:12]] +    # next 6 features are floats
+                [str(int(f)) for f in fv[12:20]] +          # next 8 features are integers
+                ['{:.4f}'.format(f) for f in fv[20:23]] +   # next 3 features are floats
+                [str(int(f)) for f in fv[23:37]] +          # next 14 features are integers
+                ['{:.4f}'.format(f) for f in fv[37:]]       # the rest are floats
             )
             + suffix + '\n')
         fcntl.flock(f, fcntl.LOCK_UN)
