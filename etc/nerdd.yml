@@ -105,8 +105,3 @@ fmp:
 #shodan:
 #   apikey: ""
 
-dshield:
-  # DShield requires to include contact information in the User-Agent header of API requests
-  # (see https://www.dshield.org/api).
-  # Fill in a contact to the NERD admin and uncomment the line, otherwise the DShield module is disabled.
-  #user_agent: "NERD (github.com/CESNET/NERD/), contact: CHANGE_ME"

@@ -50,6 +50,7 @@ groups:
       - updater_manager
       - web
       - misp_updater
+      - dshield
     auto_declare_events: true
     intervals: ["5s", "5m"]
     sync-interval: 1

@@ -102,10 +102,11 @@ shodan_api_key: ""
 # API key for AlienVault OTX, used by "otx_receiver"
 otx_api_key: ""
 
+# DShield daily feeds. Only IPs with at least "min_reports" reported by at least "min_targets" are imported into NERD.
 dshield:
   url: https://isc.sans.edu/feeds/daily_sources
-  min_reports: 500
-  min_targets: 500
+  min_reports: 10
+  min_targets: 3
 
 # (Optional) CESNET's Passive DNS (used by both web interface and passive_dns module)
 pdns:
