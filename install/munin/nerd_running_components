@@ -4,7 +4,7 @@
 
 statuscmd="supervisorctl -c /etc/nerd/supervisord.conf -s http://localhost:9001 status"
 
-if [ "$1" == "config" ]; then
+if [[ "$1" == "config" ]]; then
   # Get the list of configured components
   comps=$($statuscmd | cut -d ' ' -f 1)
   cat <<END

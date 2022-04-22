@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$1" == "config" ]; then
+if [[ "$1" == "config" ]]; then
   # Get list of nodes in the replica-set
   nodes=$(mongosh nerd --quiet --eval 'rs.status().members.forEach((x)=>{print(x.name)})')
   cat <<'END'

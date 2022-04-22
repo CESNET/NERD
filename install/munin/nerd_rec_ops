@@ -7,7 +7,7 @@ ipblock
 org
 "
 
-if [ "$1" == "config" ]; then
+if [[ "$1" == "config" ]]; then
   cat <<'END'
 graph_title Tasks processed by entity and operation type
 graph_category nerd

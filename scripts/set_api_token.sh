@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Set API token to given user (in 'users' table in PSQL DB 'nerd').
 # If no token is specified, a random string of 10 alphanumeric characters is used.
 

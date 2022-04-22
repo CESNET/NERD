@@ -10,7 +10,7 @@ if [[ "$#" -ne 5 ]]; then
   exit 1
 fi
 
-die () { echo "Exitting due to error"; exit 2; }
+die () { echo "Exiting due to error"; exit 2; }
 
 username=$1
 groups=$2
@@ -50,7 +50,7 @@ psql -U nerd nerd_users -c "$sql" || die
 if [[ $username =~ ^local: ]]; then
   HTPASSWD_FILE=/etc/nerd/htpasswd
   echo "Setting the password into $HTPASSWD_FILE"
-  htpasswd -b $HTPASSWD_FILE $username $pass || die
+  htpasswd -b $HTPASSWD_FILE "${username#local:}" "$pass" || die
 fi
 
 echo "Done"
