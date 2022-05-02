@@ -212,6 +212,19 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 {% set _ = ipinfo.pop('misp_events') %}
 {% endif %}
 
+{# DShield events #}
+{% if ipinfo.dshield %}
+  <dt>DShield reports <span style="font-weight: normal">(<a href="https://isc.sans.edu/ipinfo.html?ip={{ ip }}">IP summary</a>, <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">reports</a>)</span></dt>
+  <dd><dl class="scrollable">
+    {% for rec in ipinfo.dshield %}
+      <dt>{{ rec.date }}</dt>
+      <dd>Number of reports: {{ rec.reports }}</dd>
+      <dd>Distinct targets: {{ rec.targets }}</dd>
+    {% endfor%}
+  </dl></dd>
+  {% set _ = ipinfo.pop('dshield') %}
+{% endif %}
+
 {# OTX pulses #}
 {% if ipinfo.otx_pulses %}
   <dt> OTX pulses </dt>
@@ -261,18 +274,6 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
  {% elif attr == "bgppref" %}
   <dt>BGP Prefix</dt>
   <dd><a href="{{ url_for('bgppref') + val|replace('/','_') }}">{{ val }}</a></dd>
- {% elif attr == "dshield" %}
-    <dt>DShield</dt>
-    <dd><a href="https://isc.sans.edu/ipinfo.html?ip={{ ip }}">IP summary</a>,
-        <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">reports</a></dd>
-    <dd class="scrollable">
-      {% for dshield in val %}
-      <div><b>{{ dshield.date }}</b></div>
-           <table style="padding-left: 30px; padding-bottom: 10px">
-            <dd><b>Number of reports: </b>{{ dshield.reports }}</dd>
-            <dd><b>Distinct targets: </b>{{ dshield.targets }}</dd>
-           </table>
-      {% endfor%}</dd>
  {% elif val|is_date %}
      <dt>{{ attr }}</dt><dd class="time" data-time={{ val|date_to_int }}>{{ val }}</dd>
  {% else %}
