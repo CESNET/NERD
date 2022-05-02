@@ -60,9 +60,9 @@ def sigint_handler(signum, frame):
 
 def process_feed(feed_data):
     logger.info("Processing the feed ...")
-    current_date = datetime.utcnow()
-    date_str = current_date.strftime("%Y-%m-%d")
-    ttl_date = current_date + timedelta(days=dshield_ttl_days)
+    data_date = datetime.utcnow() - timedelta(days=1) # Downloaded data dump comes from the previous day
+    date_str = data_date.strftime("%Y-%m-%d")
+    ttl_date = data_date + timedelta(days=dshield_ttl_days)
     ips = {}
     for record in feed_data:
         record_data = record.split('\t')
