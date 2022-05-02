@@ -176,7 +176,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
      </dd>
    {% endfor %}
   </dl></dd>
-  {% set _ = ipinfo.pop('events') %}
+  {% set warden_events = ipinfo.pop('events') %}{# remove from ipinfo, but keep it for later use when plot is generated #}
 {% endif %}
 
 {# MISP events #}
@@ -287,7 +287,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 <div class="chart-container" style="position: relative; width: 100%; height: 20em">
 <canvas id="plot-events" width="100" height="100"></canvas>
 <script>
-let event_data = {{ ipinfo.events|tojson if ipinfo.events else [] }};
+let event_data = {{ warden_events|tojson if warden_events else [] }};
 $( function() {create_event_graph('plot-events', event_data)} );
 </script>
 </div>
