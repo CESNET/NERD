@@ -156,7 +156,7 @@ def get_blacklist(id, name, url, regex, bl_type, params):
     download_time = datetime.utcnow()
     now_plus_3days = download_time + timedelta(days=3)
 
-    log.info("{} IPs found, sending tasks to NERD workers".format(len(bl_records)))
+    log.info("{} IPs found in '{}', sending tasks to NERD workers".format(len(bl_records), id))
 
     for ip in bl_records:
         task_queue_writer.put_task('ip', ip, [
