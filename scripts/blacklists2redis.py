@@ -256,19 +256,20 @@ def save_blacklist_to_redis(bl_records, bl_id, bl_name, bl_type, prefix_bl_lengt
                 # because Redis does not handle well such big insert
                 for bl_records_part_index in range(0, len(bl_records), 250000):
                     pipe.execute()
-                    # clear pipe for new sadd(), last pipe.execute() is down in try block
+                    # clear pipe for new sadd(), last pipe.execute() is down at the end of the try block
                     pipe = r.pipeline()
                     blacklist_chunk = bl_records[bl_records_part_index:bl_records_part_index + 250000]
                     pipe.sadd(key_prefix + "list", *blacklist_chunk)
             else:
                 pipe.sadd(key_prefix + "list", *bl_records)
         elif bl_records and bl_type == "prefixIP":
-            # save every IP range as sorted set:
-            # first value = IP address as integer
-            # second value = IP address (add '/' prefix if it is range end to distinguish start from end)
+            # save IP ranges as sorted set (i.e. set of value+score pairs), each range as two values, beginning and end
+            # of the range.
+            #   value = IP address (add '/' prefix if it is range end to distinguish start from end)
+            #   score = IP address as integer (+0.5 for end of range, so beginning and end of 1-address ranges (/32) are ordered correctly)
             for record in bl_records:
                 pipe.zadd(key_prefix + "list", {str(record.network_address): int(record.network_address)})
-                pipe.zadd(key_prefix + "list", {'/' + str(record.broadcast_address): int(record.broadcast_address)})
+                pipe.zadd(key_prefix + "list", {'/' + str(record.broadcast_address): int(record.broadcast_address) + 0.5})
         else:
             vprint("WARNING: {} blacklist {} is empty! Maybe the service stopped working.".format(
                 bl_all_types[bl_type]['singular'], bl_id))

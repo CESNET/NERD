@@ -15,7 +15,7 @@ from flask_pymongo import pymongo, PyMongo
 import pymongo.errors
 from flask_wtf import FlaskForm
 from flask_mail import Mail, Message
-from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
+from wtforms import validators, StringField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 import dateutil.parser
 import pymisp
 from pymisp import ExpandedPyMISP
@@ -568,7 +568,7 @@ def main():
 
 # ***** Request for new account *****
 class AccountRequestForm(FlaskForm):
-    email = TextField('Contact email', [validators.Required()], description='Used to send information about your request and in case admins need to contact you.')
+    email = StringField('Contact email', [validators.DataRequired()], description='Used to send information about your request and in case admins need to contact you.')
     message = TextAreaField("", [validators.Optional()])
     action = HiddenField('action')
 
@@ -739,10 +739,10 @@ def subnet_validator(form, field):
         raise validators.ValidationError()
 
 class IPFilterForm(FlaskForm):
-    subnet = TextField('IP prefix', [validators.Optional(), subnet_validator], filters=[strip_whitespace])
-    hostname = TextField('Hostname suffix', [validators.Optional()], filters=[strip_whitespace])
-    country = TextField('Country code', [validators.Optional(), validators.length(2, 2)], filters=[strip_whitespace])
-    asn = TextField('ASN', [validators.Optional(),
+    subnet = StringField('IP prefix', [validators.Optional(), subnet_validator], filters=[strip_whitespace])
+    hostname = StringField('Hostname suffix', [validators.Optional()], filters=[strip_whitespace])
+    country = StringField('Country code', [validators.Optional(), validators.length(2, 2)], filters=[strip_whitespace])
+    asn = StringField('ASN', [validators.Optional(),
         validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
         message='Must be a number, optionally preceded by "AS".')], filters=[strip_whitespace])
     cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
@@ -1002,7 +1002,7 @@ def feed(feedname=None):
 # ***** Detailed info about individual IP *****
 
 class SingleIPForm(FlaskForm):
-    ip = TextField('IP address', [validator_optional, validators.IPAddress(message="Invalid IPv4 address")], filters=[strip_whitespace])
+    ip = StringField('IP address', [validator_optional, validators.IPAddress(message="Invalid IPv4 address")], filters=[strip_whitespace])
 
 @app.route('/ip/')
 @app.route('/ip/<ipaddr>')
@@ -1172,7 +1172,7 @@ def misp_event(event_id=None):
 # ***** Detailed info about individual AS *****
 
 class SingleASForm(FlaskForm):
-    asn = TextField('AS number', [validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
+    asn = StringField('AS number', [validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
             message='Must be a number, optionally preceded by "AS".')])
 
 
@@ -1206,7 +1206,7 @@ def asn(asn=None): # Can't be named "as" since it's a Python keyword
 # ***** Detailed info about individual IP block *****
 
 # class SingleIPBlockForm(FlaskForm):
-#     ip = TextField('IP block')#, [validators.IPAddress(message="Invalid IPv4 address")])
+#     ip = StringField('IP block')#, [validators.IPAddress(message="Invalid IPv4 address")])
 
 @app.route('/ipblock/')
 @app.route('/ipblock/<ipblock>')
@@ -2038,4 +2038,4 @@ if __name__ == "__main__":
     config['login']['methods'] = {}
     # Run built-in server
     app.run(host="127.0.0.1", debug=True)
-
+    

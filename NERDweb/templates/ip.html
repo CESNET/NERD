@@ -176,7 +176,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
      </dd>
    {% endfor %}
   </dl></dd>
-  {% set _ = ipinfo.pop('events') %}
+  {% set warden_events = ipinfo.pop('events') %}{# remove from ipinfo, but keep it for later use when plot is generated #}
 {% endif %}
 
 {# MISP events #}
@@ -210,6 +210,19 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
       </dd>
   {% endif %}
 {% set _ = ipinfo.pop('misp_events') %}
+{% endif %}
+
+{# DShield events #}
+{% if ipinfo.dshield %}
+  <dt>DShield reports <span style="font-weight: normal">(<a href="https://isc.sans.edu/ipinfo.html?ip={{ ip }}">IP summary</a>, <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">reports</a>)</span></dt>
+  <dd><dl class="scrollable">
+    {% for rec in ipinfo.dshield %}
+      <dt>{{ rec.date }}</dt>
+      <dd>Number of reports: {{ rec.reports }}</dd>
+      <dd>Distinct targets: {{ rec.targets }}</dd>
+    {% endfor%}
+  </dl></dd>
+  {% set _ = ipinfo.pop('dshield') %}
 {% endif %}
 
 {# OTX pulses #}
@@ -261,14 +274,6 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
  {% elif attr == "bgppref" %}
   <dt>BGP Prefix</dt>
   <dd><a href="{{ url_for('bgppref') + val|replace('/','_') }}">{{ val }}</a></dd>
- {% elif attr == "dshield" %}
-    <dt>DShield</dt>
-        <dd><b>Number of reports: </b>{{ val.reports }}</dd>
-        <dd><b>Distinct targets: </b>{{ val.targets }}</dd>
-        <dd><b>First date: </b>{{ val.mindate }}</dd>
-        <dd><b>Most recent date:  </b>{{ val.maxdate }}</dd>
-        <dd><a href="https://isc.sans.edu/ipinfo.html?ip={{ ip }}">IP summary</a>,
-            <a href="https://isc.sans.edu/ipdetails.html?ip={{ ip }}">reports</a></dd>
  {% elif val|is_date %}
      <dt>{{ attr }}</dt><dd class="time" data-time={{ val|date_to_int }}>{{ val }}</dd>
  {% else %}
@@ -282,7 +287,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 <div class="chart-container" style="position: relative; width: 100%; height: 20em">
 <canvas id="plot-events" width="100" height="100"></canvas>
 <script>
-let event_data = {{ ipinfo.events|tojson if ipinfo.events else [] }};
+let event_data = {{ warden_events|tojson if warden_events else [] }};
 $( function() {create_event_graph('plot-events', event_data)} );
 </script>
 </div>

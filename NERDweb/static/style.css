@@ -569,7 +569,7 @@ td.links img {
   position: relative;
 }
 .tag-list-container .tag {
-  cursor: hand;
+  cursor: pointer;
 }
 .tag.detail-opened {
   box-shadow: 0px 0px 3px 3px rgba(127, 48, 0, 0.6);

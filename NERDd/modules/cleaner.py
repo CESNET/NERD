@@ -30,6 +30,12 @@ class Cleaner(NERDModule):
             tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
         )
         g.um.register_handler(
+            self.clear_dshield,
+            'ip',
+            ('!every1d',),
+            tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
+        )
+        g.um.register_handler(
             self.clear_bl_hist,
             'ip',
             ('!every1d',),
@@ -75,7 +81,29 @@ class Cleaner(NERDModule):
         if actions:
             actions.append(('set', 'events_meta.total', num_events))
         
-        self.log.debug("Cleaning {}: Removing {} old event-records".format(key, len(actions)-1))
+        self.log.debug("Cleaning {}: Removing {} old warden event records".format(key, len(actions)-1))
+        return actions
+
+    def clear_dshield(self, ekey, rec, updates):
+        """
+        Handler function to clear old DShield records
+
+        Remove all items under dshield with "date" older then current
+        day minus 'max_event_history' days.
+        """
+        etype, key = ekey
+        if etype != 'ip':
+            return None
+
+        today = datetime.utcnow().date()
+        cut_day = (today - self.max_event_history).strftime("%Y-%m-%d")
+        # Remove all dshield-records with day before cut_day
+        actions = []
+        for item in rec.get('dshield', []):
+            if item['date'] < cut_day:
+                actions.append(('array_remove', 'dshield', {'date' : item['date']}))
+
+        self.log.debug("Cleaning {}: Removing {} old dshield records".format(key, len(actions)))
         return actions
 
     def clear_bl_hist(self, ekey, rec, updates):
