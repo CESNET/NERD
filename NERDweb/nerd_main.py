@@ -745,6 +745,8 @@ class IPFilterForm(FlaskForm):
     asn = StringField('ASN', [validators.Optional(),
         validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
         message='Must be a number, optionally preceded by "AS".')], filters=[strip_whitespace])
+    source = SelectMultipleField('Source', [validators.Optional()])
+    source_op = HiddenField('', default="or")
     cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
     cat_op = HiddenField('', default="or")
     node = SelectMultipleField('Node', [validators.Optional()])
@@ -774,6 +776,23 @@ class IPFilterForm(FlaskForm):
         # Dynamically load list of Categories/Nodes and their number of occurrences
         # Collections n_ip_by_* should be periodically updated by queries run by 
         # cron (see /scripts/update_db_meta_info.js)
+
+        # Defining sources and mapping DB name -> user readable name
+        source_names = { "bl": "Blacklists", 
+                        "dshield": "DShield", 
+                        "otx": "OTX",
+                        "warden": "Warden", 
+                        "misp": "MISP"}
+        # get aggregation
+        all_sources = mongo.db.ip.aggregate([{"$project": {"ttl": {"$objectToArray": "$_ttl"}}}, {"$unwind": "$ttl"}, {"$group": {"_id": "$ttl.k", "cnt": {"$sum": 1}}}, {"$sort": {"cnt": -1}}])
+        srcs = {item["_id"]: item["cnt"] for item in all_sources}
+        self.source.choices = []
+        for i in source_names.keys():
+            if i in srcs:
+                self.source.choices.append((i, '{} ({})'.format(source_names[i], int(srcs[i]))))
+            else:
+                self.source.choices.append((i, '{} (0)'.format(source_names[i])))
+
         self.cat.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_cat.find().sort('_id') if item['_id']]
         self.node.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_node.find().sort('_id') if item['_id']]
         # Number of occurrences for blacklists (list of blacklists is taken from configuration)
@@ -824,6 +843,9 @@ def create_query(form):
             queries.append( {'bgppref': {'$in': asrec['bgppref']}} )
         else:
             queries.append( {'_id': {'$exists': False}} ) # ASN not in DB, add query which is always false to get no results
+    if form.source.data:
+        op = '$and' if (form.source_op.data == "and") else '$or'
+        queries.append( {op: [{'_ttl.' + s.lower(): {'$exists': True}} for s in form.source.data]} )
     if form.cat.data:
         op = '$and' if (form.cat_op.data == "and") else '$or'
         queries.append( {op: [{'events.cat': cat} for cat in form.cat.data]} )
