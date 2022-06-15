@@ -94,7 +94,7 @@ def get_asn_sizes():
 
     :return: dict containing ASNs as keys and corresponding number of IP addresses as values
     """
-    file_path = '/data/geo_data/GeoLite2-ASN-Blocks-IPv4.csv'
+    file_path = '/data/geoip/GeoLite2-ASN-Blocks-IPv4.csv'
     asn_size_map = Counter()
 
     # Get total sizes of ASNs from GeoLite database
@@ -119,7 +119,7 @@ def get_ctry_sizes():
 
     :return: dict containing country codes as keys and corresponding number of IP addresses as values
     """
-    file_path = "/data/geo_data/GeoLite2-Country-Locations-en.csv"
+    file_path = "/data/geoip/GeoLite2-Country-Locations-en.csv"
     ctry_size_map = Counter()
     geoid_ctry_map = dict()
 
