@@ -615,9 +615,10 @@ if __name__ == "__main__":
     # Parse arguments
     ap = argparse.ArgumentParser(description="FMP updater module - periodically updates the FMP score of each entity.")
     ap.add_argument('-n', '--now', action='store_true', help="Launch the update script immediately and exit once it finishes. By default, it is ran each day at midnight.")
-    ap.parser.add_argument("-c", "--config", help="Path to config file", type=str, default="/etc/nerd/nerd.yml")
-    ap.parser.add_argument("-m", "--model", help="Path to trained model file", type=str, default="/data/fmp/models/model_general_aoptc_xg200_7.bin")
+    ap.add_argument("-c", "--config", help="Path to config file", type=str, default="/etc/nerd/nerd.yml")
+    ap.add_argument("-m", "--model", help="Path to trained model file", type=str, default="/data/fmp/models/model_general_aoptc_xg200_7.bin")
     args = ap.parse_args()
+
     # Configure logging
     LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
     LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
