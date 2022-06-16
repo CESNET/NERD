@@ -89,13 +89,13 @@ def stop(signal, frame):
     scheduler.shutdown()
 
 
-def get_asn_sizes():
+def get_asn_sizes(geo_data_dir):
     """
     Parse the GeoLite2 database file(s) and convert them into a dict.
 
     :return: dict containing ASNs as keys and corresponding number of IP addresses as values
     """
-    file_path = '/data/geoip/GeoLite2-ASN-Blocks-IPv4.csv'
+    file_path = f"{geo_data_dir}/GeoLite2-ASN-Blocks-IPv4.csv"
     asn_size_map = Counter()
 
     # Get total sizes of ASNs from GeoLite database
@@ -114,13 +114,13 @@ def get_asn_sizes():
     return asn_size_map
 
 
-def get_ctry_sizes():
+def get_ctry_sizes(geo_data_dir):
     """
     Parse the GeoLite2 database file(s) and convert them into a dict.
 
     :return: dict containing country codes as keys and corresponding number of IP addresses as values
     """
-    file_path = "/data/geoip/GeoLite2-Country-Locations-en.csv"
+    file_path = f"{geo_data_dir}/GeoLite2-Country-Locations-en.csv"
     ctry_size_map = Counter()
     geoid_ctry_map = dict()
 
@@ -137,7 +137,7 @@ def get_ctry_sizes():
         geoid_ctry_map[geoid] = ctry
 
     # Get total sizes of countries from GeoLite database
-    file_path = "/data/geo_data/GeoLite2-Country-Blocks-IPv4.csv"
+    file_path = f"{geo_data_dir}/GeoLite2-Country-Blocks-IPv4.csv"
     first_skipped = False
     for line in open(file_path).readlines():
         if not first_skipped:
@@ -562,7 +562,7 @@ def logFMP(ip, fv, fmp, attacked, path, log):
         log.warning(f"Unable to log to \'{os.path.join(path, 'results', fileSuffix)}\'.")
 
 
-def fmp_global_update(db, model, log):
+def fmp_global_update(db, model, geo_data_dir, log):
     """
     Read all current records from the DB and apply the update_record() function to each one.
     Resulting updates are written to DB using bulk_write() (instead of issuing new tasks) to improve performance.
@@ -579,8 +579,8 @@ def fmp_global_update(db, model, log):
     prefix_meta = {}
     geo_data = {
         'sizes': {
-            'geo.ctry': get_ctry_sizes(),
-            'asn': get_asn_sizes()
+            'geo.ctry': get_ctry_sizes(geo_data_dir),
+            'asn': get_asn_sizes(geo_data_dir)
         },
         'badness': {
             'geo.ctry': {},
@@ -617,7 +617,11 @@ if __name__ == "__main__":
     ap.add_argument('-n', '--now', action='store_true', help="Launch the update script immediately and exit once it finishes. By default, it is ran each day at midnight.")
     ap.add_argument("-c", "--config", help="Path to config file", type=str, default="/etc/nerd/nerd.yml")
     ap.add_argument("-m", "--model", help="Path to trained model file", type=str, default="/data/fmp/models/model_general_aoptc_xg200_7.bin")
+    ap.add_argument("-g", "--geo_data", help="Path to directory containing geoip data", type=str, default="/data/geoip")
     args = ap.parse_args()
+    config_path = args.config
+    model_path = args.model
+    geo_data_dir = args.geo_data
 
     # Configure logging
     LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
@@ -631,11 +635,10 @@ if __name__ == "__main__":
     log.info("**** FMP updater started *****")
 
     # Establish DB connection
-    config = common.config.read_config(args.config)
+    config = common.config.read_config(config_path)
     db = core.mongodb.MongoEntityDatabase(config)
 
     # Load trained model.
-    model_path = args.model
     if os.path.exists(model_path):
         model = xgb.Booster({'nthread': 4})
         model.load_model(model_path)
@@ -646,13 +649,13 @@ if __name__ == "__main__":
 
     if args.now:
         # Run the update function once and exit
-        fmp_global_update(db, model, log)
+        fmp_global_update(db, model, geo_data_dir, log)
     else:
         # Create scheduler
         scheduler = BlockingScheduler(timezone="UTC")
 
         # Register the update function to run each day at midnight
-        scheduler.add_job(lambda: fmp_global_update(db, model, log), trigger='cron', day_of_week ='mon-sun', hour=0, minute=0)
+        scheduler.add_job(lambda: fmp_global_update(db, model, geo_data_dir, log), trigger='cron', day_of_week ='mon-sun', hour=0, minute=0)
 
         # Register SIGINT handler to stop the updater
         signal.signal(signal.SIGINT, stop)
