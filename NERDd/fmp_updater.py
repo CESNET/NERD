@@ -55,6 +55,7 @@ Currently supported features:
  38 asn_badness
 """
 
+import argparse
 import sys
 import os
 import fcntl
@@ -611,6 +612,11 @@ def fmp_global_update(db, model, log):
 
 
 if __name__ == "__main__":
+    # Parse arguments
+    ap = argparse.ArgumentParser(description="FMP updater module - periodically updates the FMP score of each entity.")
+    ap.add_argument('-n', '--now', action='store_true', help="Launch the update script immediately and exit once it finishes. By default, it is ran each day at midnight.")
+    args = ap.parse_args()
+
     # Configure logging
     LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
     LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
@@ -636,13 +642,17 @@ if __name__ == "__main__":
         log.error(f"Unable to find model file \'{model_path}\'")
         exit()
 
-    # Create scheduler
-    scheduler = BlockingScheduler(timezone="UTC")
+    if args.now:
+        # Run the update function once and exit
+        fmp_global_update(db, model, log)
+    else:
+        # Create scheduler
+        scheduler = BlockingScheduler(timezone="UTC")
 
-    # Register the update function to run each day at midnight
-    scheduler.add_job(lambda: fmp_global_update(db, model, log), trigger='cron', day_of_week ='mon-sun', hour=0, minute=0)
+        # Register the update function to run each day at midnight
+        scheduler.add_job(lambda: fmp_global_update(db, model, log), trigger='cron', day_of_week ='mon-sun', hour=0, minute=0)
 
-    # Register SIGINT handler to stop the updater
-    signal.signal(signal.SIGINT, stop)
+        # Register SIGINT handler to stop the updater
+        signal.signal(signal.SIGINT, stop)
 
-    scheduler.start()
+        scheduler.start()
