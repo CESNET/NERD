@@ -166,11 +166,11 @@ def get_ctry_badness(ctry, records, geo_data):
 
     :return: float between 0 and 1 representing the "badness" of given country
     """
-    if ctry not in geo_data['badness']['geo.ctry']:
-        total_entities_count = geo_data['sizes']['geo.ctry'][ctry]
-        known_entities_count = records[records['geo.ctry'] == ctry].index.size
-        geo_data['badness']['geo.ctry'][ctry] = known_entities_count / total_entities_count
-    return geo_data['badness']['geo.ctry'][ctry]
+    if ctry not in geo_data['badness']['ctry']:
+        total_entities_count = geo_data['sizes']['ctry'][ctry]
+        known_entities_count = records[records['geo'].apply(lambda x: check_ctry(x, ctry)) == True].index.size
+        geo_data['badness']['ctry'][ctry] = known_entities_count / total_entities_count
+    return geo_data['badness']['ctry'][ctry]
 
 
 def get_asn_badness(asn_list, records, geo_data):
@@ -202,6 +202,13 @@ def contains(array, value):
         _ = array.index(value)
         return True
     except ValueError:
+        return False
+
+
+def check_ctry(geo_data, ctry):
+    try:
+        return geo_data['ctry'] == ctry
+    except Exception:
         return False
 
 
@@ -248,7 +255,7 @@ def get_events_meta(rec, today):
 
     for evtrec in rec['events']:
         n = evtrec['n']
-        conns = evtrec['conns']
+        conns = evtrec.get('conns', 0)
         date = evtrec['date']
         date = datetime.date(int(date[0:4]), int(date[5:7]), int(date[8:10]))
         days_diff = (today - date).days
@@ -304,9 +311,11 @@ def get_prefix_meta(prefix, today, records, prefix_meta):
 
         records_from_prefix = records[records['_id'].apply(int2ipstr).str.startswith(prefix)]
         for index, rec in records_from_prefix.iterrows():
+            if 'events' not in rec or type(rec['events']) is not list:
+                continue
             for evtrec in rec['events']:
                 n = evtrec['n']
-                conns = evtrec['conns']
+                conns = evtrec.get('conns', 0)
                 date = evtrec['date']
                 date = datetime.date(int(date[0:4]), int(date[5:7]), int(date[8:10]))
                 days_diff = (today - date).days
@@ -375,7 +384,7 @@ def update_record(rec, model, records, records_bgppref, updates, prefix_meta, ge
     i = 0
 
     # Events metadata
-    if 'events' in rec:
+    if 'events' in rec and type(rec['events']) is list:
         metadata = get_events_meta(rec, today)
         featV[i] = attacked = metadata.get('total1', 0)
         i += 1
@@ -400,7 +409,7 @@ def update_record(rec, model, records, records_bgppref, updates, prefix_meta, ge
         i += 9
 
     # Last alert age
-    if 'last_warden_event' in rec:
+    if 'last_warden_event' in rec and type(rec['last_warden_event']) is datetime:
         featV[i] = (datetime.datetime.utcnow() - rec['last_warden_event']).total_seconds() / 86400
         if featV[i] > 7.0:
             featV[i] = float("inf")
@@ -408,7 +417,7 @@ def update_record(rec, model, records, records_bgppref, updates, prefix_meta, ge
     i += 1
 
     # Intervals between events
-    if 'intervals_between_events' in rec:
+    if 'intervals_between_events' in rec and type(rec['intervals_between_events']) is list:
         intervals = get_intervals_from_timestamps(rec['intervals_between_events'])
         # Average
         featV[i] = np.mean(intervals)
@@ -451,7 +460,7 @@ def update_record(rec, model, records, records_bgppref, updates, prefix_meta, ge
     np.log1p(featV[j:i], out=transFeatV[j:i])
 
     # Blacklists
-    if 'bl' in rec:
+    if 'bl' in rec and type(rec['bl']) is list:
         present_blacklists = rec['bl']
         for bl in present_blacklists:
             if bl['n'] in watched_bl.keys() and bl['v'] == 1:
@@ -460,11 +469,11 @@ def update_record(rec, model, records, records_bgppref, updates, prefix_meta, ge
     i += len(watched_bl)
 
     # Hostname exists
-    if 'hostname' in rec and rec['hostname'] != None:
+    if 'hostname' in rec and rec['hostname'] is not None:
         transFeatV[i] = featV[i] = 1
         i += 1
 
-        if 'tags' in rec:
+        if 'tags' in rec and type(rec['tags']) is dict:
             tags = rec['tags']
 
             # Static / dynamic IP
@@ -492,12 +501,12 @@ def update_record(rec, model, records, records_bgppref, updates, prefix_meta, ge
         i += 4
 
     # Ctry badness
-    if 'geo.ctry' in rec:
-        transFeatV[i] = featV[i] = get_ctry_badness(rec['geo.ctry'], records, geo_data)
+    if 'geo' in rec and type(rec['geo']) is dict and 'ctry' in rec['geo']:
+        transFeatV[i] = featV[i] = get_ctry_badness(rec['geo']['ctry'], records, geo_data)
     i += 1
 
     # ASN badness
-    if 'asn' in rec:
+    if 'asn' in rec and type(rec['asn']) is list:
         transFeatV[i] = featV[i] = get_asn_badness(rec['asn'], records, geo_data)
     i += 1
 
@@ -547,8 +556,8 @@ def logFMP(ip, fv, fmp, attacked, path, log):
             + suffix + '\n')
         fcntl.flock(f, fcntl.LOCK_UN)
         f.close()
-    except IOError:
-        log.warning(f"Unable to log feature vector \'{fv}\' to \'{os.path.join(path, fileSuffix)}\'.")
+    except IOError as e:
+        log.warning(f"Unable to log feature vector \'{fv}\' to \'{os.path.join(path, fileSuffix)}\': {e}")
 
 
     # Log the information whether the entity was reported in the last 24 hours.
@@ -558,8 +567,8 @@ def logFMP(ip, fv, fmp, attacked, path, log):
         f.write(prefix + attackedBin + '\n')
         fcntl.flock(f, fcntl.LOCK_UN)
         f.close()
-    except IOError:
-        log.warning(f"Unable to log to \'{os.path.join(path, 'results', fileSuffix)}\'.")
+    except IOError as e:
+        log.warning(f"Unable to log to \'{os.path.join(path, 'results', fileSuffix)}\': {e}")
 
 
 def fmp_global_update(db, model, geo_data_dir, log):
@@ -579,11 +588,11 @@ def fmp_global_update(db, model, geo_data_dir, log):
     prefix_meta = {}
     geo_data = {
         'sizes': {
-            'geo.ctry': get_ctry_sizes(geo_data_dir),
+            'ctry': get_ctry_sizes(geo_data_dir),
             'asn': get_asn_sizes(geo_data_dir)
         },
         'badness': {
-            'geo.ctry': {},
+            'ctry': {},
             'asn': {}
         }
     }
@@ -592,16 +601,21 @@ def fmp_global_update(db, model, geo_data_dir, log):
     np.set_printoptions(formatter={'float_kind': lambda x: "{:.4f}".format(x)})
 
     # Get all current records from DB (ip, bgppref)
-    records = pandas.DataFrame(list(db._db["ip"].find(filter={}, projection={})))
-    records_bgppref = pandas.DataFrame(list(db._db["bgppref"].find(filter={}, projection={})))
+    attrs = {'_id': 1, 'events': 1, 'last_warden_event': 1, 'intervals_between_events': 1, 'bl': 1, 'tags': 1, 'hostname': 1, 'geo': 1, 'bgppref': 1}
+    records = pandas.DataFrame(list(db._db["ip"].find(filter={}, projection=attrs)))
+    records_bgppref = pandas.DataFrame(list(db._db["bgppref"].find(filter={}, projection=attrs)))
+    log.info(f"Records to process: {records.index.size}")
 
     # Map BGP prefix of each record to corresponding list of ASNs
+    log.info("Mapping BGP prefixes to ASNs")
     records['asn'] = records['bgppref'].apply(lambda prefix: bgppref_to_asn(prefix, records_bgppref))
 
     # Update FMP score of each entity
+    log.info("Processing records")
     records.apply(lambda rec: update_record(rec, model, records, records_bgppref, updates, prefix_meta, geo_data, today, log), axis=1)
 
     # Write updates to DB
+    log.info("Writing updates to DB")
     try:
         db._db["ip"].bulk_write(updates, ordered=False)
     except BulkWriteError as e:
