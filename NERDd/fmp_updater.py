@@ -167,9 +167,12 @@ def get_ctry_badness(ctry, records, geo_data):
     :return: float between 0 and 1 representing the "badness" of given country
     """
     if ctry not in geo_data['badness']['ctry']:
-        total_entities_count = geo_data['sizes']['ctry'][ctry]
-        known_entities_count = records[records['geo'].apply(lambda x: check_ctry(x, ctry)) == True].index.size
-        geo_data['badness']['ctry'][ctry] = known_entities_count / total_entities_count
+        try:
+            total_entities_count = geo_data['sizes']['ctry'][ctry]
+            known_entities_count = records[records['geo'].apply(lambda x: check_ctry(x, ctry)) == True].index.size
+            geo_data['badness']['ctry'][ctry] = known_entities_count / total_entities_count
+        except (KeyError, ZeroDivisionError):
+            geo_data['badness']['ctry'][ctry] = 0
     return geo_data['badness']['ctry'][ctry]
 
 
@@ -191,7 +194,7 @@ def get_asn_badness(asn_list, records, geo_data):
             except (KeyError, ZeroDivisionError):
                 geo_data['badness']['asn'][asn] = 0
         s += geo_data['badness']['asn'][asn]
-    return s / len(asn_list)
+    return s / len(asn_list) if len(asn_list) > 0 else 0
 
 
 def contains(array, value):
@@ -601,9 +604,10 @@ def fmp_global_update(db, model, geo_data_dir, log):
     np.set_printoptions(formatter={'float_kind': lambda x: "{:.4f}".format(x)})
 
     # Get all current records from DB (ip, bgppref)
-    attrs = {'_id': 1, 'events': 1, 'last_warden_event': 1, 'intervals_between_events': 1, 'bl': 1, 'tags': 1, 'hostname': 1, 'geo': 1, 'bgppref': 1}
-    records = pandas.DataFrame(list(db._db["ip"].find(filter={}, projection=attrs)))
-    records_bgppref = pandas.DataFrame(list(db._db["bgppref"].find(filter={}, projection=attrs)))
+    ip_attrs = {'_id': 1, 'events': 1, 'last_warden_event': 1, 'intervals_between_events': 1, 'bl': 1, 'tags': 1, 'hostname': 1, 'geo': 1, 'bgppref': 1}
+    bgppref_attrs = {'_id': 1, 'asn': 1}
+    records = pandas.DataFrame(list(db._db["ip"].find(filter={}, projection=ip_attrs)))
+    records_bgppref = pandas.DataFrame(list(db._db["bgppref"].find(filter={}, projection=bgppref_attrs)))
     log.info(f"Records to process: {records.index.size}")
 
     # Map BGP prefix of each record to corresponding list of ASNs
@@ -638,9 +642,10 @@ if __name__ == "__main__":
     geo_data_dir = args.geo_data
 
     # Configure logging
+    LOGFILE = "/var/log/nerd/fmp_updater.log"
     LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
     LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
-    logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
+    logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT, filename=LOGFILE, filemode='a')
     log = logging.getLogger("FMP updater")
     log.setLevel('INFO')
     logging.getLogger("apscheduler.scheduler").setLevel("ERROR")
