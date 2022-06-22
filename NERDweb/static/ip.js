@@ -18,11 +18,11 @@ function category2color(cat, alpha = 1.0) {
 
 var default_colors = ['#3366CC', '#DC3912', '#FF9900', '#109618', '#990099', '#3B3EAC', '#0099C6', '#DD4477', '#66AA00', '#B82E2E', '#316395', '#994499', '#22AA99', '#AAAA11', '#6633CC', '#E67300', '#8B0707', '#329262', '#5574A6', '#3B3EAC']
 
+const N_DAYS = 30;
 
 // Get list of dates from today to N days
 // We use this both to get data from "ipinfo.events" and as labels in the graph, since the same format is OK for both
 function get_dates() {
-  const N_DAYS = 30;
   dates = [];
   let i;
   for (i = N_DAYS; i >= 0; i--) {
@@ -73,6 +73,7 @@ function create_event_graph(elem, event_data) {
               y: {
                   stacked: true,
                   min: 0,
+                  max: (datasets.length > 0 ? null : 1), // force max=1 if no data are there
                   ticks: {
                       precision: 0,
                   },
@@ -141,6 +142,7 @@ function create_event_graph_dshield(elem, event_data) {
           scales: {
               y: {
                   min: 0,
+                  max: ((Math.max(...reports) == 0 && Math.max(...targets) == 0) ? 1 : null), // force max=1 if no data are there
                   ticks: {
                       precision: 0,
                   },
@@ -174,7 +176,7 @@ function create_event_graph_bl(elem, event_data, info) {
   // event_data holds data for each blacklist
   for (list of event_data) {
       let vals = Object.values(list.h);
-      let data = new Array(30).fill(null);
+      let data = new Array(N_DAYS).fill(null);
       vals.forEach((key, index) => {
           data[dates.indexOf(moment(key).format("YYYY-MM-DD"))] = count;
       });
@@ -263,14 +265,14 @@ function create_event_graph_otx(elem, event_data) {
           eventsByAuthor[pulse.author_name].push([pulse.indicator_created, pulse.pulse_name]);
       }
       else {
-          // it this author has a pulse contribution in last 30 days
+          // if this author has a pulse contribution in last 30 days
           if (dates.indexOf(moment(pulse.indicator_created).format("YYYY-MM-DD")) !== -1)
               eventsByAuthor[pulse.author_name] = [[pulse.indicator_created, pulse.pulse_name]];
       }
   }
 
   for (author in eventsByAuthor) {
-      let data = new Array(30).fill(null);
+      let data = new Array(N_DAYS).fill(null);
       let v = []
 
       for (d of eventsByAuthor[author]) {

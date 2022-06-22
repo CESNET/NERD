@@ -152,7 +152,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
      {{ blacklist_tag_with_box(bl_entry, ip, domain=True) }}
    {% endfor %}
   </div></dd>
-  {% set bl = ipinfo.pop('dbl') %}
+  {% set dbl = ipinfo.pop('dbl') %}
 {% endif %}
 
 {# Warden events #}
@@ -303,12 +303,12 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 </div>
 
 {# Event plot BLACKLISTS -#}
-{% if bl %}
+{% if bl or dbl %}
 <p class="caption">Presence on blacklists</p>
 <div class="chart-container" style="position: relative; width: 100%; ">
 <canvas id="plot-events-bl" width="100" height="250"></canvas>
 <script>
-  let bl_data = {{ bl|tojson if bl else [] }};
+  let bl_data = {{ ((bl or []) + (dbl or []))|tojson }};
   let bl_info = {{ blacklist_info|tojson if blacklist_info else [] }};
   if (bl_data.length > 0)
     $( function() {create_event_graph_bl('plot-events-bl', bl_data, bl_info)} );
