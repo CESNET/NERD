@@ -14,41 +14,7 @@
   {%- if field.errors %} <span class="error">{{ ', '.join(field.errors) }}</span>{% endif %}
 {%- endmacro %}
 
-<form method="GET" action="{{ url_for('ips') }}" id="searchForm">
-  <div>
-    {# form.csrf_token #}
-    {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
-    {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
-    {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
-    {{ formfield(form.asn, size=7) }}
-  </div>
-  <div>
-    {{ form.source.label }} <span id="source_op_button" class="op_button"></span> {{ form.source() }}{{ form.source_op() }}{%- if form.source.errors %} <span class="error">{{ ', '.join(form.source.errors) }}</span>{% endif %}
-  </div>
-  <div>
-    {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
-    {%- if ac('nodenames') %}
-    &nbsp; &amp; &nbsp;
-    {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
-    {% endif %}
-  </div>
-  <div>
-    {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
-    {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
-    {{ formfield(form.tag_conf, size=1)}}
-  </div>
-  <div>
-    {{ formfield(form.sortby) }}
-    {{ formfield(form.asc) }}
-  </div>
-  <div>
-    {{ formfield(form.limit, size=10) }}
-  </div>
-  <div>
-    <input type="submit">
-  </div>
-</form>
-<script>set_up_search_form();</script>
+
 
     <div class="tabContainer">
         <div class="buttonContainer">
@@ -56,39 +22,56 @@
             <button onclick="changeTab(1,'#0061a2')">Multiple IP Search</button>
         </div>
         <div class="tabPanel">
-            <form method="GET"  action="{{ url_for('ips') }}">
-                {#   form.csrf_token#}
-                {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
-                {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
-                {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
-                {{ formfield(form.asn, size=7) }}
-                <br>
-                {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
-                {%- if ac('nodenames') %}
-                    &nbsp; &amp; &nbsp;
-                    {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
-                {% endif %}
-                <br>
-                {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
-                {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
-                {{ formfield(form.tag_conf, size=1)}}
-                <br>
-                {{ formfield(form.sortby) }}
-                {{ formfield(form.asc) }}<br>
-                {{ formfield(form.limit, size=10) }}<br>
-                <input type="submit">
-            </form>
+          <form method="GET" action="{{ url_for('ips') }}" class="searchForm">
+            <div>
+              {# form.csrf_token #}
+              {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
+              {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
+              {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
+              {{ formfield(form.asn, size=7) }}
+            </div>
+            <div>
+              {{ form.source.label }} <span id="source_op_button" class="op_button"></span> {{ form.source() }}{{ form.source_op() }}{%- if form.source.errors %} <span class="error">{{ ', '.join(form.source.errors) }}</span>{% endif %}
+            </div>
+            <div>
+              {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
+              {%- if ac('nodenames') %}
+              &nbsp; &amp; &nbsp;
+              {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
+              {% endif %}
+            </div>
+            <div>
+              {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+              {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
+              {{ formfield(form.tag_conf, size=1)}}
+            </div>
+            <div>
+              {{ formfield(form.sortby) }}
+              {{ formfield(form.asc) }}
+            </div>
+            <div>
+              {{ formfield(form.limit, size=10) }}
+            </div>
+            <div>
+              <input type="submit">
+            </div>
+          </form>
         </div>
 
         <div class="tabPanel">
-            <form method="GET"  action="{{ url_for('ips') }}">
-                {{ formfield(form.ip_list) }}
+            <form method="GET"  action="{{ url_for('ips') }}" class="searchForm">
+              <div>
+                <label>IP addresses</label><br>
+                {{ formfield(form.ip_list, size=20) }}<br>
                 <button type="button" onclick="parser()">Parse IPs</button>
-                <br>
+              </div>
+            <div>
                 {{ formfield(form.sortby) }}
                 {{ formfield(form.asc) }}<br>
-                <br>
+              </div>
+            <div>
                 <input type="submit" onclick="parser()">
+              </div>
             </form>
         </div>
         <script>set_up_search_form();</script>
@@ -101,13 +84,24 @@
 <input type="hidden" id="bl-check-form-ip" name="LOOKUPADDRESS" value="">
 <input type="hidden" name="Lookup+Hostname" value="Check+Blacklists">
 </form>
+<div id="results_div">
+  <div>
+    <p id="results_label">Results (
+    {%- if results|length >= form.limit.data -%}
+    <a href="#" title="Click to get total count" onclick="$(this).hide(); $('#results_label span').show(); $.ajax('{{url_for('ips_count')}}', {data: '{{query_params}}', method: 'POST', contentType: 'application/json'}).done(function (data) {$('#results_label span').html(data);}).fail(function (data) {$('#results_label span').text('ERROR');}); return false;">&ge;{{form.limit.data}}</a><span style="display: none">&ge;{{form.limit.data}}<img src="{{url_for('static', filename='spin.gif')}}" style="height: 0.8em; width: 0.8em;"></span>
+    {%- else -%}
+    {{ results|length }}
+    {%- endif -%})
+    </p>
+</div>
+  <div>
+    <a href={{url_for('ips_download') + '?' + query_params_url}}>
+      <button class="download-btn">Download</button>
+    </a>
+  </div>
+</div>
 
-<p id="results_label">Results (
-{%- if results|length >= form.limit.data -%}
- <a href="#" title="Click to get total count" onclick="$(this).hide(); $('#results_label span').show(); $.ajax('{{url_for('ips_count')}}', {data: '{{query_params}}', method: 'POST', contentType: 'application/json'}).done(function (data) {$('#results_label span').html(data);}).fail(function (data) {$('#results_label span').text('ERROR');}); return false;">&ge;{{form.limit.data}}</a><span style="display: none">&ge;{{form.limit.data}}<img src="{{url_for('static', filename='spin.gif')}}" style="height: 0.8em; width: 0.8em;"></span>
-{%- else -%}
- {{ results|length }}
-{%- endif -%})</p>
+
 
 <!---------- Table with results ---------->
 <table id="entity_table" class="main_table">
@@ -270,9 +264,6 @@
 {% endfor %}
 </table>
 
-<a href={{url_for('ips_download') + '?' + query_params_url}}>
-    <button class="download-btn">Download</button>
-</a>
 {% elif error %}
 <p class="error">{{
 {

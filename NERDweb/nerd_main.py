@@ -771,7 +771,7 @@ def subnet_validator(form, field):
 
 class IPFilterForm(FlaskForm):
     subnet = StringField('IP prefix', [validators.Optional(), subnet_validator], filters=[strip_whitespace])
-    ip_list = TextAreaField('IP addresses')
+    ip_list = TextAreaField('')
     hostname = StringField('Hostname suffix', [validators.Optional()], filters=[strip_whitespace])
     country = StringField('Country code', [validators.Optional(), validators.length(2, 2)], filters=[strip_whitespace])
     asn = StringField('ASN', [validators.Optional(),

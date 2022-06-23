@@ -467,10 +467,7 @@ input.error {
 
 #results_label {
   font-weight: bold;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
-  padding-top: 0.5em;
-  border-top: 1px solid #bbb;
+  
 }
 #results_label a {
   text-decoration: none;
@@ -1090,10 +1087,28 @@ ul.data-list li ul li {
   display: none;
 }
 
-#searchForm
+.searchForm
 {
   display: flex;
-  height: 200px;
+  min-height: 200px;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.searchForm textarea
+{
+  min-height: 100px;
+  min-width: 400px;
+}
+
+#results_div
+{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding-top: 0.5em;
+  border-top: 1px solid #bbb;
+  align-items: baseline;
 }
