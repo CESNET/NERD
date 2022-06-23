@@ -61,8 +61,8 @@ tags_cfg_file = os.path.join(cfg_dir, config.get('tags_config'))
 config_tags = common.config.read_config(tags_cfg_file)
 
 # Read blacklists config (to separate dict)
-bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
-config_bl = common.config.read_config(bl_cfg_file)
+bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config')) # secondary blacklists
+p_bl_cfg_file = os.path.join(cfg_dir, config.get('p_bl_config')) # primary blacklists
 dnsbl_cfg_file = os.path.join(cfg_dir, config.get('dnsbl')) # dnsbl blacklists (secondary)
 bl_config = common.config.read_config(bl_cfg_file)
 p_bl_config = common.config.read_config(p_bl_cfg_file)
@@ -742,8 +742,8 @@ def get_ip_blacklists():
     blacklists = [(bl_name, bl_name) for bl_group in config.get('dnsbl.blacklists', []) for bl_name in
                   bl_group[2].values()]
     # Blacklists cached in Redis (IP and prefix)
-    blacklists += [(bl[0], bl[1]) for bl in config_bl.get('iplists', [])]
-    blacklists += [(bl[0], bl[1]) for bl in config_bl.get('prefixiplists', [])]
+    #blacklists += [(bl[0], bl[1]) for bl in bl_config.get('iplists', [])]
+    # blacklists += [(bl[0], bl[1]) for bl in bl_config.get('prefixiplists', [])]
     blacklists.sort()
     return blacklists
 
@@ -771,6 +771,7 @@ def subnet_validator(form, field):
 
 class IPFilterForm(FlaskForm):
     subnet = StringField('IP prefix', [validators.Optional(), subnet_validator], filters=[strip_whitespace])
+    ip_list = TextAreaField('IP addresses')
     hostname = StringField('Hostname suffix', [validators.Optional()], filters=[strip_whitespace])
     country = StringField('Country code', [validators.Optional(), validators.length(2, 2)], filters=[strip_whitespace])
     asn = StringField('ASN', [validators.Optional(),
