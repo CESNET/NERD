@@ -10,17 +10,21 @@ assearch        *
 ipblocksearch   *
 orgsearch       *
 bgpprefsearch   *
+map             *
+data            *
 
 pdns            *
 shodan          *
 export          *
 
-unlimited_export   trusted
-nodenames          trusted
-warden_alerts      trusted
-eml_rank           trusted
-tlp-green          trusted
-mentat             mentat
+unlimited_search admin
+
+nodenames       trusted
+warden_alerts   trusted
+eml_rank        trusted
+mispevent       *
+tlp-green       trusted
+mentat          mentat
 
 # Admin tools
 internal_attrs  admin

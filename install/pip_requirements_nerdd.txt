@@ -19,3 +19,4 @@ zmq
 amqpstorm
 jsonpath_rw
 jsonpath_rw_ext
+OTXv2

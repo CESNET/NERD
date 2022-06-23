@@ -5,7 +5,6 @@ import random
 import os.path
 import psycopg2
 import sys
-from flask import flash
 
 __all__ = ['get_user_info', 'get_all_groups', 'authenticate_with_token', 'generate_unique_token']
 

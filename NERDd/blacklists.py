@@ -70,6 +70,11 @@ def parse_bl_with_regex(bl_data, cregex):
                 bl_records.append(str(ipaddress.IPv4Address(bl_data[record_start:record_end])))
             except ipaddress.AddressValueError:
                 continue
+    else:
+        for line in bl_data.split('\n'):
+            match = cregex.search(line)
+            if match:
+                bl_records.append(str(ipaddress.IPv4Address(match.group(1))))
     return bl_records
 
 
@@ -151,14 +156,14 @@ def get_blacklist(id, name, url, regex, bl_type, params):
     download_time = datetime.utcnow()
     now_plus_3days = download_time + timedelta(days=3)
 
-    log.info("{} IPs found, sending tasks to NERD workers".format(len(bl_records)))
+    log.info("{} IPs found in '{}', sending tasks to NERD workers".format(len(bl_records), id))
 
     for ip in bl_records:
         task_queue_writer.put_task('ip', ip, [
             ('setmax', '_ttl.bl', now_plus_3days),
             ('array_upsert', 'bl', {'n': id},
                 [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)])
-        ])
+        ], "blacklists")
 
 
 def stop(signal, frame):
@@ -230,11 +235,13 @@ if __name__ == "__main__":
 
     # Process all blacklists now
     if args.now or args.one_shot:
-        for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
-            if len(other_params) > 1:
-                print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(
-                    config_path, id), file=sys.stderr)
-            other_params = other_params[0] if other_params else {}
+        for bl in config.get(config_path, []):
+            id = bl['id']
+            name = bl['name']
+            url = bl['url']
+            regex = bl.get('regex', '')
+            refresh_time = bl['time']
+            other_params = bl.get('params', {})
             assert isinstance(other_params, dict), "The additional parameter must be a dict (in config of {}.{})".format(
                 config_path, id)
             # Process the blacklist
@@ -246,11 +253,13 @@ if __name__ == "__main__":
 
         # Load config of each blacklist and schedule its processing
         # (other_params should be empty or a dict containing optional parameters such as 'url_params' or 'headers')
-        for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
-            if len(other_params) > 1 and not args.now: # if args.now, the warning was already printed by the code above
-                print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(
-                      config_path, id), file=sys.stderr)
-            other_params = other_params[0] if other_params else {}
+        for bl in config.get(config_path, []):
+            id = bl['id']
+            name = bl['name']
+            url = bl['url']
+            regex = bl.get('regex', '')
+            refresh_time = bl['time']
+            other_params = bl.get('params', {})
 
             trigger = CronTrigger(**refresh_time)
             job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, other_params),

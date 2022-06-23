@@ -14,18 +14,15 @@ import struct
 import hashlib
 import requests
 import flask
-from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response,  send_file
-from flask_pymongo import pymongo, PyMongo, ASCENDING, DESCENDING
+from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
+from flask_pymongo import pymongo, PyMongo
 import pymongo.errors
 from flask_wtf import FlaskForm
 from flask_mail import Mail, Message
-from wtforms import validators, TextField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, \
-    SelectField, SelectMultipleField, PasswordField
+from wtforms import validators, StringField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
 import dateutil.parser
-import jinja2
 import pymisp
 from pymisp import ExpandedPyMISP
-import signal
 from ipaddress import IPv4Address, AddressValueError
 from event_count_logger import EventCountLogger, EventGroup, DummyEventGroup
 
@@ -66,6 +63,38 @@ config_tags = common.config.read_config(tags_cfg_file)
 # Read blacklists config (to separate dict)
 bl_cfg_file = os.path.join(cfg_dir, config.get('bl_config'))
 config_bl = common.config.read_config(bl_cfg_file)
+dnsbl_cfg_file = os.path.join(cfg_dir, config.get('dnsbl')) # dnsbl blacklists (secondary)
+bl_config = common.config.read_config(bl_cfg_file)
+p_bl_config = common.config.read_config(p_bl_cfg_file)
+dnsbl_config = common.config.read_config(dnsbl_cfg_file)
+
+# Dict: blacklist_id -> parameters
+#  parameters should contain:
+#    all: id, name, descr, feed_type
+#    dnsbl-only: zone, reply
+#    others: url
+#    optional: provider_link, firehol_link
+blacklist_info = {}
+for feed_info in p_bl_config.get('iplists', []):
+    feed_info["feed_type"] = "primary"
+    blacklist_info[feed_info['id']] = feed_info
+for feed_info in bl_config.get('iplists', []):
+    feed_info["feed_type"] = "secondary"
+    blacklist_info[feed_info['id']] = feed_info
+for feed_info in bl_config.get('prefixiplists', []):
+    feed_info["feed_type"] = "secondary"
+    blacklist_info[feed_info['id']] = feed_info
+for feed_info in bl_config.get('domainlists', []):
+    feed_info["feed_type"] = "secondary (domain)"
+    blacklist_info[feed_info['id']] = feed_info
+for zone, replies in dnsbl_config.get('dnsbl', {}).items():
+    for reply, feed_info in replies.items():
+        feed_info["feed_type"] = "secondary (DNSBL)"
+        feed_info['descr'] = feed_info['descr'].replace("<br>", " ")
+        feed_info["zone"] = zone
+        feed_info["reply"] = reply
+        blacklist_info[feed_info['id']] = feed_info
+
 
 # Read EventCountLogger config (to separate dict) and initialize loggers
 ecl_cfg_filename = config.get('event_logging_config', None)
@@ -104,7 +133,7 @@ else:
     print("ERROR: unknown 'eventdb' configured, it will not be possible to show raw events in GUI", file=sys.stderr)
 
 try:
-    misp_inst = ExpandedPyMISP(config['misp']['url'], config['misp']['key'], None)
+    misp_inst = ExpandedPyMISP(config['misp']['url'], config['misp']['key'], ssl=config.get('misp.verify_cert', True))
 except KeyError:
     misp_inst = None # None means not configured
 except pymisp.exceptions.PyMISPError as e:
@@ -133,11 +162,16 @@ app.jinja_env.trim_blocks = True
 app.jinja_env.lstrip_blocks = True
 
 # Configuration of PyMongo
-app.config['MONGO_URI'] = "mongodb://{}:{}/{}".format(
-    config.get('mongodb.host', 'localhost'),
-    config.get('mongodb.port', 27017),
-    config.get('mongodb.dbname', 'nerd')
-)
+mongo_dbname = config.get('mongodb.dbname', 'nerd')
+mongo_host = config.get('mongodb.host', 'localhost:27017')
+if isinstance(mongo_host, list):
+    mongo_host = ','.join(mongo_host)
+mongo_uri = "mongodb://{}/{}".format(mongo_host, mongo_dbname)
+mongo_rs = config.get('mongodb.rs', None)
+if mongo_rs:
+    mongo_uri += '?replicaSet='+mongo_rs
+app.config['MONGO_URI'] = mongo_uri
+print("MongoDB: Connecting to: {}".format(mongo_uri))
 
 mongo = PyMongo(app)
 
@@ -545,8 +579,7 @@ def main():
 
 # ***** Request for new account *****
 class AccountRequestForm(FlaskForm):
-    email = TextField('Contact email', [validators.Required()],
-                      description='Used to send information about your request and in case admins need to contact you.')
+    email = StringField('Contact email', [validators.DataRequired()], description='Used to send information about your request and in case admins need to contact you.')
     message = TextAreaField("", [validators.Optional()])
     action = HiddenField('action')
 
@@ -673,6 +706,7 @@ def account_info():
         if g.user['login_type'] == 'local':
             passwd_form = PasswordChangeForm()
 
+    title = "Account information"
     return render_template('account_info.html', **locals())
 
 
@@ -716,9 +750,9 @@ def get_ip_blacklists():
 
 def get_domain_blacklists():
     # Get the list of all configured domain blacklists. Return array of (id, name).
-    blacklists = [(bl[0], bl[1]) for bl in config_bl.get('domainlists', [])]
-    blacklists.sort()
-    return blacklists
+    dom_lists = [(id, info['name']) for id, info in blacklist_info.items() if info['feed_type'] == "secondary (domain)"]
+    dom_lists.sort()
+    return dom_lists
 
 
 def get_tags():
@@ -736,15 +770,15 @@ def subnet_validator(form, field):
 
 
 class IPFilterForm(FlaskForm):
-    subnet = TextField('IP prefix', [validators.Optional(), subnet_validator], filters=[strip_whitespace])
-    ip_list = TextAreaField('IP adresses')
-    hostname = TextField('Hostname suffix', [validators.Optional()], filters=[strip_whitespace])
-    country = TextField('Country code', [validators.Optional(), validators.length(2, 2)], filters=[strip_whitespace])
-    asn = TextField('ASN', [validators.Optional(),
-                            validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
-                                              message='Must be a number, optionally preceded by "AS".')],
-                    filters=[strip_whitespace])
-    cat = SelectMultipleField('Event category', [validators.Optional()])  # Choices are set up dynamically (see below)
+    subnet = StringField('IP prefix', [validators.Optional(), subnet_validator], filters=[strip_whitespace])
+    hostname = StringField('Hostname suffix', [validators.Optional()], filters=[strip_whitespace])
+    country = StringField('Country code', [validators.Optional(), validators.length(2, 2)], filters=[strip_whitespace])
+    asn = StringField('ASN', [validators.Optional(),
+        validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
+        message='Must be a number, optionally preceded by "AS".')], filters=[strip_whitespace])
+    source = SelectMultipleField('Source', [validators.Optional()])
+    source_op = HiddenField('', default="or")
+    cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
     cat_op = HiddenField('', default="or")
     node = SelectMultipleField('Node', [validators.Optional()])
     node_op = HiddenField('', default="or")
@@ -775,10 +809,25 @@ class IPFilterForm(FlaskForm):
         # Dynamically load list of Categories/Nodes and their number of occurrences
         # Collections n_ip_by_* should be periodically updated by queries run by
         # cron (see /scripts/update_db_meta_info.js)
-        self.cat.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in
-                            mongo.db.n_ip_by_cat.find().sort('_id') if item['_id']]
-        self.node.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in
-                             mongo.db.n_ip_by_node.find().sort('_id') if item['_id']]
+
+        # Defining sources and mapping DB name -> user readable name
+        source_names = { "bl": "Blacklists", 
+                        "dshield": "DShield", 
+                        "otx": "OTX",
+                        "warden": "Warden", 
+                        "misp": "MISP"}
+        # get aggregation
+        all_sources = mongo.db.ip.aggregate([{"$project": {"ttl": {"$objectToArray": "$_ttl"}}}, {"$unwind": "$ttl"}, {"$group": {"_id": "$ttl.k", "cnt": {"$sum": 1}}}, {"$sort": {"cnt": -1}}])
+        srcs = {item["_id"]: item["cnt"] for item in all_sources}
+        self.source.choices = []
+        for i in source_names.keys():
+            if i in srcs:
+                self.source.choices.append((i, '{} ({})'.format(source_names[i], int(srcs[i]))))
+            else:
+                self.source.choices.append((i, '{} (0)'.format(source_names[i])))
+
+        self.cat.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_cat.find().sort('_id') if item['_id']]
+        self.node.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_node.find().sort('_id') if item['_id']]
         # Number of occurrences for blacklists (list of blacklists is taken from configuration)
         bl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_bl.find()}
         dbl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_dbl.find()}
@@ -843,8 +892,10 @@ def create_query(form):
         if asrec and 'bgppref' in asrec:
             queries.append({'bgppref': {'$in': asrec['bgppref']}})
         else:
-            queries.append(
-                {'_id': {'$exists': False}})  # ASN not in DB, add query which is always false to get no results
+            queries.append( {'_id': {'$exists': False}} ) # ASN not in DB, add query which is always false to get no results
+    if form.source.data:
+        op = '$and' if (form.source_op.data == "and") else '$or'
+        queries.append( {op: [{'_ttl.' + s.lower(): {'$exists': True}} for s in form.source.data]} )
     if form.cat.data:
         op = '$and' if (form.cat_op.data == "and") else '$or'
         queries.append({op: [{'events.cat': cat} for cat in form.cat.data]})
@@ -902,23 +953,28 @@ def ips():
         for ip in results:
             ip['_id'] = int2ipstr(ip['_id'])
 
+        # Add info about ASNs
+        # Additional DB queries are needed (IP record only links to bgppref, bgppref links to ASN(s))
+        # TODO: similar functionality is in attach_whois_info(), use it
         for ip in results:
             if "bgppref" in ip:
+                # Get bgppref record
                 asn_list = []
                 bgppref = mongo.db.bgppref.find_one({'_id': ip['bgppref']})
                 if not bgppref or 'asn' not in bgppref:
-                    continue  # an inconsistence in DB, it may happen temporarily
+                    continue # an inconsistence in DB, it may happen temporarily, TODO: print warning?
 
-                for i in bgppref['asn']:
-                    i = mongo.db.asn.find_one({'_id': i})
-                    if not i or 'bgppref' not in i:
-                        continue
-                    del i['bgppref']
-                    asn_list.append(i)
+                # Load all ASN records linked from bgppref
+                for as_num in bgppref['asn']:
+                    as_rec = mongo.db.asn.find_one({'_id': as_num})
+                    if not as_rec or 'bgppref' not in as_rec:
+                        continue # AS record not found or doesn't link back to any bgppref - an inconsistence in DB which may happen temporarily
+                    del as_rec['bgppref']
+                    asn_list.append(as_rec)
 
                 del bgppref['asn']
                 ip['bgppref'] = bgppref
-                ip['asn'] = asn_list
+                ip['asn'] = asn_list # List of full ASN records
 
         # Add metainfo about events for easier creation of event table in the template
         for ip in results:
@@ -986,8 +1042,8 @@ def ips():
         results = None
         if g.user and not g.ac('ipsearch'):
             flash('Insufficient permissions to search/view IPs.', 'error')
-
-    return render_template('ips.html', json=json, ctrydata=ctrydata, **locals())
+    
+    return render_template('ips.html', json=json, ctrydata=ctrydata, blacklist_info=blacklist_info, **locals())
 
 
 @app.route('/_ips_count', methods=['POST'])
@@ -1121,11 +1177,27 @@ def ips_download():
         flash("You are not authorized to download search results.")
         return redirect("/nerd/ips/")
 
+@app.route('/feed/<feedname>')
+def feed(feedname=None):
+    # Search for feedname in list of all (non-dnsbl) feeds
+    feed = blacklist_info.get(feedname)
+    if not feed:
+        return flask.abort(404)
+
+    name = feed['name']
+    description = feed['descr'].replace("<br>", " ")
+    firehol_link = feed.get('firehol_link', None)
+    provider_link = feed['provider_link']
+    feed_type = feed['feed_type']
+    url = feed.get('url', None)
+    # TODO use 'zone' and 'reply' od dnsbl lists
+
+    return render_template('feed.html', **locals())
+
 # ***** Detailed info about individual IP *****
 
 class SingleIPForm(FlaskForm):
-    ip = TextField('IP address', [validator_optional, validators.IPAddress(message="Invalid IPv4 address")],
-                   filters=[strip_whitespace])
+    ip = StringField('IP address', [validator_optional, validators.IPAddress(message="Invalid IPv4 address")], filters=[strip_whitespace])
 
 
 @app.route('/ip/')
@@ -1168,7 +1240,7 @@ def ip(ipaddr=None):
     else:
         title = 'IP detail search'
         ipinfo = {}
-    return render_template('ip.html', ctrydata=ctrydata, ip=ipaddr, **locals())
+    return render_template('ip.html', ctrydata=ctrydata, ip=ipaddr, blacklist_info=blacklist_info, **locals())
 
 
 # Functions to asynchornously request creation of a new IP record
@@ -1181,19 +1253,23 @@ def ajax_request_ip_data(ipaddr):
     This cost 10 rate-limit tokens (9 are taken here since 1 is taken in @before_request)
     """
     log_ep.log('/ajax/fetch_ip_data')
+    if not g.ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions', 403)
     user_id = get_user_id()
     ok = rate_limiter.try_request(user_id, cost=9)
     if not ok:
         return exceeded_rate_limit(user_id)
 
     record_ttl = datetime.utcnow() + timedelta(hours=3)
-    task_queue_writer.put_task('ip', ipaddr, [('set', '_ttl.web', record_ttl)], priority=True)
+    task_queue_writer.put_task('ip', ipaddr, [('set', '_ttl.web', record_ttl)], "web", priority=True)
     return make_response("OK")
 
 
 @app.route('/ajax/is_ip_prepared/<ipaddr>')
 def ajax_is_ip_prepared(ipaddr):
     log_ep.log('/ajax/is_ip_prepared')
+    if not g.ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions')
     try:
         ipaddress.IPv4Address(ipaddr)
     except AddressValueError:
@@ -1214,10 +1290,10 @@ def ajax_ip_events(ipaddr):
     """Return events related to given IP (as HTML snippet to be loaded via AJAX)"""
     log_ep.log('/ajax/ip_events')
 
+    if not g.ac('ipsearch'):
+        return make_response('ERROR: Insufficient permissions', 403)
     if not ipaddr:
         return make_response('ERROR')
-    if not g.ac('ipsearch'):
-        return make_response('ERROR: Insufficient permissions')
 
     events = []
     error = None
@@ -1266,6 +1342,9 @@ def ajax_ip_events(ipaddr):
 @app.route('/misp_event/<event_id>')
 def misp_event(event_id=None):
     log_ep.log('/misp_event')
+    title = "MISP event detail"
+    if not g.ac('mispevent'):
+        return make_response('ERROR: Insufficient permissions', 403)
     if not misp_inst:
         return render_template("misp_event.html", error="Cannot connect to MISP instance")
     if not event_id:
@@ -1285,14 +1364,14 @@ def misp_event(event_id=None):
                 tlp = tag['name'][4:]
                 break
 
-        return render_template('misp_event.html', event=event, tlp=tlp)
+        return render_template('misp_event.html', title=title, event=event, tlp=tlp)
 
 
 # ***** Detailed info about individual AS *****
 
 class SingleASForm(FlaskForm):
-    asn = TextField('AS number', [validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
-                                                    message='Must be a number, optionally preceded by "AS".')])
+    asn = StringField('AS number', [validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
+            message='Must be a number, optionally preceded by "AS".')])
 
 
 @app.route('/as/')
@@ -1325,7 +1404,7 @@ def asn(asn=None):  # Can't be named "as" since it's a Python keyword
 # ***** Detailed info about individual IP block *****
 
 # class SingleIPBlockForm(FlaskForm):
-#     ip = TextField('IP block')#, [validators.IPAddress(message="Invalid IPv4 address")])
+#     ip = StringField('IP block')#, [validators.IPAddress(message="Invalid IPv4 address")])
 
 @app.route('/ipblock/')
 @app.route('/ipblock/<ipblock>')
@@ -1404,6 +1483,9 @@ def bgppref(bgppref=None):
 @app.route('/status')
 def get_status():
     log_ep.log('/status')
+    if not g.ac("statusbox"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
     cnt_ip = mongo.db.ip.count()
     cnt_bgppref = mongo.db.bgppref.count()
     cnt_asn = mongo.db.asn.count()
@@ -1470,6 +1552,10 @@ def iplist():
 @app.route('/map/')
 def map_index():
     log_ep.log('/map')
+    if not g.ac("map"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
+    title = "IP map"
     ipvis_url = config.get("ipmap.url", None)
     ipvis_token = config.get("ipmap.token", None)
     return render_template("map.html", **locals())
@@ -1477,27 +1563,42 @@ def map_index():
 
 # ******************** Static/precomputed data ********************
 
-FILE_IP_REP = "/data/web_data/ip_rep.csv"
+#TODO: move to config
+DATA_DIR = "/data/web_data"
+# List of supported files - needed to get their size for data.html template
+# (also, it's safer to check client request against a fixed set of files, rather than to check for file existence,
+# handle attempts like "../../something" etc.)
+FILES = [
+    "ip_rep.csv",
+    "bad_ips.txt",
+    "bad_ips_med_conf.txt",
+]
 
 
 @app.route('/data/')
 def data_index():
     log_ep.log('/data')
-    try:
-        ip_rep_file_size = os.stat(FILE_IP_REP).st_size
-    except OSError:
-        ip_rep_file_size = None
-    return render_template("data.html", **locals())
+    if not g.ac("data"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
+    title = "Data"
+    file_sizes = {}
+    for f in FILES:
+        try:
+            file_sizes[f] = os.stat(os.path.join(DATA_DIR, f)).st_size
+        except OSError:
+            file_sizes[f] = None
+    return render_template("data.html", title=title, file_sizes=file_sizes)
 
 
 @app.route('/data/ip_rep.csv')
 def data_ip_rep():
     log_ep.log('/data/ip_rep_csv')  # use _csv, not .csv, dot in event name makes problems with Munin
     try:
-        return flask.send_file(FILE_IP_REP, mimetype="text/plain", as_attachment=True)
-    except OSError:
-        log_err.log('5xx_other')
-        return Response('ERROR: File not found on the server', 500, mimetype='text/plain')
+        return flask.send_file(os.path.join(DATA_DIR, filename), mimetype="text/plain", as_attachment=True)
+    except OSError as e:
+        print(f"data_file(): Can't access file '{os.path.join(DATA_DIR, filename)}'")
+        return flask.abort(404)
 
 
 # ****************************** API ******************************
@@ -1566,6 +1667,12 @@ def conv_dates(rec):
 
 
 def attach_whois_data(ipinfo, full):
+    """
+    Attach records of related entities to given IP record.
+
+    If full==True, attach full records of BGP prefix, ASNs, IP block, Org entities (as 'bgppref, 'asn', 'ipblock' and 'org' keys),
+    otherwise only attach list of ASN numbers (as 'asn' key).
+    """
     if not full:
         # Only attach ASN number(s)
         if 'bgppref' in ipinfo:
@@ -1786,9 +1893,9 @@ def get_ip_fmp(ipaddr=None):
 @app.route('/api/v1/ip/<ipaddr>/test')  # No query to database - for performance comparison
 def get_ip_rep_test(ipaddr=None):
     log_ep.log('/api/ip/test')
-    # if not g.ac('ipsearch'):
-    #    log_err.log('403_unauthorized')
-    #    return API_RESPONSE_403
+    if not g.ac('ipsearch'):
+        log_err.log('403_unauthorized')
+        return API_RESPONSE_403
 
     # Return simple JSON
     data = {
@@ -2154,4 +2261,4 @@ if __name__ == "__main__":
     config['login']['methods'] = {}
     # Run built-in server
     app.run(host="127.0.0.1", debug=True)
-
+    

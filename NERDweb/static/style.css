@@ -503,7 +503,8 @@ td.events span + span {
   border-left: 1px dotted #888;
   text-align: center;
 }
-td.events span.misp {
+td.events span.misp,
+td.events span.otx {
   font-size: 0.8em;
   color: #222;
   margin-top: 0.2em;
@@ -562,6 +563,34 @@ td.links img {
 .tag.blacklist {
   background: #533;
 }
+
+
+.tag-list-container {
+  position: relative;
+}
+.tag-list-container .tag {
+  cursor: pointer;
+}
+.tag.detail-opened {
+  box-shadow: 0px 0px 3px 3px rgba(127, 48, 0, 0.6);
+  position: relative;
+  top: 2px;
+}
+.tag-detail-box {
+  display: none;
+  position: absolute;
+  z-index: 2;
+  background: #fff;
+  color: #000;
+  border: 1px #777 solid;
+  box-shadow: 5px 5px 7px 0px rgba(0,0,0,0.5);
+  margin: 0.5em 0;
+  padding: 0.5em 0.5em;
+}
+.tag.detail-opened + .tag-detail-box {
+  display: block;
+}
+
 
 /**************/
 /* Dropdown menu for service links in ips.html */
@@ -695,6 +724,10 @@ td.links img {
   border-left: 1px dotted #444;
 }
 
+.caption {
+  font-size: 1.5em;
+  font-weight: bold;
+}
 
 dl.attrs dt {
   font-weight: bold;
@@ -786,10 +819,6 @@ dd dl dt:first-child {
 
 #event-details {
   margin: 1em 0 0.5em 0;
-}
-#event-details .caption {
-  font-size: 1.5em;
-  font-weight: bold;
 }
 #event-details .counts {
   font-size: 1.0em;
@@ -960,6 +989,23 @@ div.idea .nodes li:first-child:last-child::before {
   content: '\2022';
 }
 
+/****************************************/
+/* Downloadable data */
+
+ul.data-list {
+  padding-left: 1.5em;
+}
+
+ul.data-list li {
+  margin-top: 1em;
+}
+
+ul.data-list li ul li {
+  margin-top: 0.4em;
+  color: #777;
+}
+
+
 /***********************************************/
 /* NERD status block */
 #status-block {
@@ -1042,4 +1088,12 @@ div.idea .nodes li:first-child:last-child::before {
   font-family: inherit;
   font-size: 1.1em;
   display: none;
+}
+
+#searchForm
+{
+  display: flex;
+  height: 200px;
+  flex-direction: column;
+  justify-content: space-between;
 }

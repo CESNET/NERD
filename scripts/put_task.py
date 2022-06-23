@@ -24,12 +24,13 @@ parser = argparse.ArgumentParser(
     prog="put_task.py",
     description="Put a single task (aka update_request) to the main NERD Task Queue."
 )
-parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
-                    help='Path to backend configuration file (default: /etc/nerd/nerdd.yml)')
+parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerd.yml',
+                    help='Path to main NERD configuration file (default: /etc/nerd/nerd.yml)')
 parser.add_argument("-v", dest="verbose", action="store_true", help="Verbose mode")
 parser.add_argument("etype", metavar="TYPE", help="Entity type (e.g. 'ip', 'asn')")
 parser.add_argument("eid", metavar="ID", help="Entity ID (e.g. '1.2.3.4')")
 parser.add_argument("requests", metavar="UPDATE_SPEC", nargs='+', help="An update request as a JSON-encoded array, e.g. '[\"set\",\"test\",1]' or '[\"event\", \"!refresh_tags\"]'")
+parser.add_argument("-s", '--source', metavar="SOURCE_NAME", default="", help="Source name (e.g. 'blacklists', 'misp_receiver', 'otx_receiver', 'updater', 'warden_receiver', 'updater_manager', 'web', 'misp_updater')")
 args = parser.parse_args()
 
 if args.verbose:
@@ -63,7 +64,7 @@ tqw.connect()
 
 # Put task
 logger.debug("Sending task for {}/{}: {}".format(args.etype, args.eid, requested_changes))
-tqw.put_task(args.etype, args.eid, requested_changes)
+tqw.put_task(args.etype, args.eid, requested_changes, args.source)
 
 # Close connection
 tqw.disconnect()

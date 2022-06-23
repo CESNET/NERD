@@ -30,7 +30,19 @@ class Cleaner(NERDModule):
             tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
         )
         g.um.register_handler(
+            self.clear_dshield,
+            'ip',
+            ('!every1d',),
+            tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
+        )
+        g.um.register_handler(
             self.clear_bl_hist,
+            'ip',
+            ('!every1d',),
+            tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
+        )
+        g.um.register_handler(
+            self.clear_otx_pulses,
             'ip',
             ('!every1d',),
             tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
@@ -44,7 +56,7 @@ class Cleaner(NERDModule):
 
     def clear_events(self, ekey, rec, updates):
         """
-        Handler function to clear old events metadata.
+        Handler function to clear old Warden events metadata.
         
         Remove all items under events with "date" older then current
         day minus 'max_event_history' days.
@@ -69,7 +81,29 @@ class Cleaner(NERDModule):
         if actions:
             actions.append(('set', 'events_meta.total', num_events))
         
-        self.log.debug("Cleaning {}: Removing {} old event-records".format(key, len(actions)-1))
+        self.log.debug("Cleaning {}: Removing {} old warden event records".format(key, len(actions)-1))
+        return actions
+
+    def clear_dshield(self, ekey, rec, updates):
+        """
+        Handler function to clear old DShield records
+
+        Remove all items under dshield with "date" older then current
+        day minus 'max_event_history' days.
+        """
+        etype, key = ekey
+        if etype != 'ip':
+            return None
+
+        today = datetime.utcnow().date()
+        cut_day = (today - self.max_event_history).strftime("%Y-%m-%d")
+        # Remove all dshield-records with day before cut_day
+        actions = []
+        for item in rec.get('dshield', []):
+            if item['date'] < cut_day:
+                actions.append(('array_remove', 'dshield', {'date' : item['date']}))
+
+        self.log.debug("Cleaning {}: Removing {} old dshield records".format(key, len(actions)))
         return actions
 
     def clear_bl_hist(self, ekey, rec, updates):
@@ -109,11 +143,32 @@ class Cleaner(NERDModule):
                 actions.append( ('array_update', 'dbl', {'n': blrec['n'], 'd': blrec['d']}, [('set', 'h', newlist)]) )
         
         return actions
+    
+    def clear_otx_pulses(self, ekey, rec, updates):
+        """
+        Handler function to clear old otx pulses data
+        Remove all items under otx_pulses with "indicator_expiration" older then current
+        day minus 'max_event_history' days.
+        """
+        etype, key = ekey
+        if etype != 'ip':
+            return None
+
+        cut_time = datetime.utcnow()-timedelta(days=30)-self.max_event_history
+        actions = []
+        
+        for otx_pulse in rec.get('otx_pulses', []):
+            if (otx_pulse.get('indicator_expiration') and (otx_pulse.get('indicator_expiration') < cut_time)) or ((otx_pulse.get('indicator_expiration') is None) and (otx_pulse.get('indicator_created') < cut_time)):
+                actions.append(('array_remove', 'otx_pulses', {'pulse_id': otx_pulse['pulse_id']}))
+        return actions
 
     def check_ip_expiration(self, ekey, rec, updates):
         """
-        Handler function to issue !every1d event in case the IP record is still valid.
-        If the IP record is no longer valid, a !DELETE event is issued.
+        Check record's TTL tokens, and either issue normal !every1d or delete the record.
+
+        Event !check_and_update_1d is called by Updater instead of normal !every1d, in order to first check if the
+        record still has some valid TTL token. If not (all token has expired), the record is no longer valid and !DELETE
+        event is issued. Otherwise, any expired tokens are removed from '_ttl' dict and normal !every1d event is issued.
         """
         etype, key = ekey
         if etype != 'ip':
@@ -121,26 +176,25 @@ class Cleaner(NERDModule):
 
         now = datetime.utcnow()
         actions = []
-        if rec.get('_ttl'):
-            # copy() has to be present to prevent "dictionary changed size during iteration" RuntimeError while removing
-            # expired token
-            for name, expiration in rec['_ttl'].copy().items():
-                if expiration == '*':
-                    # record should be alive forever
-                    continue
-                elif now >= expiration:
-                    # token expired, remove it
-                    rec['_ttl'].pop(name)
+        ttl_tokens = rec.get('_ttl', {})
+        new_ttl_tokens = ttl_tokens.copy()
+        for name, expiration in ttl_tokens.items():
+            if expiration == '*':
+                # record should be alive forever
+                continue
+            elif now >= expiration:
+                # token expired, remove it
+                new_ttl_tokens.pop(name)
 
-            if not rec['_ttl']:
-                # if all tokens are expired (_ttl empty), then delete the record
-                actions.append(('event', '!DELETE'))
-                return actions
-            else:
-                # otherwise update _ttl
-                actions.append(('set', '_ttl', rec['_ttl']))
+        if not new_ttl_tokens:
+            # all tokens are expired (_ttl empty), delete the record
+            actions.append(('event', '!DELETE'))
+            return actions
 
-        # last event is recent enough or not set at all - keep record and
-        # issue normal !every1d event        
+        if new_ttl_tokens != ttl_tokens:
+            # some token was removed, update _ttl
+            actions.append(('set', '_ttl', rec['_ttl']))
+
+        # there is still at least one _ttl token - keep the record and issue normal !every1d event
         actions.append(('event', '!every1d'))
         return actions

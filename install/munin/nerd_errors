@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [[ "$1" == "config" ]]; then
+  cat <<'END'
+graph_title Errors
+graph_category nerd
+graph_vlabel Number of errors per minute
+graph_period minute
+error_in_module.label "Error in module"
+error_in_module.warning 1
+END
+fi
+
+ecl_reader /etc/nerd/event_logging.yml -g errors -i 5m | sed -E 's/:([0-9]+)$/.value \1/'

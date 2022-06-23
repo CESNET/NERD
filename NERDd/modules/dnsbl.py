@@ -7,6 +7,8 @@ Requirements:
 
 from core.basemodule import NERDModule
 import g
+import os
+import common.config
 
 import ipaddress
 import pycares
@@ -55,7 +57,8 @@ def _make_result_handler(bl, results):
         """
         if res is not None:
             for r in res:
-                blacklist_id = bl[2].get(r.host, None)
+                blacklist = bl[1].get(r.host, {})
+                blacklist_id = blacklist.get('id', None)
                 if blacklist_id:
                     results.append(blacklist_id)
     return handler
@@ -93,7 +96,10 @@ class DNSBLResolver(NERDModule):
         # of python3-adns
         # (https://github.com/trolldbois/python3-adns/blob/master/DNSBL.py)
         # TODO: add possibility to add description to each blacklist to frontend
-        self.blacklists = g.config.get('dnsbl.blacklists', [])
+        #self.blacklists = g.config.get('dnsbl.blacklists', [])
+        cfg_file = os.path.join(g.config_base_path, "dns_blacklists.yml")
+        dnsbl_config = common.config.read_config(cfg_file)
+        self.blacklists = dnsbl_config.get('dnsbl', [])
 
         self.nameservers = g.config.get('dnsbl.nameservers', [])
         if self.nameservers:
@@ -117,7 +123,8 @@ class DNSBLResolver(NERDModule):
         self.req_counter = 0
         self.req_counter_lock = threading.Lock() # query_blacklists() must be thread safe, therefore access to req_counter must use locking
         
-        bl_ids = (id for bl in self.blacklists for id in bl[2].values() )
+        #bl_ids = (id for bl in self.blacklists for id in bl[2].values() )
+        bl_ids = (id[1]['id'] for bl in self.blacklists.items() for id in bl[1].items())
 
         g.um.register_handler(
             self.query_blacklists, # function (or bound method) to call
@@ -205,8 +212,8 @@ class DNSBLResolver(NERDModule):
         results = []        
         
         # Create queries to all blacklists
-        for bl in self.blacklists:
-            channel.query(revip + '.' + bl[1], pycares.QUERY_TYPE_A,
+        for bl in self.blacklists.items():
+            channel.query(revip + '.' + bl[0], pycares.QUERY_TYPE_A,
                 _make_result_handler(bl, results)
             )
         # Send all queries and wait for results
@@ -217,8 +224,9 @@ class DNSBLResolver(NERDModule):
         
         actions = []
         
-        for bl in self.blacklists:
-            for blname in bl[2].values():
+        for blacklists in self.blacklists.items():
+            for blacklist in blacklists[1].items():
+                blname = blacklist[1].get('id')
                 if blname in results:
                     # IP is on blacklist blname
                     self.log.debug("IP address ({0}) is on {1}.".format(key, blname))

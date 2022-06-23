@@ -9,6 +9,7 @@ Acknowledgment:
 This product includes GeoLite2 data created by MaxMind, available from
 http://www.maxmind.com.
 """
+import logging
 
 from core.basemodule import NERDModule
 import g
@@ -33,13 +34,18 @@ class Geolocation(NERDModule):
     """
     
     def __init__(self):
+        self.log = logging.getLogger("Geolocation")
+
         # Get DB path
         db_path = g.config.get('geolocation.geolite2_db_path')
         
         # Instantiate DB reader (i.e. open GeoLite database)
-        self._reader = geoip2.database.Reader(db_path)
-        # TODO: error handlig (can't open file)
-        
+        try:
+            self._reader = geoip2.database.Reader(db_path)
+        except OSError as e:
+            self.log.error(f"Can't open GeoLite2 DB file ({e}). Geolocation module will be disabled!")
+            return
+
         g.um.register_handler(
             self.geoloc,
             'ip',

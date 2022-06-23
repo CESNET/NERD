@@ -4,6 +4,7 @@
 function set_up_search_form() {
 
   // Improve selects using "multiselect" library/plugin
+  $("select#source").multiselect({texts: {placeholder: "\xa0"}, search: true});
   $("select#cat").multiselect({texts: {placeholder: "\xa0"}, search: true});
   $("select#node").multiselect({texts: {placeholder: "\xa0"}, search: true});
   $("select#blacklist").multiselect({texts: {placeholder: "\xa0"}, search: true});
@@ -27,6 +28,7 @@ function set_up_search_form() {
         $(button_id).text("\u22c0").attr("title", title_and);
     }
   }
+  set_up_op_button("#source_op_button", "#source_op", "OR: At least one of the selected categories", "AND: All selected categories")
   set_up_op_button("#cat_op_button", "#cat_op", "OR: At least one of the selected categories", "AND: All selected categories")
   set_up_op_button("#node_op_button", "#node_op", "OR: At least one of the selected nodes", "AND: All selected nodes")
   set_up_op_button("#bl_op_button", "#bl_op", "OR: At least one of the selected blacklists", "AND: All selected blacklists")

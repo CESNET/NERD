@@ -14,11 +14,13 @@ events '!every1d' and '!every1w' (once per day and week, respectively).
 It is also possible to issue additional events for each entity (e.g. when re-processing of some data is needed after
 a configuration change). In order to do this, create a file '<CONFIG_FILE_DIR>/updater_events' whose contents are:
 <entity_type> <event_name> <max_time>
-he entity_type must be one of 'ip', 'asn'. The event_name is the name of the event (should begin with '!') to issue
+The entity_type must be one of 'ip', 'asn'. The event_name is the name of the event (should begin with '!') to issue
 for each entity along with '!every1d'. Events are issued only if current time is less than max_time (ISO/RFC format).
 Since we usually want to issue the event once for each entity, max_time should be set to exactly 24 hours in the future.
 The file can contain multiple such entries, one per line.
-When max_time elapses, the entry in the file has no meaning, so it can be removed.
+Example:
+  ip !refresh_tags 2022-01-09T15:00:00Z
+When max_time elapses, the entry in the file has no meaning, so it can be removed or commented out (using '#').
 The file is checked every time a new batch of events is to be issued, so it's not needed to restart updater.
 """
 
@@ -72,7 +74,7 @@ def issue_events(db, task_queue_writer, log, fetch_limit):
     try:
         for line in open(additional_events_file, "r"):
             line_no += 1
-            if not line or line[0] == '#':
+            if not line.strip() or line[0] == '#':
                 continue # skip empty lines and comments
             etype, event, max_time = line.split(maxsplit=2)
             if etype not in additional_events.keys():
@@ -133,7 +135,7 @@ def issue_events(db, task_queue_writer, log, fetch_limit):
             for add_event in additional_events[etype]:
                 requests.append(('*event', add_event))
             # Issue update requests
-            task_queue_writer.put_task(etype, id, requests)
+            task_queue_writer.put_task(etype, id, requests, "updater")
             if (n+1) % 100 == 0:
                 log.debug("Requests for {} records submitted.".format(n+1))
 
