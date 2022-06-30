@@ -439,19 +439,21 @@ img.load-spinner-small {
   padding-bottom: 0px;
 }
 .ms-options-wrap > .ms-options {
-  width: auto;
-  min-width: 16em;
+  width: 210px;
   white-space: nowrap;
 }
 
 .op_button {
-  display: inline-block;
-  width: 1.5em;
+  float: right;
+  width: 60px;
   /*height: 100%;*/
   text-align: center;
-  background: #fff;
-  border: 1px solid #aaa;
-  cursor: default;
+  display: flex;
+  border: rgb(115, 115, 115) solid 1px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: bold;
+  user-select: none; /* makes text inside unselectable */
 }
 
 span.error {
@@ -1056,21 +1058,20 @@ ul.data-list li ul li {
   height: 10%;
 }
 
-.tabContainer .buttonContainer{
-  height: 8%;
-}
+
 
 .tabContainer .buttonContainer button{
-  width: 25%;
-  height: 100%;
+  width: 200px;
+  height: 35px;
   font-weight: bold;
   border: none;
   outline: none;
   cursor: pointer;
-  padding: 15px;
   font-family: inherit;
   font-size: 1.2em;
-  background: #eee;
+  background: rgb(195, 191, 191);
+  margin-right: -10px;
+  padding: 0;
 }
 
 .tabContainer .buttonContainer button:hover{
@@ -1081,7 +1082,6 @@ ul.data-list li ul li {
   height: 85%;
   color: black;
   box-sizing: border-box;
-  padding-top: 0.7%;
   font-family: inherit;
   font-size: 1.1em;
   display: none;
@@ -1112,3 +1112,170 @@ ul.data-list li ul li {
   border-top: 1px solid #bbb;
   align-items: baseline;
 }
+
+.row
+{
+  display: flex;
+  flex-direction: row;
+  width: 813px;
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+
+.row2
+{
+  display: flex;
+  flex-direction: row;
+  width: 600px;
+  justify-content: space-evenly;
+  margin: auto;
+  padding-bottom: 10px;
+}
+
+
+.opt label
+{
+  display: none;
+}
+
+.lab
+{
+  display: block;
+  padding-bottom: 3px;
+  width: 180px;
+}
+
+.tooltip{
+  display: inline-block;
+  position: relative;
+  background: rgba(49, 49, 49, 0.3);
+  padding: 2px 6px;
+  border-radius: 100%;
+  font-size: 14px;
+  cursor: help;
+  }
+
+  
+  /* Hover states */
+  
+  .tooltip:hover::before, .tooltip:hover::after{
+  opacity: 1;
+  }
+  
+
+  .searchForm button,  .searchForm input
+  {
+    border: 1px solid black;
+    border-radius: 7px;
+
+  }
+
+  .searchForm button
+  {
+    height: 20px;
+  }
+
+  #submit-btn
+  {
+    background-color: rgb(37, 204, 37);
+    cursor: pointer;
+    height: 25px;
+    width: 100px;
+    -webkit-box-shadow: 7px 10px 26px -15px rgba(0,0,0,0.75);
+    -moz-box-shadow: 7px 10px 26px -15px rgba(0,0,0,0.75);
+    box-shadow: 7px 10px 26px -15px rgba(0,0,0,0.75);
+    margin-top: 20px;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+
+  #sorting
+  {
+    background-color: rgba(0, 0, 0, 0.217);
+    padding: 20px;
+    border-radius: 7px;
+    -webkit-box-shadow: 7px 10px 10px -8px rgba(0,0,0,0.75);
+    -moz-box-shadow: 7px 10px 10px -8px rgba(0,0,0,0.75);
+    box-shadow: 7px 10px 10px -8px rgba(0,0,0,0.75);
+    display: flex;
+    flex-direction: row;
+    width: 773px;
+    justify-content: space-evenly;
+  }
+
+  #sorting p
+  {
+    font-weight: bold;
+  }
+
+
+  #searchForm
+  {
+    width: 1000px;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+
+  #ip_list
+  {
+    width: 790px;
+    border-radius: 7px;
+  }
+
+  #parse-btn
+  {
+    background-color: #5bace1;
+    cursor: pointer;
+  }
+
+  .center
+  {
+    text-align: center;
+  }
+
+
+   /* Making input buttons Source Cat Blacklist and Tag 
+   more narrow in order to fit on one line */
+  #narrow button
+  {
+    width: 180px;
+  }
+
+  /* AND/OR toggle button */
+  .selected.or
+  {
+    background-color: rgb(115, 115, 115);
+    color: white;
+    transition: all 250ms ease-out; 
+    border-radius: 7px 0px 0px 7px;
+  }
+
+  .selected.and
+  {
+    background-color: rgb(115, 115, 115);
+    color: white;
+    transition: all 250ms ease-out; 
+    border-radius: 0px 7px 7px 0px;
+  }
+
+  .op_button div
+  {
+    color: rgb(115, 115, 115);
+    cursor: pointer;
+    width: 30px;
+    padding: 3px;
+  }
+
+  /* Fitting Multiselect options window to narrow selects*/
+  #narrow .ms-options
+  {
+    width: 180px;
+  }
+
+  #narrow .ms-options-wrap span
+  {
+    width: 500px;
+  }

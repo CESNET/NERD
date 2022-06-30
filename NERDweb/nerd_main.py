@@ -770,10 +770,10 @@ def subnet_validator(form, field):
 
 
 class IPFilterForm(FlaskForm):
-    subnet = StringField('IP prefix', [validators.Optional(), subnet_validator], filters=[strip_whitespace])
+    subnet = StringField('', [validators.Optional(), subnet_validator], filters=[strip_whitespace])
     ip_list = TextAreaField('')
     hostname = StringField('Hostname suffix', [validators.Optional()], filters=[strip_whitespace])
-    country = StringField('Country code', [validators.Optional(), validators.length(2, 2)], filters=[strip_whitespace])
+    country = SelectMultipleField('Country', [validators.Optional()])
     asn = StringField('ASN', [validators.Optional(),
         validators.Regexp('^(AS)?\d+$', re.IGNORECASE,
         message='Must be a number, optionally preceded by "AS".')], filters=[strip_whitespace])
@@ -810,6 +810,8 @@ class IPFilterForm(FlaskForm):
         # Dynamically load list of Categories/Nodes and their number of occurrences
         # Collections n_ip_by_* should be periodically updated by queries run by
         # cron (see /scripts/update_db_meta_info.js)
+
+        self.country.choices = [(i, '{} - {}'.format(i, ctrydata.names[i])) for i in ctrydata.names.keys()]
 
         # Defining sources and mapping DB name -> user readable name
         source_names = { "bl": "Blacklists", 
@@ -885,7 +887,7 @@ def create_query(form):
         hn_end = hn[:-1] + chr(ord(hn[-1]) + 1)
         queries.append({'$and': [{'hostname': {'$gte': hn}}, {'hostname': {'$lt': hn_end}}]})
     if form.country.data:
-        queries.append({'geo.ctry': form.country.data.upper()})
+        queries.append({'$or': [{'geo.ctry': country} for country in form.country.data]})
     if form.asn.data and form.asn.data.strip():
         # ASN is not stored in IP records - get list of BGP prefixes of the ASN and filter by these
         asn = int(form.asn.data.lstrip("ASas"))

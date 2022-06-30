@@ -31,9 +31,17 @@ function showPanel(panelIndex, colorCode) {
     tabPanels[panelIndex].style.display="block";
 }
 
+
+
 if(window.location.href.endsWith("/nerd/ips/")){
     changeTab(0, defaultColor);
 }
 
 else
-    changeTab(sessionStorage.getItem("currentPanel"), defaultColor);
+{
+    if (sessionStorage.getItem("currentPanel") !== null)
+        changeTab(sessionStorage.getItem("currentPanel"), defaultColor);
+    else
+        changeTab(0, defaultColor);
+}
+    

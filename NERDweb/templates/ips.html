@@ -5,95 +5,160 @@
 {% endblock %}
 {% block body %}
 
-<h1>Known IP addresses</h1>
+
 
 {% macro formfield(field) -%}
-  {%- if field.type != 'BooleanField' %}{{ field.label }} {% endif -%}
-  {{ field(class = kwargs.pop('class', '') + ' error', **kwargs) if field.errors else field(**kwargs) }}
-  {%- if field.type == 'BooleanField' %} {{ field.label }}{% endif -%}
-  {%- if field.errors %} <span class="error">{{ ', '.join(field.errors) }}</span>{% endif %}
+{%- if field.type != 'BooleanField' %}{{ field.label }} {% endif -%}
+{{ field(class = kwargs.pop('class', '') + ' error', **kwargs) if field.errors else field(**kwargs) }}
+{%- if field.type == 'BooleanField' %} {{ field.label }}{% endif -%}
+{%- if field.errors %} <span class="error">{{ ', '.join(field.errors) }}</span>{% endif %}
 {%- endmacro %}
 
 
 
-    <div class="tabContainer">
-        <div class="buttonContainer">
-            <button onclick="changeTab(0,'#0061a2')">Specified IP Search</button>
-            <button onclick="changeTab(1,'#0061a2')">Multiple IP Search</button>
+<div class="tabContainer" id="searchForm">
+    <div class="row">
+      <h1>Known IP addresses</h1>
+      <div class="buttonContainer">
+        <button onclick="changeTab(0,'#0061a2')">Specified IP Search</button>
+        <button onclick="changeTab(1,'#0061a2')">Multiple IP Search</button>
+      </div>
+    </div>
+  <div class="tabPanel">
+    <form method="GET" action="{{ url_for('ips') }}" class="searchForm">
+      <div class="row">
+        {# form.csrf_token #}
+        <div class="opt">
+          <span class="lab">IP prefix <span class="tooltip">?</span> </span>
+          {{ formfield(form.subnet, placeholder="a.b.c.d/x") }}
         </div>
-        <div class="tabPanel">
-          <form method="GET" action="{{ url_for('ips') }}" class="searchForm">
-            <div>
-              {# form.csrf_token #}
-              {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
-              {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
-              {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
-              {{ formfield(form.asn, size=7) }}
-            </div>
-            <div>
-              {{ form.source.label }} <span id="source_op_button" class="op_button"></span> {{ form.source() }}{{ form.source_op() }}{%- if form.source.errors %} <span class="error">{{ ', '.join(form.source.errors) }}</span>{% endif %}
-            </div>
-            <div>
-              {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
-              {%- if ac('nodenames') %}
-              &nbsp; &amp; &nbsp;
-              {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
-              {% endif %}
-            </div>
-            <div>
-              {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
-              {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
-              {{ formfield(form.tag_conf, size=1)}}
-            </div>
-            <div>
-              {{ formfield(form.sortby) }}
-              {{ formfield(form.asc) }}
-            </div>
-            <div>
-              {{ formfield(form.limit, size=10) }}
-            </div>
-            <div>
-              <input type="submit">
-            </div>
-          </form>
+        <div class="opt">
+          <span class="lab">Hostname suffix <span class="tooltip">?</span> </span>
+          {{ formfield(form.hostname, placeholder="xx") }}
+        </div>
+        <div class="opt">
+          <span class="lab">ASN <span class="tooltip">?</span> </span>
+          {{ formfield(form.asn, size=7, placeholder="ASxxx") }}
+        </div>
+        <div class="opt">
+          <span class="lab">Country <span class="tooltip">?</span> </span>
+          {{ form.country.label }} {{ form.country() }}
         </div>
 
-        <div class="tabPanel">
-            <form method="GET"  action="{{ url_for('ips') }}" class="searchForm">
-              <div>
-                <label>IP addresses</label><br>
-                {{ formfield(form.ip_list, size=20) }}<br>
-                <button type="button" onclick="parser()">Parse IPs</button>
-              </div>
-            <div>
-                {{ formfield(form.sortby) }}
-                {{ formfield(form.asc) }}<br>
-              </div>
-            <div>
-                <input type="submit" onclick="parser()">
-              </div>
-            </form>
+      </div>
+      <div class="row" id="narrow">
+        <div class="opt">
+          <span class="lab">Source <span class="tooltip">?</span>  <span id="source_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+          {{ form.source() }}{{
+          form.source_op() }}{%- if form.source.errors %} <span class="error">{{ ', '.join(form.source.errors)
+            }}</span>{% endif %}
         </div>
-        <script>set_up_search_form();</script>
-    </div>
+        <div class="opt">
+          <span class="lab">Event category <span class="tooltip">?</span> <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+           {{ form.cat() }}{{ form.cat_op() }}{%-
+          if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
+          {%- if ac('nodenames') %}
+          &nbsp; &amp; &nbsp;
+          {{ form.node.label }} <span id="node_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span> {{ form.node() }}{{ form.node_op()
+          }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
+          {% endif %}
+        </div>
+        <div class="opt">
+          <span class="lab">Blacklist <span class="tooltip">?</span> <span id="bl_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span> </span>
+           {{ form.blacklist() }}{{
+          form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors)
+            }}</span>{% endif %}
+        </div>
+        <div class="opt">
+          <span class="lab">Tag <span class="tooltip">?</span> <span id="tag_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+           {{ form.tag() }}{{ form.tag_op() }}{%-
+          if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %}
+        </div>
+      </div>
+     
+      <div id="sorting">
+        <div>
+          <p>Sorting options</p>
+        </div>
+        <div class="opt">
+          <span class="lab">Sort by <span class="tooltip">?</span> </span>
+          {{ formfield(form.sortby) }}
+        </div>
+        <div class="opt">
+          <span class="lab">Order <span class="tooltip">?</span> </span>
+          {{ formfield(form.asc) }}
+          <span>Ascending</span>
+        </div>
+        <div class="opt">
+          <span class="lab">Max. number of addresses <span class="tooltip">?</span> </span>
+          {{ formfield(form.limit, size=10) }}
+        </div>
+      </div>
+      <div class="center">
+        <input id="submit-btn" type="submit">
+      </div>
+    </form>
+  </div>
+
+
+  <div class="tabPanel">
+    <form method="GET" action="{{ url_for('ips') }}" class="searchForm">
+      <div class="row">
+        <div class="opt">
+          <span class="lab">IP addresses <span class="tooltip">?</span> </span>
+          {{ formfield(form.ip_list, size=20) }}<br>
+          <div class="center">
+            <button id="parse-btn" type="button" onclick="parser()">Parse IPs</button>
+          </div>
+        </div>
+      </div>
+      <div id="sorting">
+        <div>
+          <p>Sorting options</p>
+        </div>
+        <div class="opt">
+          <span class="lab">Sort by <span class="tooltip">?</span> </span>
+          {{ formfield(form.sortby) }}
+        </div>
+        <div class="opt">
+          <span class="lab">Order <span class="tooltip">?</span> </span>
+          {{ formfield(form.asc) }}
+          <span>Ascending</span>
+        </div>
+        <div class="opt">
+          <span class="lab">Max. number of addresses <span class="tooltip">?</span> </span>
+          {{ formfield(form.limit, size=10) }}
+        </div>
+      </div>
+      <div class="center">
+        <input id="submit-btn" type="submit" onclick="parser()">
+      </div>
+    </form>
+  </div>
+  <script>set_up_search_form();</script>
+</div>
 <script src="{{ url_for('static', filename='search_options.js') }}"></script>
+
 
 {% if results %}
 <!-- hidden form to allow links to blacklist check at whatismyipaddress.com -->
 <form id="bl-check-form" action="https://whatismyipaddress.com/blacklist-check" method="POST" target="_blank">
-<input type="hidden" id="bl-check-form-ip" name="LOOKUPADDRESS" value="">
-<input type="hidden" name="Lookup+Hostname" value="Check+Blacklists">
+  <input type="hidden" id="bl-check-form-ip" name="LOOKUPADDRESS" value="">
+  <input type="hidden" name="Lookup+Hostname" value="Check+Blacklists">
 </form>
 <div id="results_div">
   <div>
     <p id="results_label">Results (
-    {%- if results|length >= form.limit.data -%}
-    <a href="#" title="Click to get total count" onclick="$(this).hide(); $('#results_label span').show(); $.ajax('{{url_for('ips_count')}}', {data: '{{query_params}}', method: 'POST', contentType: 'application/json'}).done(function (data) {$('#results_label span').html(data);}).fail(function (data) {$('#results_label span').text('ERROR');}); return false;">&ge;{{form.limit.data}}</a><span style="display: none">&ge;{{form.limit.data}}<img src="{{url_for('static', filename='spin.gif')}}" style="height: 0.8em; width: 0.8em;"></span>
-    {%- else -%}
-    {{ results|length }}
-    {%- endif -%})
+      {%- if results|length >= form.limit.data -%}
+      <a href="#" title="Click to get total count"
+        onclick="$(this).hide(); $('#results_label span').show(); $.ajax('{{url_for('ips_count')}}', {data: '{{query_params}}', method: 'POST', contentType: 'application/json'}).done(function (data) {$('#results_label span').html(data);}).fail(function (data) {$('#results_label span').text('ERROR');}); return false;">&ge;{{form.limit.data}}</a><span
+        style="display: none">&ge;{{form.limit.data}}<img src="{{url_for('static', filename='spin.gif')}}"
+          style="height: 0.8em; width: 0.8em;"></span>
+      {%- else -%}
+      {{ results|length }}
+      {%- endif -%})
     </p>
-</div>
+  </div>
   <div>
     <a href={{url_for('ips_download') + '?' + query_params_url}}>
       <button class="download-btn">Download</button>
@@ -102,176 +167,166 @@
 </div>
 
 
-
 <!---------- Table with results ---------->
 <table id="entity_table" class="main_table">
-<!-- Header -->
-<tr>
-<th>IP address</th>
-<th>Hostname</th>
-<th title="Autonomous system number and name">ASN</th>
-<th>Country</th>
-<th title="Total number of Warden alerts / nodes / categories (in last {{ cfg_max_event_history }} days), second line shows events from other sources">Events</th>
-<!--<th>Shodan info</th>
-<th>Device type</th>-->
-<th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.<sup><a href="https://github.com/CESNET/NERD/wiki/Reputation-score" title="More information about reputation score" target="_blank">(?)</a></sup></th>
-{% if ac('fmp') %}<th title="Future Maliciousness Probability score">FMP</th>{% endif %}
-<th>Other properties</th>
-<th>Time added</th>
-<th>Last activity</th>
-<th title="Links to external services">Links</th>
-</tr>
-
-{% for ip in results %}
-<tr>
-<td class="id ip"><a href="{{ url_for('ip') + ip._id }}"><span>{{ip._id}}</span></a></td>
-<td class="hostname">{{ip['hostname']|reverse if ip['hostname'] else '--'}}</td>
-<td class="asn">
-  {% if 'asn' in ip%}
-    {% for asn in ip['asn']%}
-    <a href="{{ url_for('asn') + asn['_id']|string }}" title="{{asn['rir']}}:{{asn['name']}}">{{ 'AS' + asn['_id']|string }}</a>
-    <br>
-    {% endfor %}
-  {% endif %}
-</span>
-</td>
-<td class="country">
-  {% if 'geo' in ip and 'ctry' in ip.geo %}
-  <a href="http://country.io/{{ip.geo.ctry|lower}}/">
-  <span title="{{ctrydata.names.get(ip.geo.ctry, '?')}},
-                 {{ctrydata.continent_names.get(ctrydata.continent.get(ip.geo.ctry, '?'), '?')}}
-                 ({{ip.geo.ctry}}/{{ctrydata.iso3.get(ip.geo.ctry, '?')}})">
-    <span class="flag flag-{{ip.geo.ctry|lower}}"></span>{{ip.geo.ctry}}
+  <!-- Header -->
+  <tr>
+  <th>IP address</th>
+  <th>Hostname</th>
+  <th title="Autonomous system number and name">ASN</th>
+  <th>Country</th>
+  <th title="Total number of Warden alerts / nodes / categories (in last {{ cfg_max_event_history }} days), second line shows events from other sources">Events</th>
+  <!--<th>Shodan info</th>
+  <th>Device type</th>-->
+  <th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.<sup><a href="https://github.com/CESNET/NERD/wiki/Reputation-score" title="More information about reputation score" target="_blank">(?)</a></sup></th>
+  {% if ac('fmp') %}<th title="Future Maliciousness Probability score">FMP</th>{% endif %}
+  <th>Other properties</th>
+  <th>Time added</th>
+  <th>Last activity</th>
+  <th title="Links to external services">Links</th>
+  </tr>
+  
+  {% for ip in results %}
+  <tr>
+  <td class="id ip"><a href="{{ url_for('ip') + ip._id }}"><span>{{ip._id}}</span></a></td>
+  <td class="hostname">{{ip['hostname']|reverse if ip['hostname'] else '--'}}</td>
+  <td class="asn">
+    {% if 'asn' in ip%}
+      {% for asn in ip['asn']%}
+      <a href="{{ url_for('asn') + asn['_id']|string }}" title="{{asn['rir']}}:{{asn['name']}}">{{ 'AS' + asn['_id']|string }}</a>
+      <br>
+      {% endfor %}
+    {% endif %}
   </span>
-  </a>
-  {% endif %}
-</td>
-
-<td class="events" data-cats="{{ip._evt_info.cats}}" data-dates="{{ip._evt_info.dates}}"
-  data-nodes="{{ip._evt_info.nodes}}" data-table="{{ip._evt_info.date_cat_table}}">
-  <span>{{ip.events_meta.total if ip.events_meta else 0}}</span><span>{{ip._evt_info.n_nodes}}</span><span>{{ip._evt_info.n_cats}}</span>
-  {% if ip._showable_misp_events %}<br><span class="misp">+ {{ ip._showable_misp_events }} MISP events</span>{% endif %}
-  {% if ip.otx_pulses %}<br><span class="otx">+ {{ ip.otx_pulses|length }} OTX pulses</span>{% endif %}
-</td>
-<td class="reputation" style="background-color: {{ rep_css_color(ip.rep) }}">
-  {{ "%.3f"|format(ip.rep) if 'rep' in ip else "---" }}
-</td>
-{% if ac('fmp') %}
-{% set fmp = ip.get('fmp',{}).get('general', undefined) %}
-<td class="reputation" style="background-color: {{ rep_css_color(fmp) }}">
-  {{ "%.3f"|format(ip.fmp.general) if fmp is defined else "---" }}
-</td>
-{% endif %}
-<td class="other">
-  {% if ip.bl -%}
-    {% set bl_cnt = ip.bl|selectattr("v")|list|length -%}
-    {% set plural = "s" if bl_cnt > 1 else "" -%}
-    {% if bl_cnt > 0 -%}
-      <span class="tag blacklist" title="The IP address is present on {{ bl_cnt }} blacklist{{plural}}:<br>
-        {% for bl in ip.bl|selectattr("v") %}&bull; {{ (blacklist_info[bl.n] or {"name": bl.n}).name }}<br>{% endfor %}
-        More info in IP detail page.">{{ bl_cnt }} blacklist{{plural}}</span>
-    {% endif -%}
-  {% endif -%}
-  {% if ip.dbl -%}
-    {% set bl_cnt = ip.dbl|selectattr("v")|list|length -%}
-    {% set plural = "s" if bl_cnt > 1 else "" -%}
-    {% if bl_cnt > 0 -%}
-      <span class="tag blacklist" title="A domain name associated with the IP address is present on {{ bl_cnt }} domain blacklist{{plural}}:<br>
-        {% for bl in ip.dbl|selectattr("v") %}&bull; {{ (blacklist_info[bl.n] or {"name": bl.n}).name }}<br>{% endfor %}
-        More info in IP detail page.">{{ bl_cnt }} domain blacklist{{plural}}</span>
-    {% endif -%}
-  {% endif -%}
-
-  {% if ip.shodan %}
-    {% if ip.shodan.os %}<span class="tag os">{{ip.shodan.os}}</span>{% endif %}
-    {% if ip.shodan.devicetype %}<span class="tag os">{{ip.shodan.devicetype}}</span>{% endif %}
-    {% if ip.shodan.linktype %}<span class="tag os">{{ip.shodan.linktype}}</span>{% endif %}
-    {% if ip.shodan.tags %}<span class="tag os">{{ip.shodan.tags}}</span>{% endif %}
-    <span class="ports">
-      {% for port in ip.shodan.ports %}<span class="tag port" title="Port {{port}} is opened according to Shodan">{{port}}</span>{% endfor %}
+  </td>
+  <td class="country">
+    {% if 'geo' in ip and 'ctry' in ip.geo %}
+    <a href="http://country.io/{{ip.geo.ctry|lower}}/">
+    <span title="{{ctrydata.names.get(ip.geo.ctry, '?')}}, 
+                   {{ctrydata.continent_names.get(ctrydata.continent.get(ip.geo.ctry, '?'), '?')}}
+                   ({{ip.geo.ctry}}/{{ctrydata.iso3.get(ip.geo.ctry, '?')}})">
+      <span class="flag flag-{{ip.geo.ctry|lower}}"></span>{{ip.geo.ctry}}
     </span>
+    </a>
+    {% endif %}
+  </td>
+  
+  <td class="events" data-cats="{{ip._evt_info.cats}}" data-dates="{{ip._evt_info.dates}}"
+    data-nodes="{{ip._evt_info.nodes}}" data-table="{{ip._evt_info.date_cat_table}}">
+    <span>{{ip.events_meta.total if ip.events_meta else 0}}</span><span>{{ip._evt_info.n_nodes}}</span><span>{{ip._evt_info.n_cats}}</span>
+    {% if ip._showable_misp_events %}<br><span class="misp">+ {{ ip._showable_misp_events }} MISP events</span>{% endif %}
+    {% if ip.otx_pulses %}<br><span class="otx">+ {{ ip.otx_pulses|length }} OTX pulses</span>{% endif %}
+  </td>
+  <td class="reputation" style="background-color: {{ rep_css_color(ip.rep) }}">
+    {{ "%.3f"|format(ip.rep) if 'rep' in ip else "---" }}
+  </td>
+  {% if ac('fmp') %}
+  {% set fmp = ip.get('fmp',{}).get('general', undefined) %}
+  <td class="reputation" style="background-color: {{ rep_css_color(fmp) }}">
+    {{ "%.3f"|format(ip.fmp.general) if fmp is defined else "---" }}
+  </td>
   {% endif %}
-{#
-  {% if ip.open_dns %}<span class="tag amplifier dns">Open DNS resolver</span>{% endif %}
-  {% if ip.open_ntp %}<span class="tag amplifier ntp">Open NTP</span>{% endif %}
-  {% if ip.open_snmp %}<span class="tag amplifier snmp">Open SNMP</span>{% endif %}
-#}
-
-  {% if ip.tags %}
-    {% for tag_id,tag_param in ip.tags.items() %}
-      {% if tag_id in config_tags and "name" in config_tags[tag_id] %}
-          {% if tag_id == "misp_tlp_green" %}
-              {% if ac('tlp-green') %}
-                  {% set tlp_green_tag = namespace(showed=0) %}
-                  {% for misp_event in ip.misp_events %}
-                      {% if misp_event.tlp == "green" and not tlp_green_tag.showed %}
+  <td class="other">
+    {% if ip.bl -%}
+      {% set bl_cnt = ip.bl|selectattr("v")|list|length -%}
+      {% set plural = "s" if bl_cnt > 1 else "" -%}
+      {% if bl_cnt > 0 -%}
+        <span class="tag blacklist" title="The IP address is present on {{ bl_cnt }} blacklist{{plural}}:<br>
+          {% for bl in ip.bl|selectattr("v") %}&bull; {{ (blacklist_info[bl.n] or {"name": bl.n}).name }}<br>{% endfor %}
+          More info in IP detail page.">{{ bl_cnt }} blacklist{{plural}}</span>
+      {% endif -%}
+    {% endif -%}
+    {% if ip.dbl -%}
+      {% set bl_cnt = ip.dbl|selectattr("v")|list|length -%}
+      {% set plural = "s" if bl_cnt > 1 else "" -%}
+      {% if bl_cnt > 0 -%}
+        <span class="tag blacklist" title="A domain name associated with the IP address is present on {{ bl_cnt }} domain blacklist{{plural}}:<br>
+          {% for bl in ip.dbl|selectattr("v") %}&bull; {{ (blacklist_info[bl.n] or {"name": bl.n}).name }}<br>{% endfor %}
+          More info in IP detail page.">{{ bl_cnt }} domain blacklist{{plural}}</span>
+      {% endif -%}
+    {% endif -%}
+  
+    {% if ip.shodan %}
+      {% if ip.shodan.os %}<span class="tag os">{{ip.shodan.os}}</span>{% endif %}
+      {% if ip.shodan.devicetype %}<span class="tag os">{{ip.shodan.devicetype}}</span>{% endif %}
+      {% if ip.shodan.linktype %}<span class="tag os">{{ip.shodan.linktype}}</span>{% endif %}
+      {% if ip.shodan.tags %}<span class="tag os">{{ip.shodan.tags}}</span>{% endif %}
+      <span class="ports">
+        {% for port in ip.shodan.ports %}<span class="tag port" title="Port {{port}} is opened according to Shodan">{{port}}</span>{% endfor %}
+      </span>
+    {% endif %}
+  {#
+    {% if ip.open_dns %}<span class="tag amplifier dns">Open DNS resolver</span>{% endif %}
+    {% if ip.open_ntp %}<span class="tag amplifier ntp">Open NTP</span>{% endif %}
+    {% if ip.open_snmp %}<span class="tag amplifier snmp">Open SNMP</span>{% endif %}
+  #}
+  
+    {% if ip.tags %}
+      {% for tag_id,tag_param in ip.tags.items() %}
+        {% if tag_id in config_tags and "name" in config_tags[tag_id] %}
+            {% if tag_id == "misp_tlp_green" %}
+                {% if ac('tlp-green') %}
+                    {% set tlp_green_tag = namespace(showed=0) %}
+                    {% for misp_event in ip.misp_events %}
+                        {% if misp_event.tlp == "green" and not tlp_green_tag.showed %}
+                          <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="{% if "description" in config_tags[tag_id] %}<b>{{config_tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+                          {{config_tags[tag_id].name}}
+                          {% set tlp_green_tag.showed = tlp_green_tag.showed + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% elif tag_id == "misp_tlp_white" %}
+                {% set tlp_white_tag = namespace(showed=0) %}
+                {% for misp_event in ip.misp_events %}
+                    {% if misp_event.tlp == "white" and not tlp_white_tag.showed %}
                         <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="{% if "description" in config_tags[tag_id] %}<b>{{config_tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
                         {{config_tags[tag_id].name}}
-                        {% set tlp_green_tag.showed = tlp_green_tag.showed + 1 %}
-                      {% endif %}
-                  {% endfor %}
-              {% endif %}
-          {% elif tag_id == "misp_tlp_white" %}
-              {% set tlp_white_tag = namespace(showed=0) %}
-              {% for misp_event in ip.misp_events %}
-                  {% if misp_event.tlp == "white" and not tlp_white_tag.showed %}
-                      <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="{% if "description" in config_tags[tag_id] %}<b>{{config_tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
-                      {{config_tags[tag_id].name}}
-                      {% set tlp_white_tag.showed = tlp_white_tag.showed + 1 %}
-                  {% endif %}
-              {% endfor %}
-          {% else %}
-              <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="{% if "description" in config_tags[tag_id] %}<b>{{config_tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
-              {{config_tags[tag_id].name}}
-          {% endif %}
+                        {% set tlp_white_tag.showed = tlp_white_tag.showed + 1 %}
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="{% if "description" in config_tags[tag_id] %}<b>{{config_tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+                {{config_tags[tag_id].name}}
+            {% endif %}
+            </span>
+        {% else %}
+          <span class="tag" title="<b>ERROR:</b> Missing configuration for tag {{tag_id}}">
+          {{tag_id}}
           </span>
-      {% else %}
-        <span class="tag" title="<b>ERROR:</b> Missing configuration for tag {{tag_id}}">
-        {{tag_id}}
-        </span>
-      {% endif %}
-    {% endfor %}
-  {% endif %}
-
-  {% if ip.bl %}
-  {% for bl_entry in ip.bl -%}
-    {% if bl_entry.v %}
-      <span class="tag blacklist" title="IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">
-        {{-bl_entry.n-}}</span>
+        {% endif %}
+      {% endfor %}
     {% endif %}
-  {%- endfor %}
-  {% endif %}
-</td>
-<td class="time" {% if ip.ts_added %}data-time={{ ip.ts_added|date_to_int }}{% endif %}>{{ip.ts_added.strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
-<td {% if ip.last_activity %}class="time" data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
-<td class="links">
-    <div class="links-dropdown">
-        <button class="links-dropbtn">&#x25BC;</button>
-        <div class="links-dropdown-content">
-            <a href="https://www.shodan.io/host/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"> &nbsp; Shodan</a>
-            <a href="https://search.censys.io/hosts/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"> &nbsp; Censys</a>
-            <a href="http://multirbl.valli.org/lookup/{{ ip._id }}.html" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"> &nbsp; valli.org</a>
-            <a href="#" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"> &nbsp; whatismyipaddress.com</a>
-            <a href="https://www.abuseipdb.com/check/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='abuse_ip_db_icon.png') }}"> &nbsp; AbuseIPDB</a>
-            <a href="https://www.threatcrowd.org/ip.php?ip={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='threat_crowd_icon.png') }}"> &nbsp; Threat Crowd</a>
-            <a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"> &nbsp; Talos Intelligence Center</a>
-            <a href="https://viz.greynoise.io/ip/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='greynoise-logo.png') }}"> &nbsp; Greynoise Visualizer</a>
-            <a href="https://isc.sans.edu/ipinfo.html?ip={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='dshield_icon.png') }}"> &nbsp; DShield</a>
-        </div>
-    </div>
-</td>
-</tr>
-{% endfor %}
-</table>
-
-{% elif error %}
-<p class="error">{{
-{
-  "mongo_error": "ERROR: Can't connect to database.",
-}.get(error, error)
-}}</p>
-{% else %}
-<p id="results_label">No results</p>
-{% endif %}{# end if results #}
-
-{% endblock %}
+  </td>
+  <td class="time" {% if ip.ts_added %}data-time={{ ip.ts_added|date_to_int }}{% endif %}>{{ip.ts_added.strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
+  <td {% if ip.last_activity %}class="time" data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
+  <td class="links">
+      <div class="links-dropdown">
+          <button class="links-dropbtn">&#x25BC;</button>
+          <div class="links-dropdown-content">
+              <a href="https://www.shodan.io/host/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"> &nbsp; Shodan</a>
+              <a href="https://search.censys.io/hosts/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"> &nbsp; Censys</a>
+              <a href="http://multirbl.valli.org/lookup/{{ ip._id }}.html" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"> &nbsp; valli.org</a>
+              <a href="#" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"> &nbsp; whatismyipaddress.com</a>
+              <a href="https://www.abuseipdb.com/check/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='abuse_ip_db_icon.png') }}"> &nbsp; AbuseIPDB</a>
+              <a href="https://www.threatcrowd.org/ip.php?ip={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='threat_crowd_icon.png') }}"> &nbsp; Threat Crowd</a>
+              <a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"> &nbsp; Talos Intelligence Center</a>
+              <a href="https://viz.greynoise.io/ip/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='greynoise-logo.png') }}"> &nbsp; Greynoise Visualizer</a>
+              <a href="https://isc.sans.edu/ipinfo.html?ip={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='dshield_icon.png') }}"> &nbsp; DShield</a>
+          </div>
+      </div>
+  </td>
+  </tr>
+  {% endfor %}
+  </table>
+  
+  {% elif error %}
+  <p class="error">{{
+  {
+    "mongo_error": "ERROR: Can't connect to database.",
+  }.get(error, error)
+  }}</p>
+  {% else %}
+  <p id="results_label">No results</p>
+  {% endif %}{# end if results #}
+  
+  {% endblock %}

@@ -4,28 +4,34 @@
 function set_up_search_form() {
 
   // Improve selects using "multiselect" library/plugin
-  $("select#source").multiselect({texts: {placeholder: "\xa0"}, search: true});
-  $("select#cat").multiselect({texts: {placeholder: "\xa0"}, search: true});
-  $("select#node").multiselect({texts: {placeholder: "\xa0"}, search: true});
-  $("select#blacklist").multiselect({texts: {placeholder: "\xa0"}, search: true});
-  $("select#tag").multiselect({texts: {placeholder: "\xa0"}, search: true});
+  $("select#country").multiselect({texts: {placeholder: "Any"}, search: true, selectAll: true});
+  $("select#source").multiselect({texts: {placeholder: "Any"}, search: true});
+  $("select#cat").multiselect({texts: {placeholder: "Any"}, search: true});
+  $("select#node").multiselect({texts: {placeholder: "Any"}, search: true});
+  $("select#blacklist").multiselect({texts: {placeholder: "Any"}, search: true});
+  $("select#tag").multiselect({texts: {placeholder: "Any"}, search: true});
 
   // Set up an operation (and/or) button
   function set_up_op_button(button_id, form_elem_id, title_or, title_and) {
     $(button_id).on("click", function() {
       if ($(form_elem_id).val() == 'and') {
         $(form_elem_id).val("or");
-        $(this).text("\u22c1").attr("title", title_or); // \u22c1 = Logical OR
+        $(this).find(".or").addClass("selected");
+        $(this).find(".and").removeClass("selected");
       } else {
         $(form_elem_id).val("and");
-        $(this).text("\u22c0").attr("title", title_and); // \u22c0 = Logical AND
+        $(this).find(".and").addClass("selected");
+        $(this).find(".or").removeClass("selected");
       }
       return false;
     });
+
     if ($(form_elem_id).val() == "or") {
-        $(button_id).text("\u22c1").attr("title", title_or);
+      $(button_id).find(".or").addClass("selected");
+      $(button_id).find(".and").removeClass("selected");
     } else {
-        $(button_id).text("\u22c0").attr("title", title_and);
+      $(button_id).find(".and").addClass("selected");
+      $(button_id).find(".or").removeClass("selected");
     }
   }
   set_up_op_button("#source_op_button", "#source_op", "OR: At least one of the selected categories", "AND: All selected categories")
