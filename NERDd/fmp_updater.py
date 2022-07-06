@@ -110,7 +110,7 @@ def get_asn_sizes(geo_data_dir):
         net,asn,_ = line.split(',', 2)
         _,prefixlen = net.split('/')
         size = 2**(32-int(prefixlen))
-        asn_size_map[asn] += size
+        asn_size_map[int(asn)] += size
     return asn_size_map
 
 
@@ -160,6 +160,8 @@ def get_ctry_sizes(geo_data_dir):
 
 def get_ctry_badness(ctry, records, geo_data):
     """
+    Compute "badness" of given county.
+
     :param ctry: country identifier
     :param records: pandas data frame containing all current records
     :param geo_data: dict containing external geolocation data
@@ -169,17 +171,18 @@ def get_ctry_badness(ctry, records, geo_data):
     if ctry not in geo_data['badness']['ctry']:
         try:
             total_entities_count = geo_data['sizes']['ctry'][ctry]
-            known_entities_count = records[records['geo'].apply(lambda x: check_ctry(x, ctry)) == True].index.size
+            known_entities_count = records[records['ctry'] == ctry].index.size
             geo_data['badness']['ctry'][ctry] = known_entities_count / total_entities_count
         except (KeyError, ZeroDivisionError):
             geo_data['badness']['ctry'][ctry] = 0
     return geo_data['badness']['ctry'][ctry]
 
 
-def get_asn_badness(asn_list, records, geo_data):
+def get_asn_badness(asn_list, geo_data):
     """
+    Compute average "badness" for given list of ASNs.
+
     :param asn_list: list of AS identifiers
-    :param records: pandas data frame containing all current records
     :param geo_data: dict containing external geolocation data
 
     :return: float between 0 and 1 representing the average "badness" of given ASNs
@@ -187,42 +190,39 @@ def get_asn_badness(asn_list, records, geo_data):
     s = 0.0
     for asn in asn_list:
         if asn not in geo_data['badness']['asn']:
-            try:
-                total_entities_count = geo_data['sizes']['asn'][asn]
-                known_entities_count = records[records['asn'].apply(lambda x: contains(x, asn)) == True].index.size
-                geo_data['badness']['asn'][asn] = known_entities_count / total_entities_count
-            except (KeyError, ZeroDivisionError):
-                geo_data['badness']['asn'][asn] = 0
+            continue
         s += geo_data['badness']['asn'][asn]
     return s / len(asn_list) if len(asn_list) > 0 else 0
 
 
-def contains(array, value):
+def preprocess_asn_badness(records, geo_data):
     """
-    Check whether array contains given value.
+    Compute "badness" of each ASN contained in 'records' and store it for later use.
+
+    :param records: pandas data frame containing IP addresses and corresponding ASNs
+    :param geo_data: dict containing external geolocation data
     """
-    try:
-        _ = array.index(value)
-        return True
-    except ValueError:
-        return False
+    for column in records:
+        value_counts = records[column].value_counts()
+        for asn, known_entities_count in value_counts.items():
+            try:
+                total_entities_count = geo_data['sizes']['asn'][asn]
+                if asn not in geo_data['badness']['asn']:
+                    geo_data['badness']['asn'][asn] = 0
+                geo_data['badness']['asn'][asn] += known_entities_count / total_entities_count
+            except (KeyError, ZeroDivisionError):
+                geo_data['badness']['asn'][asn] = 0
 
 
-def check_ctry(geo_data, ctry):
+def get_ctry(geo_data):
     try:
-        return geo_data['ctry'] == ctry
+        return geo_data['ctry']
     except Exception:
-        return False
+        return None
 
 
-def bgppref_to_asn(bgppref, records_bgppref):
-    """
-    Map given BGP prefix to corresponding ASN(s).
-    """
-    try:
-        return list(records_bgppref[records_bgppref['_id'] == bgppref].iloc[0]['asn'])
-    except Exception:
-        return []
+def int2ipprefix(i):
+    return '.'.join((str(i >> 24), str((i >> 16) & 0xff), str((i >> 8) & 0xff)))
 
 
 def get_intervals_from_timestamps(timestamps):
@@ -235,7 +235,7 @@ def get_intervals_from_timestamps(timestamps):
     intervals = []
     for i in range(1, len(timestamps)):
         intervals.append((timestamps[i] - timestamps[i-1]).total_seconds() / 86400)
-    return intervals
+    return intervals if len(intervals) > 0 else [0]
 
 
 def get_events_meta(rec, today):
@@ -312,11 +312,11 @@ def get_prefix_meta(prefix, today, records, prefix_meta):
         alerts_per_day_n = [0]*7;
         alerts_per_day_conns = [0]*7;
 
-        records_from_prefix = records[records['_id'].apply(int2ipstr).str.startswith(prefix)]
-        for index, rec in records_from_prefix.iterrows():
-            if 'events' not in rec or type(rec['events']) is not list:
+        records_from_prefix = records.loc[records['prefix'] == prefix, 'events']
+        for index, rec in records_from_prefix.items():
+            if type(rec) is not list:
                 continue
-            for evtrec in rec['events']:
+            for evtrec in rec:
                 n = evtrec['n']
                 conns = evtrec.get('conns', 0)
                 date = evtrec['date']
@@ -354,7 +354,7 @@ def get_prefix_meta(prefix, today, records, prefix_meta):
     return prefix_meta[prefix]
 
 
-def update_record(rec, model, records, records_bgppref, updates, prefix_meta, geo_data, today, log):
+def update_record(rec, model, records, updates, prefix_meta, geo_data, today, log):
     """
     Assemble feature vector of given IP, feed it to the model and update its current FMP score.
 
@@ -435,7 +435,7 @@ def update_record(rec, model, records, records_bgppref, updates, prefix_meta, ge
 
     # Prefix metadata (aggregated events metadata across the whole /24 prefix)
     ipv4 = int2ipstr(rec['_id'])
-    prefix = ipv4[:ipv4.rfind('.')]
+    prefix = rec['prefix']
     metadata = get_prefix_meta(prefix, today, records, prefix_meta)
     j = i
     featV[i] = metadata.get('total1', 0)
@@ -504,13 +504,13 @@ def update_record(rec, model, records, records_bgppref, updates, prefix_meta, ge
         i += 4
 
     # Ctry badness
-    if 'geo' in rec and type(rec['geo']) is dict and 'ctry' in rec['geo']:
-        transFeatV[i] = featV[i] = get_ctry_badness(rec['geo']['ctry'], records, geo_data)
+    if rec['ctry'] is not None:
+        transFeatV[i] = featV[i] = get_ctry_badness(rec['ctry'], records, geo_data)
     i += 1
 
     # ASN badness
-    if 'asn' in rec and type(rec['asn']) is list:
-        transFeatV[i] = featV[i] = get_asn_badness(rec['asn'], records, geo_data)
+    if rec['asn'] is not None:
+        transFeatV[i] = featV[i] = get_asn_badness(rec['asn'], geo_data)
     i += 1
 
     # Insert transformed feature vector to the trained model.
@@ -612,11 +612,26 @@ def fmp_global_update(db, model, geo_data_dir, log):
 
     # Map BGP prefix of each record to corresponding list of ASNs
     log.info("Mapping BGP prefixes to ASNs")
-    records['asn'] = records['bgppref'].apply(lambda prefix: bgppref_to_asn(prefix, records_bgppref))
+    bgppref_to_asn = {}
+    for prefix, asn_list in records_bgppref.itertuples(index=False):
+        bgppref_to_asn[prefix] = asn_list
+    records['asn'] = records['bgppref'].apply(lambda prefix: bgppref_to_asn[prefix] if prefix in bgppref_to_asn else [])
+
+    # Preprocess 'asn badness' feature
+    preprocess_asn_badness(pandas.DataFrame(records['asn'].tolist()), geo_data)
+
+    # Create column with /24 prefix identifier
+    records['prefix'] = records['_id'].apply(int2ipprefix).astype('category')
+
+    # Create column with country identifier
+    records['ctry'] = records['geo'].apply(get_ctry).astype('category')
+
+    # Drop unused columns
+    records.drop(['geo', 'bgppref'], axis=1, inplace=True)
 
     # Update FMP score of each entity
     log.info("Processing records")
-    records.apply(lambda rec: update_record(rec, model, records, records_bgppref, updates, prefix_meta, geo_data, today, log), axis=1)
+    records.apply(lambda rec: update_record(rec, model, records, updates, prefix_meta, geo_data, today, log), axis=1)
 
     # Write updates to DB
     log.info("Writing updates to DB")
