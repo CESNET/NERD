@@ -312,8 +312,6 @@ function create_event_graph_otx(elem, event_data) {
         return;
     }
 
-
-
     for (author in eventsByAuthor) {
         let data = new Array(N_DAYS).fill(null);
         let v = []
@@ -336,7 +334,6 @@ function create_event_graph_otx(elem, event_data) {
         count++;
     }
 
-
     // Create the plot
     let event_chart = new Chart(elem, {
         type: 'line',
@@ -354,10 +351,9 @@ function create_event_graph_otx(elem, event_data) {
             responsive: true,
             scales: {
                 y: {
-                    min: -0.1,
-                    max: datasets.length - 0.5,
+                    max: datasets.length,
                     stepSize: 1,
-                    autoSkip: true,
+                    autoSkip: false,
                     title: {
                         display: true,
                         text: "OTX pulses by author",
@@ -389,9 +385,8 @@ function create_event_graph_otx(elem, event_data) {
             plugins: {
                 datalabels:
                 {
-                    rotation: '-45',
-                    align: '-45',
-                    anchor: 'end',
+                    align: -45,
+                    rotation: -45,
                     formatter: function (value, context) {
                         return values[context.datasetIndex + 1][context.dataIndex];
                     }
@@ -403,7 +398,7 @@ function create_event_graph_otx(elem, event_data) {
                     mode: 'index',
                     callbacks: {
                         label: function (tooltipItems, data) {
-                            return values[tooltipItems.datasetIndex + 1][tooltipItems.index];
+                            return values[tooltipItems.datasetIndex + 1][values[tooltipItems.datasetIndex + 1].length - 1];
 
                         }
                     }
