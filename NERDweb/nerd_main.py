@@ -1173,7 +1173,7 @@ def ips_download():
                                         row_entry['event_nodes'], row_entry['event_categories_c'], row_entry['event_categories'],
                                         row_entry['rep'], row_entry['blacklists'], row_entry['tags'], row_entry['ts_added'], row_entry['ts_last_event']])
 
-            return send_file("/tmp/results.csv", mimetype="text/csv", attachment_filename="results.csv", as_attachment=True)
+            return flask.send_file("/tmp/results.csv", mimetype="text/csv", attachment_filename="results.csv", as_attachment=True)
         else:
             return make_response("UNEXPECTED ERROR")
     else:
