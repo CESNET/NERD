@@ -864,7 +864,7 @@ sort_mapping = {
 def create_query(form):
     # Prepare 'find' part of the query
     queries = []
-    if form.subnet.data and form.subnet.data != "None":
+    if form.subnet.data:
         subnet = ipaddress.IPv4Network(form.subnet.data, strict=False)
         form.subnet.data = str(subnet)  # Convert to canonical form (e.g. 1.2.3.4/16 -> 1.2.0.0/16)
         subnet_start = int(subnet.network_address)  # IP addresses are stored as int
@@ -882,13 +882,13 @@ def create_query(form):
             queries.append({"$or":  multiple})
         else:
             flash("There is no valid IP adress in given string!")
-    if form.hostname.data and form.hostname.data != "None":
+    if form.hostname.data:
         hn = form.hostname.data[::-1]  # Hostnames are stored reversed in DB to allow search by suffix as a range search
         hn_end = hn[:-1] + chr(ord(hn[-1]) + 1)
         queries.append({'$and': [{'hostname': {'$gte': hn}}, {'hostname': {'$lt': hn_end}}]})
-    if form.country.data and form.country.data != "None":
+    if form.country.data:
         queries.append({'$or': [{'geo.ctry': country} for country in form.country.data]})
-    if form.asn.data and form.asn.data != "None" and form.asn.data.strip():
+    if form.asn.data and form.asn.data.strip():
         # ASN is not stored in IP records - get list of BGP prefixes of the ASN and filter by these
         asn = int(form.asn.data.lstrip("ASas"))
         asrec = mongo.db.asn.find_one({'_id': asn})
@@ -896,21 +896,21 @@ def create_query(form):
             queries.append({'bgppref': {'$in': asrec['bgppref']}})
         else:
             queries.append( {'_id': {'$exists': False}} ) # ASN not in DB, add query which is always false to get no results
-    if form.source.data and form.source.data != "None":
+    if form.source.data:
         op = '$and' if (form.source_op.data == "and") else '$or'
         queries.append( {op: [{'_ttl.' + s.lower(): {'$exists': True}} for s in form.source.data]} )
-    if form.cat.data and form.cat.data != "None":
+    if form.cat.data:
         op = '$and' if (form.cat_op.data == "and") else '$or'
         queries.append({op: [{'events.cat': cat} for cat in form.cat.data]})
-    if form.node.data and form.node.data != "None":
+    if form.node.data:
         op = '$and' if (form.node_op.data == "and") else '$or'
         queries.append({op: [{'events.node': node} for node in form.node.data]})
-    if form.blacklist.data and form.blacklist.data != "None":
+    if form.blacklist.data:
         op = '$and' if (form.bl_op.data == "and") else '$or'
         array = [{('dbl' if t == 'd' else 'bl'): {'$elemMatch': {'n': id, 'v': 1}}} for t, _, id in
                  map(lambda s: s.partition(':'), form.blacklist.data)]
         queries.append({op: array})
-    if form.tag.data and form.tag.data != "None":
+    if form.tag.data:
         op = '$and' if (form.tag_op.data == "and") else '$or'
         confidence = form.tag_conf.data if form.tag_conf.data else 0
         queries.append({op: [
@@ -1093,9 +1093,9 @@ def _return_string_from_class(object):
 @app.route('/_ips_download/', methods=['POST', 'GET'])
 def ips_download():
     log_ep.log('/ips_download')
-    if g.ac('export') or True: # this condition is bypassed
+    if g.ac('export'):
         form = IPFilterForm(request.args)
-        if g.ac('ipsearch') and form.validate() or True: # this condition is bypassed
+        if g.ac('ipsearch') and form.validate():
             query = create_query(form)
             results = mongo.db.ip.find(query)
 
@@ -1173,7 +1173,7 @@ def ips_download():
                                         row_entry['event_nodes'], row_entry['event_categories_c'], row_entry['event_categories'],
                                         row_entry['rep'], row_entry['blacklists'], row_entry['tags'], row_entry['ts_added'], row_entry['ts_last_event']])
 
-            return flask.send_file("/tmp/results.csv", mimetype="text/csv", attachment_filename="results.csv", as_attachment=True)
+            return send_file("/tmp/results.csv", mimetype="text/csv", attachment_filename="results.csv", as_attachment=True)
         else:
             return make_response("UNEXPECTED ERROR")
     else:
