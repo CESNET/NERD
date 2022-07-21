@@ -9,7 +9,7 @@ class NoDefault:
 class MissingConfigError(Exception):
     pass
 
-def hierarchical_get(self, key, default=NoDefault):
+def hierarchical_get(self, key, default="1111"):
     """
     Return self[key] or "default" if key is not found. Allow hierarchical keys.
     
