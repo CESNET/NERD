@@ -42,7 +42,7 @@ function _poll(url){
             }
             else if (queryCounter > 30) { // stop polling after 30 seconds
                 clearInterval(pollInterval);
-                show_error("Timeout - backend is probably overloaded. Try again later.");
+                show_error("Timeout - backend is probably overloaded or stopped for maintenance. Try again later.");
             }
             queryCounter++;
         })

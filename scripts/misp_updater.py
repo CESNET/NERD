@@ -9,11 +9,10 @@ import logging
 from datetime import datetime, timedelta
 import argparse
 import os
-import re
 import sys
 from ipaddress import IPv4Address, AddressValueError
 
-from pymisp import ExpandedPyMISP, MISPAttribute
+from pymisp import ExpandedPyMISP
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -28,20 +27,16 @@ DEFAULT_MONGO_DBNAME = 'nerd'
 
 # parse arguments
 parser = argparse.ArgumentParser(
-    prog="misp_receiver.py",
-    description="NERD standalone, which will synchronize NERD with data from MISP instance."
+    prog="misp_updater.py",
+    description="NERD standalone script to synchronize NERD with data from MISP instance."
 )
 parser.add_argument("-v", dest="verbose", action="store_true",
                     help="Verbose mode")
-parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
+parser.add_argument('-c', '--config', metavar='CONFIG_FILE', default='/etc/nerd/nerdd.yml',
                     help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
-parser.add_argument("--cert", metavar='CA_FILE',
-                    help="Use this server certificate (or CA bundle) to check the certificate of MISP instance, useful when the server uses self-signed cert.")
-parser.add_argument("--insecure", action="store_true",
-                    help="Don't check the server certificate of MISP instance.")
 parser.add_argument("--since", action="store",
                     help="Specifies date from which should misp_updater query IP addresses from MISP. "
-                    "Expected format: YYYY-MM-DD. Default is taken from MISP ip lifetime stored in /etc/nerd.yml "
+                    "Expected format: YYYY-MM-DD. Default is taken from MISP ip lifetime stored in /etc/nerd/nerd.yml "
                     "(180 days by default).")
 parser.add_argument("--to", action="store",
                     help="Specifies date to which should misp_updater query IP addresses from MISP. "
@@ -85,14 +80,11 @@ try:
 except KeyError:
     logging.error("Missing configuration of MISP instance in the configuration file!")
     sys.exit(1)
+misp_verify_cert = config.get('misp.verify_cert', True)  # path to CA bundle to check the server cert, or False to
+                                                         # disable cert verification, or True to use default CA bundle
+                                                         # (passed to "requests" as "verify" parameter)
 
-cert = True # set to check server certificate (default)
-if args.insecure:
-    cert = False # don't check certificate
-elif args.cert:
-    cert = args.cert # read the certificate (CA bundle) to check the cert
-
-misp_inst = ExpandedPyMISP(misp_url, misp_key, cert)
+misp_inst = ExpandedPyMISP(misp_url, misp_key, misp_verify_cert)
 
 # if some error occures in ip processing, add it to list and try to process it again at the end of the script
 error_ip = {}
@@ -384,26 +376,24 @@ def process_ip(ip_addr, ip_info):
                 # construct new update request and send it
                 update_requests = [('set', 'misp_events', events), ('set', '_ttl.misp', live_till),
                                    ('setmax', 'last_activity', youngest_date)]
-                tq.put_task('ip', ip_addr, update_requests)
+                tq.put_task('ip', ip_addr, update_requests, "misp_updater")
         else:
             # ip address not even in NERD --> insert it
             update_requests = [('set', 'misp_events', events), ('set', '_ttl.misp', live_till), ('setmax',
                                                                 'last_activity', youngest_date)]
-            tq.put_task('ip', ip_addr, update_requests)
+            tq.put_task('ip', ip_addr, update_requests, "misp_updater")
 
 
 def main():
-    logger.info("Loading a list of all IPs in MISP (in given time interval) ...")
-    ip_all_selected_interval = get_all_ip_interval()
-    logger.info("Loaded {} IPs.".format(len(ip_all_selected_interval)))
-
+    logger.info("Step 1: Remove misp_events key of IP records in NERD for IPs that are not in MISP anymore ...")
     logger.info("Loading a list of all IPs in MISP (in last {} days) ...".format(inactive_ip_lifetime))
     ip_all = get_all_ips()
-    logger.info("Loaded {} IPs.".format(len(ip_all)))
+    logger.info("Found {} IPs.".format(len(ip_all)))
 
     # get all IPs with 'misp_events' attribute from NERD
     logger.info("Searching NERD for IP records with misp_events ...")
     db_ip_misp_events = db.find('ip', {'misp_events': {'$exists': True, '$not': {'$size': 0}}})
+    logger.info("Found {} IPs.".format(len(db_ip_misp_events)))
 
     # find all IPs that are in NERD but not in MISP anymore
     db_ip_misp_events = set(db_ip_misp_events) - set(ip_all)
@@ -414,9 +404,12 @@ def main():
             "{} NERD IPs don't have a (recent) entry in MISP anymore, removing corresponding misp_events keys...".format(
                 len(db_ip_misp_events)))
         for ip in db_ip_misp_events:
-            tq.put_task('ip', ip, [('remove', 'misp_events')])
+            tq.put_task('ip', ip, [('remove', 'misp_events')], "misp_updater")
 
-    logger.info("Checking and updating NERD records for all the IPs ...")
+    logger.info("Step 2: Create or update NERD records for all IPs present in MISP ...")
+    logger.info("Loading a list of all IPs in MISP (in given time interval) ...")
+    ip_all_selected_interval = get_all_ip_interval()
+    logger.info("Loaded {} IPs, checking and updating corresponding NERD records ...".format(len(ip_all_selected_interval)))
 
     for ip_addr, ip_info in ip_all_selected_interval.items():
         process_ip(ip_addr, ip_info)

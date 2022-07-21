@@ -61,8 +61,10 @@ class PassiveDNSResolver(NERDModule):
         redis_host = bl_config.get("redis.host", "localhost")
         redis_port = bl_config.get("redis.port", 6379)
         redis_db_index = bl_config.get("redis.db", 0)
+        redis_password = bl_config.get("redis.password", None)
+
         self.log.debug("Connecting to Redis: {}:{}/{}".format(redis_host, redis_port, redis_db_index))
-        self.redis = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db_index)
+        self.redis = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db_index, password=redis_password)
         
         # List of blacklists is get automatically from Redis
         # Domain blacklist format:

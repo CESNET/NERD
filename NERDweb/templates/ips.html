@@ -14,27 +14,39 @@
   {%- if field.errors %} <span class="error">{{ ', '.join(field.errors) }}</span>{% endif %}
 {%- endmacro %}
 
-<form method="GET" action="{{ url_for('ips') }}">
-  {# form.csrf_token #}
-  {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
-  {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
-  {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
-  {{ formfield(form.asn, size=7) }}
-  <br>
-  {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
-  {%- if ac('nodenames') %}
-  &nbsp; &amp; &nbsp;
-  {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
-  {% endif %}
-  <br>
-  {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
-  {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
-  {{ formfield(form.tag_conf, size=1)}}
-  <br>
-  {{ formfield(form.sortby) }}
-  {{ formfield(form.asc) }}<br>
-  {{ formfield(form.limit, size=10) }}<br>
-  <input type="submit">
+<form method="GET" action="{{ url_for('ips') }}" id="searchForm">
+  <div>
+    {# form.csrf_token #}
+    {{ formfield(form.subnet) }} &nbsp; &amp; &nbsp;
+    {{ formfield(form.hostname) }} &nbsp; &amp; &nbsp;
+    {{ formfield(form.country, size=2) }} &nbsp; &amp; &nbsp;
+    {{ formfield(form.asn, size=7) }}
+  </div>
+  <div>
+    {{ form.source.label }} <span id="source_op_button" class="op_button"></span> {{ form.source() }}{{ form.source_op() }}{%- if form.source.errors %} <span class="error">{{ ', '.join(form.source.errors) }}</span>{% endif %}
+  </div>
+  <div>
+    {{ form.cat.label }} <span id="cat_op_button" class="op_button"></span> {{ form.cat() }}{{ form.cat_op() }}{%- if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
+    {%- if ac('nodenames') %}
+    &nbsp; &amp; &nbsp;
+    {{ form.node.label }} <span id="node_op_button" class="op_button"></span> {{ form.node() }}{{ form.node_op() }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
+    {% endif %}
+  </div>
+  <div>
+    {{ form.blacklist.label }} <span id="bl_op_button" class="op_button"></span> {{ form.blacklist() }}{{ form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors) }}</span>{% endif %} &nbsp; &amp; &nbsp;
+    {{ form.tag.label }} <span id="tag_op_button" class="op_button"></span> {{ form.tag() }}{{ form.tag_op() }}{%- if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %} &nbsp;
+    {{ formfield(form.tag_conf, size=1)}}
+  </div>
+  <div>
+    {{ formfield(form.sortby) }}
+    {{ formfield(form.asc) }}
+  </div>
+  <div>
+    {{ formfield(form.limit, size=10) }}
+  </div>
+  <div>
+    <input type="submit">
+  </div>
 </form>
 <script>set_up_search_form();</script>
 
@@ -61,14 +73,14 @@
 <th>Hostname</th>
 <th title="Autonomous system number and name">ASN</th>
 <th>Country</th>
-<th title="Total number of alerts / nodes / categories in last {{ cfg_max_event_history }} days (from CESNET's Warden)">Events</th>
+<th title="Total number of Warden alerts / nodes / categories (in last {{ cfg_max_event_history }} days), second line shows events from other sources">Events</th>
 <!--<th>Shodan info</th>
 <th>Device type</th>-->
-<th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.</th>
+<th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.<sup><a href="https://github.com/CESNET/NERD/wiki/Reputation-score" title="More information about reputation score" target="_blank">(?)</a></sup></th>
 {% if ac('fmp') %}<th title="Future Maliciousness Probability score">FMP</th>{% endif %}
 <th>Other properties</th>
 <th>Time added</th>
-<th>Last event</th>
+<th>Last activity</th>
 <th title="Links to external services">Links</th>
 </tr>
 
@@ -101,6 +113,7 @@
   data-nodes="{{ip._evt_info.nodes}}" data-table="{{ip._evt_info.date_cat_table}}">
   <span>{{ip.events_meta.total if ip.events_meta else 0}}</span><span>{{ip._evt_info.n_nodes}}</span><span>{{ip._evt_info.n_cats}}</span>
   {% if ip._showable_misp_events %}<br><span class="misp">+ {{ ip._showable_misp_events }} MISP events</span>{% endif %}
+  {% if ip.otx_pulses %}<br><span class="otx">+ {{ ip.otx_pulses|length }} OTX pulses</span>{% endif %}
 </td>
 <td class="reputation" style="background-color: {{ rep_css_color(ip.rep) }}">
   {{ "%.3f"|format(ip.rep) if 'rep' in ip else "---" }}
@@ -112,6 +125,25 @@
 </td>
 {% endif %}
 <td class="other">
+  {% if ip.bl -%}
+    {% set bl_cnt = ip.bl|selectattr("v")|list|length -%}
+    {% set plural = "s" if bl_cnt > 1 else "" -%}
+    {% if bl_cnt > 0 -%}
+      <span class="tag blacklist" title="The IP address is present on {{ bl_cnt }} blacklist{{plural}}:<br>
+        {% for bl in ip.bl|selectattr("v") %}&bull; {{ (blacklist_info[bl.n] or {"name": bl.n}).name }}<br>{% endfor %}
+        More info in IP detail page.">{{ bl_cnt }} blacklist{{plural}}</span>
+    {% endif -%}
+  {% endif -%}
+  {% if ip.dbl -%}
+    {% set bl_cnt = ip.dbl|selectattr("v")|list|length -%}
+    {% set plural = "s" if bl_cnt > 1 else "" -%}
+    {% if bl_cnt > 0 -%}
+      <span class="tag blacklist" title="A domain name associated with the IP address is present on {{ bl_cnt }} domain blacklist{{plural}}:<br>
+        {% for bl in ip.dbl|selectattr("v") %}&bull; {{ (blacklist_info[bl.n] or {"name": bl.n}).name }}<br>{% endfor %}
+        More info in IP detail page.">{{ bl_cnt }} domain blacklist{{plural}}</span>
+    {% endif -%}
+  {% endif -%}
+
   {% if ip.shodan %}
     {% if ip.shodan.os %}<span class="tag os">{{ip.shodan.os}}</span>{% endif %}
     {% if ip.shodan.devicetype %}<span class="tag os">{{ip.shodan.devicetype}}</span>{% endif %}
@@ -161,33 +193,16 @@
         </span>
       {% endif %}
     {% endfor %}
-  {% endif %} 
-
-  {% if ip.bl %}
-  {% for bl_entry in ip.bl -%}
-    {% if bl_entry.v %}
-      <span class="tag blacklist" title="IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">
-        {{-bl_entry.n-}}</span>
-    {% endif %}
-  {%- endfor %}
-  {% endif %}
-  {% if ip.dbl %}
-  {% for bl_entry in ip.dbl -%}
-    {% if bl_entry.v %}
-      <span class="tag blacklist" title="A domain name associated with the IP is present on blacklist '{{ bl_entry.n }}'.<br>Last checked at: {{ bl_entry.t|datetime }}<br>Was present on blacklist at: {{bl_entry.h|map('datetime','%Y-%m-%d&nbsp;%H:%M')|join(', ')|truncate(200)|safe}}<br><br><i>Note: Description of blacklists not implemented yet, just google it.</i>">
-        {{-bl_entry.n-}}</span>
-    {% endif %}
-  {%- endfor %}
   {% endif %}
 </td>
 <td class="time" {% if ip.ts_added %}data-time={{ ip.ts_added|date_to_int }}{% endif %}>{{ip.ts_added.strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
-<td class="time" {% if ip.last_activity %}data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
+<td {% if ip.last_activity %}class="time" data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>
 <td class="links">
     <div class="links-dropdown">
         <button class="links-dropbtn">&#x25BC;</button>
         <div class="links-dropdown-content">
-            <a href="https://www.shodan.io/search?query={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"> &nbsp; Shodan</a>
-            <a href="https://censys.io/ipv4/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"> &nbsp; Censys</a>
+            <a href="https://www.shodan.io/host/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}"> &nbsp; Shodan</a>
+            <a href="https://search.censys.io/hosts/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='censys_icon.png') }}"> &nbsp; Censys</a>
             <a href="http://multirbl.valli.org/lookup/{{ ip._id }}.html" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"> &nbsp; valli.org</a>
             <a href="#" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"> &nbsp; whatismyipaddress.com</a>
             <a href="https://www.abuseipdb.com/check/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='abuse_ip_db_icon.png') }}"> &nbsp; AbuseIPDB</a>

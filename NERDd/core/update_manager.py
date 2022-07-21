@@ -355,7 +355,7 @@ class UpdateManager:
         update_requests -- list of update_request n-tuples (see the comments in the beginning of file)
         """
         # Put task to priority queue, so this can never block due to full queue
-        self._task_queue_writer.put_task(ekey[0], ekey[1], update_requests, priority=True)
+        self._task_queue_writer.put_task(ekey[0], ekey[1], update_requests, "update_manager", priority=True)
 
 
     # ############### Task distribution & control functions ###############
@@ -403,7 +403,7 @@ class UpdateManager:
         self._worker_threads = []
 
 
-    def _distribute_task(self, msg_id, etype, eid, updreq):
+    def _distribute_task(self, msg_id, etype, eid, updreq, src):
         """
         Puts given task into local queue of the corresponding thread.
 
@@ -416,7 +416,7 @@ class UpdateManager:
         """
         # Distribute tasks to worker threads by hash of (etype,ekey)
         index = hash((etype, eid)) % self.num_threads
-        self._queues[index].put((msg_id, etype, eid, updreq))
+        self._queues[index].put((msg_id, etype, eid, updreq, src))
 
 
     def _worker_func(self, thread_index):
@@ -446,7 +446,9 @@ class UpdateManager:
             except queue.Empty:
                 continue # check self.running again
 
-            msg_id, etype, eid, updreq = task
+            msg_id, etype, eid, updreq, src = task
+
+            self.elog_by_src.log(src)
 
             # Acknowledge receipt of the task (regardless of success/failre of its processing)
             self._task_queue_reader.ack(msg_id)

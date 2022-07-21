@@ -28,9 +28,13 @@ rm /etc/munin/plugins/nerd_mongo_rs
 ln -s /usr/share/munin/plugins/apache_* /etc/munin/plugins/
 ln -s /usr/share/munin/plugins/named /etc/munin/plugins/
 
-# Run munin-node
+# Enable & run munin-node
 systemctl enable munin-node
 systemctl restart munin-node
+
+# Enable & run munin (a script has to be run periodically, older versions were run by cron, now it's done using systemd timer)
+systemctl enable munin.timer
+systemctl start munin.timer
 
 # ** Enable web access **
 # Copy prepared config file for Apache

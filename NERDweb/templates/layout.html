@@ -16,7 +16,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>{{ title }} - Network Entity Reputation Database</title>
+  <title>{{ title + " - " if title else "" }}Network Entity Reputation Database</title>
   <!-- jQuery, jQuery UI -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" integrity="sha512-aOG0c6nPNzGk+5zjwyJaoRUgCdOrfSDhmMID2u4+OIslr0GjpLKo7Xm0Ao3xmpM4T8AmIouRkqwj1nrdVsLKEQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -126,8 +126,11 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
   {%- endif -%}
   {%- if config.logo_link %}</a>{% endif -%}
  </div>
- <div id="navigation">
-  <a href="{{ url_for('ips') }}">IP search</a> | <a href="{{ url_for('ip') }}">IP detail</a> | <a href="{{ url_for('data_index') }}">Data</a> | <a href="{{ url_for('map_index') }}">Map</a>
+ <div id="navigation"> {# Main menu generated from "menu_items" list from configuration, urls are appended to root app url #}
+  {%- set menu_item_joiner = joiner(" | ") -%}
+  {%- for path,label in config.get('menu_items', {}).items() -%}
+    {{ menu_item_joiner() }}<a href="{{ url_for('main') + path + "/" }}">{{ label }}</a>
+  {%- endfor -%}
  </div>
  <div id="login">
   {% if not user %}
@@ -178,6 +181,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 <img id="login-logo" src="{{ url_for('static', filename='nerd_logo_350.png') }}" width="350" height="179" alt="NERD logo">
 <div id="login-box">
 <h1>You are not logged in.</h1>
+<p>This instance of NERD doesn't allow access to anonymous users.</p>
 <p>Please, log in using the links in the top-right corner.</p>
 </div>
 </div>

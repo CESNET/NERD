@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<h1>Feed - {{name}}</h1>
+<hr>
+<b>Description:</b>
+<br>
+{{description}}
+<br>
+<hr>
+
+<dl>
+<dt><b>Type of feed:</b></dt> <dd>{{feed_type}}</dd>
+<dt><b>Links</b></dt>
+{% if firehol_link %}
+<dd>FireHOL link: <a href="{{ firehol_link }}">{{ firehol_link }}</a></dd>
+{% endif %}
+{% if provider_link %}
+<dd>Provider link: <a href="{{ provider_link }}">{{ provider_link }}</a></dd>
+{% endif %}
+{% if url %}
+<dd>Feed link: <a href="{{ url }}">{{ url }}</a></dd>
+{% endif %}
+</dl>
+{% endblock %}

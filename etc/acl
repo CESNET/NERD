@@ -10,13 +10,18 @@ assearch        *
 ipblocksearch   *
 orgsearch       *
 bgpprefsearch   *
+map             *
+data            *
 
 pdns            *
 shodan          *
 
+unlimited_search admin
+
 nodenames       trusted
 warden_alerts   trusted
 eml_rank        trusted
+mispevent       *
 tlp-green       trusted
 mentat          mentat
 

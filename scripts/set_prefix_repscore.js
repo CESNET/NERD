@@ -18,7 +18,7 @@ db.ip.aggregate(
   prefix_size = 1 << (32 - prefix_len);
   avg_rep = x["sum_rep"] / prefix_size;
 //  print("(" + prefix_id + ").rep <= " + avg_rep);
-  db.bgppref.update({"_id": prefix_id}, {"$set": {"rep": avg_rep}});
+  db.bgppref.updateMany({"_id": prefix_id}, {"$set": {"rep": avg_rep}});
 //   i += 1;
 //   if (i % 1000 == 0) {
 //     print("Done: "+i+"/"+cnt);

@@ -256,19 +256,20 @@ def save_blacklist_to_redis(bl_records, bl_id, bl_name, bl_type, prefix_bl_lengt
                 # because Redis does not handle well such big insert
                 for bl_records_part_index in range(0, len(bl_records), 250000):
                     pipe.execute()
-                    # clear pipe for new sadd(), last pipe.execute() is down in try block
+                    # clear pipe for new sadd(), last pipe.execute() is down at the end of the try block
                     pipe = r.pipeline()
                     blacklist_chunk = bl_records[bl_records_part_index:bl_records_part_index + 250000]
                     pipe.sadd(key_prefix + "list", *blacklist_chunk)
             else:
                 pipe.sadd(key_prefix + "list", *bl_records)
         elif bl_records and bl_type == "prefixIP":
-            # save every IP range as sorted set:
-            # first value = IP address as integer
-            # second value = IP address (add '/' prefix if it is range end to distinguish start from end)
+            # save IP ranges as sorted set (i.e. set of value+score pairs), each range as two values, beginning and end
+            # of the range.
+            #   value = IP address (add '/' prefix if it is range end to distinguish start from end)
+            #   score = IP address as integer (+0.5 for end of range, so beginning and end of 1-address ranges (/32) are ordered correctly)
             for record in bl_records:
                 pipe.zadd(key_prefix + "list", {str(record.network_address): int(record.network_address)})
-                pipe.zadd(key_prefix + "list", {'/' + str(record.broadcast_address): int(record.broadcast_address)})
+                pipe.zadd(key_prefix + "list", {'/' + str(record.broadcast_address): int(record.broadcast_address) + 0.5})
         else:
             vprint("WARNING: {} blacklist {} is empty! Maybe the service stopped working.".format(
                 bl_all_types[bl_type]['singular'], bl_id))
@@ -314,7 +315,7 @@ def process_blacklist_type(config_path, bl_type):
     :return: None
     """
     # Get list of blacklists (their IDs) in configuration
-    config_lists = set(cfg_item[0] for cfg_item in config.get(config_path, []))
+    config_lists = set(cfg_item['id'] for cfg_item in config.get(config_path, []))
     # Get list of blacklists present in Redis
     keys = r.keys(bl_all_types[bl_type]['db_prefix'] + '*')
     redis_lists = set(key.decode().split(':')[1] for key in keys)
@@ -325,11 +326,13 @@ def process_blacklist_type(config_path, bl_type):
         r.delete(*r.keys(bl_all_types[bl_type]['db_prefix'] + id + ':*'))
 
     # other_params should be empty or a dict containing optional parameters such as 'url_params' or 'headers'
-    for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
-        if len(other_params) > 1:
-            print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(
-                config_path, id), file=sys.stderr)
-        other_params = other_params[0] if other_params else {}
+    for bl in config.get(config_path, []):
+        id = bl['id']
+        name = bl['name']
+        url = bl['url']
+        regex = bl.get('regex', '')
+        refresh_time = bl['time']
+        other_params = bl.get('params', {})
         # TODO: check how old the list is and re-download if it's too old (complicated since cron-spec may be very complex)
         if args.force_refresh:
             get_blacklist(id, name, url, regex, bl_type, other_params)
@@ -353,7 +356,8 @@ if not args.one_shot:
 redis_host = config.get("redis", {}).get("host", "localhost")
 redis_port = config.get("redis", {}).get("port", 6379)
 redis_db = config.get("redis", {}).get("db", 0)
-r = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db)
+redis_password = config.get("redis", {}).get("password", None)
+r = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db, password=redis_password)
 try:
     r.ping()
 except redis.exceptions.ConnectionError as e:
@@ -373,11 +377,13 @@ process_blacklist_type("domainlists", "domain")
 if not args.one_shot:
     for config_path, bl_type in [('iplists', 'ip'), ('prefixiplists', 'prefixIP'), ('domainlists', 'domain')]:
         # other_params should be empty or a dict containing optional parameters such as 'url_params' or 'headers'
-        for id, name, url, regex, refresh_time, *other_params in config.get(config_path, []):
-            if len(other_params) > 1:
-                print("WARNING: too many parameters specified for blacklist {}.{}, excess ones will be ignored".format(
-                    config_path, id), file=sys.stderr)
-            other_params = other_params[0] if other_params else {}
+        for bl in config.get(config_path, []):
+            id = bl['id']
+            name = bl['name']
+            url = bl['url']
+            regex = bl.get('regex', '')
+            refresh_time = bl['time']
+            other_params = bl.get('params', {})
             trigger = CronTrigger(**refresh_time)
             job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, other_params),
                                     trigger=trigger, coalesce=True, max_instances=1)

@@ -484,7 +484,8 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
                             ('add', 'events_meta.total', 1),
                             ('setmax', 'last_activity', end_time),
                             ('setmax', '_ttl.warden', live_till),
-                        ]
+                        ],
+                        "warden_receiver"
                     )
                 for ipv6 in src.get("IP6", []):
                     log.debug(

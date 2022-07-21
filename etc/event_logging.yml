@@ -41,7 +41,16 @@ groups:
 
   # Number of processed tasks by their source (TODO)
   tasks_by_src:
-    events: []
+    events: 
+      - blacklists
+      - misp_receiver
+      - otx_receiver
+      - updater
+      - warden_receiver
+      - updater_manager
+      - web
+      - misp_updater
+      - dshield
     auto_declare_events: true
     intervals: ["5s", "5m"]
     sync-interval: 1
@@ -75,6 +84,8 @@ groups:
       - '/map'
       - '/data'
       - '/data/ip_rep_csv'
+      - '/data/bad_ips_txt'
+      - '/data/bad_ips_med_conf_txt'
       - '/api/user_info'
       - '/api/ip'
       - '/api/ip/rep'

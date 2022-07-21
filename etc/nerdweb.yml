@@ -15,7 +15,16 @@ secret_key: "!!! CHANGE THIS !!!"
 base_url: "/nerd"
 
 # Show "BETA" label over logo in web header
-beta_label: true
+beta_label: false
+
+# Items of main menu in the top-left corner of each page (map: URL path -> menu item text)
+# (Remove item from the list or set it to empty string to remove from menu)
+menu_items:
+  ips: "IP search"
+  ip: "IP detail"
+  #asn: "ASN detail"
+  data: "Data"
+  #map: "IP map"
 
 # Make the logo a hyperlink (e.g. to main page of this NERD deployment)
 #logo_link: "https://www.example.com/"
@@ -51,6 +60,12 @@ login:
   # Where to send emails about account requests
   # !!! Fill this when shibboleth is enabled !!!
   request-email: ''
+
+# Parameters for sending emails (available params: server, port, tls (true/false), username, password, sender)
+#mail:
+#  server: localhost
+#  port: 25
+#  sender: 'NERD <noreply@nerd.example.org>'
 
 rate-limit:
   # Rate-limiter default parameters (applied unless overridden for specific user).
