@@ -44,6 +44,10 @@ login:
       # Path to .htpasswd file with usernames and passwords (relative to NERD's "etc" dir)
       # Note that the file must be accessible by web server for both read and write (to allow password change)
       htpasswd_file: "htpasswd"
+    
+    google:
+      loc: "/login/google"
+      logout_path: "/nerd/user/google/logout"
 
 #    shibboleth:
 #      display: EduGAIN

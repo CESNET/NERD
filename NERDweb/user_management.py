@@ -12,12 +12,12 @@ from flask_dance.contrib.google import make_google_blueprint, google
 # needed overridden render_template method because it passes some needed attributes to Jinja templates
 from nerd_main import render_template, BASE_URL, config, mailer
 from userdb import create_user, get_user_data_for_login, get_user_by_email, verify_user, get_verification_email_sent, \
-    set_verification_email_sent, set_last_login, get_user_name, set_new_password
+    set_verification_email_sent, set_last_login, get_user_name, set_new_password, check_if_user_exists
 
-google_blueprint = make_google_blueprint(client_id=config.get('oauth.google.client_id'),
-                                         client_secret=config.get('oauth.google.client_secret'),
-                                         scope=["profile", "email"],
-                                         redirect_url=BASE_URL + '/')
+google_blueprint = make_google_blueprint(client_id="client-id-here",
+                                         client_secret="client-secret-here",
+                                         scope=["openid", "https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"],
+                                         redirect_url=BASE_URL + '/user/login/google/account')
 
 # variable name and name of blueprint is recommended to be same as filename
 user_management = Blueprint("user_management", __name__, static_folder="static", template_folder="templates")
@@ -46,7 +46,7 @@ def confirm_token(token, expiration=3600):
 
 
 def get_current_datetime():
-    return datetime.now() # TODO? shouldn't it be utcnow()? ukladádá se do DB
+    return datetime.now() # TODO? shouldn't it be utcnow()? ukladï¿½dï¿½ se do DB
 
 
 def send_verification_email(user_email, name):
@@ -129,13 +129,13 @@ def register_user():
         hashed_password = get_hashed_password(reg_form.password.data)
         res = create_user(reg_form.email.data, hashed_password, "local", reg_form.name.data, reg_form.organization.data)
         if isinstance(res, Exception):
-            if res.args[0].startswith("duplicate key") and "Key (id)" in res.args[0]: #TODO? neexistuje lepší zpùsob kontroly typu cyhby? Prý na to speciální typ Exc asi není
+            if res.args[0].startswith("duplicate key") and "Key (id)" in res.args[0]: #TODO? neexistuje lepï¿½ï¿½ zpï¿½sob kontroly typu cyhby? Prï¿½ na to speciï¿½lnï¿½ typ Exc asi nenï¿½
                 flash(f"User with email address {reg_form.email.data} already exists! You can either log in or try to "
                       f"reset your password in log-in section.", "error")
             else:
                 print(f"ERROR in register_user(): Something has failed during registration process: {res.args}")
                 # TODO implement some notification mechanism for such errors
-                flash(f"Something has failed during registration process, please contact administrator.", "error")
+                flash(f"Something has failed during registration process, please contact administrator. {res.args}", "error")
         else:
             flash(f"Account created for {reg_form.email.data}!", "success")
             # immediately log in user
@@ -248,9 +248,63 @@ def resend_verification_mail():
 def google_login():
     if not google.authorized:
         return redirect(url_for("google.login"))
+    else:
+        account_info = google.get("/oauth2/v1/userinfo")
+         # log user in
+        flash("User " + account_info.json()["name"] + " successfully logged in!")
+        session['user'] = {
+                'login_type': 'google',
+                'id': account_info.json()["email"],
+            }
+        return redirect(BASE_URL + '/')
     # https://www.googleapis.com/auth/userinfo.email
     # account_info = google.get("https://www.googleapis.com/auth/userinfo.email")
     # account_info = google.get("https://www.googleapis.com/oauth2/v2/userinfo?fields=id,email,name,picture")
+
+    return redirect(BASE_URL + '/')
+
+@user_management.route("/login/google/account")
+def google_login_account():
     account_info = google.get("/oauth2/v1/userinfo")
-    flash(f"User info is test: {account_info.json()}")
+    if check_if_user_exists("google:" + account_info.json()["email"]):
+        # log user in
+        flash("User " + account_info.json()["name"] + " successfully logged in!")
+        session['user'] = {
+                'login_type': 'google',
+                'id': account_info.json()["email"],
+            }
+        return redirect(BASE_URL + '/')
+    else:
+        return render_template('oauth_account.html', email=account_info.json()["email"], name=account_info.json()["name"], provider="google")
+    return redirect(BASE_URL + '/')
+
+@user_management.route("/login/google/account/create")
+def google_login_create_account():
+    account_info = google.get("/oauth2/v1/userinfo")
+    if check_if_user_exists("google:" + account_info.json()["email"]) is False:
+        # create the profile
+        create_user(account_info.json()["email"], "", "google", name=account_info.json()["name"], organization=None)
+        # set email as verified
+        verify_user("google:" + account_info.json()["email"])
+        # log user in
+        flash("User " + account_info.json()["name"] + " successfully logged in!")
+        session['user'] = {
+                'login_type': 'google',
+                'id': account_info.json()["email"],
+            }
+        return redirect(BASE_URL + '/')
+
+    return redirect(BASE_URL + '/')
+
+@user_management.route("/google/logout")
+def google_logout():
+    if google_blueprint.token is not None:
+        token = google_blueprint.token["access_token"] 
+        resp = google.post(
+            "https://accounts.google.com/o/oauth2/revoke",
+            params={"token": token},
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+        assert resp.ok, resp.text
+        del google_blueprint.token  # Delete OAuth token from storage
     return redirect(BASE_URL + '/')

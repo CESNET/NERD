@@ -1062,3 +1062,61 @@ ul.data-list li ul li {
   flex-direction: column;
   justify-content: space-between;
 }
+
+/* LOG IN */
+#login-form
+{
+  width: 400px;
+  margin: auto;
+  text-align: center;
+}
+
+
+
+#login-form fieldset
+{
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: left;
+}
+
+#login-form fieldset input
+{
+  margin-bottom: 15px;
+}
+
+#login-form fieldset input#password
+{
+  margin-bottom: 0px;
+}
+
+#login-form progress
+{
+  padding-top: 0;
+}
+
+#password-strength-text
+{
+  height: 10px;
+}
+
+#login-options
+{
+  width: 100%;
+  text-align: center;
+}
+
+.center
+{
+  width: 400px;
+  margin: auto;
+  text-align: center;
+  padding-top: 10%;
+}
+
+.center h3
+{
+  text-align: left;
+}

@@ -110,6 +110,14 @@ def get_user_data_for_login(user_id):
     return {'id': row[0], 'password': row[1], 'name': row[2]}
 # TODO? Proc se vraci "name"?
 
+def check_if_user_exists(user_id):
+    cur = db.cursor()
+    cur.execute("SELECT id, name FROM users WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        return False
+    return True
+
 def verify_user(user_id):
     try:
         cur = db.cursor()

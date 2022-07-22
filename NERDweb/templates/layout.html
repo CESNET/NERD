@@ -29,6 +29,8 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
   <!-- local stylesheets -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='flags.css') }}">
+  <!-- Font Awesome icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   
   <!-- local scripts -->
   <script>
@@ -134,10 +136,9 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
  </div>
  <div id="login">
   {% if not user %}
-      Log in using:
-      {%- for method_name, params in config.login.methods.items() -%}
-        <a href="{{ url_for('user_management.login_local') }}">Local account</a>
-      {%- endfor -%}
+
+        <a href="{{ url_for('user_management.login_local') }}">Log in</a>
+
       {%- if config.testing %}
         <a href="{{ url_for('login_devel') }}">= devel autologin =</a>
       {%- endif %}

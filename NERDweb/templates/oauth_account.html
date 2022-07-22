@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div class="center">
+    {% if provider == "google" %}
+    <i class="fa fa-google-plus-square fa-4x"></i>
+    <h2>Nerd successfully obtained information from your Google account.</h2>
+    {% endif %}
+    {% if provider == "github" %}
+    <i class="fa fa-github-square fa-4x"></i>
+    <h2>Nerd successfully obtained information from your Github account.</h2>
+    {% endif %}
+    {% if provider == "twitter" %}
+    <i class="fa fa-twitter-square fa-4x"></i>
+    <h2>Nerd successfully obtained information from your Twitter account.</h2>
+    {% endif %}
+    {% if provider == "edugain" %}
+    <img src="https://edugain.org/wp-content/uploads/2017/06/header_logo_small-1.gif" alt="EduGain">
+    <h2>Nerd successfully obtained information from your Edugain account.</h2>
+    {% endif %}
+
+    <h3>Name: {{name}}</h3>
+    <h3>Email address: {{email}}</h3>
+
+    <h2>Would you like to create an account?</h2>
+    <button onclick="window.location.href='{{ url_for('user_management.google_login_create_account') }}'">Create an account</button> <button onclick="window.location.href='{{ url_for('user_management.login_local') }}'">Cancel</button>
+</div>
+
+{% endblock %}

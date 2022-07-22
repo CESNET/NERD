@@ -3,18 +3,19 @@
 {% block body %}
 
 <div>
-    <h1>User registration</h1>
-    <form method="POST" action="">
+    
+    <form id="login-form" method="POST" action="">
+        <h1>User registration</h1>
         <fieldset class="form-group">
             <div class="form-group">
-                {{ form.name.label(class="form-control-label") }}<br />
+                {{ form.name.label(class="form-control-label") }}*<br />
                 {{ form.name(class="form-control form-control-lg") }}
                 {% if form.name.errors %}
                     <span class="error">{{ ', '.join(form.name.errors) }}</span><br />
                 {% endif %}
             </div>
             <div class="form-group">
-                {{ form.email.label(class="form-control-label") }}<br />
+                {{ form.email.label(class="form-control-label") }}*<br />
                 {{ form.email(class="form-control form-control-lg") }}
                 {% if form.email.errors %}
                     <span class="error">{{ ', '.join(form.email.errors) }}</span><br />
@@ -28,30 +29,32 @@
                 {% endif %}
             </div>
             <div class="form-group">
-                {{ form.password.label(class="form-control-label") }}<br />
+                {{ form.password.label(class="form-control-label") }}*<br />
                 {% if form.password.errors %}
                     <span class="error">{{ ', '.join(form.password.errors) }}</span><br />
                 {% endif %}
                 {{ form.password(class="form-control form-control-lg") }}
             </div>
             <div class="form-group">
-                {{ form.confirm_password.label(class="form-control-label") }}<br />
+                {{ form.confirm_password.label(class="form-control-label") }}*<br />
                 {% if form.confirm_password.errors %}
                     <span class="error">{{ ', '.join(form.confirm_password.errors) }}</span><br />
                 {% endif %}
                 {{ form.confirm_password(class="form-control form-control-lg") }}
             </div>
+            <div class="form-group">
+                {{ form.submit(class="btn btn-outline-info") }}
+            </div>
         </fieldset>
-        <div class="form-group">
-            {{ form.submit(class="btn btn-outline-info") }}
+        <div class="border-top pt-3">
+            <p class="text-muted">
+                Already have an account? <a class="ml-2" href="{{ url_for('user_management.login_local') }}">Sign in</a>
+            </p>
         </div>
+        
     </form>
 </div>
-<div class="border-top pt-3">
-    <small class="text-muted">
-        Already have an account? <a class="ml-2" href="{{ url_for('user_management.login_local') }}">Sign in</a>
-    </small>
-</div>
+
 {{ check.password_check('password', 0) }}
 
 {% endblock %}
