@@ -666,8 +666,7 @@ def account_info():
             try:
                 # Verify old password
                 cmd = ['htpasswd', '-v', '-i', htpasswd_file, g.user['id']]
-                p = subprocess.Popen(cmd,
-                                     stdin=subprocess.PIPE)  # , stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                p = subprocess.Popen(cmd, stdin=subprocess.PIPE)#, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 p.communicate(passwd_form.old_passwd.data.encode('utf-8'))
                 if p.returncode != 0:
                     if p.returncode == 3:  # Bad password
@@ -681,8 +680,7 @@ def account_info():
                 # Set new password
                 # (-i: read password from stdin, -B: use bcrypt, -C: bcrypt cost factor (12 should be quite secure and takes approx. 0.3s on my server)
                 cmd = ['htpasswd', '-i', '-B', '-C', '12', htpasswd_file, g.user['id']]
-                p = subprocess.Popen(cmd,
-                                     stdin=subprocess.PIPE)  # , stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                p = subprocess.Popen(cmd, stdin=subprocess.PIPE)#, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 p.communicate(passwd_form.new_passwd.data.encode('utf-8'))
                 if p.returncode != 0:
                     print("ERROR: htpasswd set error '{}': retcode: {}".format(' '.join(cmd), p.returncode),
@@ -738,14 +736,9 @@ def set_effective_groups():
 
 def get_ip_blacklists():
     # Get the list of all configured IP blacklists. Return array of (id, name).
-    # DNSBL (IP only)
-    blacklists = [(bl_name, bl_name) for bl_group in config.get('dnsbl.blacklists', []) for bl_name in
-                  bl_group[2].values()]
-    # Blacklists cached in Redis (IP and prefix)
-    #blacklists += [(bl[0], bl[1]) for bl in bl_config.get('iplists', [])]
-    # blacklists += [(bl[0], bl[1]) for bl in bl_config.get('prefixiplists', [])]
-    blacklists.sort()
-    return blacklists
+    ip_lists = [(id, info['name']) for id, info in blacklist_info.items() if info['feed_type'] != "secondary (domain)"]
+    ip_lists.sort()
+    return ip_lists
 
 
 def get_domain_blacklists():
@@ -1498,9 +1491,8 @@ def get_status():
 
     try:
         if "data_disk_path" in config:
-            disk_usage = \
-            subprocess.check_output(["df", config.get("data_disk_path"), "-P"]).decode('ascii').splitlines()[1].split()[
-                4]
+            disk_usage = subprocess.check_output(["df", config.get("data_disk_path"), "-P"])\
+                .decode('ascii').splitlines()[1].split()[4]
         else:
             disk_usage = "(N/A)"
     except Exception as e:
@@ -1615,9 +1607,9 @@ def api_user_info():
         return API_RESPONSE_403
     data = {
         'userid': g.user.get('fullid'),
-        #        'name': g.user.get('name', ''),
-        #         'email': g.user.get('email', ''),
-        #         'org': g.user.get('org', ''),
+        # 'name': g.user.get('name', ''),
+        # 'email': g.user.get('email', ''),
+        # 'org': g.user.get('org', ''),
         'groups': list(g.user.get('groups', [])),
         'rate-limit-bucket-size': g.user.get('rl-bs') or rate_limiter.def_bucket_size,
         'rate-limit-tokens-per-sec': g.user.get('rl-tps') or rate_limiter.def_tokens_per_sec,
@@ -1681,8 +1673,7 @@ def attach_whois_data(ipinfo, full):
         if 'bgppref' in ipinfo:
             bgppref_rec = mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']}, {'asn': 1})
             if bgppref_rec is None:
-                print("ERROR: Can't find BGP prefix '{}' in database (trying to enrich IP {})".format(ipinfo['bgppref'],
-                                                                                                      ipinfo['_id']))
+                print("ERROR: Can't find BGP prefix '{}' in database (trying to enrich IP {})".format(ipinfo['bgppref'], ipinfo['_id']))
                 return
             if 'asn' in bgppref_rec:
                 ipinfo['asn'] = bgppref_rec['asn']
@@ -1693,19 +1684,14 @@ def attach_whois_data(ipinfo, full):
     if 'bgppref' in ipinfo:
         bgppref_rec = clean_secret_data(mongo.db.bgppref.find_one({'_id': ipinfo['bgppref']}))
         if bgppref_rec is None:
-            print("ERROR: Can't find BGP prefix '{}' in database (trying to enrich IP {})".format(ipinfo['bgppref'],
-                                                                                                  ipinfo['_id']))
+            print("ERROR: Can't find BGP prefix '{}' in database (trying to enrich IP {})".format(ipinfo['bgppref'], ipinfo['_id']))
         else:
             # BGPpref->ASN(s)
             asn_list = []
             for asn in bgppref_rec['asn']:
                 asn_rec = clean_secret_data(mongo.db.asn.find_one({'_id': asn}))
                 if asn_rec is None:
-                    print("ERROR: Can't find ASN '{}' in database (trying to enrich IP {}, bgppref {})".format(asn,
-                                                                                                               ipinfo[
-                                                                                                                   '_id'],
-                                                                                                               bgppref_rec[
-                                                                                                                   '_id']))
+                    print("ERROR: Can't find ASN '{}' in database (trying to enrich IP {}, bgppref {})".format(asn, ipinfo['_id'], bgppref_rec['_id']))
                 else:
                     # ASN->Org
                     if 'org' in asn_rec:
