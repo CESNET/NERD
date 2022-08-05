@@ -1108,6 +1108,11 @@ ul.data-list li ul li {
   text-align: center;
 }
 
+#login-options a:visited
+{
+  color: black;
+}
+
 .center
 {
   width: 400px;

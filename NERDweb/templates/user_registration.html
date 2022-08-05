@@ -45,6 +45,17 @@
             <div class="form-group">
                 {{ form.submit(class="btn btn-outline-info") }}
             </div>
+
+            <div>or log in using:</div>
+            <div id="login-options">
+                <a href="{{ url_for('user_management.google_login') }}"><i class="fa fa-google-plus-square fa-4x"></i></a>
+                <a href="{{ url_for('user_management.github_login') }}"><i class="fa fa-github-square fa-4x"></i></a>
+                <a href="{{ url_for('user_management.twitter_login') }}"><i class="fa fa-twitter-square fa-4x"></i></a>
+                <div id="edugain">
+                    <img src="https://edugain.org/wp-content/uploads/2017/06/header_logo_small-1.gif" alt="EduGain">
+                </div>
+                
+            </div>
         </fieldset>
         <div class="border-top pt-3">
             <p class="text-muted">

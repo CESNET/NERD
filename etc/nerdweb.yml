@@ -49,6 +49,17 @@ login:
       loc: "/login/google"
       logout_path: "/nerd/user/google/logout"
 
+    google:
+       loc: "/login/google"
+       logout_path: "/nerd/user/google/logout"
+
+    github:
+       loc: "/login/github"
+       logout_path: "/nerd/user/github/logout"
+
+    twitter:
+       loc: "/login/twitter"
+       logout_path: "/nerd/user/github/logout"
 #    shibboleth:
 #      display: EduGAIN
 #      display_order: 1
@@ -73,11 +84,11 @@ login:
 
 rate-limit:
   # Rate-limiter default parameters (applied unless overridden for specific user).
-  # Token bucket algorithm is used. Bucket size: maximum number of tokens per 
+  # Token bucket algorithm is used. Bucket size: maximum number of tokens per
   # user (how big burst of requests is allowed until rate-limitng applies).
-  # Tokens per second: rate of bucket refilling (maximum long-term rate of 
+  # Tokens per second: rate of bucket refilling (maximum long-term rate of
   # requests)
-  # Default: 1 token/sec, bucket size of 60  
+  # Default: 1 token/sec, bucket size of 60
   tokens-per-sec: 1
   bucket-size: 60
   # Selection of Redis instance and DB index (default: localhost:6379/1)

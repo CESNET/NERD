@@ -2018,10 +2018,12 @@ def get_shodan_response(ipaddr=None):
 # **********
 
 # register blueprints - generally definitions of routes in separate files
-from user_management import user_management, google_blueprint
+from user_management import user_management, google_blueprint, twitter_blueprint, github_blueprint
 
 app.register_blueprint(user_management, url_prefix="/user")
 app.register_blueprint(google_blueprint)
+app.register_blueprint(twitter_blueprint, url_prefix="/user/login")
+app.register_blueprint(github_blueprint, url_prefix="/user/login")
 
 
 if __name__ == "__main__":

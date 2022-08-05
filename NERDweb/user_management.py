@@ -8,19 +8,35 @@ from bcrypt import hashpw, checkpw, gensalt
 from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from flask_dance.contrib.google import make_google_blueprint, google
+from flask_dance.contrib.twitter import make_twitter_blueprint, twitter
+from flask_dance.contrib.github import make_github_blueprint, github
+
 
 # needed overridden render_template method because it passes some needed attributes to Jinja templates
 from nerd_main import render_template, BASE_URL, config, mailer
 from userdb import create_user, get_user_data_for_login, get_user_by_email, verify_user, get_verification_email_sent, \
     set_verification_email_sent, set_last_login, get_user_name, set_new_password, check_if_user_exists
 
-google_blueprint = make_google_blueprint(client_id="client-id-here",
-                                         client_secret="client-secret-here",
+google_blueprint = make_google_blueprint(client_id="",
+                                         client_secret="",
                                          scope=["openid", "https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"],
                                          redirect_url=BASE_URL + '/user/login/google/account')
 
+twitter_blueprint = make_twitter_blueprint(
+    api_key="",
+    api_secret="",
+    redirect_url=BASE_URL + '/user/login/twitter/account'
+)
+
+github_blueprint = make_github_blueprint(
+    client_id="",
+    client_secret="",
+    scope=["read:user,user:email"],
+    redirect_url=BASE_URL + '/user/login/github/account')
+
 # variable name and name of blueprint is recommended to be same as filename
 user_management = Blueprint("user_management", __name__, static_folder="static", template_folder="templates")
+
 
 ERROR_MSG_MISSING_MAIL_CONFIG = "ERROR: No destination email address configured. This is a server configuration " \
                                 "error. Please, report this to NERD administrator if possible."
@@ -244,6 +260,10 @@ def resend_verification_mail():
 # TODO: create some simpler html template/layout for these login/verify/reset pages (?)
 
 
+""" 
+        G O O G L E
+"""
+
 @user_management.route("/login/google")
 def google_login():
     if not google.authorized:
@@ -307,4 +327,162 @@ def google_logout():
         )
         assert resp.ok, resp.text
         del google_blueprint.token  # Delete OAuth token from storage
+    return redirect(BASE_URL + '/')
+
+
+""" 
+        T W I T T E R
+"""
+
+@user_management.route("/login/use-twitter")
+def twitter_login():
+    if not twitter.authorized:
+        return redirect(url_for("twitter.login"))
+    resp = twitter.get("/2/users/me")
+
+    if check_if_user_exists("twitter:" + resp.json()["data"]["id"]):
+        #log user in
+        flash("User " + resp.json()["data"]["name"] + " successfully logged in!")
+        session['user'] = {
+                'login_type': 'twitter',
+                'id': resp.json()["data"]["id"],
+        }
+    else:
+        return render_template('oauth_account.html', email=resp.json()["data"]["username"], name=resp.json()["data"]["name"], provider="twitter")
+
+    return redirect(BASE_URL + '/')
+
+@user_management.route("/login/twitter/account")
+def twitter_login_authorized():
+    if not twitter.authorized:
+        return redirect(url_for("twitter.login"))
+    resp = twitter.get("/2/users/me")
+
+    if check_if_user_exists("twitter:" + resp.json()["data"]["id"]):
+        #log user in
+        flash("User " + resp.json()["data"]["name"] + " successfully logged in!")
+        session['user'] = {
+                'login_type': 'twitter',
+                'id': resp.json()["data"]["id"],
+        }
+    else:
+        return render_template('oauth_account.html', email=resp.json()["data"]["username"], name=resp.json()["data"]["name"], provider="twitter")
+
+    return redirect(BASE_URL + '/')
+
+@user_management.route("/login/twitter/account/create")
+def twitter_login_create_account():
+    if not twitter.authorized:
+        return redirect(url_for("twitter.login"))
+    resp = twitter.get("/2/users/me")
+    if check_if_user_exists("twitter:" + resp.json()["data"]["id"]) is False:
+        # create the profile
+        create_user(resp.json()["data"]["id"], "", "twitter", name=resp.json()["data"]["name"], organization=None)
+        # set email as verified
+        verify_user("twitter:" + resp.json()["data"]["id"])
+        # log user in
+        flash("User " + resp.json()["data"]["name"] + " successfully logged in!")
+        session['user'] = {
+                'login_type': 'twitter',
+                'id': resp.json()["data"]["id"],
+            }
+        return redirect(BASE_URL + '/')
+
+    return redirect(BASE_URL + '/')
+
+@user_management.route("/twitter/logout")
+def twitter_logout():
+    return redirect(BASE_URL + '/')
+
+""" 
+        G I T H U B 
+"""
+
+
+@user_management.route("/login/use-github")
+def github_login():
+    if not github.authorized:
+        return redirect(url_for("github.login"))
+    resp = github.get("/user")
+    # if user has a private email address it will be shown as null in resp
+    mail = github.get("/user/emails") # gets email address every time
+    m = 0
+    while m < len(mail.json()) and mail.json()[m]["primary"] != True:
+        m += 1
+    
+    if resp.json()["name"] is not None:
+        name = resp.json()["name"]
+    else:
+        name = resp.json()["login"]
+
+    if check_if_user_exists("github:" + mail.json()[m]["email"]):
+        #log user in
+        flash("User " + name + " successfully logged in!")
+        session['user'] = {
+                'login_type': 'github',
+                'id': mail.json()[m]["email"],
+        }
+
+        return redirect(BASE_URL + '/')
+    else:
+        session['user-info'] = {
+                    'name': name,
+                    'mail': mail.json()[m]["email"],
+                }
+        return render_template('oauth_account.html', email=mail.json()[m]["email"], name=name, provider="github")
+    return redirect(BASE_URL + '/')
+    
+
+@user_management.route("/login/github/account")
+def github_login_account():
+    if not github.authorized:
+        return redirect(url_for("github.login"))
+    resp = github.get("/user")
+    # if user has a private email address it will be shown as null in resp
+    mail = github.get("/user/emails") # gets email address every time
+    m = 0
+    while m < len(mail.json()) and mail.json()[m]["primary"] != True:
+        m += 1
+    
+    if resp.json()["name"] is not None:
+        name = resp.json()["name"]
+    else:
+        name = resp.json()["login"]
+
+    if check_if_user_exists("github:" + mail.json()[m]["email"]):
+        #log user in
+        flash("User " + name + " successfully logged in!")
+        session['user'] = {
+                'login_type': 'github',
+                'id': mail.json()[m]["email"],
+        }
+
+        return redirect(BASE_URL + '/')
+    else:
+        session['user-info'] = {
+                    'name': name,
+                    'mail': mail.json()[m]["email"],
+                }
+        return render_template('oauth_account.html', email=mail.json()[m]["email"], name=name, provider="github")
+    return redirect(BASE_URL + '/')
+
+@user_management.route("/login/github/account/create")
+def github_login_create_account():
+    if check_if_user_exists("github:" + session['user-info']["mail"]) is False:
+        # create the profile
+        create_user(session['user-info']["mail"], "", "github", name=session['user-info']["name"], organization=None)
+        # set email as verified
+        verify_user("github:" + session['user-info']["mail"])
+        # log user in
+        flash("User " + session['user-info']["name"] + " successfully logged in!")
+        session['user'] = {
+                'login_type': 'github',
+                'id': session['user-info']["mail"],
+            }
+        return redirect(BASE_URL + '/')
+
+    return redirect(BASE_URL + '/')
+
+@user_management.route("/github/logout")
+def github_logout():
     return redirect(BASE_URL + '/')

@@ -20,10 +20,22 @@
     {% endif %}
 
     <h3>Name: {{name}}</h3>
+    {% if provider == "twitter" %}
+    <h3>Username: {{email}}</h3>
+    {% else %}
     <h3>Email address: {{email}}</h3>
+    {% endif %}
 
     <h2>Would you like to create an account?</h2>
+    {% if provider == "google" %}
     <button onclick="window.location.href='{{ url_for('user_management.google_login_create_account') }}'">Create an account</button> <button onclick="window.location.href='{{ url_for('user_management.login_local') }}'">Cancel</button>
+    {% endif %}
+    {% if provider == "github" %}
+    <button onclick="window.location.href='{{ url_for('user_management.github_login_create_account') }}'">Create an account</button> <button onclick="window.location.href='{{ url_for('user_management.login_local') }}'">Cancel</button>
+    {% endif %}
+    {% if provider == "twitter" %}
+    <button onclick="window.location.href='{{ url_for('user_management.twitter_login_create_account') }}'">Create an account</button> <button onclick="window.location.href='{{ url_for('user_management.login_local') }}'">Cancel</button>
+    {% endif %}
 </div>
 
 {% endblock %}
