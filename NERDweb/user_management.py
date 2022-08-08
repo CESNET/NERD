@@ -25,14 +25,14 @@ google_blueprint = make_google_blueprint(client_id="",
 twitter_blueprint = make_twitter_blueprint(
     api_key="",
     api_secret="",
-    redirect_url=BASE_URL + '/user/login/twitter/account'
-)
+    redirect_url=BASE_URL + '/user/login/use-twitter')
 
+    
 github_blueprint = make_github_blueprint(
     client_id="",
     client_secret="",
     scope=["read:user,user:email"],
-    redirect_url=BASE_URL + '/user/login/github/account')
+    redirect_url=BASE_URL + '/user/login/use-github')
 
 # variable name and name of blueprint is recommended to be same as filename
 user_management = Blueprint("user_management", __name__, static_folder="static", template_folder="templates")
@@ -276,11 +276,6 @@ def google_login():
                 'login_type': 'google',
                 'id': account_info.json()["email"],
             }
-        return redirect(BASE_URL + '/')
-    # https://www.googleapis.com/auth/userinfo.email
-    # account_info = google.get("https://www.googleapis.com/auth/userinfo.email")
-    # account_info = google.get("https://www.googleapis.com/oauth2/v2/userinfo?fields=id,email,name,picture")
-
     return redirect(BASE_URL + '/')
 
 @user_management.route("/login/google/account")
@@ -327,6 +322,7 @@ def google_logout():
         )
         assert resp.ok, resp.text
         del google_blueprint.token  # Delete OAuth token from storage
+    logout_user()
     return redirect(BASE_URL + '/')
 
 
@@ -336,24 +332,6 @@ def google_logout():
 
 @user_management.route("/login/use-twitter")
 def twitter_login():
-    if not twitter.authorized:
-        return redirect(url_for("twitter.login"))
-    resp = twitter.get("/2/users/me")
-
-    if check_if_user_exists("twitter:" + resp.json()["data"]["id"]):
-        #log user in
-        flash("User " + resp.json()["data"]["name"] + " successfully logged in!")
-        session['user'] = {
-                'login_type': 'twitter',
-                'id': resp.json()["data"]["id"],
-        }
-    else:
-        return render_template('oauth_account.html', email=resp.json()["data"]["username"], name=resp.json()["data"]["name"], provider="twitter")
-
-    return redirect(BASE_URL + '/')
-
-@user_management.route("/login/twitter/account")
-def twitter_login_authorized():
     if not twitter.authorized:
         return redirect(url_for("twitter.login"))
     resp = twitter.get("/2/users/me")
@@ -392,6 +370,7 @@ def twitter_login_create_account():
 
 @user_management.route("/twitter/logout")
 def twitter_logout():
+    del twitter_blueprint.token
     return redirect(BASE_URL + '/')
 
 """ 
@@ -401,40 +380,6 @@ def twitter_logout():
 
 @user_management.route("/login/use-github")
 def github_login():
-    if not github.authorized:
-        return redirect(url_for("github.login"))
-    resp = github.get("/user")
-    # if user has a private email address it will be shown as null in resp
-    mail = github.get("/user/emails") # gets email address every time
-    m = 0
-    while m < len(mail.json()) and mail.json()[m]["primary"] != True:
-        m += 1
-    
-    if resp.json()["name"] is not None:
-        name = resp.json()["name"]
-    else:
-        name = resp.json()["login"]
-
-    if check_if_user_exists("github:" + mail.json()[m]["email"]):
-        #log user in
-        flash("User " + name + " successfully logged in!")
-        session['user'] = {
-                'login_type': 'github',
-                'id': mail.json()[m]["email"],
-        }
-
-        return redirect(BASE_URL + '/')
-    else:
-        session['user-info'] = {
-                    'name': name,
-                    'mail': mail.json()[m]["email"],
-                }
-        return render_template('oauth_account.html', email=mail.json()[m]["email"], name=name, provider="github")
-    return redirect(BASE_URL + '/')
-    
-
-@user_management.route("/login/github/account")
-def github_login_account():
     if not github.authorized:
         return redirect(url_for("github.login"))
     resp = github.get("/user")
@@ -485,4 +430,5 @@ def github_login_create_account():
 
 @user_management.route("/github/logout")
 def github_logout():
+    del github_blueprint.token
     return redirect(BASE_URL + '/')
