@@ -864,9 +864,15 @@ def create_query(form):
         subnet_end = int(subnet.broadcast_address)
         queries.append({'$and': [{'_id': {'$gte': subnet_start}}, {'_id': {'$lte': subnet_end}}]})
     if form.ip_list.data:
+        # ip adresses
         extracted_ips = re.findall('''((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))''', form.ip_list.data)
+        # ip prefixes
+        extracted_prefixes = re.findall('''((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/[012]?[0-9])''', form.ip_list.data)
         multiple = []
         for ip in extracted_ips:
+            addr = int(ipaddress.IPv4Address(ip))
+            multiple.append({'_id': {'$eq': addr}})
+        for ip in extracted_prefixes:
             subnet = ipaddress.IPv4Network(ip, strict=False)
             subnet_start = int(subnet.network_address)  # IP addresses are stored as int
             subnet_end = int(subnet.broadcast_address)
