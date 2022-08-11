@@ -46,7 +46,7 @@
         </div>
 
       </div>
-      <div class="row" id="narrow">
+      <div class="row narrow" id="narrow">
         <div class="opt">
           <span class="lab">Source <span class="tooltip">?</span>  <span id="source_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
           {{ form.source() }}{{
@@ -57,12 +57,9 @@
           <span class="lab">Event category <span class="tooltip">?</span> <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
            {{ form.cat() }}{{ form.cat_op() }}{%-
           if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
-          {%- if ac('nodenames') %}
-          &nbsp; &amp; &nbsp;
-          {{ form.node.label }} <span id="node_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span> {{ form.node() }}{{ form.node_op()
-          }}{%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %}
-          {% endif %}
         </div>
+         
+        
         <div class="opt">
           <span class="lab">Blacklist <span class="tooltip">?</span> <span id="bl_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span> </span>
            {{ form.blacklist() }}{{
@@ -75,6 +72,17 @@
           if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %}
         </div>
       </div>
+      {%- if ac('nodenames') %}
+
+      <div class="row center-row" id="narrow">
+      <div class="opt">
+        <span class="lab">Warden Node <span class="tooltip">?</span> <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+      {{ form.node() }}
+      {{ form.node_op()}}
+      {%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %} 
+     </div>
+    </div>
+      {% endif %}
      
       <div id="sorting">
         <div>

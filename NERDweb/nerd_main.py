@@ -774,7 +774,7 @@ class IPFilterForm(FlaskForm):
     source_op = HiddenField('', default="or")
     cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
     cat_op = HiddenField('', default="or")
-    node = SelectMultipleField('Node', [validators.Optional()])
+    node = SelectMultipleField('', [validators.Optional()])
     node_op = HiddenField('', default="or")
     blacklist = SelectMultipleField('Blacklist', [validators.Optional()])
     bl_op = HiddenField('', default="or")
@@ -1067,6 +1067,8 @@ def ips_count():
     form = IPFilterForm(obj=form_values)
     if (g.ac('ipsearch') and form.validate()) or form.ip_list is not None:
         query = create_query(form)
+        if query is None: # count all
+            return make_response(str(mongo.db.ip.count_documents({})))
         # .count() is deprecated
         return make_response(str(mongo.db.ip.count_documents(query)))
     else:

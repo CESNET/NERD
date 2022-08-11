@@ -1279,3 +1279,8 @@ ul.data-list li ul li {
   {
     width: 500px;
   }
+
+  .center-row
+  {
+    justify-content: center;
+  }
