@@ -6,6 +6,8 @@ function parser(){
     var search = document.getElementById('ip_list').value;
     var ip_list = search.match(/((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/[012]?[0-9])?)/g).toString();
     ip_list = ip_list.replace(/,/g, '\n');
+    // remove duplicates by converting to set, then back
+    ip_list = Array.from(new Set(ip_list.split('\n'))).toString().replace(',', '\n');
     document.getElementById('ip_list').value = ip_list;
 }
 
@@ -33,15 +35,9 @@ function showPanel(panelIndex, colorCode) {
 
 
 
-if(window.location.href.endsWith("/nerd/ips/")){
-    changeTab(0, defaultColor);
-}
-
+if (sessionStorage.getItem("currentPanel") !== null)
+    changeTab(sessionStorage.getItem("currentPanel"), defaultColor);
 else
-{
-    if (sessionStorage.getItem("currentPanel") !== null)
-        changeTab(sessionStorage.getItem("currentPanel"), defaultColor);
-    else
-        changeTab(0, defaultColor);
-}
+    changeTab(0, defaultColor);
+
     

@@ -919,12 +919,16 @@ def create_query(form):
     return query
 
 
-@app.route('/ips')
-@app.route('/ips/')
+@app.route('/ips', methods = ['POST', 'GET'])
+@app.route('/ips/', methods = ['POST', 'GET'])
 def ips():
     log_ep.log('/ips')
     title = "IP search"
-    form = IPFilterForm(request.args)
+    if request.method == 'POST':
+        form = IPFilterForm(request.form)
+    else:
+        form = IPFilterForm(request.args)
+    
     cfg_max_event_history = config.get('max_event_history', '?')
 
     # Disallow to see/search by 'misp_tlp_green' tag if the user doesn't have the 'tlp-green' permission
@@ -939,7 +943,13 @@ def ips():
         try:
             query = create_query(form)
             # Query parameters to be used in AJAX requests
+            if form.ip_list.data is not None:
+                # newline characters from ip_list input field are not JSON compatible
+                form.ip_list.data = form.ip_list.data.replace("\r", "").replace("\n", " ")
             query_params = json.dumps(form.data)
+            if form.ip_list.data is not None:
+                # inserts newlines back - for proper representation in textfield
+                form.ip_list.data = form.ip_list.data.replace(" ", "\n")
             query_params_url = urllib.parse.urlencode(form.data, doseq=True)
 
             # Perform DB query
@@ -1048,16 +1058,17 @@ def ips():
     return render_template('ips.html', json=json, ctrydata=ctrydata, blacklist_info=blacklist_info, **locals())
 
 
-@app.route('/_ips_count', methods=['POST'])
+@app.route('/_ips_count', methods=["POST"])
 def ips_count():
     log_ep.log('/ips_count')
     # Excepts query as JSON encoded POST data.
-    form_values = request.get_json()
+    form_values = json.loads(request.data.decode('utf-8'))
+
     form = IPFilterForm(obj=form_values)
-    if g.ac('ipsearch') and form.validate():
+    if (g.ac('ipsearch') and form.validate()) or form.ip_list is not None:
         query = create_query(form)
-        # print("query: " + str(query))
-        return make_response(str(mongo.db.ip.find(query).count()))
+        # .count() is deprecated
+        return make_response(str(mongo.db.ip.count_documents(query)))
     else:
         return make_response("ERROR")
 
