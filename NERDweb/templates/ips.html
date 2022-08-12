@@ -29,45 +29,109 @@
       <div class="row">
         {# form.csrf_token #}
         <div class="opt">
-          <span class="lab">IP prefix <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          <span class="lab">
+            IP prefix 
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                IPv4 prefix/subnet in CIDR format.
+              </div>
+            </div> 
+          </span>
           {{ formfield(form.subnet, placeholder="a.b.c.d/x") }}
         </div>
         <div class="opt">
-          <span class="lab">Hostname suffix <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          <span class="lab">
+            Hostname suffix 
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Suffix of the hostname associated with the IP address. Can be used to search all hosts under given (sub)domain.
+              </div>
+            </div> 
+          </span>
           {{ formfield(form.hostname, placeholder=".example.org") }}
         </div>
         <div class="opt">
-          <span class="lab">ASN <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          <span class="lab">
+            ASN 
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Autonomous system number. Enter as "1234" or "AS1234”.
+              </div>
+            </div> 
+          </span>
           {{ formfield(form.asn, size=7, placeholder="ASxxx") }}
         </div>
         <div class="opt">
-          <span class="lab">Country <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          <span class="lab">
+            Country 
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Code of the country the IP address is probably located in (according to MaxMind database).
+              </div>
+            </div>
+          </span>
           {{ form.country.label }} {{ form.country() }}
         </div>
 
       </div>
       <div class="row narrow" id="narrow">
         <div class="opt">
-          <span class="lab">Source <i class="fa fa-question-circle-o" aria-hidden="true"></i>  <span id="source_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+          <span class="lab">
+            Source 
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Select IP addresses for which there are data (alerts, events, ...) from given primary data source(s).
+              </div>
+            </div> 
+            <span id="source_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
           {{ form.source() }}{{
           form.source_op() }}{%- if form.source.errors %} <span class="error">{{ ', '.join(form.source.errors)
             }}</span>{% endif %}
         </div>
         <div class="opt">
-          <span class="lab">Event category <i class="fa fa-question-circle-o" aria-hidden="true"></i> <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+          <span class="lab">
+            Event category 
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Select IP addresses with Warden alerts of given category.
+              </div>
+            </div>
+             <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
            {{ form.cat() }}{{ form.cat_op() }}{%-
           if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
         </div>
          
         
         <div class="opt">
-          <span class="lab">Blacklist <i class="fa fa-question-circle-o" aria-hidden="true"></i> <span id="bl_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span> </span>
+          <span class="lab">
+            Blacklist 
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Select IP addresses listed on given blacklist(s).
+              </div>
+            </div>
+             <span id="bl_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span> </span>
            {{ form.blacklist() }}{{
           form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors)
             }}</span>{% endif %}
         </div>
         <div class="opt">
-          <span class="lab">Tag <i class="fa fa-question-circle-o" aria-hidden="true"></i> <span id="tag_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+          <span class="lab">
+            Tag 
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Select IP addresses with given tag(s).
+              </div>
+            </div> 
+            <span id="tag_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
            {{ form.tag() }}{{ form.tag_op() }}{%-
           if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %}
         </div>
@@ -76,7 +140,14 @@
 
       <div class="row center-row" id="narrow">
       <div class="opt">
-        <span class="lab">Warden Node <i class="fa fa-question-circle-o" aria-hidden="true"></i> <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+        <span class="lab">Warden Node 
+          <div class="tooltip">
+            <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+            <div class="tooltip-text">
+              Select IP addresses reported by given Warden node (detector).
+            </div>
+          </div> 
+          <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
       {{ form.node() }}
       {{ form.node_op()}}
       {%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %} 
@@ -89,22 +160,20 @@
           <p>Sorting options</p>
         </div>
         <div class="opt">
-          <span class="lab">Sort by <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          <span class="lab">Sort by </span>
           {{ formfield(form.sortby) }}
         </div>
         <div class="opt secret-input">
-          <span class="lab">Order <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          <span class="lab">Order </span>
           {{ formfield(form.asc) }}
           <span class="op_button_big order"><div class="or selected"><span>DESC</span></div> <div class="and"><span>ASC</span></div></span>
         </div>
         <div class="opt">
-          <span class="lab">Max. number of addresses <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          <span class="lab">Max. number of addresses </span>
           {{ formfield(form.limit, size=10) }}
         </div>
       </div>
-      <div class="center">
-        <input id="submit-btn" type="submit">
-      </div>
+        <input id="submit-btn" type="submit" value="SEND QUERY">
     </form>
   </div>
 
@@ -113,7 +182,7 @@
     <form method="POST" action="{{ url_for('ips') }}" class="searchForm">
       <div class="row">
         <div class="opt">
-          <span class="lab">IP addresses <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          <span class="lab">IP addresses <div class="tooltip"><i class="fa fa-question-circle-o" aria-hidden="true"></i><div class="tooltip-text">Paste any text containing IPv4 addresses or prefixes in CIDR format. Search will return all addresses in NERD matching any of your addresses or prefixes.</div></div> </span>
           {{ formfield(form.ip_list, size=20) }}<br>
           <div class="center">
             <button id="parse-btn" type="button" onclick="parser()">Parse IPs</button>
@@ -125,22 +194,20 @@
           <p>Sorting options</p>
         </div>
         <div class="opt">
-          <span class="lab">Sort by <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          <span class="lab">Sort by </span>
           {{ formfield(form.sortby) }}
         </div>
-        <div class="opt secret-input">
-          <span class="lab">Order <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+        <div class="opt secret-input2">
+          <span class="lab">Order </span>
           {{ formfield(form.asc) }}
-          <span class="op_button_big order"><div class="or selected"><span>DESC</span></div> <div class="and"><span>ASC</span></div></span>
+          <span class="op_button_big order2"><div class="or selected"><span>DESC</span></div> <div class="and"><span>ASC</span></div></span>
         </div>
         <div class="opt">
-          <span class="lab">Max. number of addresses <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          <span class="lab">Max. number of addresses </span>
           {{ formfield(form.limit, size=10) }}
         </div>
       </div>
-      <div class="center">
-        <input id="submit-btn" type="submit" onclick="parser()">
-      </div>
+        <input id="submit-btn" type="submit" value="SEND QUERY" onclick="parser()">
     </form>
   </div>
   <script>set_up_search_form();</script>

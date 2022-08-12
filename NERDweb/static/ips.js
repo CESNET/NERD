@@ -36,52 +36,70 @@ function set_up_search_form() {
     }
   }
 
+  console.log($("#asc").is(":checked"));
+
   // Set up an operation (desc/asc) button
+  // two pairs of these toggles exist
+  // in both search modes
   function order_check() {
     $(".order")
     .click( function() {
-    if ($("#asc").is(":checked"))
+
+    if ($(".secret-input input").is(":checked"))
     {
-      $("#asc").prop('checked', false);
+      $(".secret-input input").prop('checked', false);
       $(this).find(".or").addClass("selected");
       $(this).find(".and").removeClass("selected");
     }
     else
     {
-      $("#asc").prop('checked', true);
-      
+        $(".secret-input input").prop('checked', true);  
       $(this).find(".and").addClass("selected");
       $(this).find(".or").removeClass("selected");
     }
     return false;
+      
+      
   });
-    if ($("#asc").is(":checked"))
+
+  $(".order2")
+    .click( function() {
+
+    if ($(".secret-input2 input").is(":checked"))
     {
-      if (sessionStorage.getItem("currentPanel") == null || sessionStorage.getItem("currentPanel") == 0)
-      {
-        $(".order").find(".and").addClass("selected");
-        $(".order").find(".or").removeClass("selected");
-      }
-      else
-      {
-        console.log("HERE");
-        $(".order").eq(1).find(".and").addClass("selected");
-        $(".order").eq(1).find(".or").removeClass("selected");
-      }
+      $(".secret-input2 input").prop('checked', false);
+      $(this).find(".or").addClass("selected");
+      $(this).find(".and").removeClass("selected");
     }
     else
     {
-      if (sessionStorage.getItem("currentPanel") == null || sessionStorage.getItem("currentPanel") == 0)
-      {
-        $(".order").find(".or").addClass("selected");
-        $(".order").find(".and").removeClass("selected");
-      }
-      else
-      {
-        console.log("HERE");
-        $(".order").eq(1).find(".or").addClass("selected");
-        $(".order").eq(1).find(".and").removeClass("selected");
-      }
+      $(".secret-input2 input").prop('checked', true);  
+      $(this).find(".and").addClass("selected");
+      $(this).find(".or").removeClass("selected");
+    }
+    return false;
+      
+      
+  });
+    if ($(".secret-input input").is(":checked"))
+    {
+      $(".order").find(".and").addClass("selected");
+      $(".order").find(".or").removeClass("selected");
+    }
+    else
+    {
+      $(".order").find(".or").addClass("selected");
+      $(".order").find(".and").removeClass("selected");
+    }
+    if ($(".secret-input2 input").is(":checked"))
+    {
+      $(".order2").find(".and").addClass("selected");
+      $(".order2").find(".or").removeClass("selected");
+    }
+    else
+    {
+      $(".order2").find(".or").addClass("selected");
+      $(".order2").find(".and").removeClass("selected");
     }
     };
     

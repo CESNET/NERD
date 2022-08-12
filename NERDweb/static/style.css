@@ -1154,16 +1154,29 @@ ul.data-list li ul li {
   width: 180px;
 }
 
-.tooltip{
-  display: inline-block;
+.tooltip {
   position: relative;
-  background: rgb(239, 239, 239);
-  padding: 2px 5px;
-  border-radius: 100%;
-  font-size: 14px;
-  cursor: help;
-  font-size: x-small; 
-  }
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltip-text {
+  visibility: hidden;
+  width: 150px;
+  background-color: rgba(0, 0, 0, 0.799);
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px;
+
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 1;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+}
 
   
   /* Hover states */
@@ -1189,7 +1202,7 @@ ul.data-list li ul li {
     background-color: #0061a2;
     cursor: pointer;
     height: 25px;
-    width: 100px;
+    width: 150px;
     color: white;
     letter-spacing: 2px;
     -webkit-box-shadow: 7px 10px 26px -15px rgba(0,0,0,0.75);
@@ -1287,7 +1300,7 @@ ul.data-list li ul li {
     justify-content: center;
   }
 
-  .secret-input input
+  .secret-input input, .secret-input2 input
   {
     display: none;
   }
