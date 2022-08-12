@@ -17,11 +17,11 @@
 
 
 <div class="tabContainer" id="searchForm">
-    <div class="row">
-      <h1>Known IP addresses</h1>
+    <div class="row first">
+      <h1>Search IP addresses by</h1>
       <div class="buttonContainer">
-        <button onclick="changeTab(0,'#0061a2')">Specified IP Search</button>
-        <button onclick="changeTab(1,'#0061a2')">Multiple IP Search</button>
+        <button onclick="changeTab(0,'#dddddd')">Criteria Match</button>
+        <button onclick="changeTab(1,'#dddddd')">List of IPs</button>
       </div>
     </div>
   <div class="tabPanel">
@@ -29,45 +29,45 @@
       <div class="row">
         {# form.csrf_token #}
         <div class="opt">
-          <span class="lab">IP prefix <span class="tooltip">?</span> </span>
+          <span class="lab">IP prefix <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
           {{ formfield(form.subnet, placeholder="a.b.c.d/x") }}
         </div>
         <div class="opt">
-          <span class="lab">Hostname suffix <span class="tooltip">?</span> </span>
-          {{ formfield(form.hostname, placeholder="xx") }}
+          <span class="lab">Hostname suffix <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
+          {{ formfield(form.hostname, placeholder=".example.org") }}
         </div>
         <div class="opt">
-          <span class="lab">ASN <span class="tooltip">?</span> </span>
+          <span class="lab">ASN <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
           {{ formfield(form.asn, size=7, placeholder="ASxxx") }}
         </div>
         <div class="opt">
-          <span class="lab">Country <span class="tooltip">?</span> </span>
+          <span class="lab">Country <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
           {{ form.country.label }} {{ form.country() }}
         </div>
 
       </div>
       <div class="row narrow" id="narrow">
         <div class="opt">
-          <span class="lab">Source <span class="tooltip">?</span>  <span id="source_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+          <span class="lab">Source <i class="fa fa-question-circle-o" aria-hidden="true"></i>  <span id="source_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
           {{ form.source() }}{{
           form.source_op() }}{%- if form.source.errors %} <span class="error">{{ ', '.join(form.source.errors)
             }}</span>{% endif %}
         </div>
         <div class="opt">
-          <span class="lab">Event category <span class="tooltip">?</span> <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+          <span class="lab">Event category <i class="fa fa-question-circle-o" aria-hidden="true"></i> <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
            {{ form.cat() }}{{ form.cat_op() }}{%-
           if form.cat.errors %} <span class="error">{{ ', '.join(form.cat.errors) }}</span>{% endif %}
         </div>
          
         
         <div class="opt">
-          <span class="lab">Blacklist <span class="tooltip">?</span> <span id="bl_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span> </span>
+          <span class="lab">Blacklist <i class="fa fa-question-circle-o" aria-hidden="true"></i> <span id="bl_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span> </span>
            {{ form.blacklist() }}{{
           form.bl_op() }}{%- if form.blacklist.errors %} <span class="error">{{ ', '.join(form.blacklist.errors)
             }}</span>{% endif %}
         </div>
         <div class="opt">
-          <span class="lab">Tag <span class="tooltip">?</span> <span id="tag_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+          <span class="lab">Tag <i class="fa fa-question-circle-o" aria-hidden="true"></i> <span id="tag_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
            {{ form.tag() }}{{ form.tag_op() }}{%-
           if form.tag.errors %} <span class="error">{{ ', '.join(form.tag.errors) }}</span>{% endif %}
         </div>
@@ -76,7 +76,7 @@
 
       <div class="row center-row" id="narrow">
       <div class="opt">
-        <span class="lab">Warden Node <span class="tooltip">?</span> <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+        <span class="lab">Warden Node <i class="fa fa-question-circle-o" aria-hidden="true"></i> <span id="cat_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
       {{ form.node() }}
       {{ form.node_op()}}
       {%- if form.node.errors %} <span class="error">{{ ', '.join(form.node.errors) }}</span>{% endif %} 
@@ -89,16 +89,16 @@
           <p>Sorting options</p>
         </div>
         <div class="opt">
-          <span class="lab">Sort by <span class="tooltip">?</span> </span>
+          <span class="lab">Sort by <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
           {{ formfield(form.sortby) }}
         </div>
-        <div class="opt">
-          <span class="lab">Order <span class="tooltip">?</span> </span>
+        <div class="opt secret-input">
+          <span class="lab">Order <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
           {{ formfield(form.asc) }}
-          <span>Ascending</span>
+          <span class="op_button_big order"><div class="or selected"><span>DESC</span></div> <div class="and"><span>ASC</span></div></span>
         </div>
         <div class="opt">
-          <span class="lab">Max. number of addresses <span class="tooltip">?</span> </span>
+          <span class="lab">Max. number of addresses <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
           {{ formfield(form.limit, size=10) }}
         </div>
       </div>
@@ -113,7 +113,7 @@
     <form method="POST" action="{{ url_for('ips') }}" class="searchForm">
       <div class="row">
         <div class="opt">
-          <span class="lab">IP addresses <span class="tooltip">?</span> </span>
+          <span class="lab">IP addresses <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
           {{ formfield(form.ip_list, size=20) }}<br>
           <div class="center">
             <button id="parse-btn" type="button" onclick="parser()">Parse IPs</button>
@@ -125,16 +125,16 @@
           <p>Sorting options</p>
         </div>
         <div class="opt">
-          <span class="lab">Sort by <span class="tooltip">?</span> </span>
+          <span class="lab">Sort by <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
           {{ formfield(form.sortby) }}
         </div>
-        <div class="opt">
-          <span class="lab">Order <span class="tooltip">?</span> </span>
+        <div class="opt secret-input">
+          <span class="lab">Order <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
           {{ formfield(form.asc) }}
-          <span>Ascending</span>
+          <span class="op_button_big order"><div class="or selected"><span>DESC</span></div> <div class="and"><span>ASC</span></div></span>
         </div>
         <div class="opt">
-          <span class="lab">Max. number of addresses <span class="tooltip">?</span> </span>
+          <span class="lab">Max. number of addresses <i class="fa fa-question-circle-o" aria-hidden="true"></i> </span>
           {{ formfield(form.limit, size=10) }}
         </div>
       </div>

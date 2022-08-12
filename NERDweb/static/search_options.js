@@ -1,13 +1,18 @@
 var tabButtons=document.querySelectorAll(".tabContainer .buttonContainer button");
 var tabPanels=document.querySelectorAll(".tabContainer .tabPanel");
-let defaultColor = "#0061a2";
+let defaultColor = "#dddddd";
 
 function parser(){
     var search = document.getElementById('ip_list').value;
-    var ip_list = search.match(/((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/[012]?[0-9])?)/g).toString();
-    ip_list = ip_list.replaceAll(/,/g, '\n');
-    // remove duplicates by converting to set, then back
-    ip_list = Array.from(new Set(ip_list.split('\n'))).toString().replaceAll(',', '\n');
+    var ip_list = search.match(/((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/[012]?[0-9])?)/g);
+    if (ip_list !== null)
+    {
+        ip_list = ip_list.toString();
+        ip_list = ip_list.replaceAll(/,/g, '\n');
+        // remove duplicates by converting to set, then back
+        ip_list = Array.from(new Set(ip_list.split('\n'))).toString().replaceAll(',', '\n');
+    }
+    
     document.getElementById('ip_list').value = ip_list;
 }
 
@@ -19,12 +24,12 @@ function changeTab(panelIndex, colorCode) {
 function showPanel(panelIndex, colorCode) {
 
     tabButtons.forEach(function(node){
-        node.style.backgroundColor="";
-        node.style.color="";
+        node.style.backgroundColor=colorCode;
+        node.style.color="gray";
     });
 
-    tabButtons[panelIndex].style.backgroundColor=colorCode;
-    tabButtons[panelIndex].style.color="white";
+    tabButtons[panelIndex].style.backgroundColor="";
+    tabButtons[panelIndex].style.color="";
 
     tabPanels.forEach(function(node){
         node.style.display="none";

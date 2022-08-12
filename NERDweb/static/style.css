@@ -137,6 +137,7 @@ img.load-spinner-small {
   z-index: 10;
   border-bottom: 1px solid #fff; /* White "separator" between the header and the bottom blue line */
   white-space: nowrap; /* never wrap to a new line inside the header, it would break layout */
+  margin-bottom: 20px;
 }
 #header::after { /* Blue line on the bottom of the header */
   content: "";
@@ -293,7 +294,6 @@ img.load-spinner-small {
 
 #content {
   padding: 0 0.75em 0.75em 0.75em;
-  border-top: 2px solid #0061a2;
 }
 
 /* Login prompt page */
@@ -450,10 +450,11 @@ img.load-spinner-small {
   text-align: center;
   display: flex;
   border: rgb(115, 115, 115) solid 1px;
-  border-radius: 10px;
+  border-radius: 10px; 
   font-size: 10px;
   font-weight: bold;
   user-select: none; /* makes text inside unselectable */
+  background-color: rgba(221, 221, 221, 0.91);
 }
 
 span.error {
@@ -1075,7 +1076,7 @@ ul.data-list li ul li {
 }
 
 .tabContainer .buttonContainer button:hover{
-  background-color: #d7d4d4;
+  color: black !important;
 }
 
 .tabContainer .tabPanel{
@@ -1085,6 +1086,8 @@ ul.data-list li ul li {
   font-family: inherit;
   font-size: 1.1em;
   display: none;
+  background-color: rgba(0, 0, 0, 0.217);
+  padding: 20px;
 }
 
 .searchForm
@@ -1119,7 +1122,13 @@ ul.data-list li ul li {
   flex-direction: row;
   width: 813px;
   justify-content: space-between;
-  padding-bottom: 10px;
+  padding-bottom: 25px;
+}
+
+.row.first
+{
+  width: 840px;
+  padding-bottom: 0px;
 }
 
 .row2
@@ -1148,11 +1157,12 @@ ul.data-list li ul li {
 .tooltip{
   display: inline-block;
   position: relative;
-  background: rgba(49, 49, 49, 0.3);
-  padding: 2px 6px;
+  background: rgb(239, 239, 239);
+  padding: 2px 5px;
   border-radius: 100%;
   font-size: 14px;
   cursor: help;
+  font-size: x-small; 
   }
 
   
@@ -1166,7 +1176,6 @@ ul.data-list li ul li {
   .searchForm button,  .searchForm input
   {
     border: 1px solid black;
-    border-radius: 7px;
 
   }
 
@@ -1177,30 +1186,26 @@ ul.data-list li ul li {
 
   #submit-btn
   {
-    background-color: rgb(37, 204, 37);
+    background-color: #0061a2;
     cursor: pointer;
     height: 25px;
     width: 100px;
+    color: white;
+    letter-spacing: 2px;
     -webkit-box-shadow: 7px 10px 26px -15px rgba(0,0,0,0.75);
     -moz-box-shadow: 7px 10px 26px -15px rgba(0,0,0,0.75);
     box-shadow: 7px 10px 26px -15px rgba(0,0,0,0.75);
     margin-top: 20px;
-    font-weight: bold;
     text-transform: uppercase;
   }
 
   #sorting
   {
-    background-color: rgba(0, 0, 0, 0.217);
-    padding: 20px;
-    border-radius: 7px;
-    -webkit-box-shadow: 7px 10px 10px -8px rgba(0,0,0,0.75);
-    -moz-box-shadow: 7px 10px 10px -8px rgba(0,0,0,0.75);
-    box-shadow: 7px 10px 10px -8px rgba(0,0,0,0.75);
+    padding-top: 20px;
     display: flex;
     flex-direction: row;
-    width: 773px;
-    justify-content: space-evenly;
+    width: 813px;
+    justify-content: space-between;
   }
 
   #sorting p
@@ -1211,18 +1216,15 @@ ul.data-list li ul li {
 
   #searchForm
   {
-    width: 1000px;
-    margin: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    width: 850px;
+    margin-left: -9px;
+    padding-left: 20px;
   }
 
 
   #ip_list
   {
     width: 790px;
-    border-radius: 7px;
   }
 
   #parse-btn
@@ -1283,4 +1285,38 @@ ul.data-list li ul li {
   .center-row
   {
     justify-content: center;
+  }
+
+  .secret-input input
+  {
+    display: none;
+  }
+
+  .op_button_big {
+    width: 100px;
+    height: 15px;
+    /*height: 100%;*/
+    text-align: center;
+    display: flex;
+    align-items: center;
+    border: rgb(115, 115, 115) solid 1px;
+    border-radius: 10px; 
+    font-size: 10px;
+    font-weight: bold;
+    user-select: none; /* makes text inside unselectable */
+    background-color: rgba(221, 221, 221, 0.91);
+  }
+
+  .op_button_big div
+  {
+    color: rgb(115, 115, 115);
+    cursor: pointer;
+    width: 50px;
+    padding: 3px;
+  }
+
+
+  .fa{
+    font-size: 15px !important;
+    cursor: help !important;
   }
