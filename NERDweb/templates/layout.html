@@ -134,6 +134,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
   {%- for path,label in config.get('menu_items', {}).items() -%}
     {{ menu_item_joiner() }}<a href="{{ url_for('main') + path + "/" }}">{{ label }}</a>
   {%- endfor -%}
+  {{ menu_item_joiner() }}<a href="{{ url_for('grip') }}">GRIP</a>
  </div>
  <div id="login">
   {% if not user %}

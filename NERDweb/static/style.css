@@ -1351,3 +1351,32 @@ ul.data-list li ul li {
     cursor: pointer;
     margin-left: 30px;
   }
+
+  #ip_inline_submit
+  {
+    background: none!important;
+    border: none;
+    padding: 0!important;
+    /*optional*/
+    font-family: arial, sans-serif;
+    /*input has OS specific font-family*/
+    color: rgb(0, 0, 238);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  table#grip_table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+  }
+  
+  table#grip_table td, table#grip_table th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+  }
+  
+  table#grip_table tr:nth-child(even) {
+    background-color: #dddddd;
+  }

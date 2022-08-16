@@ -6,6 +6,14 @@
 <!-- custom script specific for this page -->
 <script src="{{ url_for('static', filename='ip.js') }}"></script>
 {% endblock %}
+
+{% macro formfield(field) -%}
+{%- if field.type != 'BooleanField' %}{{ field.label }} {% endif -%}
+{{ field(class = kwargs.pop('class', '') + ' error', **kwargs) if field.errors else field(**kwargs) }}
+{%- if field.type == 'BooleanField' %} {{ field.label }}{% endif -%}
+{%- if field.errors %} <span class="error">{{ ', '.join(field.errors) }}</span>{% endif %}
+{%- endmacro %}
+
 {% block body %}
 {% macro blacklist_tag_with_box(bl_entry, ip, domain=False) -%}
   {# Render a blacklist tag with a hidden (showable on click) box with more details. #}
@@ -253,8 +261,25 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 {% if grip != [] %}
 <dt><b> GRIP (this IP is part of a group of malitious IPs with similar behaviour)</b></dt>
 <dd class="scrollable">
-  <b>Group ID: <a href="{{ url_for('grip') + grip[0].group_id }}">{{ grip[0].group_id }}</a></b> <br><br>
-  <b>IPs in this group: </b><br><br>
+  <div id="grip-top">
+    <b>Group ID: <a href="{{ url_for('grip') + grip[0].group_id }}">{{ grip[0].group_id }}</a></b>
+    <!-- HIDDEN FORM TO MATCH IP SEARCH POST REQUEST -->
+    <form method="POST" action="{{ url_for('ips') }}">
+      <div style="display: none;">
+          <textarea id="ip_list" name="ip_list">{{ parsed_ip_data }}</textarea>
+              
+          {{ formfield(form_hidden.sortby) }}
+              
+          {{ formfield(form_hidden.asc) }}
+              
+          {{ formfield(form_hidden.limit, size=10) }}
+      </div>
+      
+      <div style="margin-left: 20px;">[ <input id="ip_inline_submit" type="submit" value="SEARCH GROUP" onclick="sessionStorage.setItem('currentPanel', 1);"> ]</div>
+    </div>
+</form>
+ <br><br>
+    <b>IPs in this group ({{ grip_len }}): </b><br><br>
   {% for ip in grip_group.ips %}
     <a href="{{ url_for('ip') + ip.ip }}">{{ ip.ip }}</a><br>
   {% endfor %}

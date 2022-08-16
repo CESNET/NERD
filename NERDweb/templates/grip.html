@@ -16,11 +16,12 @@
 
 {% block body %}
 
-<h1>GRIP group details</h1>
+
 
 {# GRIP #}
-{% if grip_group != [] %}
 
+{% if grip_group != [] %}
+<h1>GRIP group details</h1>
 
 <div id="grip-top">
     <h2> Group ID: <a href="{{ url_for('grip') + grip_group.id }}">{{ grip_group.id }}</a> </h2>
@@ -51,6 +52,24 @@
        </table>
   {% endfor %}
 </dd>
+{% else %}
+<h1>GRIP list of groups ({{ grip_all_n }})</h1>
+<table id="grip_table">
+    <tr>
+        <th>ID</th>
+        <th>First active at</th>
+        <th>Last active at</th>
+    </tr>
+    {% for g in grip_all %}
+    
+    <tr>
+        <td><a href="{{ url_for('grip') + g.id }}">{{ g.id }}</a></td>
+        <td class="time" data-time="{{ g.first_active_at|date_to_int }}">{{ g.first_active_at }}</td>
+        <td class="time" data-time="{{ g.last_active_at|date_to_int }}">{{ g.last_active_at }}</td>
+    </tr>
+    {% endfor %}
+</table>
 {% endif %}
 
 {% endblock %}
+
