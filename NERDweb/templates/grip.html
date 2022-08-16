@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.0.0/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<!-- custom script specific for this page -->
+<script src="{{ url_for('static', filename='ip.js') }}"></script>
+{% endblock %}
+
+{% macro formfield(field) -%}
+{%- if field.type != 'BooleanField' %}{{ field.label }} {% endif -%}
+{{ field(class = kwargs.pop('class', '') + ' error', **kwargs) if field.errors else field(**kwargs) }}
+{%- if field.type == 'BooleanField' %} {{ field.label }}{% endif -%}
+{%- if field.errors %} <span class="error">{{ ', '.join(field.errors) }}</span>{% endif %}
+{%- endmacro %}
+
+{% block body %}
+
+<h1>GRIP group details</h1>
+
+{# GRIP #}
+{% if grip_group != [] %}
+
+
+<div id="grip-top">
+    <h2> Group ID: <a href="{{ url_for('grip') + grip_group.id }}">{{ grip_group.id }}</a> </h2>
+    
+    <!-- HIDDEN FORM TO MATCH IP SEARCH POST REQUEST -->
+    <form method="POST" action="{{ url_for('ips') }}">
+        <div style="display: none;">
+            <textarea id="ip_list" name="ip_list">{{ parsed_ip_data }}</textarea>
+                
+            {{ formfield(form.sortby) }}
+                
+            {{ formfield(form.asc) }}
+                
+            {{ formfield(form.limit, size=10) }}
+        </div>
+        
+        <input id="right-btn" type="submit" value="SEARCH GROUP" onclick="sessionStorage.setItem('currentPanel', 1);">
+    </form>
+</div>
+
+
+<dd>
+  {% for ip in grip_group.ips %}
+    IP: <a href="{{ url_for('ip') + ip.ip }}">{{ ip.ip }}</a><br>
+    <table style="padding-left: 30px; padding-bottom: 10px">
+        <tr><td>First active at:</td><td class="time" data-time="{{ ip.first_active_at|date_to_int }}">{{ ip.first_active_at }}</td></tr>
+        <tr><td>Last active at:</td><td class="time" data-time="{{ ip.last_active_at|date_to_int }}">{{ ip.last_active_at }}</td></tr>
+       </table>
+  {% endfor %}
+</dd>
+{% endif %}
+
+{% endblock %}

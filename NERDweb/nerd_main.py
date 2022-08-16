@@ -1250,6 +1250,22 @@ def ip(ipaddr=None):
                 if not g.ac('nodenames'):
                     for evtrec in ipinfo.get('events', []):
                         evtrec['node'] = pseudonymize_node_name(evtrec['node'])
+            # GRIP values
+            try:
+                # get group ID
+                grip = requests.get("http://grip.liberouter.org/ips/" + ipaddr)
+            except  requests.RequestException as e:  # Connection error, just in case
+                print(str(e), file=sys.stderr)
+                log_err.log('5xx_other')
+                grip = 'Error 502: Bad Gateway - cannot get information from GRIP server'
+            if grip.status_code != 200:
+                grip = 'Error ' + grip.status_code
+            else:
+                grip = grip.json()
+                # get other IP addresses in this group
+                if grip != []:
+                    grip_group = requests.get("http://grip.liberouter.org/groups/" + grip[0]["group_id"]).json()
+
         else:
             flash('Insufficient permissions to search/view IPs.', 'error')
     else:
@@ -1349,6 +1365,18 @@ def ajax_ip_events(ipaddr):
     if len(events) >= 100:
         num_events = "&ge;100, only latest 100 shown"
     return render_template('ip_events.html', json=json, **locals())
+
+# ***** Detailed info about GRIP group *****
+
+@app.route('/grip/')
+@app.route('/grip/<id>')
+def grip(id=None):
+    form = IPFilterForm(request.args)
+    if id:
+        grip_group = requests.get("http://grip.liberouter.org/groups/" + id).json()
+        parsed_ip_data = "\n".join([ip["ip"] for ip in grip_group["ips"]])
+
+    return render_template('grip.html', **locals())
 
 
 # ***** Detailed info about individual MISP event *****

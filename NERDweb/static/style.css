@@ -1333,3 +1333,21 @@ ul.data-list li ul li {
     font-size: 15px !important;
     cursor: help !important;
   }
+
+  /* GRIP style */
+  #grip-top
+  {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+  }
+
+  #right-btn
+  {
+    font-size: 12px;
+    padding: 5px;
+    background-color: #0061a2;
+    color: white;
+    cursor: pointer;
+    margin-left: 30px;
+  }

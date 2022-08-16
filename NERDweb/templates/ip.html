@@ -248,6 +248,20 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 {% endif %}
 </dl>
 
+{# GRIP #}
+
+{% if grip != [] %}
+<dt><b> GRIP (this IP is part of a group of malitious IPs with similar behaviour)</b></dt>
+<dd class="scrollable">
+  <b>Group ID: <a href="{{ url_for('grip') + grip[0].group_id }}">{{ grip[0].group_id }}</a></b> <br><br>
+  <b>IPs in this group: </b><br><br>
+  {% for ip in grip_group.ips %}
+    <a href="{{ url_for('ip') + ip.ip }}">{{ ip.ip }}</a><br>
+  {% endfor %}
+</dd>
+{% endif %}
+
+
 {# All other attributes #}
 <dl class="attrs">
 {% for attr,val in ipinfo|dictsort %}
