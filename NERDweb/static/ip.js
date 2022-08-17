@@ -370,3 +370,20 @@ function create_event_graph_otx(elem, event_data) {
       }
   });
 }     
+
+// GRIP show / hide IP list
+function show_ips(e)
+{
+    div = document.getElementById(e.target.getAttribute("name"));
+    if (div.style.display == "none")
+    {
+        div.style.display = "";
+        e.target.innerHTML = "hide IPs";
+    }
+    else
+    {
+        div.style.display = "none";
+        e.target.innerHTML = "show IPs";
+    }
+    
+}

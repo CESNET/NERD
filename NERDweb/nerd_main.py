@@ -1259,9 +1259,14 @@ def ip(ipaddr=None):
                     grip = grip.json()
                     # get other IP addresses in this group
                     if grip != []:
-                        grip_group = requests.get("http://grip.liberouter.org/groups/" + grip[0]["group_id"]).json()
-                        grip_len = len(grip_group["ips"])
-                        parsed_ip_data = "\n".join([ip["ip"] for ip in grip_group["ips"]])
+                        grip_group = []
+                        # one IP may belong to multiple groups
+                        for group in grip:
+                            data = {}
+                            data["group"] = requests.get("http://grip.liberouter.org/groups/" + group["group_id"]).json()
+                            data["size"] = len(data["group"]["ips"])
+                            data["ips"] = "\n".join([ip["ip"] for ip in data["group"]["ips"]])
+                            grip_group.append(data)
             except  requests.RequestException as e:  # Connection error
                 print(str(e), file=sys.stderr)
                 log_err.log('5xx_other')

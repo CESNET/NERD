@@ -1352,7 +1352,7 @@ ul.data-list li ul li {
     margin-left: 30px;
   }
 
-  #ip_inline_submit
+  .ip_inline_submit
   {
     background: none!important;
     border: none;

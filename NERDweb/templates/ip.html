@@ -261,27 +261,33 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 {% if grip != [] %}
 <dt><b> GRIP (this IP is part of a group of malitious IPs with similar behaviour)</b></dt>
 <dd class="scrollable">
-  <div id="grip-top">
-    <b>Group ID: <a href="{{ url_for('grip') + grip[0].group_id }}">{{ grip[0].group_id }}</a></b>
-    <!-- HIDDEN FORM TO MATCH IP SEARCH POST REQUEST -->
-    <form method="POST" action="{{ url_for('ips') }}">
-      <div style="display: none;">
-          <textarea id="ip_list" name="ip_list">{{ parsed_ip_data }}</textarea>
-              
-          {{ formfield(form_hidden.sortby) }}
-              
-          {{ formfield(form_hidden.asc) }}
-              
-          {{ formfield(form_hidden.limit, size=10) }}
+  
+    {% for gr in grip_group %}
+    <div id="grip-top">
+      <b>Group ID: <a href="{{ url_for('grip') + gr['group']['id'] }}">{{ gr["group"]["id"] }}</a></b>
+      <!-- HIDDEN FORM TO MATCH IP SEARCH POST REQUEST -->
+      <form method="POST" action="{{ url_for('ips') }}">
+        <div style="display: none;">
+            <textarea id="ip_list" name="ip_list">{{ gr["ips"] }}</textarea>
+                
+            {{ formfield(form_hidden.sortby) }}
+                
+            {{ formfield(form_hidden.asc) }}
+                
+            {{ formfield(form_hidden.limit, size=10) }}
+        </div>
+        
+        <div style="margin-left: 20px;">[ <input class="ip_inline_submit" type="submit" value="SEARCH GROUP" onclick="sessionStorage.setItem('currentPanel', 1);"> ]</div>
       </div>
-      
-      <div style="margin-left: 20px;">[ <input id="ip_inline_submit" type="submit" value="SEARCH GROUP" onclick="sessionStorage.setItem('currentPanel', 1);"> ]</div>
-    </div>
-</form>
- <br><br>
-    <b>IPs in this group ({{ grip_len }}): </b><br><br>
-  {% for ip in grip_group.ips %}
-    <a href="{{ url_for('ip') + ip.ip }}">{{ ip.ip }}</a><br>
+  </form>
+  <br>
+      <b>IPs in this group ({{ gr["size"] }}): </b>( <span name="{{ gr['group']['id'] }}" class="ip_inline_submit" onclick="show_ips(event)">show IPs</span> )<br><br>
+      <div id="{{ gr['group']['id'] }}" style="display: none;">
+        {% for ip in gr["group"].ips %}
+          <a href="{{ url_for('ip') + ip.ip }}">{{ ip.ip }}</a><br>
+        {% endfor %}
+      </div>
+      <br>
   {% endfor %}
 </dd>
 {% endif %}
