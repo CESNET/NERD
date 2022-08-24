@@ -3,8 +3,15 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.0.0/dist/chart.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
 <!-- custom script specific for this page -->
-<script src="{{ url_for('static', filename='ip.js') }}"></script>
+<script src="{{ url_for('static', filename='grip.js') }}"></script>
+
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.css" />
+    <script src="Scripts/jquery-3.3.1.min.js"></script>
+    <script src="Scripts/jquery-ui.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.js"></script>
 {% endblock %}
 
 {% macro formfield(field) -%}
@@ -14,9 +21,9 @@
 {%- if field.errors %} <span class="error">{{ ', '.join(field.errors) }}</span>{% endif %}
 {%- endmacro %}
 
+
+
 {% block body %}
-
-
 
 {# GRIP #}
 
@@ -54,12 +61,25 @@
 </dd>
 {% else %}
 <h1>GRIP list of groups ({{ grip_all_n }})</h1>
-<table id="grip_table">
-    <tr>
-        <th>ID</th>
-        <th>First active at</th>
-        <th>Last active at</th>
+<table cellspacing="5" cellpadding="5" style="display: none">
+    <tbody><tr>
+        <td>Minimum date:</td>
+        <td><input type="text" id="min" name="min"></td>
     </tr>
+    <tr>
+        <td>Maximum date:</td>
+        <td><input type="text" id="max" name="max"></td>
+    </tr>
+</tbody></table>
+<table id="grip_table" class="display nowrap"  class="grid">
+    <thead>
+        <tr>
+            <th>ID</div> </th>
+            <th>First active at</div></th>
+            <th>Last active at</div></th>
+        </tr>
+    </thead>
+
     {% for g in grip_all %}
     
     <tr>

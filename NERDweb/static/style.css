@@ -1369,14 +1369,15 @@ ul.data-list li ul li {
     font-family: arial, sans-serif;
     border-collapse: collapse;
     width: 100%;
+    margin: 0 auto;
+    margin-top: 20px;
+    position: relative;
+    overflow: auto;
+    overflow-y: overlay;
   }
   
   table#grip_table td, table#grip_table th {
     border: 1px solid #dddddd;
     text-align: left;
     padding: 8px;
-  }
-  
-  table#grip_table tr:nth-child(even) {
-    background-color: #dddddd;
   }
