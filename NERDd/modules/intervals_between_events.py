@@ -24,11 +24,9 @@ class IntervalsBetweenEvents(NERDModule):
         if 'intervals_between_events' in rec:
             timestamps = rec['intervals_between_events']
             timestamps.append(rec['last_warden_event'])
-            if len(timestamps) > self.max_events:
-                timestamps.popleft()
         else:
             timestamps = [rec['last_warden_event']]
 
         return [
-            ('set', 'intervals_between_events', timestamps)
+            ('set', 'intervals_between_events', timestamps[-self.max_events:])
         ]
