@@ -31,6 +31,13 @@ import signal
 
 from OTXv2 import OTXv2
 
+def parse_datetime(time_str):
+    # Parse ISO-formatted string with optional fractional part (datetime.fromisoformat would do it from Py>=3.7, but we still use Py3.6)
+    if '.' in time_str:
+        return datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%f")
+    else:
+        return datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S")
+
 # Set modified_since to this number of days if otx_last_update.txt is not present.
 MAX_DATA_AGE_ON_FIRST_RUN = 180
 
@@ -99,14 +106,14 @@ def create_new_pulse(pulse, indicator):
         'pulse_id': pulse['id'],
         'pulse_name': pulse['name'],
         'author_name': pulse['author_name'],
-        'pulse_created': datetime.strptime(pulse['created'], '%Y-%m-%dT%H:%M:%S.%f'),
-        'pulse_modified': datetime.strptime(pulse['modified'], '%Y-%m-%dT%H:%M:%S.%f'),
-        'indicator_created': datetime.strptime(indicator['created'], '%Y-%m-%dT%H:%M:%S'),
+        'pulse_created': parse_datetime(pulse['created']),
+        'pulse_modified': parse_datetime(pulse['modified']),
+        'indicator_created': parse_datetime(indicator['created']),
         'indicator_role': indicator['role'],
         'indicator_title': indicator['title']
     }
     if indicator['expiration'] is not None:
-        new_pulse['indicator_expiration'] = datetime.strptime(indicator['expiration'], '%Y-%m-%dT%H:%M:%S')
+        new_pulse['indicator_expiration'] = parse_datetime(indicator['expiration'])
     return new_pulse
 
 
@@ -123,12 +130,11 @@ def upsert_new_pulse(pulse, indicator):
     updates = []
     for k, v in new_pulse.items():
         updates.append(('set', k, v))
-    # get current time and change it format to '%Y-%m-%dT%H:%M:%S'
     current_time = datetime.utcnow()
     if indicator['expiration'] is None:
         live_till = current_time + timedelta(days=inactive_pulse_time)
     else:
-        live_till = datetime.strptime(indicator['expiration'], '%Y-%m-%dT%H:%M:%S') + timedelta(days=inactive_pulse_time)
+        live_till = parse_datetime(indicator['expiration']) + timedelta(days=inactive_pulse_time)
     tq_writer.put_task('ip', ip_addr, [
         ('array_upsert', 'otx_pulses', {'pulse_id': pulse['id']}, updates),
         ('setmax', '_ttl.otx', live_till),
@@ -160,7 +166,7 @@ def process_pulses(pulses):
         ipv4_counter = 0
         indicators = pulse.get('indicators', [])
         for indicator in indicators:
-            if (indicator["type"] == "IPv4") and (datetime.strptime(indicator['created'], '%Y-%m-%dT%H:%M:%S') >= time_for_upsert):
+            if (indicator["type"] == "IPv4") and (parse_datetime(indicator['created']) >= time_for_upsert):
                 ipv4_counter += 1
                 upsert_new_pulse(pulse, indicator)
         logger.info("{}/{} done, pulse {}, {} IPv4 indicators added/updated".format(i+1, len(pulses), pulse.get('id', "(no id?)"), ipv4_counter))

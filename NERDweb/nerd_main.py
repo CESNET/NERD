@@ -800,30 +800,27 @@ class IPFilterForm(FlaskForm):
     # defined when FlaskForm is initialized
     def __init__(self, *args, **kwargs):
         super(IPFilterForm, self).__init__(*args, **kwargs)
-        # Dynamically load list of Categories/Nodes and their number of occurrences
+        # Dynamically load list of Warden Categories/Nodes and their number of occurrences
         # Collections n_ip_by_* should be periodically updated by queries run by
         # cron (see /scripts/update_db_meta_info.js)
-
-        self.country.choices = [(i, '{} - {}'.format(i, ctrydata.names[i])) for i in ctrydata.names.keys()]
-
-        # Defining sources and mapping DB name -> user readable name
-        source_names = { "bl": "Blacklists", 
-                        "dshield": "DShield", 
-                        "otx": "OTX",
-                        "warden": "Warden", 
-                        "misp": "MISP"}
-        # get aggregation
-        all_sources = mongo.db.ip.aggregate([{"$project": {"ttl": {"$objectToArray": "$_ttl"}}}, {"$unwind": "$ttl"}, {"$group": {"_id": "$ttl.k", "cnt": {"$sum": 1}}}, {"$sort": {"cnt": -1}}])
-        srcs = {item["_id"]: item["cnt"] for item in all_sources}
-        self.source.choices = []
-        for i in source_names.keys():
-            if i in srcs:
-                self.source.choices.append((i, '{} ({})'.format(source_names[i], int(srcs[i]))))
-            else:
-                self.source.choices.append((i, '{} (0)'.format(source_names[i])))
-
         self.cat.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_cat.find().sort('_id') if item['_id']]
         self.node.choices = [(item['_id'], '{} ({})'.format(item['_id'], int(item['n']))) for item in mongo.db.n_ip_by_node.find().sort('_id') if item['_id']]
+        self.country.choices = [(i, '{} - {}'.format(i, ctrydata.names[i])) for i in ctrydata.names.keys()]
+
+        # Load numbers of IPs per data source (also precomputed in DB)
+        #  (Numbers of IPs per source are computed from TTL tokens; list of sources to show is hard-coded here, since
+        #   we don't want to show all used TTL token IDs as data sources.)
+        # mapping of DB name (ttl token) -> user readable name (what is defined here appears on the web, in the same order)
+        source_names = {
+            "warden": "Warden",
+            "bl": "Blacklists",
+            "dshield": "DShield",
+            "otx": "OTX",
+            "misp": "MISP",
+        }
+        cnt_by_source = {item["_id"]: item["n"] for item in mongo.db.n_ip_by_ttl.find()}
+        self.source.choices = [(src_id, '{} ({})'.format(src_name, int(cnt_by_source.get(src_id, 0)))) for src_id,src_name in source_names.items()]
+
         # Number of occurrences for blacklists (list of blacklists is taken from configuration)
         bl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_bl.find()}
         dbl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_dbl.find()}
@@ -1588,7 +1585,6 @@ FILES = [
     "bad_ips_med_conf.txt",
 ]
 
-
 @app.route('/data/')
 def data_index():
     log_ep.log('/data')
@@ -1604,10 +1600,14 @@ def data_index():
             file_sizes[f] = None
     return render_template("data.html", title=title, file_sizes=file_sizes)
 
-
-@app.route('/data/ip_rep.csv')
-def data_ip_rep():
-    log_ep.log('/data/ip_rep_csv')  # use _csv, not .csv, dot in event name makes problems with Munin
+@app.route('/data/<filename>')
+def data_file(filename):
+    if not g.ac("data"):
+        log_err.log('403_unauthorized')
+        return make_response('ERROR: Insufficient permissions', 403)
+    if filename not in FILES:
+        return flask.abort(404)
+    log_ep.log('/data/' + filename.replace('.', '_')) # replace dots with underscores, dot in event name makes problems with Munin
     try:
         return flask.send_file(os.path.join(DATA_DIR, filename), mimetype="text/plain", as_attachment=True)
     except OSError as e:

@@ -1,3 +1,5 @@
+#MAILTO=someone@example.org
+
 # Update metainformation about numbers of IPs with particular event Category and Node
 */30 * * * * nerd mongo --quiet nerd /nerd/scripts/update_db_meta_info.js
 # Compute reputation scores of BGP prefixes once an hour
@@ -20,3 +22,7 @@
 40 01,09,17 * * * nerd rsync -azq rsync-mirrors.uceprotect.net::RBLDNSD-ALL/dnsbl-1.uceprotect.net /data/blacklists/uceprotect-level1
 # rsync PSBL blacklist 3 times a day
 41 01,09,17 * * * nerd rsync -zq psbl-mirror.surriel.com::psbl/psbl.txt /data/blacklists/psbl.txt
+
+# Check Apache log for 5xx errors every hour. If grep produces output, it's sent to the email contact.
+# Run at the end of every hour and simply filter all log lines with the current hour (not perfect, but simple)
+#59 * * * * root egrep "$(date +\%d/\%b/\%Y:\%H).* 5[0-9][0-9] [0-9]+" /var/log/httpd/ssl_access_log
