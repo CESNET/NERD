@@ -1,6 +1,5 @@
 var tabButtons=document.querySelectorAll(".tabContainer .buttonContainer button");
 var tabPanels=document.querySelectorAll(".tabContainer .tabPanel");
-let defaultColor = "#dddddd";
 
 function parser(){
     var search = document.getElementById('ip_list').value;
@@ -16,20 +15,18 @@ function parser(){
     document.getElementById('ip_list').value = ip_list;
 }
 
-function changeTab(panelIndex, colorCode) {
+function changeTab(panelIndex) {
     sessionStorage.setItem("currentPanel", panelIndex);
-    showPanel(sessionStorage.getItem("currentPanel"), colorCode);
+    showPanel(sessionStorage.getItem("currentPanel"));
 }
 
-function showPanel(panelIndex, colorCode) {
+function showPanel(panelIndex) {
 
     tabButtons.forEach(function(node){
-        node.style.backgroundColor=colorCode;
-        node.style.color="gray";
+        node.classList.remove("selected");
     });
 
-    tabButtons[panelIndex].style.backgroundColor="";
-    tabButtons[panelIndex].style.color="";
+    tabButtons[panelIndex].classList.add("selected");
 
     tabPanels.forEach(function(node){
         node.style.display="none";
@@ -41,8 +38,8 @@ function showPanel(panelIndex, colorCode) {
 
 
 if (sessionStorage.getItem("currentPanel") !== null)
-    changeTab(sessionStorage.getItem("currentPanel"), defaultColor);
+    changeTab(sessionStorage.getItem("currentPanel"));
 else
-    changeTab(0, defaultColor);
+    changeTab(0);
 
     

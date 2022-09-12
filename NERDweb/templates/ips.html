@@ -18,7 +18,7 @@
 
 <div class="tabContainer" id="searchForm">
     <div class="row first">
-      <h1>Search IP addresses by</h1>
+      <h1>Search IP addresses by ...</h1>
       <div class="buttonContainer">
         <button onclick="changeTab(0,'#dddddd')">Criteria Match</button>
         <button onclick="changeTab(1,'#dddddd')">List of IPs</button>
@@ -173,7 +173,7 @@
           {{ formfield(form.limit, size=10) }}
         </div>
       </div>
-        <input id="submit-btn" type="submit" value="SEND QUERY">
+        <input id="submit-btn" type="submit" value="Search">
     </form>
   </div>
 
@@ -207,7 +207,7 @@
           {{ formfield(form.limit, size=10) }}
         </div>
       </div>
-        <input id="submit-btn" type="submit" value="SEND QUERY" onclick="parser()">
+        <input id="submit-btn" type="submit" value="Search" onclick="parser()">
     </form>
   </div>
   <script>set_up_search_form();</script>
