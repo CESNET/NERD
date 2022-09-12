@@ -1077,6 +1077,8 @@ ul.data-list li ul li {
   /*margin-right: -10px;*/
   padding: 0;
   margin-bottom: -2px;
+  position: relative;
+  z-index: 0;
 }
 .tabContainer .buttonContainer button.selected {
   background: #ddd;
@@ -1085,6 +1087,7 @@ ul.data-list li ul li {
   border-left: solid 1px #000;
   border-right: solid 1px #000;
   border-bottom: solid 2px #ddd;
+  z-index: 2;
 }
 
 .tabContainer .buttonContainer button:hover{
@@ -1101,6 +1104,8 @@ ul.data-list li ul li {
   background-color: #ddd;
   border: 1px solid #000;
   padding: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .searchForm
@@ -1227,7 +1232,6 @@ ul.data-list li ul li {
 
   #sorting
   {
-    padding-top: 20px;
     display: flex;
     flex-direction: row;
     width: 813px;
