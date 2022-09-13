@@ -4,7 +4,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.0.0/dist/chart.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <!-- custom script specific for this page -->
-<script src="{{ url_for('static', filename='ip.js') }}"></script>
+<script src="{{ url_for_ts('static', filename='ip.js') }}"></script>
 {% endblock %}
 {% block body %}
 {% macro blacklist_tag_with_box(bl_entry, ip, domain=False) -%}
@@ -91,7 +91,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 <p class="notfound">Record not found in database</p>
 <p class="notfound2">No malicious activity related to the IP address has been reported recently.</p>
 <p class="notfound-fetching" style="display: none"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}">Fetching basic information now ...</p>
-<script src="{{ url_for('static', filename='ip_poll.js') }}"></script>
+<script src="{{ url_for_ts('static', filename='ip_poll.js') }}"></script>
 <script>request_ip_data("{{ url_for('ajax_request_ip_data', ipaddr=ip) }}", "{{ url_for('ajax_is_ip_prepared', ipaddr=ip) }}");</script>
 {% else %}
 

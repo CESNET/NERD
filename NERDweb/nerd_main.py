@@ -14,7 +14,7 @@ import struct
 import hashlib
 import requests
 import flask
-from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response
+from flask import Flask, request, make_response, g, jsonify, json, flash, redirect, session, Response, url_for
 from flask_pymongo import pymongo, PyMongo
 import pymongo.errors
 from flask_wtf import FlaskForm
@@ -151,6 +151,10 @@ WARDEN_DROP_PATH = os.path.join(config.get("warden_filer_path", "/data/warden_fi
 config.testing = False
 
 userdb.init(config, cfg_dir)
+
+# Directory with static web fies (css, js)
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
 
 # **** Create and initialize Flask application *****
 
@@ -333,6 +337,35 @@ def pseudonymize_node_name(name):
     """Replace Node.Name (detector ID) by a hash with secret key"""
     h = hashlib.md5((app.secret_key + name).encode('utf-8'))
     return 'node.' + h.hexdigest()[:6]
+
+
+def url_for_ts(endpoint: str, filename: str) -> str:
+    """
+    Replacement or url_for which adds file modification time to the file name.
+
+    For example "static/style.css" is converted to "static/style.1662993079.css".
+    The purpose is to force browsers to download a new version of the file whenever it changes, instead of using the
+    cached one.
+    There must be a matching RewriteRule in Apache configuration, which maps these URIs to actual file names without
+    the numbers (see install/httpd/nerd.conf).
+
+    Inspired by https://stackoverflow.com/a/118886/12777430
+
+    :param endpoint: directory with static files, usually "static" (passed as 1st param to flask.url_for)
+    :param filename: name of the file (passed as "filename" to flask.url_for), timestamp is added
+    :return Result of flask.url_for with timestamp added to the filename
+    """
+    if not (filename.endswith(".js") or filename.endswith(".css")):
+        print("WARNING: url_for_static_file applied to file '{}', which is not .js or .css. It won't work with RewriteRule in default Apache config file!")
+
+    # get modification time of the file
+    path = os.path.join(STATIC_DIR, filename) # system path of the file
+    mtime = int(os.stat(path).st_mtime)
+
+    # add it to the filename and return URL
+    name, ext = filename.rsplit(".", maxsplit=1)
+    timestamped_filename = f"{name}.{mtime:010d}.{ext}"
+    return url_for(endpoint, filename=timestamped_filename)
 
 
 # ***** Rate limiter *****
@@ -562,7 +595,7 @@ def add_user_header(resp):
 
 def render_template(template, **kwargs):
     return flask.render_template(template, config=config, config_tags=config_tags['tags'], userdb=userdb, user=g.user,
-                                 ac=g.ac, **kwargs)
+                                 ac=g.ac, url_for_ts=url_for_ts, **kwargs)
 
 
 # ***** Main page *****

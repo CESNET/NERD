@@ -3,12 +3,12 @@
 {# additional scripts and stylesheets in the page head section #}
 <!-- Bootstrap CSS -->
 <!--<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">-->
-<link rel="stylesheet" href="{{url_for('static', filename='ipvisualizator.css')}}">
+<link rel="stylesheet" href="{{url_for_ts('static', filename='ipvisualizator.css')}}">
 <!-- D3.js scripts -->
 <script src="https://d3js.org/d3.v5.min.js"></script>
 <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
 <!-- main IPVizualizator script -->
-<script src="{{url_for('static', filename='ipvisualizator.js')}}"></script>
+<script src="{{url_for_ts('static', filename='ipvisualizator.js')}}"></script>
 {% endblock %}
 {% block body %}
 <h1>Visualization of IPv4 address space</h1>

@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block scripts %}
 <!-- custom script specific for this page -->
-<script src="{{ url_for('static', filename='ips.js') }}"></script>
+<script src="{{ url_for_ts('static', filename='ips.js') }}"></script>
 {% endblock %}
 {% block body %}
 
@@ -212,7 +212,7 @@
   </div>
   <script>set_up_search_form();</script>
 </div>
-<script src="{{ url_for('static', filename='search_options.js') }}"></script>
+<script src="{{ url_for_ts('static', filename='search_options.js') }}"></script>
 
 
 {% if results %}
