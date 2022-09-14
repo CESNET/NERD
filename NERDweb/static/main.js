@@ -34,11 +34,11 @@ $(function() {
      - download button
   */
   $( document ).tooltip({
-    items: ".country [title], .asn [title], .tag[title], button[title]",
+    items: ".country [title], .asn [title], .tag[title]",
     track: false,
     show: false,
     hide: false,
-    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"},
+    position: {my: "left bottom", at: "left-7px top-2px", collision: "flipfit"},
     content: function() {
       return format_dates_in_tooltip($(this).attr('title'));
     } /* This is needed to allow HTML in tooltip text */
@@ -49,7 +49,7 @@ $(function() {
     track: false,
     show: false,
     hide: false,
-    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"},
+    position: {my: "left bottom", at: "left-7px top-2px", collision: "flipfit"},
     content: function() { return create_event_table(this.dataset) }, /*$(".tooltip_event_table", this).html(); },*/
     tooltipClass: "events_tooltip"
   });
@@ -64,6 +64,17 @@ $(function() {
       date_obj = new Date(timestamp*1000);
       return moment(date_obj).fromNow()
     },
-    position: {my: "left bottom", at: "left-7px top-2px", collision: "flip"}
+    position: {my: "left bottom", at: "left-7px top-2px", collision: "flipfit"}
+  });
+  /* jQuery UI tooltip for download button and UTC switch (show title after a small delay) */
+  $( "button[title], #utc-switch" ).tooltip({
+    items: "button[title], #utc-switch",
+    track: false,
+    show: {"delay": 500, "duration": 0},
+    hide: false,
+    position: {my: "left top", at: "left-7px bottom+2px", collision: "flipfit"},
+    content: function() {
+      return $(this).attr('title');
+    } /* This is needed to allow HTML in tooltip text */
   });
 });

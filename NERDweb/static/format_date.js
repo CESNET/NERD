@@ -74,4 +74,9 @@ document.addEventListener("DOMContentLoaded", function () {
     reformatAllDates();
     $("#utc-switch").css("display", "inline-block"); // show the switch, which is hidden by default (otherwise it may load in one state and then, after this code runs, switch to the other state, which looks weird)
     $("#timezone-label").css("display", "block");
+
+    // Set title with explanation and actual "local" timezone.
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var title="Switch whether all time information on the page should be displayed in UTC or your local timezone ("+tz+").";
+    $("#utc-switch").prop('title', title);
 });
