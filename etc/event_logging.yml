@@ -70,6 +70,7 @@ groups:
       - '/set_effective_groups'
       - '/ips'
       - '/ips_count'
+      - '/ips_download'
       - '/ip'
       - '/ajax/fetch_ip_data'
       - '/ajax/is_ip_prepared'

@@ -31,9 +31,10 @@ $(function() {
      - country flags (with name of the country)
      - "events" table cells
      - AS number
+     - download button
   */
   $( document ).tooltip({
-    items: ".country [title], .asn [title], .tag[title]",
+    items: ".country [title], .asn [title], .tag[title], button[title]",
     track: false,
     show: false,
     hide: false,

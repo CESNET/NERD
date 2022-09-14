@@ -2,7 +2,7 @@ pyyaml
 pytz
 Flask
 Flask-WTF
-pymongo
+pymongo>=3.11
 WTForms
 Flask-pymongo
 Flask-Mail

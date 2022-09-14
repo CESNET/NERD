@@ -235,9 +235,18 @@
     </p>
   </div>
   <div>
-    <a href={{url_for('ips_download') + '?' + query_params_url}}>
-      <button class="download-btn">Download</button>
-    </a>
+    <form id="download_form" style="display: none" action={{url_for('ips_download')}} method="POST">
+      <input type="hidden" name="query_data" value='{{query_params}}'>
+    </form>
+    <button type="submit" form="download_form" class="download-btn" title="
+        Download results of the query as a CSV file.<br>
+        All matching records {% if not ac('unlimited_export')%}(up to 1000) {% endif %}are downloaded regardless of
+        the limit set in the search form.
+        {% if ac('unlimited_export')%}<br><br>NOTE: Your access level allows to download <b>unlimited number of results</b>.
+          Please, keep in mind that getting data of 10,000s of IPs (or even more) can take some time to process
+          and puts the server under load, so use it only when needed.
+        {% endif %}
+      ">Download as csv</button>
   </div>
 </div>
 

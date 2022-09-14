@@ -20,6 +20,7 @@ import pymongo.errors
 from flask_wtf import FlaskForm
 from flask_mail import Mail, Message
 from wtforms import validators, StringField, TextAreaField, FloatField, IntegerField, BooleanField, HiddenField, SelectField, SelectMultipleField, PasswordField
+from werkzeug.datastructures import MultiDict
 import dateutil.parser
 import pymisp
 from pymisp import ExpandedPyMISP
@@ -973,14 +974,13 @@ def ips():
         try:
             query = create_query(form)
             # Query parameters to be used in AJAX requests
+            # newline characters from ip_list input field are not JSON compatible - convert to spaces
             if form.ip_list.data is not None:
-                # newline characters from ip_list input field are not JSON compatible
                 form.ip_list.data = form.ip_list.data.replace("\r", "").replace("\n", " ")
             query_params = json.dumps(form.data)
+            # inserts newlines back - for proper representation in textfield
             if form.ip_list.data is not None:
-                # inserts newlines back - for proper representation in textfield
                 form.ip_list.data = form.ip_list.data.replace(" ", "\n")
-            query_params_url = urllib.parse.urlencode(form.data, doseq=True)
 
             # Perform DB query
             results = mongo.db.ip.find(query).limit(form.limit.data)
@@ -1122,36 +1122,35 @@ def _format_converter(form_values):
     form_values['tag'] = _strip_str_for_list(form_values['tag'])
     form_values['tag_conf'] = float(form_values['tag_conf'])
 
-def _return_string_from_class(object):
-    string = ""
-    for element in object:
-        if string == "":
-            string += element
-        else:
-            string += "|" + element
-    return string
 
-@app.route('/_ips_download', methods=['POST', 'GET'])
-@app.route('/_ips_download/', methods=['POST', 'GET'])
+@app.route('/_ips_download', methods=['POST'])
+@app.route('/_ips_download/', methods=['POST'])
 def ips_download():
     log_ep.log('/ips_download')
     if g.ac('export'):
-        form = IPFilterForm(request.args)
+        # Get form parameters - it's send via POST, whole form as a single JSON-encoded value in 'query_data' field.
+        form_values = json.loads(request.form['query_data'])
+        form = IPFilterForm(MultiDict(form_values))
         if g.ac('ipsearch') and form.validate():
             query = create_query(form)
+            # Prepare DB query
             results = mongo.db.ip.find(query)
+            # Sort results as requested
+            sortby = sort_mapping[form.sortby.data]
+            if sortby != "none":
+                results.sort(sortby, 1 if form.asc.data else -1).allow_disk_use(True)
+            # Return max 1000 results (regardless of the 'limit' form field), unless user has 'unlimited_export' access
+            if not g.ac('unlimited_export'):
+                results.limit(1000)  # TODO: add explaining caption to the Download button
 
-            with open("/tmp/results.csv", mode='w+', newline="\n") as csvfile:
-                my_writer = csv.writer(csvfile, delimiter=';')
+            tmp_fd, tmp_filename = tempfile.mkstemp(prefix="nerd_export_", suffix=".csv", text=True)
+            with open(tmp_fd, "w+") as csvfile:
+                my_writer = csv.writer(csvfile, delimiter=',')
                 my_writer.writerow(["ip", "hostname", "asn", "country", "events", "event_nodes", "event_categories_c",
                                     "event_categories", "rep_score", "blacklists", "tags", "ts_added", "ts_last_event"])
 
                 for count, result in enumerate(results):
                     row_entry = defaultdict(str)
-
-                    if not g.ac('unlimited_export'):
-                        if count >= 1000:
-                            break
 
                     row_entry['ip'] = int2ipstr(result['_id'])
 
@@ -1164,7 +1163,7 @@ def ips_download():
                             if 'asn' in bgppref_rec:
                                 result['asn'] = bgppref_rec['asn']
 
-                            row_entry['asn'] = str(result['asn']).replace('[', '').replace(']', '').replace(' ', '').replace(',', "|")
+                            row_entry['asn'] = '|'.join(str(asn) for asn in result['asn'])
 
                     if 'geo' in result:
                         row_entry['country'] = (result["geo"])["ctry"]
@@ -1186,24 +1185,19 @@ def ips_download():
 
                     row_entry['event_nodes'] = str(len(nodes))
                     row_entry['event_categories_c'] = str(len(cats))
-                    row_entry['event_categories'] = _return_string_from_class(cats)
+                    row_entry['event_categories'] = '|'.join(cats)
 
                     if 'rep' in result:
-                        row_entry['rep'] = result["rep"]
+                        row_entry['rep'] = result['rep']
 
-                    if "bl" in result:
-                        bl_data = result["bl"]
-                        for record in bl_data:
-                            if 'n' in record:
-                                if row_entry['blacklists'] == "":
-                                    row_entry['blacklists'] += record['n']
-                                else :
-                                    row_entry['blacklists'] += "|" + record['n']
+                    if 'bl' in result:
+                        bl_data = result['bl']
+                        row_entry['blacklists'] = '|'.join(record['n'] for record in bl_data if record['v'] == 1)
 
                     if 'tags' in result:
-                        tags_data = result['tags']
-                        tags_data = tags_data.keys()
-                        row_entry['tags'] = _return_string_from_class(tags_data)
+                        if 'misp_tlp_green' in result['tags'] and not g.ac('tlp-green'):
+                            result['tags'].remove('misp_tlp_green')
+                        row_entry['tags'] = '|'.join(result['tags'].keys())
 
                     if 'ts_added' in result:
                         row_entry['ts_added'] = (result['ts_added'].replace(microsecond=0)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1215,12 +1209,12 @@ def ips_download():
                                         row_entry['event_nodes'], row_entry['event_categories_c'], row_entry['event_categories'],
                                         row_entry['rep'], row_entry['blacklists'], row_entry['tags'], row_entry['ts_added'], row_entry['ts_last_event']])
 
-            return flask.send_file("/tmp/results.csv", mimetype="text/csv", attachment_filename="results.csv", as_attachment=True)
+            return flask.send_file(tmp_filename, mimetype="text/csv", attachment_filename="nerd_export.csv", as_attachment=True)
         else:
             return make_response("UNEXPECTED ERROR")
     else:
         flash("You are not authorized to download search results.")
-        return redirect("/nerd/ips/")
+        return redirect(BASE_URL + "/ips/")
 
 @app.route('/feed/<feedname>')
 def feed(feedname=None):
