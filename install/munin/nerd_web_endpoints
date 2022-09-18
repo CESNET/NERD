@@ -33,6 +33,7 @@ graph_period minute
 /iplist.label /iplist
 /ips.label /ips
 /ips_count.label /ips_count
+/ips_download.label /ips_download
 /map.label /map
 /misp_event.label /misp_event
 /noaccount.label /noaccount
