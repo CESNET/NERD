@@ -422,16 +422,16 @@ def update_record(rec, model, records, updates, prefix_meta, geo_data, today, lo
     # Intervals between events
     if '_intervals_between_events' in rec and type(rec['_intervals_between_events']) is list:
         intervals = get_intervals_from_timestamps(rec['_intervals_between_events'])
-        # Average
-        featV[i] = np.mean(intervals)
-        transFeatV[i] = np.exp(-featV[i])
-        i += 1
-        # Median
-        featV[i] = np.median(intervals)
-        transFeatV[i] = np.exp(-featV[i])
-        i += 1
     else:
-        i += 2
+        intervals = [0]    
+    # Average
+    featV[i] = np.mean(intervals)
+    transFeatV[i] = np.exp(-featV[i])
+    i += 1
+    # Median
+    featV[i] = np.median(intervals)
+    transFeatV[i] = np.exp(-featV[i])
+    i += 1
 
     # Prefix metadata (aggregated events metadata across the whole /24 prefix)
     ipv4 = int2ipstr(rec['_id'])
@@ -674,6 +674,7 @@ if __name__ == "__main__":
 
     # Load trained model.
     if os.path.exists(model_path):
+        log.info(f"Loading model from {model_path} ...")
         model = xgb.Booster({'nthread': 4})
         model.load_model(model_path)
         log.info("Successfully loaded xgBoost model")
