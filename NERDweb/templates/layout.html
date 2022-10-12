@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+
 {% macro rep_css_color(rep) %}
 hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70%'}})
 {% endmacro -%}
@@ -11,8 +13,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
    opacity: {{ 0.5 + conf / 2.0 }};
  {%- endif %}
 {%- endmacro %}
-{#- **************************************** -#}
-<!doctype html>
+
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -27,17 +28,19 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
   <!-- moment.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js" integrity="sha512-qTXRIMyZIFb8iQcfjXWCO8+M5Tbc38Qi5WzdPOYZHIlZpzBHG3L3by84BBBOiRGiEb7KKtAOAs5qYdUiZiQNNQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <!-- local stylesheets -->
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='flags.css') }}">
-  
+  <link rel="stylesheet" type="text/css" href="{{ url_for_ts('static', filename='style.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_ts('static', filename='flags.css') }}">
+  <!-- ICONS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
   <!-- local scripts -->
   <script>
   var ROOT = "{{ url_for('main') }}";
   var URL_GET_STATUS = "{{ url_for('get_status') }}";
   </script>
-  <script src="{{ url_for('static', filename='main.js') }}"></script>
-  <script src="{{ url_for('static', filename='format_date.js') }}"></script>
-  <script src="{{ url_for('static', filename='links_dropdown.js') }}"></script>
+  <script src="{{ url_for_ts('static', filename='main.js') }}"></script>
+  <script src="{{ url_for_ts('static', filename='format_date.js') }}"></script>
+  <script src="{{ url_for_ts('static', filename='links_dropdown.js') }}"></script>
   {% block scripts %} {% endblock %}
 </head>
 
@@ -63,11 +66,11 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 <div style="display: none">
 <table>
 <tr><td>Records in DB:</td><td></td>
-<tr><td><span style="margin-left: 1em">IP</td><td><span id="status-cnt-ip">??</span></td></tr>
-<tr><td><span style="margin-left: 1em">BGP prefix</td><td><span id="status-cnt-bgppref">??</span></td></tr>
-<tr><td><span style="margin-left: 1em">ASN</td><td><span id="status-cnt-asn">??</span></td></tr>
-<tr><td><span style="margin-left: 1em">IP block</td><td><span id="status-cnt-ipblock">??</span></td></tr>
-<tr><td><span style="margin-left: 1em">Organization</td><td><span id="status-cnt-org">??</span></td></tr>
+    <tr><td><span style="margin-left: 1em">IP</span></td><td><span id="status-cnt-ip">??</span></td></tr>
+    <tr><td><span style="margin-left: 1em">BGP prefix</span></td><td><span id="status-cnt-bgppref">??</span></td></tr>
+    <tr><td><span style="margin-left: 1em">ASN</span></td><td><span id="status-cnt-asn">??</span></td></tr>
+    <tr><td><span style="margin-left: 1em">IP block</span></td><td><span id="status-cnt-ipblock">??</span></td></tr>
+    <tr><td><span style="margin-left: 1em">Organization</span></td><td><span id="status-cnt-org">??</span></td></tr>
 </table>
 <table><tr><td>Data disk usage:</td><td><span id="status-disk-usage">??</span></td></tr></table>
 <table>
@@ -75,7 +78,7 @@ hsl({{ '%i, 100%%, 90%%'|format(100 - 100*rep) if rep is defined else '0, 0%, 70
 <tr><td colspan="2"><div id="status-idea-queue-bar" class="queue"><div></div></div></td></tr>
 </table>
 {% if config.munin_link %}See more in <a href="{{ config.munin_link }}" target="_blank">Munin</a>{% endif %}
-<script type="text/javascript" src="{{ url_for('static', filename='status-box.js') }}"></script>{# All code for status-box #}
+<script type="text/javascript" src="{{ url_for_ts('static', filename='status-box.js') }}"></script>{# All code for status-box #}
 </div>
 </div>
 {% endblock %}

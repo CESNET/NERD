@@ -1,10 +1,10 @@
 {% extends "layout.html" %}
 {% block scripts %}
 <!-- Chart.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js" integrity="sha512-d9xgZrVZpmmQlfonhQUvTR7lMPtO7NkZMkA0ABN3PHCbKA5nqylQ/yWlFAyY6hYgdF1Qh6nYiuADWwKB4C2WSw==" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.css" integrity="sha512-/zs32ZEJh+/EO2N1b0PEdoA10JkdC3zJ8L5FTiQu82LR9S/rOQNfQN7U59U9BC12swNeRAz3HSzIL2vpp4fv3w==" crossorigin="anonymous" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.0.0/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <!-- custom script specific for this page -->
-<script src="{{ url_for('static', filename='ip.js') }}"></script>
+<script src="{{ url_for_ts('static', filename='ip.js') }}"></script>
 {% endblock %}
 {% block body %}
 {% macro blacklist_tag_with_box(bl_entry, ip, domain=False) -%}
@@ -91,7 +91,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 <p class="notfound">Record not found in database</p>
 <p class="notfound2">No malicious activity related to the IP address has been reported recently.</p>
 <p class="notfound-fetching" style="display: none"><img class="load-spinner" src="{{ url_for('static', filename='spin.gif') }}">Fetching basic information now ...</p>
-<script src="{{ url_for('static', filename='ip_poll.js') }}"></script>
+<script src="{{ url_for_ts('static', filename='ip_poll.js') }}"></script>
 <script>request_ip_data("{{ url_for('ajax_request_ip_data', ipaddr=ip) }}", "{{ url_for('ajax_is_ip_prepared', ipaddr=ip) }}");</script>
 {% else %}
 
@@ -143,7 +143,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
      {{ blacklist_tag_with_box(bl_entry, ip) }}
    {% endfor %}
   </div></dd>
-  {% set _ = ipinfo.pop('bl') %}
+  {% set bl = ipinfo.pop('bl') %}
 {% endif %}
 {% if ipinfo.dbl %}
   <dt>Domain blacklists<span class="help" title="Blacklisted domain names that were associated with the IP address according to Passive DNS"></dt>
@@ -152,7 +152,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
      {{ blacklist_tag_with_box(bl_entry, ip, domain=True) }}
    {% endfor %}
   </div></dd>
-  {% set _ = ipinfo.pop('dbl') %}
+  {% set dbl = ipinfo.pop('dbl') %}
 {% endif %}
 
 {# Warden events #}
@@ -222,7 +222,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
       <dd>Distinct targets: {{ rec.targets }}</dd>
     {% endfor%}
   </dl></dd>
-  {% set _ = ipinfo.pop('dshield') %}
+  {% set dshield_events = ipinfo.pop('dshield') %}
 {% endif %}
 
 {# OTX pulses #}
@@ -244,7 +244,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
     </div>
     {% endfor%}
   </dd>
-{% set _ = ipinfo.pop('otx_pulses') %}
+{% set pulses = ipinfo.pop('otx_pulses') %}
 {% endif %}
 </dl>
 
@@ -282,15 +282,52 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 {% endfor %}
 </dl>
 
-{# Event plot -#}
+{# Event plot WARDEN -#}
 <p class="caption">Warden event timeline</p>
 <div class="chart-container" style="position: relative; width: 100%; height: 20em">
 <canvas id="plot-events" width="100" height="100"></canvas>
 <script>
-let event_data = {{ warden_events|tojson if warden_events else [] }};
-$( function() {create_event_graph('plot-events', event_data)} );
+  let event_data = {{ warden_events|tojson if warden_events else [] }};
+  $( function() {create_event_graph('plot-events', event_data)} );
 </script>
 </div>
+
+{# Event plot DSHIELD -#}
+<p class="caption">DShield event timeline</p>
+<div class="chart-container" style="position: relative; width: 100%; height: 20em">
+<canvas id="plot-events-dshield" width="100" height="100"></canvas>
+<script>
+  let dshield_data = {{ dshield_events|tojson if dshield_events else [] }};
+  $( function() {create_event_graph_dshield('plot-events-dshield', dshield_data)} );
+</script>
+</div>
+
+{# Event plot BLACKLISTS -#}
+{% if bl or dbl %}
+<p class="caption">Presence on blacklists</p>
+<div class="chart-container" style="position: relative; width: 100%; ">
+<canvas id="plot-events-bl" width="100" height="250"></canvas>
+<script>
+  let bl_data = {{ ((bl or []) + (dbl or []))|tojson }};
+  let bl_info = {{ blacklist_info|tojson if blacklist_info else [] }};
+  if (bl_data.length > 0)
+    $( function() {create_event_graph_bl('plot-events-bl', bl_data, bl_info)} );
+</script>
+</div>
+{% endif %}
+
+{# Event plot OTX PULSES -#}
+{% if pulses %}
+<p class="caption">OTX pulses</p>
+<div class="chart-container" style="position: relative; width: 100%; ">
+<canvas id="plot-events-otx" width="100" height="300"></canvas>
+<script>
+  let otx_data = {{ pulses|tojson if pulses else [] }};
+  if (otx_data.length > 0)
+    $( function() {create_event_graph_otx('plot-events-otx', otx_data)} );
+</script>
+</div>
+{% endif %}
 
 {% if ac('warden_alerts') %}
 <div id="events">
@@ -359,6 +396,7 @@ $(document).ready(function () {
   }).fail( function( jqXHR, textStatus, errorThrown) { $("#shodan-info").text("ERROR: " + jqXHR.responseText); } );
 {% endif %}
 });
+
 </script>
 
 </div>

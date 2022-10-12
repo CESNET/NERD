@@ -15,7 +15,9 @@ data            *
 
 pdns            *
 shodan          *
+export          *
 
+unlimited_export trusted,admin
 unlimited_search admin
 
 nodenames       trusted
