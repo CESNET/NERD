@@ -17,16 +17,16 @@ class IntervalsBetweenEvents(NERDModule):
             self.updateIntervalsBetweenEvents,
             'ip',
             ('last_warden_event',),
-            ('intervals_between_events',)
+            ('_intervals_between_events',)
         )
 
     def updateIntervalsBetweenEvents(self, ekey, rec, updates):
-        if 'intervals_between_events' in rec:
-            timestamps = rec['intervals_between_events']
+        if '_intervals_between_events' in rec:
+            timestamps = rec['_intervals_between_events']
             timestamps.append(rec['last_warden_event'])
         else:
             timestamps = [rec['last_warden_event']]
 
         return [
-            ('set', 'intervals_between_events', timestamps[-self.max_events:])
+            ('set', '_intervals_between_events', timestamps[-self.max_events:])
         ]

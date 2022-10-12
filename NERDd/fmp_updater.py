@@ -420,8 +420,8 @@ def update_record(rec, model, records, updates, prefix_meta, geo_data, today, lo
     i += 1
 
     # Intervals between events
-    if 'intervals_between_events' in rec and type(rec['intervals_between_events']) is list:
-        intervals = get_intervals_from_timestamps(rec['intervals_between_events'])
+    if '_intervals_between_events' in rec and type(rec['_intervals_between_events']) is list:
+        intervals = get_intervals_from_timestamps(rec['_intervals_between_events'])
         # Average
         featV[i] = np.mean(intervals)
         transFeatV[i] = np.exp(-featV[i])
@@ -604,7 +604,7 @@ def fmp_global_update(db, model, geo_data_dir, log):
     np.set_printoptions(formatter={'float_kind': lambda x: "{:.4f}".format(x)})
 
     # Get all current records from DB (ip, bgppref)
-    ip_attrs = {'_id': 1, 'events': 1, 'last_warden_event': 1, 'intervals_between_events': 1, 'bl': 1, 'tags': 1, 'hostname': 1, 'geo': 1, 'bgppref': 1}
+    ip_attrs = {'_id': 1, 'events': 1, 'last_warden_event': 1, '_intervals_between_events': 1, 'bl': 1, 'tags': 1, 'hostname': 1, 'geo': 1, 'bgppref': 1}
     bgppref_attrs = {'_id': 1, 'asn': 1}
     records = pandas.DataFrame(list(db._db["ip"].find(filter={}, projection=ip_attrs)))
     records_bgppref = pandas.DataFrame(list(db._db["bgppref"].find(filter={}, projection=bgppref_attrs)))
