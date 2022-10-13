@@ -1099,7 +1099,6 @@ def ips_count():
         query = create_query(form)
         if query is None: # count all
             return make_response(str(mongo.db.ip.count_documents({})))
-        # .count() is deprecated
         return make_response(str(mongo.db.ip.count_documents(query)))
     else:
         return make_response("ERROR")
@@ -1525,11 +1524,11 @@ def get_status():
     if not g.ac("statusbox"):
         log_err.log('403_unauthorized')
         return make_response('ERROR: Insufficient permissions', 403)
-    cnt_ip = mongo.db.ip.count()
-    cnt_bgppref = mongo.db.bgppref.count()
-    cnt_asn = mongo.db.asn.count()
-    cnt_ipblock = mongo.db.ipblock.count()
-    cnt_org = mongo.db.org.count()
+    cnt_ip = mongo.db.ip.estimated_document_count()
+    cnt_bgppref = mongo.db.bgppref.estimated_document_count()
+    cnt_asn = mongo.db.asn.estimated_document_count()
+    cnt_ipblock = mongo.db.ipblock.estimated_document_count()
+    cnt_org = mongo.db.org.estimated_document_count()
     idea_queue_len = len(os.listdir(WARDEN_DROP_PATH))
 
     try:
