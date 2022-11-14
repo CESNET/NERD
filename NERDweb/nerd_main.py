@@ -1195,7 +1195,7 @@ def ips_download():
 
                     if 'tags' in result:
                         if 'misp_tlp_green' in result['tags'] and not g.ac('tlp-green'):
-                            result['tags'].remove('misp_tlp_green')
+                            del result['tags']['misp_tlp_green']
                         row_entry['tags'] = '|'.join(result['tags'].keys())
 
                     if 'ts_added' in result:
