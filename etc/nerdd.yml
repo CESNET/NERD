@@ -60,29 +60,30 @@ event_type_counter:
   # Minimal number of total events in given time period to start attack type classification (default is 0 if value not present)
   min_num_of_events: 10
 
-caida:
-  # Caida list <www.caida.org/data/as-classification> which classifies business type of AS
-
-  # File where list with ASes, source of classification and their type is stored
-  # (Module is disabled if this is commented out)
-  caida_file: "/data/caida-as2types.txt"
-
-  # Source with confidence of right classification (default is 1 if source or confidence not present)
-  sources:
-    CAIDA_class:
-      confidence: 0.7
-    peerDB_class:
-      confidence: 1
-    manual_class:
-      confidence: 1
-  # Classes and their values which are stored in DB (class name from caida file is used if "value" or class not present)
-  classes:
-    Transit/Access:
-      value: access
-    Enterpise:
-      value: enterprise
-    Content:
-      value: content
+# Currently unavailable
+#caida:
+#  # Caida list <www.caida.org/data/as-classification> which classifies business type of AS
+#
+#  # File where list with ASes, source of classification and their type is stored
+#  # (Module is disabled if this is commented out)
+#  caida_file: "/data/caida-as2types.txt"
+#
+#  # Source with confidence of right classification (default is 1 if source or confidence not present)
+#  sources:
+#    CAIDA_class:
+#      confidence: 0.7
+#    peerDB_class:
+#      confidence: 1
+#    manual_class:
+#      confidence: 1
+#  # Classes and their values which are stored in DB (class name from caida file is used if "value" or class not present)
+#  classes:
+#    Transit/Access:
+#      value: access
+#    Enterpise:
+#      value: enterprise
+#    Content:
+#      value: content
 
 geolocation:
   geolite2_db_path: "/data/geoip/GeoLite2-City.mmdb"
