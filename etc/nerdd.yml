@@ -41,7 +41,10 @@ worker_threads: 16
 #         "Node.[*].Name=NodeName AND Category.[*]=Test; drop" --> Drops every IDEA message, which contains 'NodeName'
 #                     in any Node['Name'] and has Test Category
 warden_filter:
+    # Drop testing messages
   - "Category.[*]=Test ; drop"
+    # Drop reports about Vulnerable servers as this is not the type of information we want to publish in NERD
+  - "Category.[*]=Vulnerable.Config OR Category.[*]=Vulnerable.Open ; drop"
   - "; pass"
 
 whois:
