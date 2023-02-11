@@ -137,7 +137,7 @@ def download_blacklist(blacklist_url, params=None):
         return ""
 
 
-def get_blacklist(id, name, url, regex, bl_type, params):
+def get_blacklist(id, name, url, regex, bl_type, life_length, params):
     """
     Download the blacklist, parse all its records, and create worker task for each IP in current blacklist.
     :param id: id of the blacklist
@@ -145,6 +145,7 @@ def get_blacklist(id, name, url, regex, bl_type, params):
     :param url: url, where can the blacklist be downloaded
     :param regex: regex for correct parsing of blacklist records
     :param bl_type: type of blacklist (ip|prefixIP|domain)
+    :param life_length: length of life of record
     :param params: dict of other parameters from config, may contain keys 'url_params' and 'headers'
     :return:
     """
@@ -154,13 +155,13 @@ def get_blacklist(id, name, url, regex, bl_type, params):
     bl_records = parse_blacklist(data, bl_type, regex)
 
     download_time = datetime.utcnow()
-    now_plus_3days = download_time + timedelta(days=3)
+    now_plus_life_length = download_time + timedelta(days=life_length)
 
     log.info("{} IPs found in '{}', sending tasks to NERD workers".format(len(bl_records), id))
 
     for ip in bl_records:
         task_queue_writer.put_task('ip', ip, [
-            ('setmax', '_ttl.bl', now_plus_3days),
+            ('setmax', '_ttl.bl', now_plus_life_length),
             ('array_upsert', 'bl', {'n': id},
                 [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)])
         ], "blacklists")
@@ -221,6 +222,9 @@ if __name__ == "__main__":
     num_processes = config.get('worker_processes')
     assert (isinstance(num_processes, int) and num_processes > 0),\
         "Number of processes ('num_processes' in config) must be a positive integer"
+   
+    # Get length of life of record from config
+    life_length = config.get('record_life_length.blacklist')
 
     # Read config for blacklists
     config = yaml.safe_load(open(args.cfg_file))
@@ -245,7 +249,7 @@ if __name__ == "__main__":
             assert isinstance(other_params, dict), "The additional parameter must be a dict (in config of {}.{})".format(
                 config_path, id)
             # Process the blacklist
-            get_blacklist(id, name, url, regex, bl_type, other_params)
+            get_blacklist(id, name, url, regex, bl_type, life_length, other_params)
 
     # Schedule periodic processing...
     if not args.one_shot:
@@ -262,7 +266,7 @@ if __name__ == "__main__":
             other_params = bl.get('params', {})
 
             trigger = CronTrigger(**refresh_time)
-            job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, other_params),
+            job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, life_length, other_params),
                                     trigger=trigger, coalesce=True, max_instances=1)
 
             log.info("{} blacklist '{}' scheduled to be downloaded at every: {}".format(
