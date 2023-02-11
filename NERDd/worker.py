@@ -140,7 +140,8 @@ def main(cfg_file, process_index):
         modules.eml_asn_rank.EML_ASN_rank(),
         modules.reputation.Reputation(),
         modules.hostname.HostnameClass(),
-        modules.caida_as_class.CaidaASclass(),
+        # AS classification data from CAIDA currently not available
+        #modules.caida_as_class.CaidaASclass(),
         modules.bgp_rank.CIRCL_BGPRank(),
         modules.event_type_counter.EventTypeCounter(),
         modules.tags.Tags(),
