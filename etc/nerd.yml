@@ -8,9 +8,9 @@ record_life_length:
   misp: 180
   otx: 30
   dshield: 14
+  blacklist: 3
   highly_active: 14
   long_active: 28
-  blacklist: 3
   
 # Thresholds for marking IP record as highly active or long active.
 #     Highly active threshold means minimum number of events, where IP address has to occur in last 7 days.

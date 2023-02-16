@@ -224,7 +224,7 @@ if __name__ == "__main__":
         "Number of processes ('num_processes' in config) must be a positive integer"
    
     # Get length of life of record from config
-    life_length = config.get('record_life_length.blacklist')
+    life_length = config.get('record_life_length.blacklist', 3) # default: 3 days
 
     # Read config for blacklists
     config = yaml.safe_load(open(args.cfg_file))
