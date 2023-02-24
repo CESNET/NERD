@@ -300,7 +300,7 @@
     <span>{{ip.events_meta.total if ip.events_meta else 0}}</span><span>{{ip._evt_info.n_nodes}}</span><span>{{ip._evt_info.n_cats}}</span>
     {% if ip._showable_misp_events %}<br><span class="misp">+ {{ ip._showable_misp_events }} MISP events</span>{% endif %}
     {% if ip.otx_pulses %}<br><span class="otx">+ {{ ip.otx_pulses|length }} OTX pulses</span>{% endif %}
-    {% if ip.dshield %}<br><span class="dsheild">+ {{ ip.dshield|length }} DShield events</span>{% endif %}
+    {% if ip._dshield_events %}<br><span class="dshield">+ {{ ip._dshield_events }} DShield events</span>{% endif %}
   </td>
   <td class="reputation" style="background-color: {{ rep_css_color(ip.rep) }}">
     {{ "%.3f"|format(ip.rep) if 'rep' in ip else "---" }}
