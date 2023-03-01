@@ -1074,7 +1074,7 @@ def ips():
 
             # Add number of DShield events
             dshield_events = 0
-            for dshield in ip.get('dshield'):
+            for dshield in ip.get('dshield', []):
                 dshield_events += dshield['reports']
             ip['_dshield_events'] = dshield_events
 
