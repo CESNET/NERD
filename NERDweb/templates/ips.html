@@ -259,7 +259,7 @@
   <th>Hostname</th>
   <th title="Autonomous system number and name">ASN</th>
   <th>Country</th>
-  <th title="Total number of Warden alerts / nodes / categories (in last {{ cfg_max_event_history }} days), second line shows events from other sources">Events</th>
+  <th title="Total number of Warden alerts / nodes / categories (in last {{ cfg_max_event_history }} days). Additional lines, if present, show events from other sources">Events</th>
   <!--<th>Shodan info</th>
   <th>Device type</th>-->
   <th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.<sup><a href="https://github.com/CESNET/NERD/wiki/Reputation-score" title="More information about reputation score" target="_blank">(?)</a></sup></th>
@@ -298,9 +298,9 @@
   <td class="events" data-cats="{{ip._evt_info.cats}}" data-dates="{{ip._evt_info.dates}}"
     data-nodes="{{ip._evt_info.nodes}}" data-table="{{ip._evt_info.date_cat_table}}">
     <span>{{ip.events_meta.total if ip.events_meta else 0}}</span><span>{{ip._evt_info.n_nodes}}</span><span>{{ip._evt_info.n_cats}}</span>
+    {% if ip._dshield_events %}<br><span class="dshield">+ {{ ip._dshield_events }} DShield reports</span>{% endif %}
     {% if ip._showable_misp_events %}<br><span class="misp">+ {{ ip._showable_misp_events }} MISP events</span>{% endif %}
     {% if ip.otx_pulses %}<br><span class="otx">+ {{ ip.otx_pulses|length }} OTX pulses</span>{% endif %}
-    {% if ip._dshield_events %}<br><span class="dshield">+ {{ ip._dshield_events }} DShield events</span>{% endif %}
   </td>
   <td class="reputation" style="background-color: {{ rep_css_color(ip.rep) }}">
     {{ "%.3f"|format(ip.rep) if 'rep' in ip else "---" }}
