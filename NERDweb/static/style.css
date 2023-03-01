@@ -504,6 +504,7 @@ td.events span + span {
   text-align: center;
 }
 td.events span.misp,
+td.events span.dshield,
 td.events span.otx {
   font-size: 0.8em;
   color: #222;
