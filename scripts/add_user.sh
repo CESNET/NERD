@@ -31,7 +31,7 @@ if [[ $username =~ ^local: ]]; then
   read -p "Enter password for the new user (or leave empty to generate a random one): " pass
   echo
   if [[ "$pass" == "" ]]; then
-      pass="$(</dev/urandom tr -dc 'a-zA-Z0-9' | head -c 10)"
+      pass="$(</dev/urandom tr -dc 'a-zA-Z0-9' | head -c 14)"
       echo "Generated password: $pass"
       echo
   fi
