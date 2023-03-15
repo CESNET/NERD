@@ -181,4 +181,4 @@ tags:
     name: Whitelisted
     description: "IP is manually whitelisted"
     tag_color: "#FFFFFF"
-    condition: "'research_scanner' in hostname_class or _id == '8.8.8.8' or _id == '8.8.4.4' or _id == '1.1.1.1'"
+    condition: "'research_scanner' in hostname_class or reserved_range or _id == '8.8.8.8' or _id == '8.8.4.4' or _id == '1.1.1.1'"
