@@ -13,7 +13,7 @@ import g
 class ReservedIPTags(NERDModule):
     # these prefixes stands for 0.0.0.0 - 0.255.255.255, 10.0.0.0 - 10.255.255.255, ...
     # https://en.wikipedia.org/wiki/Reserved_IP_addresses
-    reserved_ip_prefix_list = ["0.", "10.", "127.", "169.254.", "192.0.0.", "192.0.2", "192.168.", "198.51.100.",
+    reserved_ip_prefix_list = ["0.", "10.", "127.", "169.254.", "192.0.0.", "192.0.2.", "192.168.", "198.51.100.",
                                "203.0.113.", "255.255.255.255"]
 
     # list of regular expressions for more complicated ip ranges. The first one is:
