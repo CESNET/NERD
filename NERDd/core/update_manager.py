@@ -498,17 +498,22 @@ class UpdateManager:
         Print status of workers and the request queue every 5 seconds.
 
         Should be run as a separate (daemon) thread.
-        Exits when all workers has finished.
+        Exits when all workers have finished.
         """
         ttl = 10  # Wait for 10 seconds until printing starts
+        max_wait_time = 120 # Wait at most 2 minutes, then exit the program abruptly
         while True:
             # Check if all workers are dead every second
             time.sleep(1)
             ttl -= 1
+            max_wait_time -= 1
             alive_workers = [w for w in self._worker_threads if w.is_alive()]
             if not alive_workers:
                 return
 
+            if max_wait_time <= 0:
+                self.log.error("{} worker threads still alive, giving up waiting, program will stop now!".format(len(alive_workers)))
+                sys.exit(1)
             if ttl == 0:
                 # Print info and reset counter to 5 seconds
                 self.log.info("{} worker threads alive".format(len(alive_workers)))
