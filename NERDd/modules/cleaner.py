@@ -80,15 +80,15 @@ class Cleaner(NERDModule):
         # Set new total number of events
         if actions:
             actions.append(('set', 'events_meta.total', num_events))
-        
-        self.log.debug("Cleaning {}: Removing {} old warden event records".format(key, len(actions)-1))
+            self.log.debug("Cleaning {}: Removing {} old warden event records".format(key, len(actions)-1))
+
         return actions
 
     def clear_dshield(self, ekey, rec, updates):
         """
         Handler function to clear old DShield records
 
-        Remove all items under dshield with "date" older then current
+        Remove all items under dshield with "date" older than current
         day minus 'max_event_history' days.
         """
         etype, key = ekey
@@ -103,7 +103,8 @@ class Cleaner(NERDModule):
             if item['date'] < cut_day:
                 actions.append(('array_remove', 'dshield', {'date' : item['date']}))
 
-        self.log.debug("Cleaning {}: Removing {} old dshield records".format(key, len(actions)))
+        if actions:
+            self.log.debug("Cleaning {}: Removing {} old dshield records".format(key, len(actions)))
         return actions
 
     def clear_bl_hist(self, ekey, rec, updates):
@@ -141,7 +142,10 @@ class Cleaner(NERDModule):
             elif len(newlist) != len(blrec['h']):
                 # If something was removed, replace the list in the record with the new one
                 actions.append( ('array_update', 'dbl', {'n': blrec['n'], 'd': blrec['d']}, [('set', 'h', newlist)]) )
-        
+
+        if actions:
+            self.log.debug("Cleaning {}: Updating blacklists".format(key))
+
         return actions
     
     def clear_otx_pulses(self, ekey, rec, updates):
@@ -160,6 +164,10 @@ class Cleaner(NERDModule):
         for otx_pulse in rec.get('otx_pulses', []):
             if (otx_pulse.get('indicator_expiration') and (otx_pulse.get('indicator_expiration') < cut_time)) or ((otx_pulse.get('indicator_expiration') is None) and (otx_pulse.get('indicator_created') < cut_time)):
                 actions.append(('array_remove', 'otx_pulses', {'pulse_id': otx_pulse['pulse_id']}))
+
+        if actions:
+            self.log.debug("Cleaning {}: Removing {} expired OTX pulses".format(key, len(actions)))
+
         return actions
 
     def check_ip_expiration(self, ekey, rec, updates):
@@ -188,12 +196,14 @@ class Cleaner(NERDModule):
 
         if not new_ttl_tokens:
             # all tokens are expired (_ttl empty), delete the record
+            self.log.debug(f"Cleaning {key}: all ttl tokens are expired, record will be deleted")
             actions.append(('event', '!DELETE'))
             return actions
 
         if new_ttl_tokens != ttl_tokens:
             # some token was removed, update _ttl
-            actions.append(('set', '_ttl', rec['_ttl']))
+            self.log.debug(f"Cleaning {key}: Removing expired ttl tokens. Old: {list(ttl_tokens.keys())}; New: {list(new_ttl_tokens.keys())}")
+            actions.append(('set', '_ttl', new_ttl_tokens))
 
         # there is still at least one _ttl token - keep the record and issue normal !every1d event
         actions.append(('event', '!every1d'))
