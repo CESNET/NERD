@@ -864,6 +864,9 @@ class IPFilterForm(FlaskForm):
                        get_domain_blacklists()]
         self.blacklist.choices = bl_choices + dbl_choices
 
+        # Get names of all TTL tokens used in DB
+        self.all_ttl_tokens = cnt_by_source.keys()
+
 
 class IPFilterFormUnlimited(IPFilterForm):
     """Subclass of IPFilterForm with possibility to set no limit on number of results (used by API)"""
@@ -946,6 +949,10 @@ def create_query(form):
         queries.append({op: [
             {'$and': [{'tags.' + tag_id: {'$exists': True}}, {'tags.' + tag_id + '.confidence': {'$gte': confidence}}]}
             for tag_id in form.tag.data]})
+    # Select only records with at least one _ttl token other than "web".
+    # (I.t. do not show records exiting only because someone explicitly asked for that IP on the web)
+    queries.append({'$or': [{f'_ttl.{token}': {'$exists': True}} for token in form.all_ttl_tokens if token != "web"]})
+
     query = {'$and': queries} if queries else None
     return query
 
