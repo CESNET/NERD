@@ -525,13 +525,15 @@ def store_user_info():
         g.user, g.ac = get_user_info(session)
 
 
-def exceeded_rate_limit(user_id):
+def exceeded_rate_limit(user_id, note=''):
     if request.path.startswith("/api"):
         # API -> return error in JSON
         err = {
             'err_n': 429,
             'error': "Too many requests",
         }
+        if note:
+            err['error'] += f". Note: {note}"
         log_err.log('429_rate_limit_api')
         return Response(json.dumps(err), 429, mimetype='application/json')
     else:
@@ -541,6 +543,8 @@ def exceeded_rate_limit(user_id):
             message = "You are only allowed to make {} requests per second.".format(tps)
         else:
             message = "We only allow {} requests per second per IP address for not logged in users.".format(tps)
+        if note:
+            message += f"\nNote: {note}"
         log_err.log('429_rate_limit_web')
         return make_response(render_template('429.html', message=message), 429)
 
@@ -2210,8 +2214,13 @@ def bulk_request():
 
     f = request.headers.get("Content-Type", "")
     if f == 'text/plain':
-        ips = ips.decode("ascii")
-        ip_list = [ipstr2int(ipstr) for ipstr in ips.split(',')]
+        try:
+            ips = ips.decode("ascii")
+            ip_list = [ipstr2int(ipstr) for ipstr in map(str.strip, ips.split(',')) if ipstr]
+        except ValueError:
+            log_err.log('400_bad_request')
+            return Response(json.dumps({'err_n': 400, 'error': 'Data contain an invalid IP address'}), 400,
+                            mimetype='application/json')
     elif f == 'application/octet-stream':
         ip_list = []
         for x in range(0, int(len(ips) / 4)):
@@ -2222,6 +2231,15 @@ def bulk_request():
         return Response(json.dumps({'err_n': 400, 'error': 'Unsupported input data format: ' + f}), 400,
                         mimetype='application/json')
 
+    # Rate-limit: this request costs additional rate-limit token per each 1000 IP addresses
+    # (one token is already consumed by default)
+    user_id = get_user_id()
+    additional_cost = len(ip_list) // 1000
+    if additional_cost > 0:
+        ok = rate_limiter.try_request(user_id, cost=additional_cost, wait=False)
+        if not ok:
+            return exceeded_rate_limit(user_id, note="The 'bulk' endpoint costs 1 rate-limit token + 1 for each 1000 IP addresses queried.")
+
     results = {el: 0.0 for el in ip_list}
 
     res = mongo.db.ip.find({"_id": {"$in": ip_list}}, {"_id": 1, "rep": 1})
@@ -2230,7 +2248,7 @@ def bulk_request():
             results[ip['_id']] = ip.get('rep', 0.0)
 
     if f == 'text/plain':
-        return Response(''.join(['%s\n' % results[val] for val in ip_list]), 200, mimetype='text/plain')
+        return Response(''.join([f'{round(results[val],4)}\n' for val in ip_list]), 200, mimetype='text/plain')
     elif f == 'application/octet-stream':
         resp = bytearray()
         for x in ip_list:
