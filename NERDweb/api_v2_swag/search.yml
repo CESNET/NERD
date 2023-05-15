@@ -1,0 +1,161 @@
+Basic info for a single IP address
+    ---
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        description: Request body for endpoint
+        required: true
+        schema:
+          type: object
+          properties:
+            subnet:
+              nullable: true
+              type: ['null', array]
+              items:
+                type: string
+              description: IPv4 prefix/subnet in CIDR format
+              example: ["146.88.240.4", "192.168.1.0/24"]
+            hostname:
+              nullable: true
+              type: ['null', array]
+              items:
+                type: string
+              description: Hostname suffix
+              example: ["security.criminalip.com"]
+            country:
+              nullable: true
+              type: ['null', array]
+              items:
+                type: string
+              description: IP address country of origin
+              example: ["US"]
+            asn:
+              nullable: true
+              type: ['null', array]
+              description: Autonomous system number
+              example: AS202425
+            cat:
+              nullable: true
+              type: ['null', array]
+              description: Event category - Warden
+              example: AnomalyBehaviour
+            blacklist:
+              nullable: true
+              type: ['null', array]
+              description: Appearance on blacklist(s)
+              example: AbuseIPDB
+            source:
+              nullable: true
+              type: ['null', array]
+              description: IP address malicious intent detected by source
+              example: warden
+            tag:
+              nullable: true
+              type: ['null', array]
+              description: Additional tags
+              example: attemptexploit
+            sort:
+              nullable: true
+              type: ['null', string]
+              enum:
+                - ip
+                - ts_added
+                - last_activity
+                - rep
+              description: allowed - ip, rep, ts_added and last_activity
+              example: ip
+            order:
+              nullable: true
+              type: ['null', string]
+              enum:
+                - asc
+                - desc
+              description: Order ascending or descending
+              example: desc
+            limit:
+              nullable: true
+              type: ['null', number]
+              enum:
+                - 5
+                - 10
+                - 20
+                - 50
+              description: results per page
+              example: 20
+            asn_op:
+              nullable: true
+              type: ['null', string]
+              enum:
+                - AND
+                - OR
+              description: AND / OR logical operator that parses through given asn values
+              example: or
+            source_op:
+              nullable: true
+              type: ['null', string]
+              enum:
+                - AND
+                - OR
+              description: AND / OR logical operator that parses through given source values
+              example: or
+            cat_op:
+              nullable: true
+              type: ['null', string]
+              enum:
+                - AND
+                - OR
+              description: AND / OR logical operator that parses through given category values
+              example: or
+            bl_op:
+              nullable: true
+              type: ['null', string]
+              enum:
+                - AND
+                - OR
+              description: AND / OR logical operator that parses through given blacklist values
+              example: or
+            tag_op:
+              nullable: true
+              type: ['null', string]
+              enum:
+                - AND
+                - OR
+              description: AND / OR logical operator that parses through given tag values
+              example: or
+            whitelisted:
+              nullable: true
+              type: boolean
+              description: Hide or show whitelisted IPs
+              example: true
+            page:
+              nullable: true
+              type: number
+              description: Page number when listing muliple results
+              example: 1
+    responses:
+      '200':
+        description: OK
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: Endpoint response message
+      '400':
+        description: Bad Request
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: Endpoint response message
+      '500':
+        description: Internal Server Error
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: Endpoint response message

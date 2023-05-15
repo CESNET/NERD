@@ -26,6 +26,8 @@ import pymisp
 from pymisp import ExpandedPyMISP
 from ipaddress import IPv4Address, AddressValueError
 from event_count_logger import EventCountLogger, EventGroup, DummyEventGroup
+# Open API requirements
+from flasgger import Swagger
 
 # Add to path the "one directory above the current file location"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -2318,6 +2320,256 @@ def get_shodan_response(ipaddr=None):
 
 
 # **********
+
+# ***************************** API v2 helper functions ********************************************
+def create_query_v2(data):
+    # Prepare 'find' part of the query
+    queries = []
+    if data is None: 
+        return None
+    
+    if "subnet" in data and data["subnet"] is not None and len(data["subnet"]) != 0:
+        subqueries = []
+        for subnet in data["subnet"]:
+            subnet = ipaddress.IPv4Network(subnet, strict=False)
+            subnet_start = int(subnet.network_address) # IP addresses are stored as int
+            subnet_end = int(subnet.broadcast_address)
+            subqueries.append( {'$and': [{'_id': {'$gte': subnet_start}}, {'_id': {'$lte': subnet_end}}]} )
+        queries.append({'$or': subqueries})
+
+    if "hostname" in data and data["hostname"] is not None and len(data["hostname"]) != 0:
+        subqueries = []
+        for hostname in data["hostname"]:
+            hn = hostname[::-1] # Hostnames are stored reversed in DB to allow search by suffix as a range search
+            hn_end = hn[:-1] + chr(ord(hn[-1])+1)
+            subqueries.append( {'$and': [{'hostname': {'$gte': hn}}, {'hostname': {'$lt': hn_end}}]} )
+        queries.append({'$or': subqueries})
+
+    if "country" in data and data["country"] is not None and len(data["country"]) != 0:
+        queries.append( { '$or': [{'geo.ctry': c.upper() } for c in data["country"]]} )
+
+    if "asn" in data and data["asn"] is not None and len(data["asn"]) != 0 :
+        subqueries = []
+        for asn in data["asn"]:
+            # ASN is not stored in IP records - get list of BGP prefixes of the ASN and filter by these
+            asn = int(asn.lstrip("ASas"))
+            asrec = mongo.db.asn.find_one({'_id': asn})
+            if asrec and 'bgppref' in asrec:
+                subqueries.append( {'bgppref': {'$in': asrec['bgppref']}} )
+            else:
+                subqueries.append( {'_id': {'$exists': False}} ) # ASN not in DB, add query which is always false to get no results
+        op = '$and' if (data["asn_op"] == "AND") else '$or'
+        queries.append({op: subqueries})
+
+    if "source" in data and data["source"] is not None and len(data["source"]) != 0:
+        op = '$and' if (data["source_op"] == "AND") else '$or'
+        queries.append( {op: [{'_ttl.' + s.lower(): {'$exists': True}} for s in data["source"]]} )
+
+    if "cat" in data and data["cat"] is not None and len(data["cat"]) != 0:
+        op = '$and' if (data["cat_op"] == "AND") else '$or'
+        queries.append( {op: [{'events.cat': cat} for cat in data["cat"]]} )
+
+    if "node" in data and data["node"] is not None and len(data["node"]) != 0:
+        op = '$and' if (data["node_op"] == "AND") else '$or'
+        queries.append( {op: [{'events.node': node} for node in data["node"]]} )
+
+    if "blacklist" in data and data["blacklist"] is not None and len(data["blacklist"]) != 0:
+        op = '$and' if (data["bl_op"] == "AND") else '$or'
+        array = [{('dbl' if t == 'd' else 'bl'): {'$elemMatch': {'n': id, 'v': 1}}} for t,_,id in map(lambda s: s.partition(':'), data["blacklist"])]
+        queries.append( {op: array} )
+
+    if "tag" in data and data["tag"] is not None and len(data["tag"]) != 0:
+        op = '$and' if (data["tag_op"] == "AND") else '$or'
+        queries.append( {op: [{'tags.'+ tag_id: {'$exists': True}} for tag_id in data["tag"]]} )
+
+    if "whitelisted" in data and data["whitelisted"]:
+        queries.append( {'tags.whitelist': {'$exists': False}} )
+
+    query = {'$and': queries} if queries else None
+    return query
+
+def get_basic_info_dic_v2(val):
+    geo_d = {}
+    if 'geo' in val.keys():
+        geo_d['ctry'] = val['geo'].get('ctry', "unknown")
+
+    bl_l = []
+    for l in val.get('bl', []):
+        bl_l.append(l['n']) # TODO: shouldn't there be a check for v=1?
+
+    tags_l = []
+    for l in val.get('tags', []):
+        d = {
+            'n' : l,
+            'c' : val['tags'][l]['confidence']
+        }
+
+        tags_l.append(d)
+
+    data = {
+        'ip' : val['_id'],
+        'rep' : val.get('rep', 0.0),
+        'fmp' : val.get('fmp', {'general': 0.0}),
+        'hostname' : (val.get('hostname', '') or '')[::-1],
+        'ipblock' : val.get('ipblock', ''),
+        'bgppref' : val.get('bgppref', ''),
+        'asn' : val.get('asn',[]),
+        'geo' : geo_d,
+        'bl'  : bl_l,
+        'tags'  : tags_l,
+        'ts_last_update'  : val.get('ts_last_update', ''),
+        'ts_added'  : val.get('ts_added', ''),
+    }
+
+    return data
+
+def find_ip_data(query, skip_n, limit):
+    return mongo.db.ip.find(query).skip(skip_n).limit(limit)
+
+def ip_to_warden_data(ipaddr):
+    ipint = ipstr2int(ipaddr)
+    ipinfo = mongo.db.ip.aggregate(pipeline = [
+    { '$match': { '_id': ipint } }, 
+    { '$unwind': '$events' },
+    { '$group': {
+        '_id': {
+            'date': '$events.date',
+            'cat': '$events.cat'
+        },
+        'n_sum': { '$sum': '$events.n' },
+        'conns_sum': { '$sum': '$events.conns' },
+        }
+    },
+    { '$group': {
+        '_id': '$_id.date',
+        'categories': {
+            "$push": {
+                "k": "$_id.cat",
+                "v": {
+                    "n_sum": "$n_sum",
+                    "conns_sum": "$conns_sum",
+                    "nodes": "$nodes"
+                }
+            }
+        }
+        }
+    },
+    { '$project': {
+        '_id': 0,
+        'date': '$_id',
+        "categories": {"$arrayToObject": "$categories"}
+        }
+    },
+    { '$sort': { 'date': 1 } }
+    ])
+
+    ipinfo_list = [doc for doc in ipinfo]
+    #ipinfo_list['_id'] = int2ipstr(ipinfo_list['_id'])
+    return ipinfo_list
+
+
+# additional data for selected users that belong to group
+def ip_to_warden_data_with_nodes(ipaddr):
+    ipint = ipstr2int(ipaddr)
+    ipinfo = mongo.db.ip.aggregate(pipeline = [
+    { '$match': { '_id': 1246899993 } }, 
+    { '$unwind': '$events' },
+    { '$group': {
+        '_id': {
+            'date': '$events.date',
+            'cat': '$events.cat',
+            'node': '$events.node'
+        },
+        'n_sum': { '$sum': '$events.n' },
+        'conns_sum': { '$sum': '$events.conns' }
+    }},
+    { '$group': {
+        '_id': {
+            'date': '$_id.date',
+            'cat': '$_id.cat'
+        },
+        'n_sum': { '$sum': '$n_sum' },
+        'conns_sum': { '$sum': '$conns_sum' },
+        'nodes': {
+            '$push': {
+                'node': '$_id.node',
+                'n_sum': '$n_sum',
+                'conns_sum': '$conns_sum'
+            }
+        }
+    }},
+    { '$group': {
+        '_id': '$_id.date',
+        'categories': {
+            '$push': {
+                'cat': '$_id.cat',
+                'n_sum': '$n_sum',
+                'conns_sum': '$conns_sum',
+                'nodes': '$nodes'
+            }
+        }
+    }},
+    { '$project': {
+        '_id': 0,
+        'date': '$_id',
+        'categories': 1
+    }},
+    { '$sort': { 'date': -1 } }
+    ])
+
+    ipinfo_list = [doc for doc in ipinfo]
+    #ipinfo_list['_id'] = int2ipstr(ipinfo_list['_id'])
+    return ipinfo_list
+
+
+# *****************************************************************************************
+
+swagger_config = {
+    "headers": [
+    ],
+    "specs": [
+        {
+            "endpoint": 'apispec_1',
+            "route": '/apispec_1.json',
+            "rule_filter": lambda rule: True,  # all in
+            "model_filter": lambda tag: True,  # all in
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    # "static_folder": "static",  # must be set by user
+    "swagger_ui": True,
+    "specs_route": "/apidocs/"
+}
+template = {
+  "swagger": "2.0",
+  "info": {
+    "title": "NERD API v2",
+    "description": "Second API version for new NERD system, built to interact with Vue.js FE",
+    "contact": {
+      "responsibleOrganization": "Liberouter",
+      "responsibleDeveloper": "NERD",
+      "email": "bartos@cesnet.cz",
+      "url": "https://nerd.cesnet.cz/",
+    },
+  },
+  "host": "127.0.0.1",  # overrides localhost:500
+  "basePath": "/doc",  # base bash for blueprint registration
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "operationId": "getmyData"
+}
+
+app.config['SWAGGER_VALIDATOR_ENABLE'] = True
+swagger = Swagger(app, config=swagger_config, template=template, parse=True)
+
+# register blueprints - generally definitions of routes in separate files
+from user_management import user_management
+from api_v2 import api_v2
+
+app.register_blueprint(user_management, url_prefix="/user")
+app.register_blueprint(api_v2, url_prefix="/api/v2")
 
 if __name__ == "__main__":
     # Set global testing flag

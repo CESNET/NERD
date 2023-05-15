@@ -1,0 +1,29 @@
+User local login
+    ---
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        description: Request body for endpoint
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              description: Email of the local user
+              example: "user@rmail.com"
+            password:
+              type: string
+              description: Password of the local user
+              example: "password123"
+    responses:
+      200:
+        description: Login successful
+      400:
+        description: Bad password
+      404:
+        description: User does not exist
+      500:
+        description: Inetrnal server error

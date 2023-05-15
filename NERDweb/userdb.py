@@ -51,7 +51,6 @@ def get_all_groups():
     groups.discard('*')
     return sorted(list(groups))
 
-
 # ***** Access control functions *****
 
 def get_user_groups(full_id):
@@ -76,9 +75,6 @@ def get_ac_func(user_groups):
         else:
             return False
     return ac
-
-
-# TODO - split authentication and authorization/get_user_information
 
 def get_user_info(session):
     """
@@ -167,3 +163,155 @@ def generate_unique_token(user):
                 return False
 
             return True
+
+###############################################
+#            NEW FUNCTIONS API v2             #
+###############################################
+# ***** User management functions *****
+def create_user(email, password, provider, name=None, organization=None, groups=[]):
+    try:
+        cur = db.cursor()
+        cur.execute("""INSERT INTO users (id, groups, name, email, org, password) 
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (provider + ":" + email, groups, name, email, organization, password))
+        db.commit()
+        cur.close()
+    except (Exception, psycopg2.DatabaseError) as e:
+        return e
+
+def get_user_by_email(email):
+    cur = db.cursor()
+    cur.execute("SELECT * FROM users WHERE email=%s", (email,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    col_names = [col.name for col in cur.description]
+    return dict(zip(col_names, row))
+
+def get_user_by_id(id):
+    cur = db.cursor()
+    cur.execute("SELECT * FROM users WHERE id=%s", (id,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    col_names = [col.name for col in cur.description]
+    return dict(zip(col_names, row))
+
+def get_user_data_for_login(user_id):
+    cur = db.cursor()
+    cur.execute("SELECT id, password, name FROM users WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    return {'id': row[0], 'password': row[1], 'name': row[2]}
+
+def check_if_user_exists(user_id):
+    cur = db.cursor()
+    cur.execute("SELECT id, name FROM users WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        return False
+    return True
+
+def verify_user(user_id):
+    try:
+        cur = db.cursor()
+        cur.execute("""UPDATE users SET groups=%s, verified=TRUE WHERE id = %s""", (["registered"], user_id,))
+        db.commit()
+        cur.close()
+    except psycopg2.Error as e:
+        print(f"verify_user() failed: {e.pgerror}")
+        return e
+
+def verify_user_by_mail(mail):
+    try:
+        cur = db.cursor()
+        cur.execute("""UPDATE users SET groups=%s, verified=TRUE WHERE email = %s""", (["registered"], mail,))
+        db.commit()
+        cur.close()
+    except psycopg2.Error as e:
+        print(f"verify_user() failed: {e.pgerror}")
+        return e
+
+def just_verify_user_by_id(ide):
+    try:
+        cur = db.cursor()
+        cur.execute("""UPDATE users SET verified=TRUE WHERE id = %s""", (ide,))
+        db.commit()
+        cur.close()
+    except psycopg2.Error as e:
+        print(f"verify_user() failed: {e.pgerror}")
+        return e
+
+def set_verification_email_sent(date_time, email):
+    try:
+        cur = db.cursor()
+        cur.execute("""UPDATE users SET verification_email_sent=%s WHERE id = %s""", (date_time, id))
+        db.commit()
+        cur.close()
+    except psycopg2.Error as e:
+        print(f"set_verification_email_sent() failed: {e.pgerror}")
+        return e
+
+
+def set_last_login(date_time, ide):
+    try:
+        cur = db.cursor()
+        cur.execute("""UPDATE users SET last_login=%s WHERE id = %s""", (date_time, ide))
+        db.commit()
+        cur.close()
+    except psycopg2.Error as e:
+        print(f"set_last_login() failed: {e.pgerror}")
+        return e
+
+
+def get_verification_email_sent(user_email):
+    cur = db.cursor()
+    cur.execute("SELECT verification_email_sent FROM users WHERE email = %s", (user_email,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    return row[0]
+
+
+def get_user_name(user_email):
+    cur = db.cursor()
+    cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    return row[0]
+
+def set_new_password(new_password, id):
+    try:
+        cur = db.cursor()
+        cur.execute("""UPDATE users SET password=%s WHERE id = %s""", (new_password, id))
+        db.commit()
+        cur.close()
+    except psycopg2.Error as e:
+        print(f"set_new_password() failed: {e.pgerror}")
+        return e
+
+
+def set_api_v1_token(ide, token):
+    cur = db.cursor()
+    cur.execute("UPDATE users SET api_token = %s WHERE id = %s", (token, ide,))
+    return True
+
+def get_users_admin():
+    cur = db.cursor()
+    cur.execute("SELECT email, groups, id, org, api_token, verified, verification_email_sent, last_login FROM users ORDER BY email")
+    row = cur.fetchall()
+    if not row:
+        return None
+    return row
+
+def set_new_roles(ide, roles):
+    cur = db.cursor()
+    cur.execute("UPDATE users SET groups = %s WHERE id = %s", (roles, ide,))
+    return True
+
+def delete_user(ide):
+    cur = db.cursor()
+    cur.execute("DELETE FROM users WHERE id = %s", (ide,))
+    return True

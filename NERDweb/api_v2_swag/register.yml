@@ -1,0 +1,37 @@
+User local registration
+    ---
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        description: Request body for endpoint
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              description: Email of the local user
+              example: "user@rmail.com"
+            password:
+              type: string
+              description: Password of the local user
+              example: "password123"
+            organization:
+              type: string
+              enum:
+                - Academic
+                - Research
+                - Security
+              description: Organization of the local user
+              example: "user@rmail.com"
+            name:
+              type: string
+              description: Name of the local user
+              example: "noName for v2"
+    responses:
+      200:
+        description: Registration successful
+      400:
+        description: Error during registration
