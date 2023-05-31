@@ -9,10 +9,13 @@ from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from flask_dance.consumer import OAuth2ConsumerBlueprint
 import jwt
+import os
+import sys
+import common.config
 
 
 # needed overridden render_template method because it passes some needed attributes to Jinja templates
-from nerd_main import render_template, BASE_URL, config, mailer
+from com import mailer
 from userdb import create_user, get_user_data_for_login, get_user_by_email, verify_user, get_verification_email_sent, \
     set_verification_email_sent, set_last_login, get_user_name, set_new_password, check_if_user_exists, get_user_by_id
 
@@ -22,6 +25,22 @@ ERROR_MSG_MISSING_MAIL_CONFIG = "ERROR: No destination email address configured.
 # variable name and name of blueprint is recommended to be same as filename
 user_management = Blueprint("user_management", __name__, static_folder="static", template_folder="templates")
 
+
+DEFAULT_CONFIG_FILE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "/etc/nerd/nerdweb.yml"))
+
+if len(sys.argv) >= 2:
+    cfg_file = sys.argv[1]
+else:
+    cfg_file = DEFAULT_CONFIG_FILE
+cfg_dir = os.path.dirname(os.path.abspath(cfg_file))
+
+# Read web-specific config (nerdweb.cfg)
+config = common.config.read_config(cfg_file)
+# Read common config (nerd.cfg) and combine them together
+common_cfg_file = os.path.join(cfg_dir, config.get('common_config'))
+config.update(common.config.read_config(common_cfg_file))
+
+config.testing = True
 
 # ***** Util functions *****
 def generate_token(user_email):

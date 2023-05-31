@@ -22,9 +22,8 @@ from requests_oauthlib import OAuth1Session, OAuth2Session
 
 from user_management import get_hashed_password, generate_token, verify_email_token, \
     generate_jwt_token, confirm_jwt_token
-from nerd_main import get_ip_info, get_basic_info_dic,  create_query_v2, \
-    find_ip_data, get_basic_info_dic_v2, attach_whois_data, mailer, mongo, \
-    get_ip_blacklists, ip_to_warden_data
+    
+from com import attach_whois_data, get_ip_info, mailer, mongo, get_basic_info_dic, get_basic_info_dic_short, get_basic_info_dic_v2, find_ip_data, ip_to_warden_data, create_query_v2
 from userdb import get_user_info, authenticate_with_token, generate_unique_token, \
     get_user_by_id, create_user, verify_user, set_last_login, get_user_name,  \
     set_new_password, get_users_admin, set_verification_email_sent, set_new_roles, \
