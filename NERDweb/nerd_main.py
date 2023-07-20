@@ -2002,7 +2002,7 @@ def get_full_info(ipaddr=None):
 
 # ***** NERD API IPSearch *****
 
-@app.route('/api/v1/search/ip/')
+@app.route('/api/v1/search/ip/', methods=['GET', 'POST'])
 def ip_search(full=False):
     log_ep.log('/api/search/ip')
     err = {}
@@ -2011,7 +2011,7 @@ def ip_search(full=False):
         return API_RESPONSE_403
 
     # Get output format
-    output = request.args.get('o', 'json')
+    output = request.values.get('o', 'json')
     if output not in ('json', 'list', 'short'):
         log_err.log('400_bad_request')
         err['err_n'] = 400
@@ -2022,11 +2022,11 @@ def ip_search(full=False):
 
     # Validate parameters
     if output == "list":
-        form = IPFilterFormUnlimitedDef(request.args)  # no limit when only asking for list of IPs
+        form = IPFilterFormUnlimitedDef(request.values)  # no limit when only asking for list of IPs
     elif g.ac('unlimited_search') and not full:
-        form = IPFilterFormUnlimited(request.args)  # possibility to specify no limit, but default is 20 as normal
+        form = IPFilterFormUnlimited(request.values)  # possibility to specify no limit, but default is 20 as normal
     else:
-        form = IPFilterForm(request.args)  # otherwise limit must be between 1 and 1000 (TODO: allow more?)
+        form = IPFilterForm(request.values)  # otherwise limit must be between 1 and 1000 (TODO: allow more?)
 
     if not form.validate():
         log_err.log('400_bad_request')
