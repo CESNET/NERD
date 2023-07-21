@@ -156,6 +156,9 @@ userdb.init(config, cfg_dir)
 # Directory with static web fies (css, js)
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
+# Regex to parse IP addresses and CIDR prefixes
+IP_CIDR_REGEX = re.compile(r'\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:(?!\/)|\/[12]?[0-9]|\/3[012])\b')
+
 
 # **** Create and initialize Flask application *****
 
@@ -316,7 +319,7 @@ app.jinja_env.filters['misp_get_cluster_count'] = misp_get_cluster_count
 
 # ***** WTForm validators and filters *****
 
-# Own reimplamentation of wtforms.validators.Optional
+# Own reimplementation of wtforms.validators.Optional
 # The original one uses field.raw_data, but we need field.data
 # (raw_data only contain data loaded from Form (GET/POST), not those passed
 #  to Form constructor using obj/data/kwargs parameters)
@@ -330,6 +333,22 @@ def strip_whitespace(s):
     if isinstance(s, str):
         s = s.strip()
     return s
+
+def subnet_validator(form, field):
+    try:
+        ipaddress.IPv4Network(field.data, strict=False)
+    except ValueError:
+        raise validators.ValidationError()
+
+# Filter to extract IPs and CIRDs from a string
+def find_all_ips_and_cirds(s):
+    return IP_CIDR_REGEX.findall(s) # returns list of strings
+
+# Validator to check that the parsed list of IPs is not empty
+def nonempty_ip_list_validator(form, field):
+    assert isinstance(field.data, list)
+    if len(field.data) == 0:
+        raise validators.ValidationError("No IP address or CIDR string found")
 
 
 # ***** Auxiliary functions *****
@@ -793,16 +812,9 @@ def get_tags():
     return tags
 
 
-def subnet_validator(form, field):
-    try:
-        ipaddress.IPv4Network(field.data, strict=False)
-    except ValueError:
-        raise validators.ValidationError()
-
-
 class IPFilterForm(FlaskForm):
     subnet = StringField('', [validators.Optional(), subnet_validator], filters=[strip_whitespace])
-    ip_list = TextAreaField('')
+    ip_list = TextAreaField('', [validators.Optional(), nonempty_ip_list_validator], filters=[find_all_ips_and_cirds])
     hostname = StringField('Hostname suffix', [validators.Optional()], filters=[strip_whitespace])
     country = SelectMultipleField('Country', [validators.Optional()])
     asn = StringField('ASN', [validators.Optional(),
@@ -902,19 +914,17 @@ def create_query(form):
         subnet_end = int(subnet.broadcast_address)
         queries.append({'$and': [{'_id': {'$gte': subnet_start}}, {'_id': {'$lte': subnet_end}}]})
     if form.ip_list.data:
-        # ip adresses
-        extracted_ips = re.findall('''((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))''', form.ip_list.data)
-        # ip prefixes
-        extracted_prefixes = re.findall('''((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/[012]?[0-9])''', form.ip_list.data)
         multiple = []
-        for ip in extracted_ips:
-            addr = int(ipaddress.IPv4Address(ip))
-            multiple.append({'_id': {'$eq': addr}})
-        for ip in extracted_prefixes:
-            subnet = ipaddress.IPv4Network(ip, strict=False)
-            subnet_start = int(subnet.network_address)  # IP addresses are stored as int
-            subnet_end = int(subnet.broadcast_address)
-            multiple.append({'$and': [{'_id': {'$gte': subnet_start}}, {'_id': {'$lte': subnet_end}}]})
+        # form.ip_list.data should already be parsed into a list of IP or CIDR strings
+        for ip_cidr in form.ip_list.data:
+            if "/" in ip_cidr:
+                subnet = ipaddress.IPv4Network(ip_cidr, strict=False)
+                subnet_start = int(subnet.network_address)  # IP addresses are stored as int
+                subnet_end = int(subnet.broadcast_address)
+                multiple.append({'$and': [{'_id': {'$gte': subnet_start}}, {'_id': {'$lte': subnet_end}}]})
+            else:
+                addr = int(ipaddress.IPv4Address(ip_cidr))
+                multiple.append({'_id': {'$eq': addr}})
         if multiple:
             queries.append({"$or":  multiple})
         else:
@@ -984,12 +994,13 @@ def ips():
 
         try:
             query = create_query(form)
-            # Query parameters to be used in AJAX requests
-            # newline characters from ip_list input field are not JSON compatible - convert to spaces
+
+            # The ip_list input field has been parsed into a list of IPs - convert back to string...
+            #  first separated by spaces - for JSON representation of query parameters to be used in AJAX requests
             if form.ip_list.data is not None:
-                form.ip_list.data = form.ip_list.data.replace("\r", "").replace("\n", " ")
-            query_params = json.dumps(form.data)
-            # inserts newlines back - for proper representation in textfield
+                form.ip_list.data = " ".join(form.ip_list.data)
+            query_params = json.dumps(form.data) #
+            #  then convert spaces to newlines - for proper representation in textfield
             if form.ip_list.data is not None:
                 form.ip_list.data = form.ip_list.data.replace(" ", "\n")
 
@@ -1001,6 +1012,9 @@ def ips():
         except pymongo.errors.ServerSelectionTimeoutError:
             results = []
             error = 'database_error'
+        except ValueError as e:
+            results = []
+            error = str(e)
 
         # Convert _id from int to dotted-decimal string
         for ip in results:
@@ -1099,6 +1113,7 @@ def ips():
 
     else:
         results = None
+        form.ip_list.data = ""
         if g.user and not g.ac('ipsearch'):
             flash('Insufficient permissions to search/view IPs.', 'error')
     
@@ -1112,7 +1127,7 @@ def ips_count():
     form_values = json.loads(request.data.decode('utf-8'))
 
     form = IPFilterForm(obj=form_values)
-    if (g.ac('ipsearch') and form.validate()) or form.ip_list is not None:
+    if g.ac('ipsearch') and form.validate():
         query = create_query(form)
         if query is None: # count all
             return make_response(str(mongo.db.ip.count_documents({})))
