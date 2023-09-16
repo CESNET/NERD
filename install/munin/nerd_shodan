@@ -1,0 +1,20 @@
+#!/bin/bash
+
+if [[ "$1" == "config" ]]; then
+cat <<EOF
+graph_title Shodan InternetDB module
+graph_category nerd
+graph_vlabel API requests by result (per minute)
+graph_period minute
+
+add_or_update_data.label add_or_update_data
+no_data.label no_data
+remove_old_data.label remove_old_data
+rate_limit.label rate_limit
+unexpected_reply.label unexpected_reply
+EOF
+exit 0
+fi
+
+ecl_reader /etc/nerd/event_logging.yml -g shodan -i 5m | sed -E 's/:([0-9]+)$/.value \1/'
+
