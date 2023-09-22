@@ -154,7 +154,31 @@
      </div>
     </div>
       {% endif %}
-     
+
+      <div class="row narrow" id="narrow">
+        <div id="sorting">
+          <div>
+            <p>Threat category</p>
+          </div>
+          <div class="opt">
+            <span class="lab">
+              Role
+              <span id="tc_role_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+             {{ form.tc_role() }}{{ form.tc_role_op() }}
+          </div>
+          <div class="opt">
+            <span class="lab">
+              Category
+              <span id="tc_category_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
+             {{ form.tc_category() }}{{ form.tc_category_op() }}
+          </div>
+          <div class="opt">
+            <span class="lab">Subcategory</span>
+            {{ formfield(form.tc_subcategory, size=10) }}
+          </div>
+        </div>
+      </div>
+
       <div id="sorting">
         <div>
           <p>Sorting options</p>

@@ -31,6 +31,7 @@ from event_count_logger import EventCountLogger, EventGroup, DummyEventGroup
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 import common.config
 import common.task_queue
+import common.threat_categorization
 from common.utils import ipstr2int, int2ipstr, parse_rfc_time
 from shodan_rpc_client import ShodanRpcClient
 
@@ -811,7 +812,12 @@ class IPFilterForm(FlaskForm):
     source = SelectMultipleField('Source', [validators.Optional()])
     source_op = HiddenField('', default="or")
     cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
+    tc_role = SelectMultipleField('Role', [validators.Optional()])
+    tc_category = SelectMultipleField('Category', [validators.Optional()])
+    tc_subcategory = StringField('Subcategory', [validators.Optional()], filters=[strip_whitespace])
     cat_op = HiddenField('', default="or")
+    tc_role_op = HiddenField('', default="or")
+    tc_category_op = HiddenField('', default="or")
     node = SelectMultipleField('', [validators.Optional()])
     node_op = HiddenField('', default="or")
     blacklist = SelectMultipleField('Blacklist', [validators.Optional()])
@@ -858,6 +864,11 @@ class IPFilterForm(FlaskForm):
         }
         cnt_by_source = {item["_id"]: item["n"] for item in mongo.db.n_ip_by_ttl.find()}
         self.source.choices = [(src_id, '{} ({})'.format(src_name, int(cnt_by_source.get(src_id, 0)))) for src_id,src_name in source_names.items()]
+
+        # Load categorization config to get list of all categories
+        threat_categories = common.threat_categorization.load_categorization_config()
+        self.tc_role.choices = [("src", "Source"), ("dst", "Destination")]
+        self.tc_category.choices = [(cat_id, cat_data['label']) for cat_id, cat_data in threat_categories.items()]
 
         # Number of occurrences for blacklists (list of blacklists is taken from configuration)
         bl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_bl.find()}
@@ -939,6 +950,22 @@ def create_query(form):
     if form.cat.data:
         op = '$and' if (form.cat_op.data == "and") else '$or'
         queries.append({op: [{'events.cat': cat} for cat in form.cat.data]})
+    if form.tc_role.data or form.tc_category.data or form.tc_subcategory.data:
+        elem_match = {}
+        if form.tc_role.data:
+            role_op = '$and' if (form.tc_role_op.data == "and") else '$or'
+            elem_match.update({role_op: [{"role": role} for role in form.tc_role.data]})
+        if form.tc_subcategory.data:
+            subcategory_id, subcategory_value = form.tc_subcategory.data.split("=")
+            if subcategory_id == "port":
+                subcategory_value = int(subcategory_value)
+            elem_match.update({subcategory_id: subcategory_value})
+        if form.tc_category.data:
+            cat_op = '$and' if (form.tc_category_op.data == "and") else '$or'
+            query = {cat_op: [{"threat_category": {"$elemMatch": {**elem_match, "id": cat}}} for cat in form.tc_category.data]}
+        else:
+            query = {"threat_category": {"$elemMatch": elem_match}}
+        queries.append(query)
     if form.node.data:
         op = '$and' if (form.node_op.data == "and") else '$or'
         queries.append({op: [{'events.node': node} for node in form.node.data]})

@@ -89,11 +89,12 @@ def process_feed(feed_data):
         if (ips[ip_addr]["reports"] < min_reports) or (ips[ip_addr]["targets"] < min_targets):
             continue
         tq_writer.put_task('ip', ip_addr, [
-                                            ('array_upsert', 'dshield', {'date' : date_str},
-                                             [('set', 'reports', ips[ip_addr]["reports"]),
-                                              ('set', 'targets', ips[ip_addr]["targets"])]),
-                                            ('setmax', '_ttl.dshield', ttl_date),
-                                          ], "dshield")
+            ('array_upsert', 'dshield', {'date': date_str},
+             [('set', 'reports', ips[ip_addr]["reports"]),
+              ('set', 'targets', ips[ip_addr]["targets"])]),
+            ('setmax', '_ttl.dshield', ttl_date),
+            ('array_upsert', 'threat_category', {'id': 'scan', 'role': 'src'}, [('add', 'n_reports.dshield', ips[ip_addr]["reports"])])
+        ], "dshield")
     logger.info("Tasks created")
 
 def download_feed():

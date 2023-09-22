@@ -1244,6 +1244,19 @@ ul.data-list li ul li {
     font-weight: bold;
   }
 
+  #threat_category
+  {
+    display: flex;
+    flex-direction: row;
+    width: 813px;
+    justify-content: space-between;
+  }
+
+  #threat_category p
+  {
+    font-weight: bold;
+  }
+
 
   #searchForm
   {

@@ -1,0 +1,200 @@
+
+unknown:
+  role: src
+  description: The IP was reported as a source of malicious/unexpected/rouge packets, but without any further specification.
+  label: Unknown
+
+scan:
+  role: src
+  description: The IP address performs a common network scanning, i.e. it tries to connect to various targets to search for open ports/services.
+  label: Scanning
+  subcategories:
+    - port
+  triggers:
+    warden_receiver: |-
+      'Recon.Scanning' in event.categories
+    otx_receiver: |-
+      event.indicator_role == 'scanning_host'
+    misp_receiver: |-
+      'CERT-XLM:information-gathering="scanner"' in event.tags
+      'ecsirt:information-gathering="scanner"' in event.tags
+      'circl:incident-classification="scan"' in event.tags
+
+bruteforce:
+  role: src
+  description: The IP performs dictionary (or bruteforce) attacks on password-protected services. Usually accompanied with scanning - searching for the targeted service.
+  label: Bruteforce
+  subcategories:
+    - protocol
+    - port
+  triggers:
+    warden_receiver: |-
+      'Attempt.Login' in event.categories
+    otx_receiver: |-
+      event.indicator_role == 'bruteforce'
+    misp_receiver: |-
+      'CERT-XLM:intrusion-attempts="login-attempts"' in event.tags
+      'ecsirt:intrusion-attempts="brute-force"' in event.tags
+  blacklists:
+    - bruteforceblocker
+    - blocklist_de-ssh
+    - blocklist_de-bruteforcelogin
+    - charles_the_haleys_ssh_dico_ips
+    - charles_the_haleys_smtp_dico_ips
+    - dataplane_org_sshclient
+    - dataplane_org_sshpwauth
+    - dataplane_org_telnet_login
+
+ddos:
+  role: src
+  description: The IP has been observed as a source of volumetric (D)DoS attacks.
+  label: DDoS
+  triggers:
+    warden_receiver: |-
+      'Availability.DoS' in event.categories
+      'Availability.DDoS' in event.categories
+    misp_receiver: |-
+      'DDoS' in event.tags
+      'CERT-XLM:availability="dos"' in event.tags
+      'CERT-XLM:availability="ddos"' in event.tags
+      'ecsirt:availability="dos"' in event.tags
+      'ecsirt:availability="ddos"' in event.tags
+      'circl:incident-classification="denial-of-service"' in event.tags
+
+ddos-amplifier:
+  role: dst
+  description: The IP runs a service which can be (and often is) misused as an amplifier for DDoS attacks, e.g. open DNS resolvers, NTP servers, memcached, etc.
+  label: DDoS amplifier
+  subcategories:
+    - protocol
+  triggers:
+    warden_receiver: |-
+      'Vulnerable.Config' in event.categories and 'dns' in event.protocols
+      'Vulnerable.Config' in event.categories and 'ntp' in event.protocols
+      'Vulnerable.Config' in event.categories and 'memcached' in event.protocols
+      'Backscatter' in event.source_types
+      'Open DNS Resolver' in event.description
+      'Open Memcached' in event.description
+      'Abusable NTP' in event.description
+
+spam:
+  role: src
+  description: The IP is sending spam.
+  label: Spam
+  triggers:
+    warden_receiver: |-
+      'Abusive.Spam' in event.categories
+      'OriginSpam' in event.source_types
+      'Spam' in event.source_types
+    misp_receiver: |-
+      'CERT-XLM:abusive-content="spam"' in event.tags
+      'ecsirt:abusive-content="spam"' in event.tags
+      'circl:incident-classification="spam"' in event.tags
+  blacklists:
+    - sblam_ips
+    - psbl
+    - spamhaus_edrop
+
+malware_distribution:
+  role: dst
+  description: The IP is used to distribute a malware, e.g. hosts an HTTP URL from which a malware is being downloaded.
+  label: Malware distribution
+  subcategories:
+    - malware_family
+  triggers:
+    warden_receiver: |-
+      'Malware.Virus' in event.categories
+      'Malware.Worm' in event.categories
+      'Malware.Trojan' in event.categories
+      'Malware.Spyware' in event.categories
+      'Malware.Dialer' in event.categories
+      'Malware.Rootkit' in event.categories
+      'Malware' in event.source_types
+      'OriginMalware' in event.source_types
+      'OriginSandbox' in event.source_types
+    otx_receiver: |-
+      event.indicator_role == 'trojan'
+      event.indicator_role == 'malware_hosting'
+    misp_receiver: |-
+      'MALWARE' in event.tags
+      'keylogger/infostealer' in event.tags
+      'Keylogger' in event.tags
+      'infostealer' in event.tags
+      'Ransomware' in event.tags
+      'Remote Access Trojan' in event.tags
+      'MalSpam' in event.tags
+  blacklists:
+    - urlhouse_ips
+
+cc:
+  role: dst
+  description: The IP is used as Command&Control server for a botnet/malware.
+  label: Command and control
+  subcategories:
+    - malware_family
+  triggers:
+    warden_receiver: |-
+      'CC' in event.source_types
+    otx_receiver: |-
+      event.indicator_role == 'command_and_control'
+    misp_receiver: |-
+      'kill-chain:Command and Control' in event.tags
+      'ecsirt:malicious-code="c&c"' in event.tags
+  blacklists:
+    - feodo
+    - bambenek_c2
+
+botnet_drone:
+  role: src
+  description: The IP is acting as a bot/drone of a botnet.
+  label: Botnet drone
+  subcategories:
+    - malware_family
+  triggers:
+    warden_receiver: |-
+      'Intrusion.Botnet' in event.categories
+      'Botnet' in event.source_types
+    misp_receiver: |-
+      'CERT-XLM:intrusion="botnet-member"' in event.tags
+      'ecsirt:malicious-code="botnet-drone"' in event.tags
+  blacklists:
+    - mirai_tracker_ips
+
+phishing_site:
+  role: dst
+  description: The IP is hosting a phishing website.
+  label: Phishing site
+  triggers:
+    warden_receiver: |-
+      'Fraud.Phishing' in event.categories
+      'Phishing' in event.source_types
+    misp_receiver: |-
+      'Phishing' in event.tags
+      'Phishing Site' in event.tags
+      'CERT-XLM:fraud="phishing"' in event.tags
+      'ecsirt:fraud="phishing"' in event.tags
+      'circl:incident-classification="phishing"' in event.tags
+      'circl:incident-classification="whaling"' in event.tags
+      'circl:incident-classification="smishing"' in event.tags
+  blacklists:
+    - openphish
+
+exploit:
+  role: src
+  description: The IP is attempting to exploit known vulnerabilities.
+  label: Exploit
+  subcategories:
+    - protocol
+  triggers:
+    warden_receiver: |-
+      'Attempt.Exploit' in event.categories
+    otx_receiver: |-
+      event.indicator_role == 'exploit_source'
+      event.indicator_role == 'exploit_kit'
+    misp_receiver: |-
+      'Exploit Kit' in event.tags
+      'CERT-XLM:intrusion-attempts="exploit-known-vuln"' in event.tags
+      'CERT-XLM:intrusion-attempts="new-attack-signature"' in event.tags
+      'ecsirt:intrusion-attempts="exploit"' in event.tags
+      'circl:incident-classification="XSS"' in event.tags
+      'circl:incident-classification="sql-injection"' in event.tags

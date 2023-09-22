@@ -23,6 +23,7 @@ import jsonpath_rw_ext
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 
+from common.threat_categorization import ClassifiableEvent, load_categorization_config
 from common.utils import parse_rfc_time
 import common.config
 import common.eventdb_psql
@@ -396,6 +397,34 @@ class WardenFilter():
             # if no rule matched, then do default action
             return self.default_action()
 
+##############################################################################
+# Threat categorization
+
+categorization_config = None
+
+
+def classify_ip(event_data, source_data):
+    global categorization_config
+    if categorization_config is None:
+        categorization_config = load_categorization_config("warden_receiver")
+
+    output = []
+    event = ClassifiableEvent("warden_receiver", event_data, source_data)
+
+    for category_id, category_config in categorization_config.items():
+        for statement in category_config["triggers"]:
+            if eval(statement) is True:
+                subcategories = {}
+                if "port" in category_config["subcategories"] and event.target_ports:
+                    subcategories["port"] = event.target_ports
+                if "protocol" in category_config["subcategories"] and event.protocols:
+                    subcategories["protocol"] = event.protocols
+                if "malware_family" in category_config["subcategories"]:
+                    pass  # TODO
+                output.append({"id": category_id, "role": category_config["role"], "subcategories": subcategories})
+    if not output:
+        output = [{"id": "unknown", "role": "src", "subcategories": {}}]
+    return output
 
 ##############################################################################
 # Main module code
@@ -476,17 +505,30 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
                     # calculate the timestamp, to which the record should be kept
                     live_till = end_time + life_span
 
-                    task_queue_writer.put_task('ip', ipv4,
-                        [
-                            ('array_upsert', 'events',
-                             {'date': date, 'node': node, 'cat': cat},
-                             [('add', 'n', 1)]),
-                            ('add', 'events_meta.total', 1),
-                            ('setmax', 'last_activity', end_time),
-                            ('setmax', '_ttl.warden', live_till),
-                        ],
-                        "warden_receiver"
-                    )
+                    updates = [
+                        ('array_upsert', 'events',
+                         {'date': date, 'node': node, 'cat': cat},
+                         [('add', 'n', 1)]),
+                        ('add', 'events_meta.total', 1),
+                        ('setmax', 'last_activity', end_time),
+                        ('setmax', '_ttl.warden', live_till),
+                    ]
+
+                    # threat categorization updates
+                    for category_data in classify_ip(event, src):
+                        subcategory_updates = []
+                        for subcategory, values in category_data['subcategories'].items():
+                            subcategory_updates.append(('extend_set', subcategory, values))
+                        updates.append((
+                            'array_upsert',
+                            'threat_category',
+                            {'id': category_data['id'], 'role': category_data['role']},
+                            [('add', 'n_reports.warden_receiver', 1), *subcategory_updates]
+                        ))
+
+                    # put task in queue
+                    task_queue_writer.put_task('ip', ipv4, updates, "warden_receiver")
+
                 for ipv6 in src.get("IP6", []):
                     log.debug(
                         "IPv6 address in Source found - skipping since IPv6 is not implemented yet.")  # The record follows:\n{}".format(str(event)), file=sys.stderr)

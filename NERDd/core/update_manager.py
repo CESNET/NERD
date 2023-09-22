@@ -202,9 +202,10 @@ def perform_update(rec, updreq):
         updates_performed = []
         for action in actions:
             upds = perform_update(item, action) # recursion
-            # List of all actions must be returned, convert relative keys to absolute
-            for inner_key, new_val in upds:
-                updates_performed.append((key + '[' + str(i) + '].' + inner_key, new_val))
+            if upds is not None:
+                # List of all actions must be returned, convert relative keys to absolute
+                for inner_key, new_val in upds:
+                    updates_performed.append((key + '[' + str(i) + '].' + inner_key, new_val))
         return updates_performed
     
     elif op == 'array_remove':

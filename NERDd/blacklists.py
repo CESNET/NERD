@@ -18,6 +18,7 @@ import ipaddress
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 
+from common.threat_categorization import load_categorization_config
 from common.utils import parse_rfc_time
 import common.config
 import common.task_queue
@@ -38,6 +39,39 @@ logging.getLogger('apscheduler.scheduler').setLevel('WARNING')
 bl_all_types = {
     'ip': {'singular': "IP", 'plural': "IPs"}
 }
+
+###############################################################################
+# Threat categorization
+
+categorization_config = None
+blacklist_to_category = None
+
+
+def categorization_init():
+    global categorization_config
+    global blacklist_to_category
+
+    categorization_config = load_categorization_config("blacklists")
+
+    blacklist_to_category = {}
+    for category_id, category_config in categorization_config.items():
+        for blacklist_id in category_config.get("blacklists", []):
+            blacklist_to_category[blacklist_id] = category_id
+
+
+def classify_blacklist(blacklist_id):
+    global categorization_config
+    global blacklist_to_category
+
+    if categorization_config is None:
+        categorization_init()
+
+    if blacklist_id in blacklist_to_category:
+        category_id = blacklist_to_category[blacklist_id]
+        ip_role = categorization_config[category_id]["role"]
+        return ip_role, category_id
+    else:
+        return "src", "unknown"
 
 
 ###############################################################################
@@ -159,11 +193,15 @@ def get_blacklist(id, name, url, regex, bl_type, life_length, params):
 
     log.info("{} IPs found in '{}', sending tasks to NERD workers".format(len(bl_records), id))
 
+    ip_role, ip_category = classify_blacklist(id)
+
     for ip in bl_records:
         task_queue_writer.put_task('ip', ip, [
             ('setmax', '_ttl.bl', now_plus_life_length),
             ('array_upsert', 'bl', {'n': id},
-                [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)])
+                [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)]),
+            ('array_upsert', 'threat_category', {'id': ip_category, 'role': ip_role},
+                [('add_to_set', 'blacklists', id)])
         ], "blacklists")
 
 

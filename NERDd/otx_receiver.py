@@ -31,6 +31,12 @@ import signal
 
 from OTXv2 import OTXv2
 
+# Add to path the "one directory above the current file location" to find modules from "common"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+
+from common.threat_categorization import ClassifiableEvent, load_categorization_config
+
+
 def parse_datetime(time_str):
     # Parse ISO-formatted string with optional fractional part (datetime.fromisoformat would do it from Py>=3.7, but we still use Py3.6)
     if '.' in time_str:
@@ -94,6 +100,23 @@ tq_writer.connect()
 
 scheduler = BlockingScheduler(timezone='UTC')
 
+# Threat categorization
+categorization_config = None
+
+
+def classify_ip(pulse):
+    global categorization_config
+    if categorization_config is None:
+        categorization_config = load_categorization_config("otx_receiver")
+
+    event = ClassifiableEvent("otx_receiver", pulse)
+
+    for category_id, category_config in categorization_config.items():
+        for statement in category_config["triggers"]:
+            if eval(statement) is True:
+                return category_config["role"], category_id
+    return "src", "unknown"
+
 
 def create_new_pulse(pulse, indicator):
     """
@@ -135,10 +158,12 @@ def upsert_new_pulse(pulse, indicator):
         live_till = current_time + timedelta(days=inactive_pulse_time)
     else:
         live_till = parse_datetime(indicator['expiration']) + timedelta(days=inactive_pulse_time)
+    ip_role, ip_category = classify_ip(pulse)
     tq_writer.put_task('ip', ip_addr, [
         ('array_upsert', 'otx_pulses', {'pulse_id': pulse['id']}, updates),
         ('setmax', '_ttl.otx', live_till),
-        ('setmax', 'last_activity', current_time)
+        ('setmax', 'last_activity', current_time),
+        ('array_upsert', 'threat_category', {'id': ip_category, 'role': ip_role}, [('add', 'n_reports.otx_receiver', 1)])
     ], "otx_receiver")
 
 
