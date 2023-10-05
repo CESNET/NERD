@@ -10,12 +10,14 @@ which stores time of the last pulse update. Next time, only new pusles and
 updates created after this time are requested.
 This file also plays a role of a flag, if it doesn't exist, all pusles are
 downloaded, otherwise only new ones.
-The module updates pulses every 4 hours, and every time writes a new time to
+The module updates pulses every 4 hours, each time it writes the current time to
 the 'otx_last_update.txt'.
 
 Only pulses subscribed by the user whose API key is used are downloaded.
 Therefore, to configure which data should be used, you must set subscriptions
-in the settings of the OTX user.
+in the settings of the OTX user (note that there is no way to list all
+subscriptions for the user, so write them down somewrhere for your future
+reference).
 """
 
 import json
@@ -53,7 +55,7 @@ logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
 
 logger = logging.getLogger('OTXReceiver')
 
-# path to the file where is writen time of the last pulses update
+# path to the file into which the time of the last pulses update is written
 file_path = '/data/otx_last_update.txt'
 
 # parse arguments
