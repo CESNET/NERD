@@ -32,16 +32,17 @@ $(function() {
      - "events" table cells
      - AS number
      - download button
+     - "help" notes (a span with "help" class and "title" attribute)
   */
   $( document ).tooltip({
-    items: ".country [title], .asn [title], .tag[title]",
+    items: ".country [title], .asn [title], .tag[title], .help[title]",
     track: false,
     show: false,
     hide: false,
     position: {my: "left bottom", at: "left-7px top-2px", collision: "flipfit"},
     content: function() {
       return format_dates_in_tooltip($(this).attr('title'));
-    } /* This is needed to allow HTML in tooltip text */
+    }
   });
   /* jQuery UI tooltip at "events" cell with event table */
   $( ".events" ).tooltip({

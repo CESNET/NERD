@@ -331,15 +331,7 @@
       {% endif -%}
     {% endif -%}
   
-    {% if ip.shodan %}
-      {% if ip.shodan.os %}<span class="tag os">{{ip.shodan.os}}</span>{% endif %}
-      {% if ip.shodan.devicetype %}<span class="tag os">{{ip.shodan.devicetype}}</span>{% endif %}
-      {% if ip.shodan.linktype %}<span class="tag os">{{ip.shodan.linktype}}</span>{% endif %}
-      {% if ip.shodan.tags %}<span class="tag os">{{ip.shodan.tags}}</span>{% endif %}
-      <span class="ports">
-        {% for port in ip.shodan.ports %}<span class="tag port" title="Port {{port}} is opened according to Shodan">{{port}}</span>{% endfor %}
-      </span>
-    {% endif %}
+
   {#
     {% if ip.open_dns %}<span class="tag amplifier dns">Open DNS resolver</span>{% endif %}
     {% if ip.open_ntp %}<span class="tag amplifier ntp">Open NTP</span>{% endif %}
@@ -380,6 +372,11 @@
           </span>
         {% endif %}
       {% endfor %}
+    {% endif %}
+
+    {% if ip.shodan %}
+      {% if ip.shodan.ports %}<span class="tag shodan" title="Ports opened on that IP according to Shodan's InternetDB:<br>{{ip.shodan.ports|join(', ')}}<br>Note, that this information may be more than a week old. Click on Shodan logo to see the latest information on the Shodan web."><a href="https://www.shodan.io/host/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}" style="width: 0.9em; height: 0.9em"></a>&nbsp;{{ip.shodan.ports|join_max(5)}}</span>{% endif %}
+      {% if ip.shodan.tags %}<span class="tag shodan" title="Tag(s) on Shodan's InternetDB">{{ip.shodan.tags|join(', ')}}</span>{% endif %}
     {% endif %}
   </td>
   <td class="time" {% if ip.ts_added %}data-time={{ ip.ts_added|date_to_int }}{% endif %}>{{ip.ts_added.strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
