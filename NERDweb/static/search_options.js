@@ -3,7 +3,7 @@ var tabPanels=document.querySelectorAll(".tabContainer .tabPanel");
 
 function parser(){
     var search = document.getElementById('ip_list').value;
-    var ip_list = search.match(/((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/[012]?[0-9])?)/g);
+    var ip_list = search.match(/(\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:(?!\/)|\/[12]?[0-9]|\/3[012])\b)/g);
     if (ip_list !== null)
     {
         ip_list = ip_list.toString();
