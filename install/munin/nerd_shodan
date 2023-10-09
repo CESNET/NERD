@@ -8,10 +8,15 @@ graph_vlabel API requests by result (per minute)
 graph_period minute
 
 add_or_update_data.label add_or_update_data
+add_or_update_data.draw AREASTACK
 no_data.label no_data
+no_data.draw AREASTACK
 remove_old_data.label remove_old_data
+remove_old_data.draw AREASTACK
 rate_limit.label rate_limit
+rate_limit.draw AREASTACK
 unexpected_reply.label unexpected_reply
+unexpected_reply.draw AREASTACK
 EOF
 exit 0
 fi

@@ -2,11 +2,15 @@
 NERD module getting Shodan information about an IP address from InternetDB API (ports, tags, CPEs).
 """
 import logging
+import time
 
 from core.basemodule import NERDModule
 import g
 
 import requests
+
+RATE_LIMIT_SLEEP = 2 # seconds to wait when rate limit is hit (code 429 is returned form API)
+RATE_LIMIT_MAX_RETRIES = 2 # retry the request this number of times, give up when API still returns error 429
 
 class Shodan(NERDModule):
     """
@@ -57,41 +61,46 @@ class Shodan(NERDModule):
         etype, key = ekey
         if etype != 'ip':
             return None   
-     
-        reply = requests.get(f"https://internetdb.shodan.io/{key}")
-        if reply.status_code == 404:
-            # Shodan does not have any data about this IP address
-            if 'shodan' in rec:
-                # We already had some Shodan data in the record -> remove them
-                self.elog.log('remove_old_data')
-                self.log.debug(f"Shodan info for {key} not available anymore - removing 'shodan' attribute")
-                return [('remove', 'shodan')]
-            self.elog.log('no_data')
-            self.log.debug(f"Shodan info for {key} not available")
-            return None
-        elif reply.status_code == 429:
-            # Rate limit exceeded
-            self.elog.log('rate_limit')
-            self.log.warning(f"InternetDB rate-limit exceeded")
 
-            return None
-        elif reply.status_code != 200:
-            self.elog.log('unexpected_reply')
-            # Log warning message - status code and at most 500 chars of content (presumably error message)
-            self.log.warning(f"Unexpected reply from InternetDB: ({reply.status_code}) {reply.text[:500]}")
-            return None
+        rate_limit_retry_counter = 0
+        while True:
+            reply = requests.get(f"https://internetdb.shodan.io/{key}")
+            if reply.status_code == 404:
+                # Shodan does not have any data about this IP address
+                if 'shodan' in rec:
+                    # We already had some Shodan data in the record -> remove them
+                    self.elog.log('remove_old_data')
+                    self.log.debug(f"Shodan info for {key} not available anymore - removing 'shodan' attribute")
+                    return [('remove', 'shodan')]
+                self.elog.log('no_data')
+                self.log.debug(f"Shodan info for {key} not available")
+                return None
+            elif reply.status_code == 429:
+                # Rate limit exceeded - sleep for a few seconds and try again
+                self.elog.log('rate_limit')
+                if rate_limit_retry_counter >= RATE_LIMIT_MAX_RETRIES:
+                    self.log.warning(f"InternetDB rate-limit exceeded, giving up.")
+                    return None
+                self.log.warning(f"InternetDB rate-limit exceeded, will try again after {RATE_LIMIT_SLEEP}")
+                rate_limit_retry_counter += 1
+                time.sleep(RATE_LIMIT_SLEEP)
+                continue
+            elif reply.status_code != 200:
+                self.elog.log('unexpected_reply')
+                # Log warning message - status code and at most 500 chars of content (presumably error message)
+                self.log.warning(f"Unexpected reply from InternetDB: ({reply.status_code}) {reply.text[:500]}")
+                return None
 
-        reply = reply.json()
-        ports = reply.get('ports', None)
-        tags = reply.get('tags', None)
-        cpes = reply.get('cpes', None)
-        self.elog.log('add_or_update_data')
-        self.log.debug(f"Shodan info for {key} available: {ports}, {tags}, {cpes}")
+            reply = reply.json()
+            ports = reply.get('ports', None)
+            tags = reply.get('tags', None)
+            cpes = reply.get('cpes', None)
+            self.elog.log('add_or_update_data')
+            self.log.debug(f"Shodan info for {key} available: {ports}, {tags}, {cpes}")
 
-        return [
-            ('set', 'shodan.ports', ports),
-            ('set', 'shodan.tags', tags),
-            ('set', 'shodan.cpes', cpes),
-        ]
+            return [
+                ('set', 'shodan.ports', ports),
+                ('set', 'shodan.tags', tags),
+                ('set', 'shodan.cpes', cpes),
+            ]
         
-
