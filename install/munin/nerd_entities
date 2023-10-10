@@ -16,10 +16,10 @@ fi
 
 # grep is used because mongosh puts an empty line at the end that we don't want there
 mongosh nerd --quiet --eval "
-  print('ip.value', db.ip.count());
-  print('bgppref.value', db.bgppref.count());
-  print('ipblock.value', db.ipblock.count());
-  print('asn.value', db.asn.count());
-  print('org.value', db.org.count());
+  print('ip.value', db.ip.estimatedDocumentCount());
+  print('bgppref.value', db.bgppref.estimatedDocumentCount());
+  print('ipblock.value', db.ipblock.estimatedDocumentCount());
+  print('asn.value', db.asn.estimatedDocumentCount());
+  print('org.value', db.org.estimatedDocumentCount());
 " | grep -v "^$"
 

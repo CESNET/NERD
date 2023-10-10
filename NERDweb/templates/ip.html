@@ -262,6 +262,11 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
  {% elif attr == "hostname" %}
   <dt>hostname</dt>
   <dd>{{ val|reverse if val else '(null)'}}</dd>
+ {% elif attr == "shodan" %}
+  <dt>Shodan's InternetDB<span class="help" title="Open ports and other information from Shodan.<br><br>These are data stored in NERD's DB. They were fetched from Shodan's InternetDB API when the IP address' record was created or during a regular weekly update. Since InternetDB itself updates data only once a week, this data may be up to two weeks old.<br>For more current data, look at the box in the top-right corner (data there are fetched from Shodan when this page is loaded)."></span></dt>
+  <dd><b>Open ports:</b> {{ val.ports|join(', ') if val.ports else '–' }}</dd>
+  <dd><b>Tags:</b> {{ val.tags|join(', ') if val.tags else '–' }}</dd>
+  <dd><b>CPEs:</b> {{ val.cpes|join(', ') if val.cpes else '–' }}</dd>
 
  {% elif attr == "asns" %}
   <dt>Origin AS</dt>

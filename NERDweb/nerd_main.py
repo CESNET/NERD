@@ -233,6 +233,13 @@ def date_to_int(val):
 def timestamp_to_date(timestamp):
     return datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
 
+def join_max(input_list, limit, sep=", ", end=", ..."):
+    """Join the list by commas. If it's longer than 'limit', use just the first 'limit' items and append "..."."""
+    if len(input_list) <= limit:
+        return sep.join(map(str, input_list))
+    else:
+        return sep.join(map(str, input_list[:limit])) + end
+
 
 def misp_threat_level_id_to_str(threat_level_id):
     return MISP_THREAT_LEVEL_DICT[threat_level_id]
@@ -307,6 +314,7 @@ app.jinja_env.filters['datetime'] = format_datetime
 app.jinja_env.filters['is_date'] = is_date
 app.jinja_env.filters['date_to_int'] = date_to_int
 app.jinja_env.filters['timestamp_to_date'] = timestamp_to_date
+app.jinja_env.filters['join_max'] = join_max
 app.jinja_env.filters['misp_threat_level_id_to_str'] = misp_threat_level_id_to_str
 app.jinja_env.filters['misp_analysis_id_to_str'] = misp_analysis_id_to_str
 app.jinja_env.filters['misp_distribution_id_to_str'] = misp_distribution_id_to_str

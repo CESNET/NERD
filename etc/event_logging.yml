@@ -121,3 +121,16 @@ groups:
     intervals: [ "5m" ]
     # Cache counts locally, push to Redis every 5 seconds
     sync-interval: 5
+
+
+  # Shodan InternetDB module
+  shodan:
+    events:
+      - add_or_update_data
+      - no_data
+      - remove_old_data
+      - rate_limit
+      - unexpected_reply
+    # 5 min interval for Munin
+    intervals: [ "5m" ]
+    sync-interval: 5
