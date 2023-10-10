@@ -4,8 +4,7 @@ if [[ "$1" == "config" ]]; then
   cat <<'END'
 graph_title Errors
 graph_category nerd
-graph_vlabel Number of errors per minute
-graph_period minute
+graph_vlabel Number of errors per 5 min
 error_in_module.label "Error in module"
 error_in_module.warning 1
 END

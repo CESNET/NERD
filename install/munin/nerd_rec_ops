@@ -11,8 +11,7 @@ if [[ "$1" == "config" ]]; then
   cat <<'END'
 graph_title Tasks processed by entity and operation type
 graph_category nerd
-graph_vlabel Number of tasks per minute
-graph_period minute
+graph_vlabel Number of tasks per 5 min
 END
   for etype in ${etypes}; do
     echo "${etype}_updated.label ${etype} record updated"

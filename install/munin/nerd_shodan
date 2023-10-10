@@ -4,8 +4,7 @@ if [[ "$1" == "config" ]]; then
 cat <<EOF
 graph_title Shodan InternetDB module
 graph_category nerd
-graph_vlabel API requests by result (per minute)
-graph_period minute
+graph_vlabel API requests by result (per 5 min)
 
 add_or_update_data.label add_or_update_data
 add_or_update_data.draw AREASTACK
