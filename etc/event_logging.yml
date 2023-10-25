@@ -129,6 +129,7 @@ groups:
       - add_or_update_data
       - no_data
       - remove_old_data
+      - skipped
       - rate_limit
       - unexpected_reply
     # 5 min interval for Munin

@@ -9,8 +9,9 @@ import g
 
 import requests
 
-RATE_LIMIT_SLEEP = 2 # seconds to wait when rate limit is hit (code 429 is returned form API)
-RATE_LIMIT_MAX_RETRIES = 2 # retry the request this number of times, give up when API still returns error 429
+RATE_LIMIT_SLEEP = 10 # seconds to wait when rate limit is hit (code 429 is returned form API)
+RATE_LIMIT_MAX_RETRIES = 0 # retry the request this number of times, give up when API still returns error 429
+DONT_UPDATE_SHORT_LIVED_IPS = True # Skip weekly updates for IPs that are not present in the database for long (they don't have _ttl.long_active tag)
 
 class Shodan(NERDModule):
     """
@@ -28,7 +29,7 @@ class Shodan(NERDModule):
     
     def __init__(self):
         self.log = logging.getLogger("Shodan")
-        self.log.setLevel("DEBUG")
+        #self.log.setLevel("DEBUG")
         self.log.debug("Module loaded")
 
         # Event logging using EventCountLogger
@@ -39,7 +40,7 @@ class Shodan(NERDModule):
         g.um.register_handler(
             self.shodan,
             'ip',
-            ('!NEW', '!every1w'),
+            ('!NEW', '!every1w', '!refresh_shodan'),
             ('shodan.ports','shodan.tags','shodan.cpes')
         )
 
@@ -60,7 +61,14 @@ class Shodan(NERDModule):
         """
         etype, key = ekey
         if etype != 'ip':
-            return None   
+            return None
+
+        # To lower the number of queries, perform weekly updates only for addresses with "long_active" TTL tag
+        # (by default those that are in the database for at least 30 days)
+        if DONT_UPDATE_SHORT_LIVED_IPS and ('!every1w', None) in updates and not rec.get('_ttl', {}).get('long_active'):
+            self.elog.log('skipped')
+            self.log.debug(f"Shodan update skipped for short-lived IP {key}.")
+            return None
 
         rate_limit_retry_counter = 0
         while True:
