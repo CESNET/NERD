@@ -484,6 +484,53 @@ td.country a {
   color: inherit;
 }
 
+td.threat_category {
+  text-align: left;
+}
+td.threat_category span {
+  display: inline-block;
+  min-width: 1.3em;
+  padding: 0 0.2em;
+}
+td.threat_category span + span {
+  color: #222;
+  border-left: 2px dotted #888;
+  padding: 0 0.5em;
+}
+
+.threat_category_tooltip table {
+  border: solid #000;
+  border-width: 0px 0px 1px 1px;
+  border-collapse: separate;
+  border-spacing: 0px;
+  margin: 0.4em 0;
+}
+.threat_category_tooltip table td,
+.threat_category_tooltip table th {
+  border: solid #000;
+  border-width: 1px 1px 0px 0px;
+  padding: 0.1em 0.4em;
+}
+.threat_category_tooltip table td {
+  text-align: left;
+}
+.threat_category_tooltip table th {
+  text-align: center;
+}
+
+.threat_category_table table td,
+.threat_category_table table th {
+  border: solid #000;
+  border-width: 1px 1px 1px 1px;
+  padding: 0.1em 0.4em;
+}
+.threat_category_table table td {
+  text-align: left;
+}
+.threat_category_table table th {
+  text-align: center;
+}
+
 td.events {
   text-align: right;
   padding-right: 0;

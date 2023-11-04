@@ -23,7 +23,7 @@ import jsonpath_rw_ext
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 
-from common.threat_categorization import ClassifiableEvent, load_categorization_config
+from common.threat_categorization import *
 from common.utils import parse_rfc_time
 import common.config
 import common.eventdb_psql
@@ -401,29 +401,46 @@ class WardenFilter():
 # Threat categorization
 
 categorization_config = None
+malware_families = None
 
+def classify_ip(ip_addr, event_data, source_data):
+    """
+    Assign a threat category based on the information provided in the incoming event
 
-def classify_ip(event_data, source_data):
+    :return: List of assigned categories
+    """
     global categorization_config
+    global malware_families
     if categorization_config is None:
         categorization_config = load_categorization_config("warden_receiver")
+        malware_families = load_malware_families()
 
     output = []
     event = ClassifiableEvent("warden_receiver", event_data, source_data)
 
     for category_id, category_config in categorization_config.items():
-        for statement in category_config["triggers"]:
-            if eval(statement) is True:
-                subcategories = {}
-                if "port" in category_config["subcategories"] and event.target_ports:
-                    subcategories["port"] = event.target_ports
-                if "protocol" in category_config["subcategories"] and event.protocols:
-                    subcategories["protocol"] = event.protocols
+        for trigger in category_config["triggers"]:
+            result, subcategories = eval_trigger(trigger, event)
+            if result is True:
+                if "port" in category_config["subcategories"]:
+                    ports_from_config = subcategories.get("port", [])
+                    if event.target_ports or ports_from_config:
+                        subcategories["port"] = list(set(event.target_ports + ports_from_config))
+                if "protocol" in category_config["subcategories"]:
+                    protocols_from_config = subcategories.get("protocol", [])
+                    if event.protocols or protocols_from_config:
+                        subcategories["protocol"] = list(set(event.protocols + protocols_from_config))
                 if "malware_family" in category_config["subcategories"]:
-                    pass  # TODO
+                    for family_id, family_data in malware_families.items():
+                        if match_str(family_data["common_name"], event.description):
+                            if "malware_family" not in subcategories:
+                                subcategories["malware_family"] = [family_id.lower()]
+                            else:
+                                subcategories["malware_family"].append(family_id.lower())
                 output.append({"id": category_id, "role": category_config["role"], "subcategories": subcategories})
     if not output:
-        output = [{"id": "unknown", "role": "src", "subcategories": {}}]
+        output.append({"id": "unknown", "role": "src", "subcategories": {}})
+    log_category(ip_addr, "warden_receiver", output, event)
     return output
 
 ##############################################################################
@@ -515,7 +532,7 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
                     ]
 
                     # threat categorization updates
-                    for category_data in classify_ip(event, src):
+                    for category_data in classify_ip(ipv4, event, src):
                         subcategory_updates = []
                         for subcategory, values in category_data['subcategories'].items():
                             subcategory_updates.append(('extend_set', subcategory, values))

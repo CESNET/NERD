@@ -26,6 +26,25 @@ function create_event_table(data) { /* data are "dataset" field of a DOM node wi
   return content;
 }
 
+function create_threat_category_table_preview(data) {
+  if (data.tctablepreview == "") {
+    return "No categories";
+  }
+  var table = [];
+  var table_rows = data.tctablepreview.split(";");
+  for (i = 0; i < table_rows.length; i++) {
+    table.push(table_rows[i].split(","));
+  }
+  var content = "<table><tr><th>Role</th><th>Category</th><th>Confidence</th></tr>";
+  for (i = 0; i < table.length; i++) {
+    content += "<tr><td>"
+    content += table[i].join("</td><td>");
+    content += "</td></tr>";
+  }
+  content += "</table>";
+  return content;
+}
+
 $(function() {
   /* jQuery UI tooltip at:
      - country flags (with name of the country)
@@ -52,6 +71,16 @@ $(function() {
     position: {my: "left bottom", at: "left-7px top-2px", collision: "flipfit"},
     content: function() { return create_event_table(this.dataset) }, /*$(".tooltip_event_table", this).html(); },*/
     tooltipClass: "events_tooltip"
+  });
+  /* jQuery UI tooltip at "threat category" cell with confidence table */
+  $( ".threat_category" ).tooltip({
+    items: ".threat_category",
+    track: false,
+    show: false,
+    hide: false,
+    position: {my: "left bottom", at: "left-7px top-2px", collision: "flipfit"},
+    content: function() { return create_threat_category_table_preview(this.dataset) },
+    tooltipClass: "threat_category_tooltip"
   });
   /* jQuery UI tooltip at times with "timeago" */
   $( ".time" ).tooltip({

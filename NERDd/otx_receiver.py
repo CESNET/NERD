@@ -34,8 +34,7 @@ from OTXv2 import OTXv2
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 
-from common.threat_categorization import ClassifiableEvent, load_categorization_config
-
+from common.threat_categorization import *
 
 def parse_datetime(time_str):
     # Parse ISO-formatted string with optional fractional part (datetime.fromisoformat would do it from Py>=3.7, but we still use Py3.6)
@@ -102,20 +101,41 @@ scheduler = BlockingScheduler(timezone='UTC')
 
 # Threat categorization
 categorization_config = None
+malware_families = None
 
 
-def classify_ip(pulse):
+def classify_ip(ip_addr, pulse):
+    """
+    Assign a threat category based on the information provided in the incoming event
+
+    :return: List of assigned categories
+    """
     global categorization_config
+    global malware_families
     if categorization_config is None:
         categorization_config = load_categorization_config("otx_receiver")
+        malware_families = load_malware_families()
 
+    output = []
     event = ClassifiableEvent("otx_receiver", pulse)
 
     for category_id, category_config in categorization_config.items():
-        for statement in category_config["triggers"]:
-            if eval(statement) is True:
-                return category_config["role"], category_id
-    return "src", "unknown"
+        for trigger in category_config["triggers"]:
+            result, subcategories = eval_trigger(trigger, event)
+            if result is True:
+                if "malware_family" in category_config["subcategories"]:
+                    for family_id, family_data in malware_families.items():
+                        if match_str(family_data["common_name"], event.indicator_title) or \
+                                match_str(family_data["common_name"], event.pulse_name):
+                            if "malware_family" not in subcategories:
+                                subcategories["malware_family"] = [family_id]
+                            else:
+                                subcategories["malware_family"].append(family_id)
+                output.append({"id": category_id, "role": category_config["role"], "subcategories": subcategories})
+    if not output:
+        output.append({"id": "unknown", "role": "src", "subcategories": {}})
+    log_category(ip_addr, "otx_receiver", output, event)
+    return output
 
 
 def create_new_pulse(pulse, indicator):
@@ -158,13 +178,27 @@ def upsert_new_pulse(pulse, indicator):
         live_till = current_time + timedelta(days=inactive_pulse_time)
     else:
         live_till = parse_datetime(indicator['expiration']) + timedelta(days=inactive_pulse_time)
-    ip_role, ip_category = classify_ip(pulse)
-    tq_writer.put_task('ip', ip_addr, [
+
+    updates = [
         ('array_upsert', 'otx_pulses', {'pulse_id': pulse['id']}, updates),
         ('setmax', '_ttl.otx', live_till),
-        ('setmax', 'last_activity', current_time),
-        ('array_upsert', 'threat_category', {'id': ip_category, 'role': ip_role}, [('add', 'n_reports.otx_receiver', 1)])
-    ], "otx_receiver")
+        ('setmax', 'last_activity', current_time)
+    ]
+
+    # threat categorization updates
+    for category_data in classify_ip(ip_addr, new_pulse):
+        subcategory_updates = []
+        for subcategory, values in category_data['subcategories'].items():
+            subcategory_updates.append(('extend_set', subcategory, values))
+        updates.append((
+            'array_upsert',
+            'threat_category',
+            {'id': category_data['id'], 'role': category_data['role']},
+            [('add', 'n_reports.otx_receiver', 1), *subcategory_updates]
+        ))
+
+    # put task in queue
+    tq_writer.put_task('ip', ip_addr, updates, "otx_receiver")
 
 
 def write_time(current_time):

@@ -15,6 +15,7 @@ scan:
       'Recon.Scanning' in event.categories
     otx_receiver: |-
       event.indicator_role == 'scanning_host'
+      event.pulse_name == 'Webscanners 2018-02-09 thru current day'
     misp_receiver: |-
       'CERT-XLM:information-gathering="scanner"' in event.tags
       'ecsirt:information-gathering="scanner"' in event.tags
@@ -30,20 +31,31 @@ bruteforce:
   triggers:
     warden_receiver: |-
       'Attempt.Login' in event.categories
+      'Intrusion.UserCompromise' in event.categories
+      'SSH login' in event.description -> {'protocol': ['ssh']}
     otx_receiver: |-
       event.indicator_role == 'bruteforce'
+      'Telnet Login attempt' in event.indicator_title -> {'protocol': ['telnet']}
+      'Telnet honeypot logs' in event.pulse_name -> {'protocol': ['telnet']}
+      'SSH honeypot logs' in event.pulse_name -> {'protocol': ['ssh']}
+      'RDP honeypot logs' in event.pulse_name -> {'protocol': ['rdp']}
+      'VNC honeypot logs' in event.pulse_name
+      'Redis honeypot logs' in event.pulse_name
+      'PostgresQL honeypot logs' in event.pulse_name
+      'SSH intrusion attempt' in event.indicator_title -> {'protocol': ['ssh']}
+      'RDP intrusion attempt' in event.indicator_title -> {'protocol': ['rdp']}
     misp_receiver: |-
       'CERT-XLM:intrusion-attempts="login-attempts"' in event.tags
       'ecsirt:intrusion-attempts="brute-force"' in event.tags
-  blacklists:
-    - bruteforceblocker
-    - blocklist_de-ssh
-    - blocklist_de-bruteforcelogin
-    - charles_the_haleys_ssh_dico_ips
-    - charles_the_haleys_smtp_dico_ips
-    - dataplane_org_sshclient
-    - dataplane_org_sshpwauth
-    - dataplane_org_telnet_login
+    blacklists: |-
+      bruteforceblocker
+      blocklist_de-ssh -> {'protocol': ['ssh']}
+      blocklist_de-bruteforcelogin
+      charles_the_haleys_ssh_dico_ips -> {'protocol': ['ssh']}
+      charles_the_haleys_smtp_dico_ips -> {'protocol': ['smtp']}
+      dataplane_org_sshclient -> {'protocol': ['ssh']}
+      dataplane_org_sshpwauth -> {'protocol': ['ssh']}
+      dataplane_org_telnet_login -> {'protocol': ['telnet']}
 
 ddos:
   role: src
@@ -51,6 +63,7 @@ ddos:
   label: DDoS
   triggers:
     warden_receiver: |-
+      'DoS anomalies' in event.description
       'Availability.DoS' in event.categories
       'Availability.DDoS' in event.categories
     misp_receiver: |-
@@ -73,9 +86,9 @@ ddos-amplifier:
       'Vulnerable.Config' in event.categories and 'ntp' in event.protocols
       'Vulnerable.Config' in event.categories and 'memcached' in event.protocols
       'Backscatter' in event.source_types
-      'Open DNS Resolver' in event.description
-      'Open Memcached' in event.description
-      'Abusable NTP' in event.description
+      'Open DNS Resolver' in event.description -> {'protocol': ['dns']}
+      'Open Memcached' in event.description -> {'protocol': ['memcached']}
+      'Abusable NTP' in event.description -> {'protocol': ['ntp']}
 
 spam:
   role: src
@@ -90,10 +103,10 @@ spam:
       'CERT-XLM:abusive-content="spam"' in event.tags
       'ecsirt:abusive-content="spam"' in event.tags
       'circl:incident-classification="spam"' in event.tags
-  blacklists:
-    - sblam_ips
-    - psbl
-    - spamhaus_edrop
+    blacklists: |-
+      sblam_ips
+      psbl
+      spamhaus_edrop
 
 malware_distribution:
   role: dst
@@ -103,28 +116,31 @@ malware_distribution:
     - malware_family
   triggers:
     warden_receiver: |-
+      'Malware' in event.source_types
+      'Malware' in event.categories
       'Malware.Virus' in event.categories
       'Malware.Worm' in event.categories
       'Malware.Trojan' in event.categories
       'Malware.Spyware' in event.categories
       'Malware.Dialer' in event.categories
       'Malware.Rootkit' in event.categories
-      'Malware' in event.source_types
       'OriginMalware' in event.source_types
-      'OriginSandbox' in event.source_types
     otx_receiver: |-
       event.indicator_role == 'trojan'
       event.indicator_role == 'malware_hosting'
     misp_receiver: |-
-      'MALWARE' in event.tags
-      'keylogger/infostealer' in event.tags
-      'Keylogger' in event.tags
-      'infostealer' in event.tags
-      'Ransomware' in event.tags
-      'Remote Access Trojan' in event.tags
-      'MalSpam' in event.tags
-  blacklists:
-    - urlhouse_ips
+      'Malware download' in event.attrib_comment
+      'payload_delivery' in event.attrib_comment
+      'MALWARE' in event.tags and 'dst' in event.ip_role
+      'Keylogger' in event.tags and 'dst' in event.ip_role
+      'infostealer' in event.tags and 'dst' in event.ip_role
+      'Ransomware' in event.tags and 'dst' in event.ip_role
+      'Remote Access Trojan' in event.tags and 'dst' in event.ip_role
+      'MalSpam' in event.tags and 'dst' in event.ip_role
+      'circl:incident-classification="malware"' in event.tags and 'dst' in event.ip_role
+      'ecsirt:malicious-code="malware"' in event.tags and 'dst' in event.ip_role
+    blacklists: |-
+      urlhouse_ips
 
 cc:
   role: dst
@@ -137,12 +153,15 @@ cc:
       'CC' in event.source_types
     otx_receiver: |-
       event.indicator_role == 'command_and_control'
+      'Command and Control' in event.indicator_title
     misp_receiver: |-
-      'kill-chain:Command and Control' in event.tags
-      'ecsirt:malicious-code="c&c"' in event.tags
-  blacklists:
-    - feodo
-    - bambenek_c2
+      'botnet_cc' in event.attrib_comment
+      'C2 server' in event.attrib_comment
+      'kill-chain:Command and Control' in event.tags and 'dst' in event.ip_role
+      'ecsirt:malicious-code="c&c"' in event.tags and 'dst' in event.ip_role
+    blacklists: |-
+      feodo
+      bambenek_c2
 
 botnet_drone:
   role: src
@@ -157,8 +176,8 @@ botnet_drone:
     misp_receiver: |-
       'CERT-XLM:intrusion="botnet-member"' in event.tags
       'ecsirt:malicious-code="botnet-drone"' in event.tags
-  blacklists:
-    - mirai_tracker_ips
+    blacklists: |-
+      mirai_tracker_ips -> {'malware_family': ['elf.mirai']}
 
 phishing_site:
   role: dst
@@ -176,8 +195,8 @@ phishing_site:
       'circl:incident-classification="phishing"' in event.tags
       'circl:incident-classification="whaling"' in event.tags
       'circl:incident-classification="smishing"' in event.tags
-  blacklists:
-    - openphish
+    blacklists: |-
+      openphish
 
 exploit:
   role: src
@@ -189,6 +208,7 @@ exploit:
     warden_receiver: |-
       'Attempt.Exploit' in event.categories
     otx_receiver: |-
+      'Apache honeypot logs' in event.pulse_name -> {'protocol': ['http']}
       event.indicator_role == 'exploit_source'
       event.indicator_role == 'exploit_kit'
     misp_receiver: |-

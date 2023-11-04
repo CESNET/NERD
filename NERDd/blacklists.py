@@ -18,7 +18,7 @@ import ipaddress
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 
-from common.threat_categorization import load_categorization_config
+from common.threat_categorization import *
 from common.utils import parse_rfc_time
 import common.config
 import common.task_queue
@@ -48,6 +48,11 @@ blacklist_to_category = None
 
 
 def categorization_init():
+    """
+    Create a blacklist -> category mapping based on the categorization config in '/etc/threat_categorization.yml'
+
+    :return:
+    """
     global categorization_config
     global blacklist_to_category
 
@@ -55,11 +60,21 @@ def categorization_init():
 
     blacklist_to_category = {}
     for category_id, category_config in categorization_config.items():
-        for blacklist_id in category_config.get("blacklists", []):
-            blacklist_to_category[blacklist_id] = category_id
+        for line in category_config.get("triggers", []):
+            split_line = line.split("->")
+            blacklist_id = split_line[0]
+            subcategories = {}
+            if len(split_line) > 1:
+                subcategories = ast.literal_eval(split_line[1].lstrip())
+            blacklist_to_category[blacklist_id] = {"id": category_id, "role": category_config["role"], "subcategories": subcategories}
 
 
 def classify_blacklist(blacklist_id):
+    """
+    Assign a threat category based on the blacklist -> category mapping created by categorization_init()
+
+    :return: Assigned category
+    """
     global categorization_config
     global blacklist_to_category
 
@@ -67,11 +82,9 @@ def classify_blacklist(blacklist_id):
         categorization_init()
 
     if blacklist_id in blacklist_to_category:
-        category_id = blacklist_to_category[blacklist_id]
-        ip_role = categorization_config[category_id]["role"]
-        return ip_role, category_id
+        return blacklist_to_category[blacklist_id]
     else:
-        return "src", "unknown"
+        return {"role": "src", "id": "unknown", "subcategories": {}}
 
 
 ###############################################################################
@@ -193,15 +206,19 @@ def get_blacklist(id, name, url, regex, bl_type, life_length, params):
 
     log.info("{} IPs found in '{}', sending tasks to NERD workers".format(len(bl_records), id))
 
-    ip_role, ip_category = classify_blacklist(id)
+    category = classify_blacklist(id)
+    subcategory_updates = []
+    for subcategory, values in category['subcategories'].items():
+        subcategory_updates.append(('extend_set', subcategory, values))
+    log_category(id, "blacklists", category, None)
 
     for ip in bl_records:
         task_queue_writer.put_task('ip', ip, [
             ('setmax', '_ttl.bl', now_plus_life_length),
             ('array_upsert', 'bl', {'n': id},
                 [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)]),
-            ('array_upsert', 'threat_category', {'id': ip_category, 'role': ip_role},
-                [('add_to_set', 'blacklists', id)])
+            ('array_upsert', 'threat_category', {'id': category["id"], 'role': category["role"]},
+                [('add_to_set', 'n_reports.blacklists', id)], *subcategory_updates)
         ], "blacklists")
 
 

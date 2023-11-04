@@ -282,6 +282,23 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 {% endfor %}
 </dl>
 
+{# Threat category table #}
+{% if threat_category_table %}
+<p class="caption">Threat category</p>
+<div class="threat_category_table">
+<table>
+    <tr><th>Role</th><th>Category</th><th>Subcategory</th></tr>
+    {% for row in threat_category_table %}
+        <tr>
+        {% for col in row %}
+            <td>{{ col }}</td>
+        {% endfor %}
+        </tr>
+    {% endfor %}
+</table>
+</div>
+{% endif %}
+
 {# Event plot WARDEN -#}
 <p class="caption">Warden event timeline</p>
 <div class="chart-container" style="position: relative; width: 100%; height: 20em">

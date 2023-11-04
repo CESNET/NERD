@@ -289,6 +289,7 @@
   <th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.<sup><a href="https://github.com/CESNET/NERD/wiki/Reputation-score" title="More information about reputation score" target="_blank">(?)</a></sup></th>
   {% if ac('fmp') %}<th title="Future Maliciousness Probability score">FMP</th>{% endif %}
   <th>Other properties</th>
+  <th>Threat category</th>
   <th>Time added</th>
   <th>Last activity</th>
   <th title="Links to external services">Links</th>
@@ -405,6 +406,10 @@
         {% endif %}
       {% endfor %}
     {% endif %}
+  </td>
+  <td class="threat_category" data-tctablepreview="{{ip._threat_category_table_preview}}">
+    <span>{{ip._threat_category_role}}</span>
+    <span>{{ip._threat_category_id}}</span>
   </td>
   <td class="time" {% if ip.ts_added %}data-time={{ ip.ts_added|date_to_int }}{% endif %}>{{ip.ts_added.strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
   <td {% if ip.last_activity %}class="time" data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>

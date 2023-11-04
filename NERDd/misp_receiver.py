@@ -27,7 +27,7 @@ import NERDd.core.mongodb as mongodb
 from common.config import read_config
 from common.task_queue import TaskQueueWriter
 from common.utils import int2ipstr
-from common.threat_categorization import ClassifiableEvent, load_categorization_config
+from common.threat_categorization import *
 
 running_flag = True
 zmq_alive = False
@@ -103,25 +103,42 @@ THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
 # Threat categorization
 
 categorization_config = None
+malware_families = None
 
-def classify_ip(event_data, ip_role):
+def classify_ip(ip_addr, event_data, attrib, ip_role):
+    """
+    Assign a threat category based on the information provided in the incoming event
+
+    :return: List of assigned categories
+    """
     global categorization_config
+    global malware_families
     if categorization_config is None:
         categorization_config = load_categorization_config("misp_receiver")
+        malware_families = load_malware_families()
 
     output = []
-    event = ClassifiableEvent("misp_receiver", event_data, ip_role)
+    event = ClassifiableEvent("misp_receiver", event_data, attrib, ip_role)
     for category_id, category_config in categorization_config.items():
-        for statement in category_config["triggers"]:
-            if eval(statement) is True:
-                subcategories = {}  # TODO
-                if ip_role == "src and dst at the same time":
-                    output.append({'id': category_id, 'role': 'src', 'subcategories': subcategories})
-                    output.append({'id': category_id, 'role': 'dst', 'subcategories': subcategories})
-                else:
-                    output.append({'id': category_id, 'role': ip_role, 'subcategories': subcategories})
+        for trigger in category_config["triggers"]:
+            result, subcategories = eval_trigger(trigger, event)
+            if result is True:
+                if "port" in category_config["subcategories"]:
+                    ports_from_config = subcategories.get("port", [])
+                    if event.target_ports or ports_from_config:
+                        subcategories["port"] = list(set(event.target_ports + ports_from_config))
+                if "malware_family" in category_config["subcategories"]:
+                    for family_id, family_data in malware_families.items():
+                        if match_str(family_data["common_name"], event.attrib_comment) or \
+                           match_str(family_data["common_name"], event.info):
+                            if "malware_family" not in subcategories:
+                                subcategories["malware_family"] = [family_id]
+                            else:
+                                subcategories["malware_family"].append(family_id)
+                output.append({"id": category_id, "role": category_config["role"], "subcategories": subcategories})
     if not output:
-        output = [{'id': 'unknown', 'role': ip_role, 'subcategories': {}}]
+        output.append({"id": "unknown", "role": "src", "subcategories": {}})
+    log_category(ip_addr, "misp_receiver", output, event)
     return output
 
 ##############################################################################
@@ -309,7 +326,7 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
     ]
 
     # threat categorization updates
-    for category_data in classify_ip(new_event, ip_role):
+    for category_data in classify_ip(ip_addr, new_event, attrib, ip_role):
         subcategory_updates = []
         for subcategory, values in category_data['subcategories'].items():
             subcategory_updates.append(('extend_set', subcategory, values))
@@ -320,8 +337,8 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
             [('add', 'n_reports.misp_receiver', 1), *subcategory_updates]
         ))
 
-    logger.info(f"Updates for {ip_addr}:")
-    logger.info(updates)
+    logger.debug(f"Updates for {ip_addr}:")
+    logger.debug(updates)
 
     # put task in queue
     tq_writer.put_task('ip', ip_addr, updates, "misp_receiver")
