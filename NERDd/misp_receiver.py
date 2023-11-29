@@ -62,6 +62,15 @@ common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
 logger.info("Loading config file {}".format(common_cfg_file))
 config.update(read_config(common_cfg_file))
 
+# Read categorization config
+categorization_cfg_file = os.path.join(config_base_path, 'threat_categorization.yml')
+logger.info("Loading config file {}".format(categorization_cfg_file))
+config.update(read_config(categorization_cfg_file))
+categorization_config = {
+    "categories": config.get('threat_categorization'),
+    "malware_families": read_config(config.get('malpedia_family_list_path'))
+}
+
 inactive_ip_lifetime = config.get('record_life_length.misp', 180)
 
 rabbit_config = config.get("rabbitmq")
@@ -99,47 +108,6 @@ re_attrib_type_value_title = re.compile("\([0-9]+\): [\w| ]+/([\w|\-]+) (.*)")
 IP_MISP_TYPES = ["ip-src", "ip-dst", "ip-dst|port", "ip-src|port", "domain|ip"]
 THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
 
-##############################################################################
-# Threat categorization
-
-categorization_config = None
-malware_families = None
-
-def classify_ip(ip_addr, event_data, attrib, ip_role):
-    """
-    Assign a threat category based on the information provided in the incoming event
-
-    :return: List of assigned categories
-    """
-    global categorization_config
-    global malware_families
-    if categorization_config is None:
-        categorization_config = load_categorization_config("misp_receiver")
-        malware_families = load_malware_families()
-
-    output = []
-    event = ClassifiableEvent("misp_receiver", event_data, attrib, ip_role)
-    for category_id, category_config in categorization_config.items():
-        for trigger in category_config["triggers"]:
-            result, subcategories = eval_trigger(trigger, event)
-            if result is True:
-                if "port" in category_config["subcategories"]:
-                    ports_from_config = subcategories.get("port", [])
-                    if event.target_ports or ports_from_config:
-                        subcategories["port"] = list(set(event.target_ports + ports_from_config))
-                if "malware_family" in category_config["subcategories"]:
-                    for family_id, family_data in malware_families.items():
-                        if match_str(family_data["common_name"], event.attrib_comment) or \
-                           match_str(family_data["common_name"], event.info):
-                            if "malware_family" not in subcategories:
-                                subcategories["malware_family"] = [family_id]
-                            else:
-                                subcategories["malware_family"].append(family_id)
-                output.append({"id": category_id, "role": category_config["role"], "subcategories": subcategories})
-    if not output:
-        output.append({"id": "unknown", "role": "src", "subcategories": {}})
-    log_category(ip_addr, "misp_receiver", output, event)
-    return output
 
 ##############################################################################
 # Main module code
@@ -326,14 +294,14 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
     ]
 
     # threat categorization updates
-    for category_data in classify_ip(ip_addr, new_event, attrib, ip_role):
+    for category_data in classify_ip(ip_addr, "misp_receiver", logger, categorization_config, new_event, attrib, ip_role):
         subcategory_updates = []
         for subcategory, values in category_data['subcategories'].items():
             subcategory_updates.append(('extend_set', subcategory, values))
         updates.append((
             'array_upsert',
-            'threat_category',
-            {'id': category_data['id'], 'role': category_data['role']},
+            '_threat_category',
+            {'date': category_data['date'], 'id': category_data['id'], 'role': category_data['role']},
             [('add', 'n_reports.misp_receiver', 1), *subcategory_updates]
         ))
 
@@ -475,9 +443,21 @@ def process_edit_of_attribute(json_message):
 def process_new_attribute(json_message):
     # change looks like: "to_ids () => (1), distribution () => (5), type () => (hostname)..."
     attrib = json_message['Log']['change']
-    attrib_type = re_attrib_type_change.search(attrib).group(1)
+    try:
+        attrib_type = re_attrib_type_change.search(attrib).group(1)
+    except AttributeError:
+        logger.error("Error", exc_info=True)
+        logger.error("Used regex: " + re_attrib_type_change.pattern)
+        logger.error("Searched text: " + attrib)
+        return
     if attrib_type in IP_MISP_TYPES:
-        event_id = re_event_id_change.search(json_message['Log']['change']).group(1)
+        try:
+            event_id = re_event_id_change.search(attrib).group(1)
+        except AttributeError:
+            logger.error("Error", exc_info=True)
+            logger.error("Used regex: " + re_attrib_type_change.pattern)
+            logger.error("Searched text: " + attrib)
+            return
         attrib_id = json_message['Log']['model_id']
         try:
             attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)

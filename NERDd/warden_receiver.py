@@ -397,51 +397,6 @@ class WardenFilter():
             # if no rule matched, then do default action
             return self.default_action()
 
-##############################################################################
-# Threat categorization
-
-categorization_config = None
-malware_families = None
-
-def classify_ip(ip_addr, event_data, source_data):
-    """
-    Assign a threat category based on the information provided in the incoming event
-
-    :return: List of assigned categories
-    """
-    global categorization_config
-    global malware_families
-    if categorization_config is None:
-        categorization_config = load_categorization_config("warden_receiver")
-        malware_families = load_malware_families()
-
-    output = []
-    event = ClassifiableEvent("warden_receiver", event_data, source_data)
-
-    for category_id, category_config in categorization_config.items():
-        for trigger in category_config["triggers"]:
-            result, subcategories = eval_trigger(trigger, event)
-            if result is True:
-                if "port" in category_config["subcategories"]:
-                    ports_from_config = subcategories.get("port", [])
-                    if event.target_ports or ports_from_config:
-                        subcategories["port"] = list(set(event.target_ports + ports_from_config))
-                if "protocol" in category_config["subcategories"]:
-                    protocols_from_config = subcategories.get("protocol", [])
-                    if event.protocols or protocols_from_config:
-                        subcategories["protocol"] = list(set(event.protocols + protocols_from_config))
-                if "malware_family" in category_config["subcategories"]:
-                    for family_id, family_data in malware_families.items():
-                        if match_str(family_data["common_name"], event.description):
-                            if "malware_family" not in subcategories:
-                                subcategories["malware_family"] = [family_id.lower()]
-                            else:
-                                subcategories["malware_family"].append(family_id.lower())
-                output.append({"id": category_id, "role": category_config["role"], "subcategories": subcategories})
-    if not output:
-        output.append({"id": "unknown", "role": "src", "subcategories": {}})
-    log_category(ip_addr, "warden_receiver", output, event)
-    return output
 
 ##############################################################################
 # Main module code
@@ -483,7 +438,7 @@ def stop(signal, frame):
     log.info("exiting")
 
 
-def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter=None):
+def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, categorization_config, warden_filter=None):
     # Infinite loop reading events as files in given directory
     # This loop stops on SIGINT
     log.info("Reading IDEA files from {}/incoming".format(filer_path))
@@ -532,14 +487,14 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
                     ]
 
                     # threat categorization updates
-                    for category_data in classify_ip(ipv4, event, src):
+                    for category_data in classify_ip(ipv4, "warden_receiver", log, categorization_config, event, src):
                         subcategory_updates = []
                         for subcategory, values in category_data['subcategories'].items():
                             subcategory_updates.append(('extend_set', subcategory, values))
                         updates.append((
                             'array_upsert',
-                            'threat_category',
-                            {'id': category_data['id'], 'role': category_data['role']},
+                            '_threat_category',
+                            {'date': category_data['date'], 'id': category_data['id'], 'role': category_data['role']},
                             [('add', 'n_reports.warden_receiver', 1), *subcategory_updates]
                         ))
 
@@ -578,10 +533,20 @@ if __name__ == "__main__":
     log.info("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
 
+    # Read categorization config
+    categorization_cfg_file = os.path.join(config_base_path, 'threat_categorization.yml')
+    log.info("Loading config file {}".format(categorization_cfg_file))
+    config.update(common.config.read_config(categorization_cfg_file))
+
     inactive_ip_lifetime = config.get('record_life_length.warden', 14)
     warden_filter_rules = config.get('warden_filter', None)
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
+    categorization_config = {
+        "categories": config.get('threat_categorization'),
+        "malware_families": common.config.read_config(config.get('malpedia_family_list_path'))
+    }
+
 
     if warden_filter_rules:
         try:
@@ -606,4 +571,4 @@ if __name__ == "__main__":
     task_queue_writer.connect()
 
     signal.signal(signal.SIGINT, stop)
-    receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter)
+    receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, categorization_config, warden_filter)

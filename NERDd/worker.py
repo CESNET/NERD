@@ -123,7 +123,8 @@ def main(cfg_file, process_index):
     import modules.fmp
     import modules.reserved_ip
     import modules.ttl_updater
-    
+    import modules.threat_category_summary
+
     # Instantiate modules
     # TODO create all modules automatically (loop over all modules.* and find all objects derived from NERDModule)
     #  or take if from configuration
@@ -149,6 +150,7 @@ def main(cfg_file, process_index):
         modules.fmp.FMP(),
         modules.reserved_ip.ReservedIPTags(),
         modules.ttl_updater.TTLUpdater(),
+        modules.threat_category_summary.ThreatCategorySummary(),
     ]
     
     

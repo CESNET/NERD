@@ -407,9 +407,20 @@
       {% endfor %}
     {% endif %}
   </td>
-  <td class="threat_category" data-tctablepreview="{{ip._threat_category_table_preview}}">
-    <span>{{ip._threat_category_role}}</span>
-    <span>{{ip._threat_category_id}}</span>
+  <td>
+    <div class="threat_category_preview">
+      {% if ip._threat_category_table %}
+        <table>
+        {% for row in ip._threat_category_table %}
+            <tr class="threat_category_tooltip" title="{{ row[3] }}">
+            {% for col in row[:3] %}
+                <td>{{ col|safe }}</td>
+            {% endfor %}
+            </tr>
+        {% endfor %}
+        </table>
+      {% endif %}
+    </div>
   </td>
   <td class="time" {% if ip.ts_added %}data-time={{ ip.ts_added|date_to_int }}{% endif %}>{{ip.ts_added.strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
   <td {% if ip.last_activity %}class="time" data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>

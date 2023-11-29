@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(
 from common.config import read_config
 import NERDd.core.mongodb as mongodb
 from common.task_queue import TaskQueueWriter
+from common.threat_categorization import *
 
 DEFAULT_MONGO_HOST = 'localhost'
 DEFAULT_MONGO_PORT = 27017
@@ -63,6 +64,15 @@ config_base_path = os.path.dirname(os.path.abspath(args.config))
 common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
 logger.info("Loading config file {}".format(common_cfg_file))
 config.update(read_config(common_cfg_file))
+
+# Read categorization config
+categorization_cfg_file = os.path.join(config_base_path, 'threat_categorization.yml')
+logger.info("Loading config file {}".format(categorization_cfg_file))
+config.update(read_config(categorization_cfg_file))
+categorization_config = {
+    "categories": config.get('threat_categorization'),
+    "malware_families": read_config(config.get('malpedia_family_list_path'))
+}
 
 inactive_ip_lifetime = config.get('record_life_length.misp', 180)
 
@@ -330,6 +340,7 @@ def process_ip(ip_addr, ip_info):
     :return: None
     """
     logger.debug("Processing IP: {}".format(ip_addr))
+    update_requests = []
 
     # check ip record in DB
     try:
@@ -358,6 +369,9 @@ def process_ip(ip_addr, ip_info):
                         dedup_event['role'] = "src and dst at the same time"
                         event_ids_roles[index][1] = "src and dst at the same time"
 
+    # aggregated threat category classification records
+    threat_category = {}
+
     # create all misp events and save the youngest datetime of the event for keep alive token
     events = []
     youngest_date = datetime(year=2000, month=1, day=1, hour=0, minute=0, second=0)
@@ -368,18 +382,56 @@ def process_ip(ip_addr, ip_info):
         if youngest_date < new_event['date']:
             youngest_date = new_event['date']
 
+        attrib = {'type': '', 'value': '', 'comment': ''}  # TODO get attrib info from misp
+        ip_role = event_info.get('role', "")
+        for category in classify_ip(ip_addr, "misp_receiver", logger, categorization_config, new_event, attrib, ip_role):
+            role = category['role']
+            id = category['id']
+            date = category['date']
+            subcategories = category['subcategories']
+            if role not in threat_category:
+                threat_category[role] = {}
+            if id not in threat_category[role]:
+                threat_category[role][id] = {}
+            if date not in threat_category[role][id]:
+                threat_category[role][id][date] = {}
+            if 'n_reports' not in threat_category[role][id][date]:
+                threat_category[role][id][date]['n_reports'] = 0
+            if 'subcategories' not in threat_category[role][id][date]:
+                threat_category[role][id][date]['subcategories'] = {}
+            for subcategory in subcategories:
+                old = threat_category[role][id][date]['subcategories'].get(subcategory, [])
+                new = subcategories[subcategory]
+                threat_category[role][id][date]['subcategories'][subcategory] = list(set(old + new))
+            threat_category[role][id][date]['n_reports'] += 1
+
+    # threat category updates
+    for role in threat_category:
+        for id in threat_category[role]:
+            for date in threat_category[role][id]:
+                n_reports = threat_category[role][id][date]['n_reports']
+                subcategory_updates = []
+                for subcategory, values in threat_category[role][id][date]['subcategories'].items():
+                    subcategory_updates.append(('extend_set', subcategory, values))
+                update_requests += [(
+                    'array_upsert',
+                    '_threat_category',
+                    {'date': date, 'id': id, 'role': role},
+                    [('add', 'n_reports.misp_receiver', n_reports), *subcategory_updates]
+                )]
+
     if events:
         live_till = youngest_date + timedelta(days=inactive_ip_lifetime)
         if db_entity is not None:
             # compare 'misp_events' attrib from NERD with events list, if not same --> insert, else do not insert
             if db_entity.get('misp_events', {}) != events:
                 # construct new update request and send it
-                update_requests = [('set', 'misp_events', events), ('set', '_ttl.misp', live_till),
+                update_requests += [('set', 'misp_events', events), ('set', '_ttl.misp', live_till),
                                    ('setmax', 'last_activity', youngest_date)]
                 tq.put_task('ip', ip_addr, update_requests, "misp_updater")
         else:
             # ip address not even in NERD --> insert it
-            update_requests = [('set', 'misp_events', events), ('set', '_ttl.misp', live_till), ('setmax',
+            update_requests += [('set', 'misp_events', events), ('set', '_ttl.misp', live_till), ('setmax',
                                                                 'last_activity', youngest_date)]
             tq.put_task('ip', ip_addr, update_requests, "misp_updater")
 

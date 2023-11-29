@@ -43,24 +43,21 @@ bl_all_types = {
 ###############################################################################
 # Threat categorization
 
-categorization_config = None
 blacklist_to_category = None
 
 
-def categorization_init():
+def categorization_init(categorization_config):
     """
-    Create a blacklist -> category mapping based on the categorization config in '/etc/threat_categorization.yml'
+    Create a blacklist -> category mapping based on the categorization config in 'etc/threat_categorization.yml'
 
     :return:
     """
-    global categorization_config
     global blacklist_to_category
 
-    categorization_config = load_categorization_config("blacklists")
-
     blacklist_to_category = {}
-    for category_id, category_config in categorization_config.items():
-        for line in category_config.get("triggers", []):
+    for category_id, category_config in categorization_config["categories"].items():
+        category_triggers = category_config.get("triggers", {}).get("blacklists", "").split("\n")
+        for line in category_triggers:
             split_line = line.split("->")
             blacklist_id = split_line[0]
             subcategories = {}
@@ -69,17 +66,16 @@ def categorization_init():
             blacklist_to_category[blacklist_id] = {"id": category_id, "role": category_config["role"], "subcategories": subcategories}
 
 
-def classify_blacklist(blacklist_id):
+def classify_blacklist(blacklist_id, categorization_config):
     """
     Assign a threat category based on the blacklist -> category mapping created by categorization_init()
 
     :return: Assigned category
     """
-    global categorization_config
     global blacklist_to_category
 
-    if categorization_config is None:
-        categorization_init()
+    if blacklist_to_category is None:
+        categorization_init(categorization_config)
 
     if blacklist_id in blacklist_to_category:
         return blacklist_to_category[blacklist_id]
@@ -184,7 +180,7 @@ def download_blacklist(blacklist_url, params=None):
         return ""
 
 
-def get_blacklist(id, name, url, regex, bl_type, life_length, params):
+def get_blacklist(id, name, url, regex, bl_type, life_length, params, categorization_config):
     """
     Download the blacklist, parse all its records, and create worker task for each IP in current blacklist.
     :param id: id of the blacklist
@@ -206,19 +202,18 @@ def get_blacklist(id, name, url, regex, bl_type, life_length, params):
 
     log.info("{} IPs found in '{}', sending tasks to NERD workers".format(len(bl_records), id))
 
-    category = classify_blacklist(id)
+    category = classify_blacklist(id, categorization_config)
     subcategory_updates = []
     for subcategory, values in category['subcategories'].items():
         subcategory_updates.append(('extend_set', subcategory, values))
-    log_category(id, "blacklists", category, None)
 
     for ip in bl_records:
         task_queue_writer.put_task('ip', ip, [
             ('setmax', '_ttl.bl', now_plus_life_length),
             ('array_upsert', 'bl', {'n': id},
                 [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)]),
-            ('array_upsert', 'threat_category', {'id': category["id"], 'role': category["role"]},
-                [('add_to_set', 'n_reports.blacklists', id)], *subcategory_updates)
+            ('array_upsert', '_threat_category', {'date': download_time.strftime("%Y-%m-%d"), 'id': category["id"], 'role': category["role"]},
+                [('add', 'n_reports.blacklists', 1)], *subcategory_updates)
         ], "blacklists")
 
 
@@ -271,6 +266,15 @@ if __name__ == "__main__":
     log.info("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
 
+    # Read categorization config
+    categorization_cfg_file = os.path.join(config_base_path, 'threat_categorization.yml')
+    log.info("Loading config file {}".format(categorization_cfg_file))
+    config.update(common.config.read_config(categorization_cfg_file))
+    categorization_config = {
+        "categories": config.get('threat_categorization'),
+        "malware_families": common.config.read_config(config.get('malpedia_family_list_path'))
+    }
+
     rabbit_config = config.get("rabbitmq")
 
     # Get number of processes from config
@@ -304,7 +308,7 @@ if __name__ == "__main__":
             assert isinstance(other_params, dict), "The additional parameter must be a dict (in config of {}.{})".format(
                 config_path, id)
             # Process the blacklist
-            get_blacklist(id, name, url, regex, bl_type, life_length, other_params)
+            get_blacklist(id, name, url, regex, bl_type, life_length, other_params, categorization_config)
 
     # Schedule periodic processing...
     if not args.one_shot:
@@ -321,7 +325,7 @@ if __name__ == "__main__":
             other_params = bl.get('params', {})
 
             trigger = CronTrigger(**refresh_time)
-            job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, life_length, other_params),
+            job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, life_length, other_params, categorization_config),
                                     trigger=trigger, coalesce=True, max_instances=1)
 
             log.info("{} blacklist '{}' scheduled to be downloaded at every: {}".format(
