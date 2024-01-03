@@ -8,7 +8,7 @@ echob "=============== Install basic dependencies ==============="
 
 echob "** Installing basic RPM packages **"
 yum install -y -q https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-yum install -y -q git wget gcc vim python36 python36-devel python36-setuptools
+yum install -y -q git wget gcc vim python36 python36-devel python36-setuptools unzip cmake # cmake needed for compilation of xgboost package
 yum install -y -q centos-release-scl # needed to get llvm-toolset-7-clang, a dependency of postgresql11-devel
 
 
