@@ -29,6 +29,7 @@ fi
 set -e
 
 echo "Downloading MaxMind GeoLite2 database to /data/geoip/GeoLite2-City.mmdb"
+# Needed by geolocation module
 mkdir -p /data/geoip
 cd /data/geoip
 # Download archive using the licence key
@@ -37,6 +38,14 @@ wget -q "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Cit
 # and some txt file - extract just the DB file (*/GeoLite2-City.mmdb) to
 # current dir
 tar -xzf GeoLite2-City.tar.gz '*/GeoLite2-City.mmdb' --strip-components=1
+
+echo "Downloading MaxMind GeoLite2 databases (CSV) to /data/geoip/GeoLite2-*.csv"
+# Needed by FMP computation scripts
+# three files needed: GeoLite2-ASN-Blocks-IPv4.csv, GeoLite2-Country-Blocks-IPv4.csv, GeoLite2-Country-Locations-en.csv
+wget -q "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN-CSV&license_key=${KEY}&suffix=zip" -O GeoLite2-ASN-CSV.zip
+unzip -joq GeoLite2-ASN-CSV.zip 'GeoLite2-ASN-CSV_*/GeoLite2-ASN-Blocks-IPv4.csv'
+wget -q "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&license_key=${KEY}&suffix=zip" -O GeoLite2-Country-CSV.zip
+unzip -joq GeoLite2-Country-CSV.zip 'GeoLite2-Country-CSV_*/GeoLite2-Country-Blocks-IPv4.csv' 'GeoLite2-Country-CSV_*/GeoLite2-Country-Locations-en.csv'
 
 if [[ "$user" == "root" ]]; then
   echo "Setting ownership to 'nerd' account"

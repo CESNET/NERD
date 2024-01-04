@@ -4,8 +4,7 @@ if [[ "$1" == "config" ]]; then
 cat <<EOF
 graph_title Web endpoint accesses
 graph_category nerd
-graph_vlabel Number of requests per minute
-graph_period minute
+graph_vlabel Number of requests per 5 min
 
 /.label /
 /account.label /account

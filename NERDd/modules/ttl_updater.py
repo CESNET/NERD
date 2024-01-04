@@ -39,7 +39,7 @@ class TTLUpdater(NERDModule):
             self.check_ttl,    # function (or bound method) to call
             'ip',              # entity type
             # tuple/list/set of attributes to watch (their update triggers call of the registered method)
-            ('_ttl.warden', 'event_meta.total7'),
+            ('_ttl.warden', 'events_meta.total7'),
             ('_ttl.highly_active', '_ttl.long_active')    # tuple/list/set of attributes the method may change
         )
 

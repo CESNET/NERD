@@ -586,8 +586,9 @@ td.links img {
   box-shadow: 1px 1px 1px 1px rgba(0,0,0,0.2);
 }
 
-.tag.port {
-  background: #258;
+.tag.port,
+.tag.shodan {
+  background: #1d6d99;
 }
 
 .tag.amplifier {

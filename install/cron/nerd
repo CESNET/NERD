@@ -14,10 +14,10 @@
 # (enable if local PSQL is used to store alerts from Warden)
 #0 03 * * * nerd /nerd/scripts/nerd_clean_eventdb.sh > /dev/null
 
-# Download GeoIP database every Monday at 05:05
+# Download GeoIP database every Tuesday evening
 # Fill API_KEY and uncomment
 # TODO: It's probably needed to somehow notify NERDd that it needs to reload the database
-#10 23 * * 2 nerd /nerd/scripts/download_maxmind_geolite.sh #API_KEY
+#10 23 * * 2 nerd /nerd/scripts/download_maxmind_geolite.sh #FILL_THE_API_KEY_HERE_AND_UNCOMMENT
 
 # rsync Uceprotect blacklist 3 times a day
 40 01,09,17 * * * nerd rsync -azq rsync-mirrors.uceprotect.net::RBLDNSD-ALL/dnsbl-1.uceprotect.net /data/blacklists/uceprotect-level1

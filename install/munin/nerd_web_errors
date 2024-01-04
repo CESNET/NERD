@@ -4,8 +4,7 @@ if [[ "$1" == "config" ]]; then
 cat <<EOF
 graph_title Web error responses
 graph_category nerd
-graph_vlabel Number of events per minute
-graph_period minute
+graph_vlabel Number of events per 5 min
 
 400_bad_request.label 400_bad_request
 403_invalid_token.label 403_invalid_token

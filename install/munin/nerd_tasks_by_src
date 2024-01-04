@@ -14,8 +14,7 @@ if [[ "$1" == "config" ]]; then
   cat <<'END'
 graph_title Tasks processed by source
 graph_category nerd
-graph_vlabel Number of tasks per minute
-graph_period minute
+graph_vlabel Number of tasks per 5 min
 END
   for each_source in ${sources}; do
     echo "${each_source}.label ${each_source}"

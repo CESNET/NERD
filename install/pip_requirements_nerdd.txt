@@ -13,7 +13,8 @@ pika>=1.0.0
 redis
 hiredis
 numpy
-xgboost==1.0.2
+pandas
+xgboost==1.6.1
 pymisp==2.4.111.2
 zmq
 amqpstorm
