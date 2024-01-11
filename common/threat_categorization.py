@@ -57,7 +57,7 @@ class ClassifiableEvent:
         :param pulse: Source pulse
         :return:
         """
-        self.date = datetime.strftime(pulse.get('pulse_created', datetime.now()), "%Y-%m-%d")
+        self.date = datetime.strftime(pulse.get('pulse_modified', datetime.now()), "%Y-%m-%d")
         self.indicator_role = str(pulse.get('indicator_role', None))
         self.ip_info = str(pulse.get('indicator_title', None))
         self.description = str(pulse.get('pulse_name', None))
