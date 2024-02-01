@@ -247,9 +247,9 @@ iplists:
   
 - id: threat_sourcing_ips
   name: Threat Sourcing
-  descr: Threat Sourcing is a collaborative project to collect<br>and study threats as they present themselves on the Internet.
+  descr: Threat Sourcing is a collaborative project to collect<br>and study threats as they present themselves on the Internet.<br>Note: The provider doesn't provide any details about how the data are collected or how to interpret them, e.g. the type of threat the IPs pose.
   provider_link: https://www.threatsourcing.com/
-  url: https://www.threatsourcing.com/ipall-free.txt
+  url: https://www.threatsourcing.com/ipall.txt
   regex: ""
   # The time of updating the list was viewed here: https://www.threatsourcing.com/
   time:
@@ -292,7 +292,7 @@ iplists:
   
 - id: urlhouse_ips
   name: URLHouse
-  descr: URLhaus is a project from abuse.ch with the goal of sharing<br>malicious URLs that are being used for malware distribution.
+  descr: URLhaus is a project from abuse.ch with the goal of sharing<br>malicious URLs that are being used for malware distribution.<br>This list contains IPs that are part of the malicious ULRs.
   provider_link: https://urlhaus.abuse.ch/
   url: https://urlhaus.abuse.ch/downloads/text_online/
   regex: ".*?(\\A)"
@@ -506,21 +506,21 @@ iplists:
     hour: "0,6,12,18"
     minute: 5
   
-# AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key
-- id: abuseipdb
-  name: AbuseIPDB
-  descr: AbuseIPDB is a project managed by Marathon Studios Inc.<br>IPs performing malicious activity(DDoS, spam, phishing...)
-  provider_link: https://www.abuseipdb.com/
-  url: https://api.abuseipdb.com/api/v2/blacklist
-  regex: ""
-  time:
-    hour: 6
-    minute: 0
-  params:
-    confidenceMinimum: "50"
-    headers:
-      Accept: "text/plain"
-      Key: ""
+# AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key and uncomment
+#- id: abuseipdb
+#  name: AbuseIPDB
+#  descr: AbuseIPDB is a project managed by Marathon Studios Inc.<br>IPs performing malicious activity(DDoS, spam, phishing...)
+#  provider_link: https://www.abuseipdb.com/
+#  url: https://api.abuseipdb.com/api/v2/blacklist
+#  regex: ""
+#  time:
+#    hour: 6
+#    minute: 0
+#  params:
+#    confidenceMinimum: "50"
+#    headers:
+#      Accept: "text/plain"
+#      Key: ""
 
 # The following blacklists should be rsynced to local files by scripts in
 # cron, therefore they're not available until those scripts are set up and
