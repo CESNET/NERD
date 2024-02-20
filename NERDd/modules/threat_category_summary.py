@@ -55,7 +55,7 @@ class ThreatCategorySummary(NERDModule):
 
         grouped_by_category = {}
         for record in rec['_threat_category']:
-            cat = record['id']
+            cat = record['c']
             if cat not in grouped_by_category:
                 grouped_by_category[cat] = []
             grouped_by_category[cat].append(record)
@@ -66,43 +66,43 @@ class ThreatCategorySummary(NERDModule):
 
         for cat, records in grouped_by_category.items():
             cat_summary = {
-                'role': records[0]['role'],
-                'id': records[0]['id'],
-                'sources': {},
-                'subcategories': {}
+                'r': records[0]['r'],
+                'c': records[0]['c'],
+                'src': {},
+                's': {}
             }
             sources = {}
             subcategories = {}
             sum_weight = 0
             confidence = 0
             for record in deepcopy(records):
-                date = record['date']
+                date = record['d']
                 date = datetime.date(int(date[0:4]), int(date[5:7]), int(date[8:10]))
                 record_age_days = (today - date).days
                 if record_age_days >= DATE_RANGE:
                     continue
                 daily_reports = 0
-                for source in record['n_reports']:
+                for source in record['src']:
                     if source not in sources:
                         sources[source] = 0
-                    sources[source] += record['n_reports'][source]
-                    daily_reports += record['n_reports'][source]
-                daily_confidence = nonlin(daily_reports) * nonlin(len(record['n_reports']))
+                    sources[source] += record['src'][source]
+                    daily_reports += record['src'][source]
+                daily_confidence = nonlin(daily_reports) * nonlin(len(record['src']))
                 weight = float(DATE_RANGE - record_age_days) / DATE_RANGE
                 sum_weight += weight
                 confidence += daily_confidence * weight
-                del record['date']
-                del record['role']
-                del record['id']
-                del record['n_reports']
+                del record['d']
+                del record['r']
+                del record['c']
+                del record['src']
                 for key, values in record.items():
                     if key not in subcategories:
                         subcategories[key] = set()
                     subcategories[key].update(values)
             if confidence > 0:
-                cat_summary['confidence'] = round(confidence / sum_weight, 2)
-                cat_summary['sources'] = sources
-                cat_summary['subcategories'] = {k: list(v) for k, v in subcategories.items()}
+                cat_summary['conf'] = round(confidence / sum_weight, 2)
+                cat_summary['src'] = sources
+                cat_summary['s'] = {k: list(v) for k, v in subcategories.items()}
                 summary.append(cat_summary)
-        summary = sorted(summary, key=lambda rec: rec['confidence'], reverse=True)
+        summary = sorted(summary, key=lambda rec: rec['conf'], reverse=True)
         return [('set', '_threat_category_summary', summary)]

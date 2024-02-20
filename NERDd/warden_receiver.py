@@ -502,8 +502,8 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
                         updates.append((
                             'array_upsert',
                             '_threat_category',
-                            {'date': category_data['date'], 'id': category_data['id'], 'role': category_data['role']},
-                            [('add', 'n_reports.warden_receiver', 1), *subcategory_updates]
+                            {'d': category_data['date'], 'c': category_data['id'], 'r': category_data['role']},
+                            [('add', 'src.warden', 1), *subcategory_updates]
                         ))
 
                     # put task in queue

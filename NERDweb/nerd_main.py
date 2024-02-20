@@ -982,13 +982,13 @@ def create_query(form):
     if form.tc_role.data or form.tc_category.data or form.tc_subcategory.data:
         if form.tc_role.data and len(form.tc_role.data) > 1 and form.tc_role_op.data == "and":
             for role in form.tc_role.data:
-                queries.append({"_threat_category": {"$elemMatch": {"role": role}}})
+                queries.append({"_threat_category": {"$elemMatch": {"r": role}}})
         else:
             query = {}
             elem_match = {}
             if form.tc_role.data:
                 role_op = '$and' if (form.tc_role_op.data == "and") else '$or'
-                elem_match.update({role_op: [{"role": role} for role in form.tc_role.data]})
+                elem_match.update({role_op: [{"r": role} for role in form.tc_role.data]})
             if form.tc_subcategory.data:
                 subcategory_id, subcategory_value = form.tc_subcategory.data.split("=")
                 if subcategory_id == "port":
@@ -996,7 +996,7 @@ def create_query(form):
                 elem_match.update({subcategory_id: subcategory_value})
             if form.tc_category.data:
                 cat_op = '$and' if (form.tc_category_op.data == "and") else '$or'
-                query = {cat_op: [{"_threat_category": {"$elemMatch": {**elem_match, "id": cat}}} for cat in form.tc_category.data]}
+                query = {cat_op: [{"_threat_category": {"$elemMatch": {**elem_match, "c": cat}}} for cat in form.tc_category.data]}
             else:
                 query = {"_threat_category": {"$elemMatch": elem_match}}
             queries.append(query)
@@ -1175,26 +1175,26 @@ def ips():
 
 def create_threat_category_table(category_records, min_confidence, max_subcategory_values):
     source_names = {
-        'warden_receiver': 'Warden',
-        'misp_receiver': 'MISP',
-        'otx_receiver': 'OTX',
+        'warden': 'Warden',
+        'misp': 'MISP',
+        'otx': 'OTX',
         'dshield': 'DShield',
-        'blacklists': 'Blacklists'
+        'bl': 'Blacklists'
     }
     table_rows = []
     for rec in category_records:
-        if rec['confidence'] < min_confidence:
+        if rec['conf'] < min_confidence:
             continue
-        category_description = threat_categorization_config.get(rec['id'], {}).get('description', f"ERROR: missing configuration for category '{rec['id']}'")
-        sources_str = ''.join([f"<li>{source_names[source]} ({n_reports})</li>" for source, n_reports in sorted(rec['sources'].items())])
-        tooltip_content = f"<b>{category_description}</b><br/><br/>Confidence: {rec['confidence']}<br/>Sources:<br/><ul>{sources_str}</ul>"
-        subcategories = list(rec['subcategories'].items())
+        category_description = threat_categorization_config.get(rec['c'], {}).get('description', f"ERROR: missing configuration for category '{rec['c']}'")
+        sources_str = ''.join([f"<li>{source_names[source]} ({n_reports})</li>" for source, n_reports in sorted(rec['src'].items())])
+        tooltip_content = f"<b>{category_description}</b><br/><br/>Confidence: {rec['conf']}<br/>Sources:<br/><ul>{sources_str}</ul>"
+        subcategories = list(rec['s'].items())
         if not subcategories:
-            table_rows.append([rec['role'], rec['id'], "", tooltip_content])
+            table_rows.append([rec['r'], rec['c'], "", tooltip_content])
         else:
             key, values = subcategories[0]
             subcategory_content = f"{key}: {', '.join(values)}" if len(values) <= max_subcategory_values else f"{key}: <i>many</i>"
-            table_rows.append([rec['role'], rec['id'], subcategory_content, tooltip_content])
+            table_rows.append([rec['r'], rec['c'], subcategory_content, tooltip_content])
             for item in subcategories[1:]:
                 key, values = item
                 subcategory_content = f"{key}: {', '.join(values)}" if len(values) <= max_subcategory_values else f"{key}: <i>many</i>"

@@ -301,8 +301,8 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
         updates.append((
             'array_upsert',
             '_threat_category',
-            {'date': category_data['date'], 'id': category_data['id'], 'role': category_data['role']},
-            [('add', 'n_reports.misp_receiver', 1), *subcategory_updates]
+            {'d': category_data['date'], 'c': category_data['id'], 'r': category_data['role']},
+            [('add', 'src.misp', 1), *subcategory_updates]
         ))
 
     logger.debug(f"Updates for {ip_addr}:")
