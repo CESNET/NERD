@@ -58,12 +58,18 @@ class ThreatCategorySummary(NERDModule):
         if '_threat_category' not in rec:
             return None # No threat category records, nothing to do
 
+        subcategory_max_length = 10
         grouped_by_category = {}
         for record in rec['_threat_category']:
             cat = record['c']
             if cat not in grouped_by_category:
                 grouped_by_category[cat] = []
             grouped_by_category[cat].append(record)
+
+            # limit the number of subcategory values in each record
+            for key, values in record.items():
+                if type(record[key]) is list:
+                    record[key] = record[key][:subcategory_max_length]
 
         today = datetime.datetime.utcnow().date()
         DATE_RANGE = 14
@@ -107,7 +113,7 @@ class ThreatCategorySummary(NERDModule):
             if confidence > 0:
                 cat_summary['conf'] = round(confidence / sum_weight, 2)
                 cat_summary['src'] = sources
-                cat_summary['s'] = {k: list(v) for k, v in subcategories.items()}
+                cat_summary['s'] = {k: list(v)[:subcategory_max_length] for k, v in subcategories.items()}
                 summary.append(cat_summary)
         summary = sorted(summary, key=lambda rec: rec['conf'], reverse=True)
         return [('set', '_threat_category_summary', summary)]
