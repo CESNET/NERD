@@ -5,10 +5,12 @@ Should be triggered at least once a day for every address.
 """
 
 from core.basemodule import NERDModule
+import common.config
 import g
 
 from copy import deepcopy
 import datetime
+import os
 
 
 def nonlin(val, coef=0.5, max=20):
@@ -25,6 +27,9 @@ class ThreatCategorySummary(NERDModule):
     """
 
     def __init__(self):
+        categorization_config_file = os.path.join(g.config_base_path, g.config.get("threat_categorization_config"))
+        self.config = common.config.read_config(categorization_config_file).get("threat_categorization", {})
+
         g.um.register_handler(
             self.create_summary,  # function (or bound method) to call
             'ip',  # entity type
@@ -65,9 +70,10 @@ class ThreatCategorySummary(NERDModule):
         summary = []
 
         for cat, records in grouped_by_category.items():
+            role = self.config[cat]['role']
             cat_summary = {
-                'r': records[0]['r'],
-                'c': records[0]['c'],
+                'r': role,
+                'c': cat,
                 'src': {},
                 's': {}
             }
@@ -92,7 +98,6 @@ class ThreatCategorySummary(NERDModule):
                 sum_weight += weight
                 confidence += daily_confidence * weight
                 del record['d']
-                del record['r']
                 del record['c']
                 del record['src']
                 for key, values in record.items():

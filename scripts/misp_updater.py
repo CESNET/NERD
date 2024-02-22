@@ -416,7 +416,7 @@ def process_ip(ip_addr, ip_info):
                 update_requests += [(
                     'array_upsert',
                     '_threat_category',
-                    {'d': date, 'c': id, 'r': role},
+                    {'d': date, 'c': id},
                     [('add', 'src.misp', n_reports), *subcategory_updates]
                 )]
 

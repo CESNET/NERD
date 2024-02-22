@@ -301,7 +301,7 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
         updates.append((
             'array_upsert',
             '_threat_category',
-            {'d': category_data['date'], 'c': category_data['id'], 'r': category_data['role']},
+            {'d': category_data['date'], 'c': category_data['id']},
             [('add', 'src.misp', 1), *subcategory_updates]
         ))
 

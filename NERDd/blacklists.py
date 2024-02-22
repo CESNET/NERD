@@ -212,7 +212,7 @@ def get_blacklist(id, name, url, regex, bl_type, life_length, params, categoriza
             ('setmax', '_ttl.bl', now_plus_life_length),
             ('array_upsert', 'bl', {'n': id},
                 [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)]),
-            ('array_upsert', '_threat_category', {'d': download_time.strftime("%Y-%m-%d"), 'c': category["id"], 'r': category["role"]},
+            ('array_upsert', '_threat_category', {'d': download_time.strftime("%Y-%m-%d"), 'c': category["id"]},
                 [('add', 'src.bl', 1)], *subcategory_updates)
         ], "blacklists")
 

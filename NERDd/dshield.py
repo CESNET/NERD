@@ -93,7 +93,7 @@ def process_feed(feed_data):
              [('set', 'reports', ips[ip_addr]["reports"]),
               ('set', 'targets', ips[ip_addr]["targets"])]),
             ('setmax', '_ttl.dshield', ttl_date),
-            ('array_upsert', '_threat_category', {'d': date_str, 'c': 'scan', 'r': 'src'}, [('set', 'src.dshield', ips[ip_addr]["reports"])])
+            ('array_upsert', '_threat_category', {'d': date_str, 'c': 'scan'}, [('set', 'src.dshield', ips[ip_addr]["reports"])])
         ], "dshield")
     logger.info("Tasks created")
 

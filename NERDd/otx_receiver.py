@@ -166,7 +166,7 @@ def upsert_new_pulse(pulse, indicator):
         updates.append((
             'array_upsert',
             '_threat_category',
-            {'d': category_data['date'], 'c': category_data['id'], 'r': category_data['role']},
+            {'d': category_data['date'], 'c': category_data['id']},
             [('add', 'src.otx', 1), *subcategory_updates]
         ))
 

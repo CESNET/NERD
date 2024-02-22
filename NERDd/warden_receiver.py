@@ -502,7 +502,7 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
                         updates.append((
                             'array_upsert',
                             '_threat_category',
-                            {'d': category_data['date'], 'c': category_data['id'], 'r': category_data['role']},
+                            {'d': category_data['date'], 'c': category_data['id']},
                             [('add', 'src.warden', 1), *subcategory_updates]
                         ))
 
