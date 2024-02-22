@@ -193,8 +193,8 @@ class Cleaner(NERDModule):
         # Remove all threat category records with day before cut_day
         actions = []
         for category_record in rec.get('_threat_category', []):
-            if category_record['date'] < cut_day:  # Thanks to ISO format it's OK to compare dates as strings
-                actions.append(('array_remove', '_threat_category', {'date': category_record['date'], 'id': category_record['id'], 'role': category_record['role']}))
+            if category_record['d'] < cut_day:  # Thanks to ISO format it's OK to compare dates as strings
+                actions.append(('array_remove', '_threat_category', {'d': category_record['d'], 'c': category_record['c']}))
 
         if actions:
             self.log.debug("Cleaning {}: Removing {} old threat category records".format(key, len(actions) - 1))
