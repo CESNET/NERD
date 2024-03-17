@@ -2227,6 +2227,7 @@ Returned data contain an octet stream. Each 8 bytes represent a double precision
 
 
 @app.route('/api/v1/ip/bulk/', methods=['POST'])
+@app.route('/api/v1/ip/bulk', methods=['POST'])
 def bulk_request():
     log_ep.log('/api/ip/bulk')
     if not g.ac('ipsearch'):
