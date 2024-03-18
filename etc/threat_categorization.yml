@@ -95,14 +95,17 @@ threat_categorization:
         'CERT-XLM:intrusion-attempts="login-attempts"' in event.tags
         'ecsirt:intrusion-attempts="brute-force"' in event.tags
       blacklists: |-
-        blocklist_de-ssh -> {'protocol': ['ssh']}
-        charles_the_haleys_ssh_dico_ips -> {'protocol': ['ssh']}
-        charles_the_haleys_smtp_dico_ips -> {'protocol': ['smtp']}
-        dataplane_org_sshclient -> {'protocol': ['ssh']}
-        dataplane_org_sshpwauth -> {'protocol': ['ssh']}
-        dataplane_org_telnet_login -> {'protocol': ['telnet']}
-        bruteforceblocker
-        blocklist_de-bruteforcelogin
+        event.description == 'blocklist_de-ssh' -> {'protocol': ['ssh']}
+        event.description == 'charles_the_haleys_ssh_dico_ips' -> {'protocol': ['ssh']}
+        event.description == 'charles_the_haleys_smtp_dico_ips' -> {'protocol': ['smtp']}
+        event.description == 'dataplane_org_sshclient' -> {'protocol': ['ssh']}
+        event.description == 'dataplane_org_sshpwauth' -> {'protocol': ['ssh']}
+        event.description == 'dataplane_org_telnet_login' -> {'protocol': ['telnet']}
+        event.description == 'bruteforceblocker'
+        event.description == 'blocklist_de-bruteforcelogin'
+        match_str('Brute force passwords using SSH', event.ip_info) -> {'protocol': ['ssh']}
+        match_str('Brute force passwords using FTP', event.ip_info) -> {'protocol': ['ftp']}
+        match_str('Brute force passwords to SIP', event.ip_info) -> {'protocol': ['sip']}
 
   ddos:
     role: src
@@ -120,6 +123,9 @@ threat_categorization:
         'ecsirt:availability="dos"' in event.tags
         'ecsirt:availability="ddos"' in event.tags
         'circl:incident-classification="denial-of-service"' in event.tags
+      blacklists: |-
+        match_str('HTTP flood', event.ip_info) -> {'protocol': ['http']}
+        match_str('DDoS', event.ip_info)
 
   ddos-amplifier:
     role: dst
@@ -154,9 +160,10 @@ threat_categorization:
         'ecsirt:abusive-content="spam"' in event.tags
         'circl:incident-classification="spam"' in event.tags
       blacklists: |-
-        sblam_ips
-        psbl
-        spamhaus_edrop
+        event.description == 'sblam_ips'
+        event.description == 'psbl'
+        event.description == 'spamhaus_edrop'
+        match_str('Send spam', event.ip_info)
 
   malware_distribution:
     role: dst
@@ -182,7 +189,7 @@ threat_categorization:
         'circl:incident-classification="malware"' in event.tags
         'ecsirt:malicious-code="malware"' in event.tags
       blacklists: |-
-        urlhouse_ips
+        event.description == 'urlhouse_ips'
 
   cc:
     role: dst
@@ -204,8 +211,8 @@ threat_categorization:
         'kill-chain:Command and Control' in event.tags
         'ecsirt:malicious-code="c&c"' in event.tags
       blacklists: |-
-        feodo
-        bambenek_c2
+        event.description == 'feodo'
+        event.description == 'bambenek_c2'
 
   botnet_drone:
     role: src
@@ -221,7 +228,7 @@ threat_categorization:
         'CERT-XLM:intrusion="botnet-member"' in event.tags
         'ecsirt:malicious-code="botnet-drone"' in event.tags
       blacklists: |-
-        mirai_tracker_ips -> {'malware_family': ['elf.mirai']}
+        event.description == 'mirai_tracker_ips' -> {'malware_family': ['elf.mirai']}
 
   phishing_site:
     role: dst
@@ -235,7 +242,7 @@ threat_categorization:
       misp_receiver: |-
         any([match_str('phishing', tag) for tag in event.tags])
       blacklists: |-
-        openphish
+        event.description == 'openphish'
 
   exploit:
     role: src

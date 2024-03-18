@@ -41,49 +41,6 @@ bl_all_types = {
 }
 
 ###############################################################################
-# Threat categorization
-
-blacklist_to_category = None
-
-
-def categorization_init(categorization_config):
-    """
-    Create a blacklist -> category mapping based on the categorization config in 'etc/threat_categorization.yml'
-
-    :return:
-    """
-    global blacklist_to_category
-
-    blacklist_to_category = {}
-    for category_id, category_config in categorization_config["categories"].items():
-        category_triggers = category_config.get("triggers", {}).get("blacklists", "").split("\n")
-        for line in category_triggers:
-            split_line = line.split("->")
-            blacklist_id = split_line[0]
-            subcategories = {}
-            if len(split_line) > 1:
-                subcategories = ast.literal_eval(split_line[1].lstrip())
-            blacklist_to_category[blacklist_id] = {"id": category_id, "role": category_config["role"], "subcategories": subcategories}
-
-
-def classify_blacklist(blacklist_id, categorization_config):
-    """
-    Assign a threat category based on the blacklist -> category mapping created by categorization_init()
-
-    :return: Assigned category
-    """
-    global blacklist_to_category
-
-    if blacklist_to_category is None:
-        categorization_init(categorization_config)
-
-    if blacklist_id in blacklist_to_category:
-        return blacklist_to_category[blacklist_id]
-    else:
-        return {"role": "src", "id": "unknown", "subcategories": {}}
-
-
-###############################################################################
 
 def compile_regex(regex):
     if "\\A" in regex:
@@ -110,14 +67,16 @@ def parse_bl_with_regex(bl_data, cregex):
             record_end = ip_match.span()[1]
             try:
                 # classic IP address blacklist
-                bl_records.append(str(ipaddress.IPv4Address(bl_data[record_start:record_end])))
+                bl_records.append((str(ipaddress.IPv4Address(bl_data[record_start:record_end])), None))
             except ipaddress.AddressValueError:
                 continue
     else:
         for line in bl_data.split('\n'):
             match = cregex.search(line)
             if match:
-                bl_records.append(str(ipaddress.IPv4Address(match.group(1))))
+                ip = str(ipaddress.IPv4Address(match.group(1)))
+                ip_info = match.group(2) if cregex.groups > 1 else None
+                bl_records.append((ip, ip_info))
     return bl_records
 
 
@@ -132,7 +91,7 @@ def parse_bl_without_regex(bl_data):
             ipaddr = ipaddress.IPv4Address(record)
         except ipaddress.AddressValueError:
             continue
-        bl_records.append(str(ipaddr))
+        bl_records.append((str(ipaddr), None))
     return bl_records
 
 
@@ -202,19 +161,27 @@ def get_blacklist(id, name, url, regex, bl_type, life_length, params, categoriza
 
     log.info("{} IPs found in '{}', sending tasks to NERD workers".format(len(bl_records), id))
 
-    category = classify_blacklist(id, categorization_config)
-    subcategory_updates = []
-    for subcategory, values in category['subcategories'].items():
-        subcategory_updates.append(('extend_set', subcategory, values))
-
-    for ip in bl_records:
-        task_queue_writer.put_task('ip', ip, [
+    for ip, ip_info in bl_records:
+        updates = [
             ('setmax', '_ttl.bl', now_plus_life_length),
             ('array_upsert', 'bl', {'n': id},
                 [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)]),
-            ('array_upsert', '_threat_category', {'d': download_time.strftime("%Y-%m-%d"), 'c': category["id"]},
-                [('add', 'src.bl', 1)], *subcategory_updates)
-        ], "blacklists")
+        ]
+
+        # threat categorization updates
+        for category_data in classify_ip(ip, "blacklists", log, categorization_config, id, ip_info, download_time):
+            subcategory_updates = []
+            for subcategory, values in category_data['subcategories'].items():
+                subcategory_updates.append(('extend_set', subcategory, values))
+            updates.append((
+                'array_upsert',
+                '_threat_category',
+                {'d': category_data['date'], 'c': category_data['id']},
+                [('add', 'src.bl', 1), *subcategory_updates]
+            ))
+
+        # put task in queue
+        task_queue_writer.put_task('ip', ip, updates, "blacklists")
 
 
 def stop(signal, frame):

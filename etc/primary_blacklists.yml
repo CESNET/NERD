@@ -182,7 +182,7 @@ iplists:
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_net_ua
   provider_link: https://blocklist.net.ua/about/
   url: https://blocklist.net.ua/blocklist.csv
-  regex: "^(\\A)"
+  regex: "^(\\A);.*;.*;(.*)"
   # The time of updating the list was viewed here: https://blocklist.net.ua/providers/  
   time:
     hour: "*/4"
@@ -272,7 +272,7 @@ iplists:
   descr: ThreatFox is a free platform from abuse.ch with the goal of<br>sharing indicators of compromise (IOCs) associated with malware with the<br>infosec community, AV vendors and threat intelligence providers.
   provider_link: https://threatfox.abuse.ch/
   url: https://threatfox.abuse.ch/export/csv/ip-port/recent/
-  regex: ".*?(\\A)"
+  regex: ".*?(\\A),(.*)"
   # The time of updating the list was viewed here: https://threatfox.abuse.ch/export/
   time:
     hour: "*/4"

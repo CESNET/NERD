@@ -89,6 +89,21 @@ class ClassifiableEvent:
         except ValueError:
             pass
 
+    def init_blacklists(self, blacklist_id, ip_info, download_time):
+        """
+        Fill in metadata from a blacklist record
+        :param blacklist_id: ID of the blacklist
+        :param ip_info: Additional info about the IP
+        :param download_time: Time when the blacklist was downloaded
+        :return:
+        """
+        self.date = download_time.strftime("%Y-%m-%d")
+        self.description = blacklist_id
+        self.ip_info = str(ip_info)
+        self.description = ""
+        self.protocols = []
+        self.target_ports = []
+
 
 def classify_ip(ip_addr, module_name, logger, config, *args):
     """
@@ -116,8 +131,8 @@ def classify_ip(ip_addr, module_name, logger, config, *args):
         logger.error(f"Error in threat category classification for IP {ip_addr}: {e}")
     if not output:
         output.append({"date": event.date, "id": "unknown", "role": "src", "subcategories": {}})
-        with open(f"/var/log/nerd/threat_categorization_unknown.log", "a+") as logfile:
-           logfile.write(f"[{datetime.now()}] MODULE: {module_name} IP: {ip_addr} EVENT-INFO: {event}\n")
+    #   with open(f"/var/log/nerd/threat_categorization_unknown.log", "a+") as logfile:
+    #      logfile.write(f"[{datetime.now()}] MODULE: {module_name} IP: {ip_addr} EVENT-INFO: {event}\n")
     logger.debug(f"Threat category classification for {ip_addr}: {output}; Event info: {event}")
     return output
 
