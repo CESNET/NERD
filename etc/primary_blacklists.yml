@@ -247,7 +247,7 @@ iplists:
   
 - id: threat_sourcing_ips
   name: Threat Sourcing
-  descr: Threat Sourcing is a collaborative project to collect<br>and study threats as they present themselves on the Internet.<br>Note: The provider doesn't provide any details about how the data are collected or how to interpret them, e.g. the type of threat the IPs pose.
+  descr: "Threat Sourcing is a collaborative project to collect<br>and study threats as they present themselves on the Internet.<br>Note: The provider doesn't provide any details about how the data are collected or how to interpret them, e.g. the type of threat the IPs pose."
   provider_link: https://www.threatsourcing.com/
   url: https://www.threatsourcing.com/ipall.txt
   regex: ""
