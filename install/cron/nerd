@@ -23,6 +23,8 @@
 40 01,09,17 * * * nerd rsync -azq rsync-mirrors.uceprotect.net::RBLDNSD-ALL/dnsbl-1.uceprotect.net /data/blacklists/uceprotect-level1
 # rsync PSBL blacklist 3 times a day
 41 01,09,17 * * * nerd rsync -zq psbl-mirror.surriel.com::psbl/psbl.txt /data/blacklists/psbl.txt
+# rsync Crowdsec blacklist 3 times a day
+42 01,09,17 * * * nerd rsync -zq logs.liberouter.org::crowdsec/crowdsec_blacklist.csv /data/blacklists/crowdsec.csv
 
 # Check Apache log for 5xx errors every hour. If grep produces output, it's sent to the email contact.
 # Run at the end of every hour and simply filter all log lines with the current hour (not perfect, but simple)

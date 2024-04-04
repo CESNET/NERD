@@ -544,3 +544,13 @@ iplists:
 #  time:
 #    hour: 1,9,17
 #    minute: 45
+#
+#- id: crowdsec
+#  name: Crowdsec
+#  descr: Crowdsec community blacklist of malicious IPs.
+#  provider_link: https://docs.crowdsec.net/
+#  url: file:///data/blacklists/crowdsec.csv
+#  regex: "^(\\A),(.*)"
+#  time:
+#    hour: 1,9,17
+#    minute: 45
