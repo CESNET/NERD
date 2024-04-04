@@ -843,12 +843,12 @@ class IPFilterForm(FlaskForm):
     cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
     tc_role = SelectMultipleField('Role', [validators.Optional()])
     tc_category = SelectMultipleField('Category', [validators.Optional()])
-    tc_subcategory = StringField('Subcategory', [
-        validators.Optional(),
-        validators.Regexp('^(\w+)=(\w+)$', re.IGNORECASE)
-    ], filters=[strip_whitespace, to_lower])
+    tc_subcategory_key = SelectField('Subcategory key', [validators.Optional()])
+    tc_subcategory_value = StringField('Subcategory value', [validators.Optional()], filters=[strip_whitespace, to_lower])
+    tc_confidence = FloatField('Min category confidence',
+                          [validators.Optional(), validators.NumberRange(0, 1, 'Must be a number between 0 and 1')],
+                          default=0.5)
     cat_op = HiddenField('', default="or")
-    tc_role_op = HiddenField('', default="or")
     tc_category_op = HiddenField('', default="or")
     node = SelectMultipleField('', [validators.Optional()])
     node_op = HiddenField('', default="or")
@@ -900,6 +900,7 @@ class IPFilterForm(FlaskForm):
         # Load categorization config to get list of all categories
         self.tc_role.choices = [("src", "Source"), ("dst", "Destination")]
         self.tc_category.choices = sorted([(cat_id, cat_data['label']) for cat_id, cat_data in threat_categorization_config.items()])
+        self.tc_subcategory_key.choices = [("", "--"), ("port", "Port"), ("protocol", "Protocol"), ("malware_family", "Malware family")]
 
         # Number of occurrences for blacklists (list of blacklists is taken from configuration)
         bl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_bl.find()}
@@ -979,27 +980,20 @@ def create_query(form):
     if form.cat.data:
         op = '$and' if (form.cat_op.data == "and") else '$or'
         queries.append({op: [{'events.cat': cat} for cat in form.cat.data]})
-    if form.tc_role.data or form.tc_category.data or form.tc_subcategory.data:
-        if form.tc_role.data and len(form.tc_role.data) > 1 and form.tc_role_op.data == "and":
-            for role in form.tc_role.data:
-                queries.append({"_threat_category": {"$elemMatch": {"r": role}}})
+    if form.tc_role.data or form.tc_category.data or form.tc_subcategory_value.data:
+        elem_match = {}
+        if form.tc_confidence.data:
+            elem_match.update({"conf": {"$gte": float(form.tc_confidence.data)}})
+        if form.tc_role.data:
+            elem_match.update({'$or': [{"r": role} for role in form.tc_role.data]})
+        if form.tc_subcategory_key.data and form.tc_subcategory_value.data:
+            elem_match.update({f"s.{form.tc_subcategory_key.data}": form.tc_subcategory_value.data})
+        if form.tc_category.data:
+            cat_op = '$and' if (form.tc_category_op.data == "and") else '$or'
+            query = {cat_op: [{"_threat_category_summary": {"$elemMatch": {**elem_match, "c": cat}}} for cat in form.tc_category.data]}
         else:
-            query = {}
-            elem_match = {}
-            if form.tc_role.data:
-                role_op = '$and' if (form.tc_role_op.data == "and") else '$or'
-                elem_match.update({role_op: [{"r": role} for role in form.tc_role.data]})
-            if form.tc_subcategory.data:
-                subcategory_id, subcategory_value = form.tc_subcategory.data.split("=")
-                if subcategory_id == "port":
-                    subcategory_value = int(subcategory_value)
-                elem_match.update({subcategory_id: subcategory_value})
-            if form.tc_category.data:
-                cat_op = '$and' if (form.tc_category_op.data == "and") else '$or'
-                query = {cat_op: [{"_threat_category": {"$elemMatch": {**elem_match, "c": cat}}} for cat in form.tc_category.data]}
-            else:
-                query = {"_threat_category": {"$elemMatch": elem_match}}
-            queries.append(query)
+            query = {"_threat_category_summary": {"$elemMatch": elem_match}}
+        queries.append(query)
     if form.node.data:
         op = '$and' if (form.node_op.data == "and") else '$or'
         queries.append({op: [{'events.node': node} for node in form.node.data]})
@@ -1163,7 +1157,8 @@ def ips():
             ip['_showable_misp_events'] = showable_misp_events
 
             # Add info about threat category
-            ip['_threat_category_table'] = create_threat_category_table(ip.get('_threat_category_summary', []), 0.25, 10)
+            min_confidence = float(form.tc_confidence.data) if form.tc_confidence.data else 0
+            ip['_threat_category_table'] = create_threat_category_table(ip.get('_threat_category_summary', []), min_confidence, 9)
     else:
         results = None
         form.ip_list.data = ""
@@ -1384,7 +1379,7 @@ def ip(ipaddr=None):
                 ipinfo['asns'] = asn_list
 
                 # Create threat category table
-                threat_category_table = create_threat_category_table(ipinfo.get('_threat_category_summary', []), 0, 10)
+                threat_category_table = create_threat_category_table(ipinfo.get('_threat_category_summary', []), 0, 9)
 
                 # Pseudonymize node names if user is not allowed to see the original names
                 if not g.ac('nodenames'):

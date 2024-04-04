@@ -155,27 +155,58 @@
     </div>
       {% endif %}
 
-      <div class="row narrow" id="narrow">
-        <div id="sorting">
-          <div>
-            <p>Threat category</p>
-          </div>
-          <div class="opt">
-            <span class="lab">
-              Role
-              <span id="tc_role_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
-             {{ form.tc_role() }}{{ form.tc_role_op() }}
-          </div>
-          <div class="opt">
-            <span class="lab">
-              Category
-              <span id="tc_category_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span></span>
-             {{ form.tc_category() }}{{ form.tc_category_op() }}
-          </div>
-          <div class="opt">
-            <span class="lab">Subcategory</span>
-            {{ formfield(form.tc_subcategory, size=10) }}
-          </div>
+      <div id="threat_category">
+        <div>
+          <p>Threat category</p>
+        </div>
+        <div class="opt" id="tc_role_wrap">
+          <span id="tc_role_label">
+            Role
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Select IP addresses with threat category records matching the selected role.
+              </div>
+            </div>
+          </span>
+           {{ form.tc_role() }}
+        </div>
+        <div class="opt" id="tc_category_wrap">
+          <span id="tc_category_label">
+            Category
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Select IP addresses with threat category records matching the selected category.
+              </div>
+            </div>
+            <span id="tc_category_op_button" class="op_button"><div class="or selected"><span>OR</span></div> <div class="and"><span>AND</span></div></span>
+          </span>
+           {{ form.tc_category() }}{{ form.tc_category_op() }}
+        </div>
+        <div class="opt" id="tc_subcategory_wrap">
+          <span id="tc_subcategory_label">
+            Subcategory
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Select IP addresses with threat category records matching the selected subcategory.
+              </div>
+            </div>
+          </span>
+          {{ form.tc_subcategory_key() }} = {{ formfield(form.tc_subcategory_value, size=8) }}
+        </div>
+        <div class="opt" id="tc_confidence_wrap">
+          <span id="tc_confidence_label">
+            Confidence
+            <div class="tooltip">
+              <i class="fa fa-question-circle-o" aria-hidden="true"></i>
+              <div class="tooltip-text">
+                Minimum category confidence.
+              </div>
+            </div>
+          </span>
+          {{ formfield(form.tc_confidence, size=8) }}
         </div>
       </div>
 

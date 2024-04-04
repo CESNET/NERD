@@ -108,7 +108,6 @@ function set_up_search_form() {
 
     set_up_op_button("#source_op_button", "#source_op", "OR: At least one of the selected categories", "AND: All selected categories")
     set_up_op_button("#cat_op_button", "#cat_op", "OR: At least one of the selected categories", "AND: All selected categories")
-    set_up_op_button("#tc_role_op_button", "#tc_role_op", "OR: At least one of the selected roles", "AND: All selected roles")
     set_up_op_button("#tc_category_op_button", "#tc_category_op", "OR: At least one of the selected categories", "AND: All selected categories")
     set_up_op_button("#node_op_button", "#node_op", "OR: At least one of the selected nodes", "AND: All selected nodes")
     set_up_op_button("#bl_op_button", "#bl_op", "OR: At least one of the selected blacklists", "AND: All selected blacklists")
