@@ -173,6 +173,10 @@ def eval_trigger(trigger, event, category_params, config, logger):
                 if match_str(family_data["common_name"], text):
                     subcategories["malware_family"].append(family_id.lower())
             subcategories["malware_family"] = list(set(subcategories["malware_family"]))
+
+    for key in list(subcategories):
+        if not subcategories[key]:
+            subcategories.pop(key)
     return result, subcategories
 
 
