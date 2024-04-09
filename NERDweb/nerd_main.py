@@ -350,7 +350,7 @@ def subnet_validator(form, field):
 
 # Filter to extract IPs and CIRDs from a string
 def find_all_ips_and_cirds(s):
-    return IP_CIDR_REGEX.findall(s) # returns list of strings
+    return IP_CIDR_REGEX.findall(s) if isinstance(s, str) else [] # returns list of strings
 
 # Validator to check that the parsed list of IPs is not empty
 def nonempty_ip_list_validator(form, field):
