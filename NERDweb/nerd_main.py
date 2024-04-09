@@ -973,7 +973,9 @@ def create_query(form):
             for tag_id in form.tag.data]})
     # Select only records with at least one _ttl token other than "web".
     # (I.t. do not show records exiting only because someone explicitly asked for that IP on the web)
-    queries.append({'$or': [{f'_ttl.{token}': {'$exists': True}} for token in form.all_ttl_tokens if token != "web"]})
+    ttl_tokens = [{f'_ttl.{token}': {'$exists': True}} for token in form.all_ttl_tokens if token != "web"]
+    if ttl_tokens:
+        queries.append({'$or': ttl_tokens})
 
     query = {'$and': queries} if queries else None
     return query
