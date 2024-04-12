@@ -110,6 +110,8 @@ def get_user_info(session):
     if not row:
         # User not found in DB = user is authenticated (e.g. via shibboleth) but has no account yet
         user['groups'] = set()
+        user['rl_bs'] = None
+        user['rl_tps'] = None
         return user, get_ac_func(user['groups'])
     
     # Put all fields from DB into 'user' dict
