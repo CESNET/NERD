@@ -82,7 +82,7 @@ def get_ac_func(user_groups):
 
 def get_user_info(session):
     """
-    Returun info about current user (or None if noone is logged in) and 
+    Return info about current user (or None if noone is logged in) and
     the access control function.
      
     To be called by all page handlers as:

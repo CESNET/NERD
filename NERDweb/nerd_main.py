@@ -569,7 +569,7 @@ def exceeded_rate_limit(user_id, note=''):
         if g.user:
             message = "You are only allowed to make {} requests per second.".format(tps)
         else:
-            message = "We only allow {} requests per second per IP address for not logged in users.".format(tps)
+            message = "We only allow {} requests per second per IP address for anonymous users.".format(tps)
         if note:
             message += f"\nNote: {note}"
         log_err.log('429_rate_limit_web')
@@ -1323,7 +1323,7 @@ def ip(ipaddr=None):
     return render_template('ip.html', ctrydata=ctrydata, ip=ipaddr, blacklist_info=blacklist_info, **locals())
 
 
-# Functions to asynchornously request creation of a new IP record
+# Functions to asynchronously request creation of a new IP record
 # We use special endpoints, called by JavaScript, since that way we can easily disallow this functionality for robots
 # by blocking /ajax/* in robots.txt
 @app.route('/ajax/fetch_ip_data/<ipaddr>')
