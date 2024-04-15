@@ -1721,7 +1721,13 @@ FILES = [
     "ip_rep.csv",
     "bad_ips.txt",
     "bad_ips_med_conf.txt",
+    "ip_category.csv",
+    "ip_category_table.csv",
 ]
+
+# Add category blacklist files (created by /scripts/generate_category_blocklist.sh)
+BL_FILES = [f"bl_{cat}.txt" for cat in threat_categorization_config if cat != "unknown"]
+FILES += BL_FILES
 
 @app.route('/data/')
 def data_index():
@@ -1736,7 +1742,7 @@ def data_index():
             file_sizes[f] = os.stat(os.path.join(DATA_DIR, f)).st_size
         except OSError:
             file_sizes[f] = None
-    return render_template("data.html", title=title, file_sizes=file_sizes)
+    return render_template("data.html", title=title, file_sizes=file_sizes, bl_files=BL_FILES)
 
 @app.route('/data/<filename>')
 def data_file(filename):

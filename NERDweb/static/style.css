@@ -14,6 +14,11 @@ h1 {
   margin-bottom: 0.25em;
 }
 
+h2 {
+  font-size: larger;
+  margin-top: 1.5em;
+}
+
 hr {
   border: 0;
   border-top: 2px solid #0061a2;
@@ -1039,6 +1044,10 @@ ul.data-list li {
 ul.data-list li ul li {
   margin-top: 0.4em;
   color: #777;
+}
+
+.data-list+p {
+  margin-top: 2em;
 }
 
 

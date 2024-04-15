@@ -3,6 +3,7 @@
 
 <h1>Downloadable data</h1>
 
+<h2>Reputation score</h2>
 <ul class="data-list">
 <li>List of all IPs in NERD database with their reputation scores:
 {% if file_sizes['ip_rep.csv'] is number %}<a href="{{ url_for("data_file", filename="ip_rep.csv") }}">ip_rep.csv</a> ({{file_sizes['ip_rep.csv']|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
@@ -18,6 +19,33 @@
 </li>
 </ul>
 
-All files are updated once per hour.
+<h2>Threat categorization</h2>
+<ul class="data-list">
+  <li>
+    List of all IPs in NERD with their categories:
+    <ul>
+      <li>
+        Line format:
+        {% if file_sizes['ip_category.csv'] is number %}<a href="{{ url_for("data_file", filename="ip_category.csv") }}">ip_category.csv</a> ({{file_sizes['ip_category.csv']|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
+      </li>
+      <li>
+        Table format:
+        {% if file_sizes['ip_category_table.csv'] is number %}<a href="{{ url_for("data_file", filename="ip_category_table.csv") }}">ip_category_table.csv</a> ({{file_sizes['ip_category_table.csv']|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
+      </li>
+    </ul>
+  </li>
+  <li>
+    Collection of blacklists for each category (IPs with confidence greater than 0.5):
+    <ul>
+      {% for bl_file in bl_files %}
+      <li>
+        {% if file_sizes[bl_file] is number %}<a href="{{ url_for("data_file", filename=bl_file) }}">{{bl_file}}</a> ({{file_sizes[bl_file]|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </li>
+</ul>
+
+<p>All files are updated once per hour.</p>
 
 {% endblock %}
