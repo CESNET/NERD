@@ -55,16 +55,20 @@ threat_categorization:
       - port
     triggers:
       general: |-
-        match_str('scan', event.ip_info)
+        bool(re.findall(r'(?i)\b(scan(ning)|(ners?)?)\b', event.ip_info + event.description))
       warden_receiver: |-
-        any([match_str('Recon', cat) for cat in event.categories])
+        'Recon.Scanning' in event.categories
       otx_receiver: |-
-        match_str('scan', event.indicator_role)
-        event.description == 'Webscanners 2018-02-09 thru current day'
+        bool(re.findall(r'(?i)\b(scan(ning)|(ners?)?)\b', event.indicator_role))
       misp_receiver: |-
-        'CERT-XLM:information-gathering="scanner"' in event.tags
-        'ecsirt:information-gathering="scanner"' in event.tags
-        'circl:incident-classification="scan"' in event.tags
+        any([bool(re.findall(r'(?i)\b(scan(ning)|(ners?)?)\b', tag)) for tag in event.tags])
+      blacklists: |-
+        event.ip_info == 'crowdsecurity/iptables-scan-multi_ports'
+        event.ip_info == 'crowdsecurity/http-crawl-non_statics'
+        event.ip_info == 'crowdsecurity/http-path-traversal-probing'
+        event.ip_info == 'crowdsecurity/http-admin-interface-probing'
+        event.ip_info == 'crowdsecurity/http-probing'
+        event.ip_info == 'crowdsecurity/http-sensitive-files'
 
   bruteforce:
     role: src
@@ -75,26 +79,25 @@ threat_categorization:
       - port
     triggers:
       general: |-
-        match_str('SSH login', (event.ip_info + event.description)) -> {'protocol': ['ssh']}
-        match_str('SSH intrusion', (event.ip_info + event.description)) -> {'protocol': ['ssh']}
-        match_str('SSH honeypot', (event.ip_info + event.description)) -> {'protocol': ['ssh']}
-        match_str('RDP honeypot', (event.ip_info + event.description)) -> {'protocol': ['rdp']}
-        match_str('Telnet login', (event.ip_info + event.description)) -> {'protocol': ['telnet']}
-        match_str('Telnet honeypot', (event.ip_info + event.description)) -> {'protocol': ['telnet']}
-        match_str('bruteforce', event.ip_info)
+        bool(re.findall(r'(?i)ssh.*(brute[\s_-]?force|login|intrusion|honeypot)', event.ip_info + event.description)) -> {'protocol': ['ssh']}
+        bool(re.findall(r'(?i)rdp.*(brute[\s_-]?force|login|intrusion|honeypot)', event.ip_info + event.description)) -> {'protocol': ['rdp']}
+        bool(re.findall(r'(?i)telnet.*(brute[\s_-]?force|login|intrusion|honeypot)', event.ip_info + event.description)) -> {'protocol': ['telnet']}
+        bool(re.findall(r'(?i)vnc.*(brute[\s_-]?force|login|intrusion|honeypot)', event.ip_info + event.description)) -> {'protocol': ['vnc']}
+        bool(re.findall(r'(?i)redis.*(brute[\s_-]?force|login|intrusion|honeypot)', event.ip_info + event.description)) -> {'protocol': ['redis']}
+        bool(re.findall(r'(?i)postgresql.*(brute[\s_-]?force|login|intrusion|honeypot)', event.ip_info + event.description)) -> {'protocol': ['postgresql']}
       warden_receiver: |-
         'Attempt.Login' in event.categories
         'Intrusion.UserCompromise' in event.categories
         'Intrusion.AdminCompromise' in event.categories
       otx_receiver: |-
-        match_str('bruteforce', event.indicator_role)
-        'VNC honeypot logs' in event.description
-        'Redis honeypot logs' in event.description
-        'PostgresQL honeypot logs' in event.description
+        bool(re.findall(r'(?i)brute[\s_-]?force', event.indicator_role))
       misp_receiver: |-
-        'CERT-XLM:intrusion-attempts="login-attempts"' in event.tags
-        'ecsirt:intrusion-attempts="brute-force"' in event.tags
+        any([bool(re.findall(r'(?i)login.*attempt', tag)) for tag in event.tags])
+        any([bool(re.findall(r'(?i)brute[\s_-]?force', tag)) for tag in event.tags])
       blacklists: |-
+        bool(re.findall(r'(?i)brute[\s_-]?force.*ssh', event.ip_info)) -> {'protocol': ['ssh']}
+        bool(re.findall(r'(?i)brute[\s_-]?force.*ftp', event.ip_info)) -> {'protocol': ['ftp']}
+        bool(re.findall(r'(?i)brute[\s_-]?force.*sip', event.ip_info)) -> {'protocol': ['sip']}
         event.description == 'blocklist_de-ssh' -> {'protocol': ['ssh']}
         event.description == 'charles_the_haleys_ssh_dico_ips' -> {'protocol': ['ssh']}
         event.description == 'charles_the_haleys_smtp_dico_ips' -> {'protocol': ['smtp']}
@@ -103,9 +106,8 @@ threat_categorization:
         event.description == 'dataplane_org_telnet_login' -> {'protocol': ['telnet']}
         event.description == 'bruteforceblocker'
         event.description == 'blocklist_de-bruteforcelogin'
-        match_str('Brute force passwords using SSH', event.ip_info) -> {'protocol': ['ssh']}
-        match_str('Brute force passwords using FTP', event.ip_info) -> {'protocol': ['ftp']}
-        match_str('Brute force passwords to SIP', event.ip_info) -> {'protocol': ['sip']}
+        event.ip_info == 'crowdsecurity/http-generic-bf' -> {'protocol': ['http']}
+        event.ip_info.startswith('crowdsecurity/ssh-') -> {'protocol': ['ssh']}
 
   ddos:
     role: src
@@ -113,19 +115,14 @@ threat_categorization:
     label: DDoS
     triggers:
       warden_receiver: |-
-        'DoS anomalies' in event.description
         'Availability.DoS' in event.categories
         'Availability.DDoS' in event.categories
       misp_receiver: |-
-        'DDoS' in event.tags
-        'CERT-XLM:availability="dos"' in event.tags
-        'CERT-XLM:availability="ddos"' in event.tags
-        'ecsirt:availability="dos"' in event.tags
-        'ecsirt:availability="ddos"' in event.tags
-        'circl:incident-classification="denial-of-service"' in event.tags
+        any([bool(re.findall(r'(?i)d?dos', tag)) for tag in event.tags])
+        any([bool(re.findall(r'(?i)\bdenial[\s_-]of[\s_-]service\b', tag)) for tag in event.tags])
       blacklists: |-
-        match_str('HTTP flood', event.ip_info) -> {'protocol': ['http']}
-        match_str('DDoS', event.ip_info)
+        bool(re.findall(r'(?i)http[\s_-]flood', event.ip_info)) -> {'protocol': ['http']}
+        bool(re.findall(r'(?i)d?dos', event.ip_info))
 
   ddos-amplifier:
     role: dst
@@ -135,10 +132,11 @@ threat_categorization:
       - protocol
     triggers:
       general: |-
-        match_str('Open DNS', (event.ip_info + event.description)) -> {'protocol': ['dns']}
-        match_str('Open Memcached', (event.ip_info + event.description)) -> {'protocol': ['memcached']}
-        match_str('Abusable NTP', (event.ip_info + event.description)) -> {'protocol': ['ntp']}
+        bool(re.findall(r'(?i)(Open|Abusable)[\s_-]DNS', event.ip_info + event.description)) -> {'protocol': ['dns']}
+        bool(re.findall(r'(?i)(Open|Abusable)[\s_-]Memcached', event.ip_info + event.description)) -> {'protocol': ['memcached']}
+        bool(re.findall(r'(?i)(Open|Abusable)[\s_-]NTP', event.ip_info + event.description)) -> {'protocol': ['ntp']}
       warden_receiver: |-
+        ('Availability.DoS' in event.categories or 'Availability.DDoS' in event.categories) and bool(re.findall(r'(?i)dns.*amplification', event.description + event.note)) -> {'protocol': ['dns']}
         'Vulnerable.Config' in event.categories and 'dns' in event.protocols -> {'protocol': ['dns']}
         'Vulnerable.Config' in event.categories and 'ntp' in event.protocols -> {'protocol': ['ntp']}
         'Vulnerable.Config' in event.categories and 'memcached' in event.protocols -> {'protocol': ['memcached']}
@@ -152,18 +150,18 @@ threat_categorization:
     label: Spam
     triggers:
       general: |-
-        match_str('spam', event.ip_info)
+        bool(re.findall(r'(?i)\bspam(ming)?\b', event.ip_info + event.description))
       warden_receiver: |-
         'Abusive.Spam' in event.categories
+        any([type == 'Spam' for type in event.source_types])
       misp_receiver: |-
-        'CERT-XLM:abusive-content="spam"' in event.tags
-        'ecsirt:abusive-content="spam"' in event.tags
-        'circl:incident-classification="spam"' in event.tags
+        any([bool(re.findall(r'(?i)spam', tag)) for tag in event.tags])
       blacklists: |-
         event.description == 'sblam_ips'
         event.description == 'psbl'
         event.description == 'spamhaus_edrop'
-        match_str('Send spam', event.ip_info)
+        bool(re.findall(r'(?i)send.*spam', event.ip_info))
+        event.ip_info == 'crowdsecurity/postfix-spam'
 
   malware_distribution:
     role: dst
@@ -173,21 +171,15 @@ threat_categorization:
       - malware_family
     triggers:
       general: |-
-        match_str('malware', event.ip_info)
-        match_str('trojan', event.ip_info)
-        match_str('ransomware', event.ip_info)
-        match_str('payload delivery', event.ip_info)
+        bool(re.findall(r'(?i)malware.*host', event.ip_info + event.description))
+        bool(re.findall(r'(?i)malware.*download', event.ip_info + event.description))
       warden_receiver: |-
-        any([match_str('Malware', cat) for cat in event.categories])
+        any([type == 'Malware' for type in event.source_types])
       otx_receiver: |-
-        match_str('malware', event.indicator_role)
-        match_str('trojan', event.indicator_role)
+        bool(re.findall(r'(?i)malware.*host', event.indicator_role))
+        bool(re.findall(r'(?i)malware.*download', event.indicator_role))
       misp_receiver: |-
-        any([match_str('malware', tag) for tag in event.tags])
-        any([match_str('ransomware', tag) for tag in event.tags])
-        any([match_str('trojan', tag) for tag in event.tags])
-        'circl:incident-classification="malware"' in event.tags
-        'ecsirt:malicious-code="malware"' in event.tags
+        any([bool(re.findall(r'(?i)(malware|trojan|ransomware)', tag)) for tag in event.tags]) and event.ip_role == "dst"
       blacklists: |-
         event.description == 'urlhouse_ips'
 
@@ -199,19 +191,22 @@ threat_categorization:
       - malware_family
     triggers:
       general: |-
-        match_str('command and control', event.ip_info)
-        match_str('botnet cc', event.ip_info)
-        match_str('c2 server', event.ip_info)
+        bool(re.findall(r'(?i)command.*control', event.ip_info + event.description))
+        bool(re.findall(r'(?i)botnet[\s_-]cc', event.ip_info + event.description))
+        bool(re.findall(r'(?i)c2[\s_-]server', event.ip_info + event.description))
+        bool(re.findall(r'(?i)c&?c[\s_-]server', event.ip_info + event.description))
       warden_receiver: |-
-        'CC' in event.ip_info
+        any([type == 'CC' for type in event.source_types])
       otx_receiver: |-
-        match_str('command and control', event.indicator_role)
+        bool(re.findall(r'(?i)command.*control', event.indicator_role))
+        bool(re.findall(r'(?i)c2', event.indicator_role))
+        bool(re.findall(r'(?i)c&?c', event.indicator_role))
       misp_receiver: |-
-        'C2' in event.tags
-        'kill-chain:Command and Control' in event.tags
-        'ecsirt:malicious-code="c&c"' in event.tags
+        any([bool(re.findall(r'(?i)command.*control', tag)) for tag in event.tags])
+        any([bool(re.findall(r'(?i)c2', tag)) for tag in event.tags])
+        any([bool(re.findall(r'(?i)c&c', tag)) for tag in event.tags])
       blacklists: |-
-        event.description == 'feodo'
+        event.description == 'feodo' -> {'malware_family': ['win.feodo']}
         event.description == 'bambenek_c2'
 
   botnet_drone:
@@ -221,12 +216,14 @@ threat_categorization:
     subcategories:
       - malware_family
     triggers:
+      general: |-
+        bool(re.findall(r'(?i)botnet.*drone', event.ip_info + event.description))
+        bool(re.findall(r'(?i)botnet.*member', event.ip_info + event.description))
       warden_receiver: |-
         'Intrusion.Botnet' in event.categories
-        'Botnet' in event.ip_info
+        any([type == 'Botnet' for type in event.source_types])
       misp_receiver: |-
-        'CERT-XLM:intrusion="botnet-member"' in event.tags
-        'ecsirt:malicious-code="botnet-drone"' in event.tags
+        any([bool(re.findall(r'(?i)botnet', tag)) for tag in event.tags])
       blacklists: |-
         event.description == 'mirai_tracker_ips' -> {'malware_family': ['elf.mirai']}
 
@@ -236,11 +233,12 @@ threat_categorization:
     label: Phishing site
     triggers:
       general: |-
-        match_str('phishing', event.ip_info)
+        bool(re.findall(r'(?i)phishing.*site', event.ip_info + event.description))
       warden_receiver: |-
-        'Fraud.Phishing' in event.categories
+        any([type == 'Phishing' for type in event.source_types])
       misp_receiver: |-
-        any([match_str('phishing', tag) for tag in event.tags])
+        any([bool(re.findall(r'(?i)phishing.*site', tag)) for tag in event.tags])
+        any([bool(re.findall(r'(?i)phishing', tag)) for tag in event.tags]) and event.ip_role == "dst"
       blacklists: |-
         event.description == 'openphish'
 
@@ -252,14 +250,16 @@ threat_categorization:
       - protocol
     triggers:
       general: |-
-        match_str('exploit', event.ip_info)
+        bool(re.findall(r'(?i)attempt(ing)?.*exploit', event.ip_info + event.description))
       warden_receiver: |-
         'Attempt.Exploit' in event.categories
       otx_receiver: |-
         'Apache honeypot logs' in event.description -> {'protocol': ['http']}
-        match_str('exploit', event.indicator_role)
+        bool(re.findall(r'(?i)exploit', event.indicator_role))
       misp_receiver: |-
-        any([match_str('exploit', tag) for tag in event.tags])
+        any([bool(re.findall(r'(?i)exploit', tag)) for tag in event.tags])
         'CERT-XLM:intrusion-attempts="new-attack-signature"' in event.tags
         'circl:incident-classification="XSS"' in event.tags
         'circl:incident-classification="sql-injection"' in event.tags
+      blacklists: |-
+        bool(re.findall(r'(?i)CVE[-_]20', event.ip_info))

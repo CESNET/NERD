@@ -1,5 +1,6 @@
 import yaml
 import ast
+import re
 from datetime import datetime
 
 from .utils import parse_rfc_time
@@ -41,8 +42,10 @@ class ClassifiableEvent:
         detect_time = parse_rfc_time(event["DetectTime"])
         self.date = detect_time.strftime("%Y-%m-%d")
         self.categories = event.get('Category', [])
-        self.ip_info = ";".join(source.get('Type', []))
         self.description = event.get("Description", "")
+        self.note = event.get("Note", "")
+        self.ip_info = source.get('Note', "")
+        self.source_types = source.get('Type', [])
         target_ports = []
         protocols = source.get('Proto', [])
         for target in event.get('Target', []):
