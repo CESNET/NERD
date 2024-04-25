@@ -6,9 +6,10 @@
 55 * * * * nerd mongo --quiet nerd /nerd/scripts/set_prefix_repscore.js
 
 # Generate list of IPs and reputation scores every hour
-00 * * * * nerd /nerd/scripts/generate_ip_rep_list.sh > /data/web_data/ip_rep.csv
-00 * * * * nerd /nerd/scripts/generate_blocklist.sh 0.5 | sort -n > /data/web_data/bad_ips.txt
-00 * * * * nerd /nerd/scripts/generate_blocklist.sh 0.2 | sort -n > /data/web_data/bad_ips_med_conf.txt
+# (generate to a temp file and rename to avoid clients reading an incomplete file)
+00 * * * * nerd /nerd/scripts/generate_ip_rep_list.sh > /data/web_data/ip_rep.csv.tmp && mv /data/web_data/ip_rep.csv{.tmp,}
+00 * * * * nerd /nerd/scripts/generate_blocklist.sh 0.5 | sort -n > /data/web_data/bad_ips.txt.tmp && mv /data/web_data/bad_ips.txt{.tmp,}
+00 * * * * nerd /nerd/scripts/generate_blocklist.sh 0.2 | sort -n > /data/web_data/bad_ips_med_conf.txt.tmp && mv /data/web_data/bad_ips_med_conf.txt{.tmp,}
 
 # Generate list of IPs and threat categories every hour
 00 * * * * nerd /nerd/scripts/generate_ip_category_list.sh /data/web_data

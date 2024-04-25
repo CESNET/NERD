@@ -355,7 +355,7 @@ def subnet_validator(form, field):
 
 # Filter to extract IPs and CIRDs from a string
 def find_all_ips_and_cirds(s):
-    return IP_CIDR_REGEX.findall(s) # returns list of strings
+    return IP_CIDR_REGEX.findall(s) if isinstance(s, str) else [] # returns list of strings
 
 # Validator to check that the parsed list of IPs is not empty
 def nonempty_ip_list_validator(form, field):
@@ -579,7 +579,7 @@ def exceeded_rate_limit(user_id, note=''):
         if g.user:
             message = "You are only allowed to make {} requests per second.".format(tps)
         else:
-            message = "We only allow {} requests per second per IP address for not logged in users.".format(tps)
+            message = "We only allow {} requests per second per IP address for anonymous users.".format(tps)
         if note:
             message += f"\nNote: {note}"
         log_err.log('429_rate_limit_web')
@@ -1010,7 +1010,9 @@ def create_query(form):
             for tag_id in form.tag.data]})
     # Select only records with at least one _ttl token other than "web".
     # (I.t. do not show records exiting only because someone explicitly asked for that IP on the web)
-    queries.append({'$or': [{f'_ttl.{token}': {'$exists': True}} for token in form.all_ttl_tokens if token != "web"]})
+    ttl_tokens = [{f'_ttl.{token}': {'$exists': True}} for token in form.all_ttl_tokens if token != "web"]
+    if ttl_tokens:
+        queries.append({'$or': ttl_tokens})
 
     query = {'$and': queries} if queries else None
     return query
@@ -1393,7 +1395,7 @@ def ip(ipaddr=None):
     return render_template('ip.html', ctrydata=ctrydata, ip=ipaddr, blacklist_info=blacklist_info, **locals())
 
 
-# Functions to asynchornously request creation of a new IP record
+# Functions to asynchronously request creation of a new IP record
 # We use special endpoints, called by JavaScript, since that way we can easily disallow this functionality for robots
 # by blocking /ajax/* in robots.txt
 @app.route('/ajax/fetch_ip_data/<ipaddr>')
@@ -2305,6 +2307,7 @@ Returned data contain an octet stream. Each 8 bytes represent a double precision
 
 
 @app.route('/api/v1/ip/bulk/', methods=['POST'])
+@app.route('/api/v1/ip/bulk', methods=['POST'])
 def bulk_request():
     log_ep.log('/api/ip/bulk')
     if not g.ac('ipsearch'):
