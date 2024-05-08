@@ -55,13 +55,13 @@ threat_categorization:
       - port
     triggers:
       general: |-
-        bool(re.findall(r'(?i)\b(scan(ning)|(ners?)?)\b', event.ip_info + event.description))
+        bool(re.findall(r'(?i)scanning|scanner|probing', event.ip_info + event.description))
       warden_receiver: |-
         'Recon.Scanning' in event.categories
       otx_receiver: |-
-        bool(re.findall(r'(?i)\b(scan(ning)|(ners?)?)\b', event.indicator_role))
+        bool(re.findall(r'(?i)scanning|scanner|probing', event.indicator_role))
       misp_receiver: |-
-        any([bool(re.findall(r'(?i)\b(scan(ning)|(ners?)?)\b', tag)) for tag in event.tags])
+        any([bool(re.findall(r'(?i)scanning|scanner|probing', tag)) for tag in event.tags])
       blacklists: |-
         event.ip_info == 'crowdsecurity/iptables-scan-multi_ports'
         event.ip_info == 'crowdsecurity/http-crawl-non_statics'
@@ -114,14 +114,19 @@ threat_categorization:
     description: The IP has been observed as a source of volumetric (D)DoS attacks.
     label: DDoS
     triggers:
+      general: |-
+        bool(re.findall(r'(?i)http.*flood', event.ip_info + event.description)) -> {'protocol': ['http']}
+        bool(re.findall(r'(?i)dns.*flood', event.ip_info + event.description)) -> {'protocol': ['dns']}
+        bool(re.findall(r'(?i)udp.*flood', event.ip_info + event.description)) -> {'protocol': ['udp']}
+        bool(re.findall(r'(?i)(ping|icmp).*flood', event.ip_info + event.description)) -> {'protocol': ['icmp']}
+        bool(re.findall(r'(?i)syn.*flood', event.ip_info + event.description)) -> {'protocol': ['tcp']}
       warden_receiver: |-
         'Availability.DoS' in event.categories
         'Availability.DDoS' in event.categories
       misp_receiver: |-
         any([bool(re.findall(r'(?i)d?dos', tag)) for tag in event.tags])
-        any([bool(re.findall(r'(?i)\bdenial[\s_-]of[\s_-]service\b', tag)) for tag in event.tags])
+        any([bool(re.findall(r'(?i)denial[\s_-]of[\s_-]service', tag)) for tag in event.tags])
       blacklists: |-
-        bool(re.findall(r'(?i)http[\s_-]flood', event.ip_info)) -> {'protocol': ['http']}
         bool(re.findall(r'(?i)d?dos', event.ip_info))
 
   ddos-amplifier:
@@ -150,7 +155,7 @@ threat_categorization:
     label: Spam
     triggers:
       general: |-
-        bool(re.findall(r'(?i)\bspam(ming)?\b', event.ip_info + event.description))
+        bool(re.findall(r'(?i)send.*spam', event.ip_info + event.description))
       warden_receiver: |-
         'Abusive.Spam' in event.categories
         any([type == 'Spam' for type in event.source_types])
@@ -250,7 +255,7 @@ threat_categorization:
       - protocol
     triggers:
       general: |-
-        bool(re.findall(r'(?i)attempt(ing)?.*exploit', event.ip_info + event.description))
+        bool(re.findall(r'(?i)attempt.*exploit', event.ip_info + event.description))
       warden_receiver: |-
         'Attempt.Exploit' in event.categories
       otx_receiver: |-
@@ -263,3 +268,6 @@ threat_categorization:
         'circl:incident-classification="sql-injection"' in event.tags
       blacklists: |-
         bool(re.findall(r'(?i)CVE[-_]20', event.ip_info))
+        event.ip_info == 'http-sqli-probing' -> {'protocol': ['http']}
+        event.ip_info == 'http-xss-probing' -> {'protocol': ['http']}
+        event.ip_info == 'http-backdoors-attempts' -> {'protocol': ['http']}
