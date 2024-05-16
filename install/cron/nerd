@@ -11,9 +11,8 @@
 00 * * * * nerd /nerd/scripts/generate_blocklist.sh 0.5 | sort -n > /data/web_data/bad_ips.txt.tmp && mv /data/web_data/bad_ips.txt{.tmp,}
 00 * * * * nerd /nerd/scripts/generate_blocklist.sh 0.2 | sort -n > /data/web_data/bad_ips_med_conf.txt.tmp && mv /data/web_data/bad_ips_med_conf.txt{.tmp,}
 
-# Generate list of IPs and threat categories every hour
-00 * * * * nerd /nerd/scripts/generate_ip_category_list.sh /data/web_data
-00 * * * * nerd /nerd/scripts/generate_category_blocklists.sh 0.5 /data/web_data
+# Generate lists of IPs and their categories every hour
+00 * * * * nerd python3 /nerd/scripts/generate_ip_category_files.py --threshold 0.5 --output /data/web_data
 
 # Remove old IDEA messages from PostgreSQL every day at 03:00
 # (enable if local PSQL is used to store alerts from Warden)
