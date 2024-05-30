@@ -103,7 +103,6 @@ class ClassifiableEvent:
         self.date = download_time.strftime("%Y-%m-%d")
         self.description = blacklist_id
         self.ip_info = str(ip_info)
-        self.description = ""
         self.protocols = []
         self.target_ports = []
 
