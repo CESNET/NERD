@@ -23,6 +23,9 @@ record_life_threshold:
 # Number of days to store meta-data about events in IP records
 max_event_history: 90
 
+# Maximum event age at the time of reception (older events are discarded)
+max_event_reception_age: 7
+
 # MongoDB settings
 mongodb:
   dbname: nerd
