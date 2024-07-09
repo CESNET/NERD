@@ -437,13 +437,20 @@ def stop(signal, frame):
     log.info("exiting")
 
 
-def valid_timestamp(timestamp, max_age):
+def parse_and_validate_timestamp(event, timestamp_name, t_now, max_age):
     """
     Check event timestamp validity.
 
     Timestamps shouldn't be in the future or older than 'max_age'.
     """
-    return datetime.now() >= timestamp >= datetime.now() - timedelta(days=max_age)
+    if timestamp_name in event:
+        t_event = parse_rfc_time(event[timestamp_name])
+        if t_now >= t_event >= t_now - max_age:
+            return t_event
+        else:
+            raise ValueError(f"{timestamp_name}: '{t_event}'")
+    else:
+        return None
 
 
 def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter=None):
@@ -451,6 +458,7 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
     # This loop stops on SIGINT
     log.info("Reading IDEA files from {}/incoming".format(filer_path))
     life_span = timedelta(days=inactive_ip_lifetime)
+    max_age = timedelta(days=int(config.get("max_event_reception_age", 7)))
 
     for (rawdata, event) in read_dir(filer_path, call_when_waiting=put_set_to_database):
         try:
@@ -461,35 +469,28 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
             cat = '+'.join(event["Category"]).replace('.', '')
 
             # Parse and validate event timestamps
-            max_age = int(config.get("max_event_reception_age", 7))
-            detect_time = parse_rfc_time(event["DetectTime"])
-            date = detect_time.strftime("%Y-%m-%d")  # Get date as a string
-            if valid_timestamp(detect_time, max_age):
-                end_time = detect_time
-            else:
-                log.warning(f"event {event['ID']} from {node} ignored because of invalid 'DetectTime' timestamp ({detect_time})")
+            current_time = datetime.utcnow()
+            try:
+                detect_time = parse_and_validate_timestamp(event, "DetectTime", current_time, max_age)
+                event_time = parse_and_validate_timestamp(event, "EventTime", current_time, max_age)
+                winend_time = parse_and_validate_timestamp(event, "WinEndTime", current_time, max_age)
+                cease_time = parse_and_validate_timestamp(event, "CeaseTime", current_time, max_age)
+            except ValueError as e:
+                log.warning(f"event {event['ID']} from {node} ignored because of invalid timestamp ({e})")
                 continue
-            if "EventTime" in event:
-                event_time = parse_rfc_time(event["EventTime"])
-                if valid_timestamp(event_time, max_age):
-                    end_time = event_time
-                else:
-                    log.warning(f"event {event['ID']} from {node} ignored because of invalid 'EventTime' timestamp ({event_time})")
-                    continue
-            if "WinEndTime" in event:
-                winend_time = parse_rfc_time(event["WinEndTime"])
-                if valid_timestamp(winend_time, max_age):
-                    end_time = winend_time
-                else:
-                    log.warning(f"event {event['ID']} from {node} ignored because of invalid 'WinEndTime' timestamp ({winend_time})")
-                    continue
-            if "CeaseTime" in event:
-                cease_time = parse_rfc_time(event["CeaseTime"])
-                if valid_timestamp(cease_time, max_age):
-                    end_time = cease_time
-                else:
-                    log.warning(f"event {event['ID']} from {node} ignored because of invalid 'CeaseTime' timestamp ({cease_time})")
-                    continue
+
+            # Get date as a string
+            date = detect_time.strftime("%Y-%m-%d")
+
+            # Get end time of the event
+            if cease_time:
+                end_time = cease_time
+            elif winend_time:
+                end_time = winend_time
+            elif event_time:
+                end_time = event_time
+            else:
+                end_time = detect_time
 
             # Get number of connections
             if "ConnCount" in event:
