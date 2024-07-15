@@ -1427,8 +1427,8 @@ def misp_event(event_id=None):
         return make_response('ERROR: Insufficient permissions', 403)
     if not misp_inst:
         return render_template("misp_event.html", error="Cannot connect to MISP instance")
-    if not event_id:
-        return render_template("misp_event.html", error="MISP event id not specified")
+    if not event_id or not event_id.isnumeric() or int(event_id) == 0: # ID must be positive integer
+        return make_response("ERROR: Missing or invalid MISP event ID", 404)
 
     event = misp_inst.search(controller="events", eventid=int(event_id))
 
