@@ -469,7 +469,7 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
             cat = '+'.join(event["Category"]).replace('.', '')
 
             # Parse and validate event timestamps
-            current_time = datetime.utcnow()
+            current_time = datetime.utcnow() + timedelta(minutes=5)  # Allow for small discrepancies
             try:
                 detect_time = parse_and_validate_timestamp(event, "DetectTime", current_time, max_age)
                 event_time = parse_and_validate_timestamp(event, "EventTime", current_time, max_age)
