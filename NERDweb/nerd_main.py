@@ -338,6 +338,8 @@ def validator_optional(form, field):
 
 # Filter to strip whitespaces in string
 def strip_whitespace(s):
+    if s is None:
+        return ""
     if isinstance(s, str):
         s = s.strip()
     return s
@@ -1250,8 +1252,9 @@ def ips_download():
                                         row_entry['event_nodes'], row_entry['event_categories_c'], row_entry['event_categories'],
                                         row_entry['rep'], row_entry['blacklists'], row_entry['tags'], row_entry['ts_added'], row_entry['ts_last_event']])
 
-            return flask.send_file(tmp_filename, mimetype="text/csv", attachment_filename="nerd_export.csv", as_attachment=True)
+            return flask.send_file(tmp_filename, mimetype="text/csv", download_name="nerd_export.csv", as_attachment=True)
         else:
+            print(f"_ips_download: Invalid form values! Errors: {form.errors}")
             return make_response("UNEXPECTED ERROR")
     else:
         flash("You are not authorized to download search results.")
