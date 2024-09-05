@@ -280,7 +280,7 @@ iplists:
   
 - id: ssl_blacklist_ips
   name: SSL Blacklist
-  descr: The SSL Blacklist is a project of abuse.ch with the goal of<br>detecting malicious SSL connections and botnet activities.
+  descr: The SSL Blacklist is a project of abuse.ch with the goal of<br>detecting SSL certificates used by botnet C&C servers. NERD uses its list of C&C servers using such certificates.
   firehol_link: http://iplists.firehol.org/?ipset=sslbl
   provider_link: https://sslbl.abuse.ch/
   url: https://sslbl.abuse.ch/blacklist/sslipblacklist.txt
@@ -290,8 +290,8 @@ iplists:
     hour: 19
     minute: 30
   
-- id: urlhouse_ips
-  name: URLHouse
+- id: urlhaus_ips
+  name: URLHaus
   descr: URLhaus is a project from abuse.ch with the goal of sharing<br>malicious URLs that are being used for malware distribution.<br>This list contains IPs that are part of the malicious ULRs.
   provider_link: https://urlhaus.abuse.ch/
   url: https://urlhaus.abuse.ch/downloads/text_online/
@@ -380,7 +380,7 @@ iplists:
   
 - id: dataplane_org_sshclient
   name: DataPlane SSH conn
-  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>has been seen initiating an SSH connection to a remote host.
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>has been seen initiating an unsolicited SSH connection to a remote host.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sshclient
   provider_link: https://dataplane.org/
   url: https://dataplane.org/sshclient.txt
@@ -392,7 +392,7 @@ iplists:
   
 - id: dataplane_org_sshpwauth
   name: DataPlane SSH login
-  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs performing<br>login to a host using SSH password authentication.
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs trying<br>an unsolicited login to a host using SSH password authentication.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sshpwauth
   provider_link: https://dataplane.org/
   url: https://dataplane.org/sshpwauth.txt
@@ -404,7 +404,7 @@ iplists:
   
 - id: dataplane_org_vnc_rfb
   name: DataPlane VNC RFB
-  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs initiating<br>a VNC remote frame buffer (RFB) session to a remote host.
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs initiating<br>an unsolicited VNC remote frame buffer (RFB) session to a remote host.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_vncrfb
   provider_link: https://dataplane.org/
   url: https://dataplane.org/vncrfb.txt
@@ -416,7 +416,7 @@ iplists:
   
 - id: dataplane_org_telnet_login
   name: DataPlane TELNET login
-  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs performing<br>login via TELNET password authentication.
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs trying<br>an unsolicited login via TELNET password authentication.
   provider_link: https://dataplane.org/
   url: https://dataplane.org/telnetlogin.txt
   regex: ".*?(\\A)"
@@ -438,7 +438,7 @@ iplists:
   
 - id: dataplane_org_smtp_data
   name: DataPlane SMTP data
-  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that <br>have been identified as SMTP clients sending DATA commands.
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that <br>have been identified as SMTP clients sending unsolicited DATA commands.
   provider_link: https://dataplane.org/
   url: https://dataplane.org/smtpdata.txt
   regex: ".*?(\\A)"
@@ -460,7 +460,7 @@ iplists:
   
 - id: dataplane_org_sipinvitation
   name: DataPlane SIP invitation
-  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>have been seen initiating a SIP INVITE operation to a remote host.
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>have been seen initiating an unsolicited SIP INVITE operation to a remote host.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipinvitation
   provider_link: https://dataplane.org/
   url: https://dataplane.org/sipinvitation.txt
@@ -472,7 +472,7 @@ iplists:
   
 - id: dataplane_org_sipquery
   name: DataPlane SIP query
-  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>has been seen initiating a SIP OPTIONS query to a remote host.
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>has been seen initiating an unsolicited SIP OPTIONS query to a remote host.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipquery
   provider_link: https://dataplane.org/
   url: https://dataplane.org/sipquery.txt
@@ -484,7 +484,7 @@ iplists:
   
 - id: dataplane_org_sipregistration
   name: DataPlane SIP registration
-  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>have been seen initiating a SIP REGISTER operation to a remote host.
+  descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>have been seen initiating an unsolicited SIP REGISTER operation to a remote host.
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipregistration
   provider_link: https://dataplane.org/
   url: https://dataplane.org/sipregistration.txt
@@ -509,7 +509,7 @@ iplists:
 # AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key and uncomment
 #- id: abuseipdb
 #  name: AbuseIPDB
-#  descr: AbuseIPDB is a project managed by Marathon Studios Inc.<br>IPs performing malicious activity(DDoS, spam, phishing...)
+#  descr: AbuseIPDB is a project managed by Marathon Studios Inc.<br>Lists IPs performing a malicious activity (DDoS, spam, phishing...)
 #  provider_link: https://www.abuseipdb.com/
 #  url: https://api.abuseipdb.com/api/v2/blacklist
 #  regex: ""
