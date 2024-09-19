@@ -13,7 +13,7 @@
 <p>API token: <tt>{{ token.value }}</tt></p>
 <form action="{{ url_for('gen_token')}}" method="POST" {% if token.status == 1 %} onsubmit="return confirm('Are you sure you want to create a new token?');" {% endif %}>
 <input type="submit" value="Generate new token">
-<p><a href="https://github.com/CESNET/NERD/wiki/RESTful-API">API documentation</a></p>
+<p><a href="https://github.com/CESNET/NERD/wiki/API">API documentation</a></p>
 </form>
 
 {% if passwd_form %}
