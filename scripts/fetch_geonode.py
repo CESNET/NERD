@@ -3,6 +3,9 @@
 import requests
 import json
 import math
+import sys
+
+MAX_N_OF_REQUESTS = 100
 
 def get_page(n: int) -> dict:
     '''
@@ -40,6 +43,9 @@ def get_file(n: int) -> str:
 #Calculating number of pages of API to download
 obj = get_page(1)
 pages = math.ceil(obj["total"] / obj["limit"])
+if pages > MAX_N_OF_REQUESTS:
+    print("ERROR: number of pages exceeds the number of allowed requests!", file=sys.stderr)
+    sys.exit(1)
 
 #Write the ip aresses into a file
 with open("geonode_proxy_list.txt", "w") as file:
