@@ -2239,6 +2239,14 @@ def bulk_request():
         log_err.log('403_unauthorized')
         return API_RESPONSE_403
 
+    # Safety check - don't read full POST content into memory if it is too big (to avoid high memory consumption
+    # in case of some mistake or an attack).
+    # (as recommended in docs: https://flask.palletsprojects.com/en/3.0.x/api/#flask.Request.get_data)
+    if request.content_length > 4*1024*1024: # 4 MB
+        log_err.log('400_bad_request')
+        return Response(json.dumps({'err_n': 400, 'error': 'Request too large. No more than 4 MB can be sent in one request to this endpoint.'}), 400,
+                        mimetype='application/json')
+
     ips = request.get_data()
 
     f = request.headers.get("Content-Type", "")
@@ -2282,6 +2290,7 @@ def bulk_request():
         resp = bytearray()
         for x in ip_list:
             resp += struct.pack("d", results[x])
+        resp = bytes(resp) # Response() doesn't support bytearray, convert to bytes
         return Response(resp, 200, mimetype='application/octet-stream')
 
 
