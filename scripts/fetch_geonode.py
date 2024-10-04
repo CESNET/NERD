@@ -1,7 +1,6 @@
 #Author: Adam.Stefanides@cesnet.cz
 
 import requests
-import json
 import math
 import sys
 
@@ -16,15 +15,7 @@ def get_page(n: int) -> dict:
     url = "https://proxylist.geonode.com/api/proxy-list?limit=500&page="
     response = requests.get(url + str(n))
 
-    file_content = b""
-
-    for chunk in response.iter_content(chunk_size=1024):
-        if chunk:
-            file_content += chunk
-            
-    file_string = file_content.decode("utf-8")
-
-    return json.loads(file_string)
+    return response.json()
 
 def get_file(n: int) -> str:
     '''
