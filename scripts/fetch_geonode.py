@@ -39,5 +39,5 @@ if pages > MAX_N_OF_REQUESTS:
     sys.exit(1)
 
 #Write the ip aresses into a file
-with open("geonode_proxy_list.txt", "w") as file:
+with open("/data/blacklists/geonode_proxy_list.txt", "w") as file:
     file.write(get_file(pages))
