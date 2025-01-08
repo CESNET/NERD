@@ -186,7 +186,7 @@ threat_categorization:
       misp_receiver: |-
         any([bool(re.findall(r'(?i)(malware|trojan|ransomware)', tag)) for tag in event.tags]) and event.ip_role == "dst"
       blacklists: |-
-        event.description == 'urlhouse_ips'
+        event.description == 'urlhaus_ips'
 
   cc:
     role: dst
