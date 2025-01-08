@@ -1806,7 +1806,7 @@ def get_ip_info(ipaddr, full):
     else:
         ipinfo = mongo.db.ip.find_one({'_id': ipint},
                                       {'rep': 1, 'fmp': 1, 'hostname': 1, 'bgppref': 1, 'ipblock': 1, 'geo': 1, 'bl': 1,
-                                       'tags': 1})
+                                       'tags': 1, '_threat_category_summary': 1})
     if not ipinfo:
         log_err.log('404_api_ip_not_found')
         data['err_n'] = 404
@@ -1927,6 +1927,15 @@ def get_basic_info_dic(val):
 
         tags_l.append(d)
 
+    threat_category_l = []
+    for rec in val.get('_threat_category_summary', []):
+        threat_category_l.append({
+            'role': rec['r'],
+            'category': rec['c'],
+            'subcategory': rec['s'],
+            'confidence': rec['conf'],
+        })
+
     data = {
         'ip': val['_id'],
         'rep': val.get('rep', 0.0),
@@ -1937,14 +1946,15 @@ def get_basic_info_dic(val):
         'asn': val.get('asn', []),
         'geo': geo_d,
         'bl': bl_l,
-        'tags': tags_l
+        'tags': tags_l,
+        'threat_category': threat_category_l
     }
 
     return data
 
 
 def get_basic_info_dic_short(val):
-    # only 'rep' and 'tags' fields
+    # only 'rep', 'tags' and 'threat_category' fields
     tags_l = []
     for l in val.get('tags', []):
         d = {
@@ -1953,10 +1963,20 @@ def get_basic_info_dic_short(val):
         }
         tags_l.append(d)
 
+    threat_category_l = []
+    for rec in val.get('_threat_category_summary', []):
+        threat_category_l.append({
+            'role': rec['r'],
+            'cat': rec['c'],
+            'subcategory': rec['s'],
+            'conf': rec['conf']
+        })
+
     data = {
         'ip': val['_id'],
         'rep': val.get('rep', 0.0),
-        'tags': tags_l
+        'tags': tags_l,
+        'threat_category': threat_category_l
     }
     return data
 
@@ -2098,6 +2118,12 @@ def get_full_info(ipaddr=None):
             'total7': val.get('events_meta', {}).get('total7', 0.0),
             'total30': val.get('events_meta', {}).get('total30', 0.0),
         },
+        'threat_category': [{
+            'role': rec['r'],
+            'category': rec['c'],
+            'confidence': rec['conf'],
+            'sources': rec['src']
+        } for rec in val.get('_threat_category_summary', [])]
     }
 
     return Response(json.dumps(data), 200, mimetype='application/json')
