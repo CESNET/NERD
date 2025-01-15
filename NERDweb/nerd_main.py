@@ -669,8 +669,8 @@ def noaccount():
 
     request_sent = False
     if form.validate() and form.action.data == 'request_account':
-        # Check presence of config login.request-email
-        if not config.get('login.request-email', None):
+        # Check presence of config mail.recipients
+        if not config.get('mail.recipients', []):
             return make_response(
                 "ERROR: No destination email address configured. This is a server configuration error. Please, report this to NERD administrator if possible.")
         # Send email
@@ -679,7 +679,7 @@ def noaccount():
         email = form.email.data
         message = form.message.data
         msg = Message(subject="[NERD] New account request from {} ({})".format(name, id),
-                      recipients=[config.get('login.request-email')],
+                      recipients=config.get('mail.recipients'),
                       reply_to=email,
                       body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}\n\nMessage:\n{}".format(
                           id, name, g.user.get('email', ''), email, message),

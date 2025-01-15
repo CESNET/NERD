@@ -118,6 +118,15 @@ pdns:
   url: https://passivedns.cesnet.cz/api/v1/
   token: ""
 
+# Parameters for sending emails
+# Available params: server, port, tls (true/false), username, password, sender, recipients (list<str>)
+mail:
+  server: localhost
+  port: 25
+  sender: 'NERD <noreply@nerd.example.com>'
+  recipients:
+    - 'admin@nerd.example.com'
+
 hostname_tagging:
   known_domains:
     - [shodan.io, research_scanner]
