@@ -19,6 +19,9 @@ import signal
 import sys
 from datetime import datetime, timedelta
 import jsonpath_rw_ext
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -465,6 +468,40 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
             # Get name of the detector
             node = event["Node"][-1]["Name"]
 
+            # Notify admin (via email) about previously unseen nodes
+            if node not in known_node_names:
+                known_node_names.append(node)
+                try:
+                    with open(warden_nodes_path, "a") as file:
+                        file.write(node + "\n")
+                except Exception as e:
+                    log.error(f"Cannot open file with known Warden nodes: {e}")
+
+                if not config.get('mail.recipients', []):
+                    log.error("No destination email address configured")
+                else:
+                    try:
+                        mail_user = config.get('mail.username', None)
+                        mail_password = config.get('mail.password', None)
+                        mail_sender = config.get('mail.sender', 'NERD <noreply@nerd.example.com>')
+                        mail_recipients = config.get('mail.recipients')
+
+                        with smtplib.SMTP(config.get('mail.server', 'localhost'), config.get('mail.port', 25)) as server:
+                            if config.get('mail.tls', False):
+                                server.starttls()
+                            if mail_user and mail_password:
+                                server.login(mail_user, mail_password)
+                            msg = MIMEMultipart("alternative")
+                            msg["Subject"] = f"[NERD] New Warden node detected ({node})"
+                            msg["From"] = mail_sender
+                            msg["To"] = ', '.join(mail_recipients)
+                            content = (f"<p>Warden receiver detected a previously unseen node name: <b>{node}</b></p>"
+                                       f"<p>Event {event['ID']} ({', '.join(event['Category'])})</p>")
+                            msg.attach(MIMEText(content, "html"))
+                            server.sendmail(mail_sender, mail_recipients, msg.as_string())
+                    except Exception as e:
+                        log.error(f"ERROR while sending email notification: {e}")
+
             # Get event categories
             cat = '+'.join(event["Category"]).replace('.', '')
 
@@ -560,6 +597,7 @@ if __name__ == "__main__":
 
     inactive_ip_lifetime = config.get('record_life_length.warden', 14)
     warden_filter_rules = config.get('warden_filter', None)
+    warden_nodes_path = config.get('warden_nodes_path', None)
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
 
@@ -571,6 +609,15 @@ if __name__ == "__main__":
             sys.exit(1)
     else:
         warden_filter = None
+
+    # Read file with known node names (or create it if it doesn't exist)
+    try:
+        with open(warden_nodes_path, "a+") as file:
+            file.seek(0)
+            known_node_names = [line.strip() for line in file]
+    except Exception as e:
+        log.fatal("Cannot open file with known Warden nodes: " + str(e))
+        sys.exit(2)
 
     # Get number of processes from config
     num_processes = config.get('worker_processes')

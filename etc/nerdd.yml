@@ -47,6 +47,9 @@ warden_filter:
   - "Category.[*]=Vulnerable.Config OR Category.[*]=Vulnerable.Open ; drop"
   - "; pass"
 
+# Path to a file where Warden receiver stores the list of known node names
+warden_nodes_path: "/data/warden_nodes.txt"
+
 whois:
   asn_file: "/data/nerd-whois-asn.csv"
   ipv4_file: "/data/nerd-whois-ipv4.csv"
