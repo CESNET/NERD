@@ -102,16 +102,18 @@ prefixiplists:
 #  - "\"ip_prefix\": \"(\\CA)\""
 #  - hour: 4
 #    minute: 50
-- id: spamhaus_edrop
-  name: Spamhaus EDROP
-  descr: Spamhaus Extended DROP List. Netblocks controlled by spammers or cyber criminals. The (E)DROP lists are a tiny subset of the SBL, designed for use by firewalls and routing equipment to filter out the malicious traffic from these netblocks.
-  firehol_link: https://iplists.firehol.org/?ipset=spamhaus_edrop
-  provider_link: https://www.spamhaus.org/
-  url: https://www.spamhaus.org/drop/edrop.txt
-  regex: "^(\\CA)"
-  time:
-    hour: "0,6,12,18"
-    minute: 5
+
+# Downloaded via DNS blacklist module
+#- id: spamhaus_drop
+#  name: Spamhaus DROP
+#  descr: Spamhaus DROP (Don't Route Or Peer) list. Netblocks controlled by spammers or cyber criminals. The DROP lists are a tiny subset of the SBL, designed for use by firewalls and routing equipment to filter out the malicious traffic from these netblocks.
+#  firehol_link: https://iplists.firehol.org/?ipset=spamhaus_drop
+#  provider_link: https://www.spamhaus.org/
+#  url: https://www.spamhaus.org/drop/drop.txt
+#  regex: "^(\\CA)"
+#  time:
+#    hour: "0,6,12,18"
+#    minute: 5
 domainlists:
 - id: openphish
   name: OpenPhish
