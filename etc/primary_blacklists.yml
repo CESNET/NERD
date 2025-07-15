@@ -544,3 +544,15 @@ iplists:
 #  time:
 #    hour: 1,9,17
 #    minute: 45
+
+# The Crowdsec community blacklist needs to be loaded from the DB of a running Crowdsec instance connected to Central API.
+# Before enabling it, first install Crowdsec, wait for it to download updates from CAPI and export the blacklist into CSV (uncomment in cron).
+#- id: crowdsec
+#  name: Crowdsec
+#  descr: Crowdsec community blacklist of malicious IPs.
+#  provider_link: https://docs.crowdsec.net/
+#  url: file:///data/blacklists/crowdsec.csv
+#  regex: "^(\\A)"
+#  time:
+#    hour: 1,9,17
+#    minute: 45
