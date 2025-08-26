@@ -292,10 +292,10 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 <p class="caption">Threat category</p>
 <div class="threat_category_detail">
     <table>
-        <tr><th>Role</th><th>Category</th><th>Subcategory</th></tr>
+        <tr><th>Role</th><th>Category</th><th>Details</th><th>Confidence</th></tr>
         {% for row in threat_category_table %}
-            <tr class="threat_category_tooltip" title="{{ row[3] }}">
-            {% for col in row[:3] %}
+            <tr class="threat_category_tooltip" title="{{ row[4] }}">
+            {% for col in row[:4] %}
                 <td>{{ col|safe }}</td>
             {% endfor %}
             </tr>

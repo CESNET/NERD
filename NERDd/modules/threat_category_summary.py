@@ -1,7 +1,7 @@
 """
 NERD module summarizing threat category records.
 
-Should be triggered at least once a day for every address.
+Triggered when _threat_category attribute changes or at least once a day for every address.
 """
 
 from core.basemodule import NERDModule

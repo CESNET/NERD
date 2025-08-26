@@ -52,7 +52,8 @@ class ClassifiableEvent:
             target_ports += target.get('Port', [])
             protocols += target.get('Proto', [])
         self.target_ports = [str(port) for port in set(target_ports)]
-        self.protocols = list(set(protocols))
+        # Protocol list often contains 'tcp'/'udp', but we only want L7 protocol here -> remove the two
+        self.protocols = list(set(protocols) - {'tcp', 'udp'})
 
     def init_otx_receiver(self, pulse):
         """

@@ -74,6 +74,19 @@ dnsbl_config = common.config.read_config(dnsbl_cfg_file)
 categorization_cfg_file = os.path.join(cfg_dir, 'threat_categorization.yml')
 threat_categorization_config = common.config.read_config(categorization_cfg_file)["threat_categorization"]
 
+# Mapping of source IDs usind in DB (e.g. as ttl token) to user readable name
+# This list is used to generate:
+# - a drop-down menu in search form
+# - lists of sources in threat_category tooltips
+# (what is defined here appears on the web, in the same order)
+SOURCE_NAMES = {
+    "warden": "Warden",
+    "bl": "Blacklists",
+    "dshield": "DShield",
+    "otx": "OTX",
+    "misp": "MISP",
+}
+
 # Dict: blacklist_id -> parameters
 #  parameters should contain:
 #    all: id, name, descr, feed_type
@@ -884,18 +897,10 @@ class IPFilterForm(FlaskForm):
         self.country.choices = [(i, '{} - {}'.format(i, ctrydata.names[i])) for i in ctrydata.names.keys()]
 
         # Load numbers of IPs per data source (also precomputed in DB)
-        #  (Numbers of IPs per source are computed from TTL tokens; list of sources to show is hard-coded here, since
+        #  (Numbers of IPs per source are computed from TTL tokens; list of sources to show is hard-coded, since
         #   we don't want to show all used TTL token IDs as data sources.)
-        # mapping of DB name (ttl token) -> user readable name (what is defined here appears on the web, in the same order)
-        source_names = {
-            "warden": "Warden",
-            "bl": "Blacklists",
-            "dshield": "DShield",
-            "otx": "OTX",
-            "misp": "MISP",
-        }
         cnt_by_source = {item["_id"]: item["n"] for item in mongo.db.n_ip_by_ttl.find()}
-        self.source.choices = [(src_id, '{} ({})'.format(src_name, int(cnt_by_source.get(src_id, 0)))) for src_id,src_name in source_names.items()]
+        self.source.choices = [(src_id, '{} ({})'.format(src_name, int(cnt_by_source.get(src_id, 0)))) for src_id,src_name in SOURCE_NAMES.items()]
 
         # Load categorization config to get list of all categories
         self.tc_role.choices = [("src", "Source"), ("dst", "Destination")]
@@ -1171,31 +1176,42 @@ def ips():
 
 
 def create_threat_category_table(category_records, min_confidence, max_subcategory_values):
-    source_names = {
-        'warden': 'Warden',
-        'misp': 'MISP',
-        'otx': 'OTX',
-        'dshield': 'DShield',
-        'bl': 'Blacklists'
-    }
+    """Prepare data about threat category tags - for ips.html as well as the table in ip.html"""
     table_rows = []
     for rec in category_records:
+        # rec is dict with the following fields:
+        #   'r':str - role (src/dst)
+        #   'c':str - category
+        #   'src':dist[str,int] - number of events per source
+        #   's':dict[str,Any] - subcategories/details (proto, port, malware_family)
+        #   'conf':float - confidence
         if rec['conf'] < min_confidence:
             continue
+
+        # Generate tooltip content (as html string)
+        # TODO: This should be done in Jinja template, not here
         category_description = threat_categorization_config.get(rec['c'], {}).get('description', f"ERROR: missing configuration for category '{rec['c']}'")
-        sources_str = ''.join([f"<li>{source_names[source]} ({n_reports})</li>" for source, n_reports in sorted(rec['src'].items())])
+        sources_str = ''.join([f"<li>{SOURCE_NAMES[source]} ({n_reports})</li>" for source, n_reports in sorted(rec['src'].items())])
         tooltip_content = f"<b>{category_description}</b><br/><br/>Confidence: {rec['conf']}<br/>Sources:<br/><ul>{sources_str}</ul>"
+
+        # Generate table rows
+        # row = [role, category, subcategory, confidence, tooltip content]
         subcategories = list(rec['s'].items())
+        # No subcategories -> create single line
         if not subcategories:
-            table_rows.append([rec['r'], rec['c'], "", tooltip_content])
+            table_rows.append([rec['r'], rec['c'], "", rec['conf'], tooltip_content])
+        # Subcategories
         else:
-            key, values = subcategories[0]
-            subcategory_content = f"{key}: {', '.join(values)}" if len(values) <= max_subcategory_values else f"{key}: <i>many</i>"
-            table_rows.append([rec['r'], rec['c'], subcategory_content, tooltip_content])
-            for item in subcategories[1:]:
-                key, values = item
+            # key, values = subcategories[0]
+            # subcategory_content = f"{key}: {', '.join(values)}" if len(values) <= max_subcategory_values else f"{key}: <i>many</i>"
+            # table_rows.append([rec['r'], rec['c'], subcategory_content, tooltip_content])
+            # for item in subcategories[1:]:
+            #     key, values = item
+            #     subcategory_content = f"{key}: {', '.join(values)}" if len(values) <= max_subcategory_values else f"{key}: <i>many</i>"
+            #     table_rows.append(["", "", subcategory_content, tooltip_content])
+            for key, values in subcategories[1:]:
                 subcategory_content = f"{key}: {', '.join(values)}" if len(values) <= max_subcategory_values else f"{key}: <i>many</i>"
-                table_rows.append(["", "", subcategory_content, tooltip_content])
+                table_rows.append([rec['r'], rec['c'], subcategory_content, rec['conf'], tooltip_content])
     return table_rows
 
 
