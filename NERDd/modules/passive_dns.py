@@ -11,6 +11,7 @@ from datetime import datetime
 import requests
 import json
 import os.path
+import re
 
 class Blacklist:
     def __init__(self, redis, id):
@@ -112,7 +113,8 @@ class PassiveDNSResolver(NERDModule):
         try:
             response = requests.get(url, timeout=5)
         except Exception as e: # Connection error
-            self.log.error("Can't query '{}': {}".format(url, e)) 
+            redacted_url = re.sub("=.*$", "=<REDACTED>", url) # don't include API token in logs
+            self.log.error("Can't query '{}': {}".format(redacted_url, e))
             return None
 
         #self.log.debug('Passive DNS query: ' + key + ', status code: ' + str(response.status_code))
