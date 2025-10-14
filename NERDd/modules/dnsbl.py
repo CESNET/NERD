@@ -16,8 +16,11 @@ import select
 import socket
 import logging
 import threading
+import time
 from datetime import datetime, date, timezone
 
+# Print a warning if a DNS query takes longer than 2 seconds (only if performance debugging is enabled)
+LONG_QUERY_THRESHOLD = 2.0 if g.DEBUG_PERFORMANCE else None
 
 # From pycares example "cares-select.py"
 # https://github.com/saghul/pycares/blob/master/examples/cares-select.py
@@ -38,14 +41,14 @@ def _wait_channel(channel):
             channel.process_fd(pycares.ARES_SOCKET_BAD, fd)
 
 
-def _make_result_handler(bl, results):
+def _make_result_handler(bl, results, start_time, log):
     """
     Create callback function using given blacklist spec and writing to given
     results array.
     (note: if you don't understand this way of making a function, google 
     "python closure")
     
-    bl - blacklist configuration (name, zone, dict{result -> blacklist_id})
+    bl - blacklist configuration (zone, dict{result -> blacklist_id})
     results - list to put blacklist_ids
     """
     def handler(res, err):
@@ -55,6 +58,10 @@ def _make_result_handler(bl, results):
         res - list of results (tuples hostname,ttl)
         err - error code
         """
+        if LONG_QUERY_THRESHOLD:
+            query_time = time.time() - start_time
+            if query_time > LONG_QUERY_THRESHOLD:
+                log.warning(f"Long DNSBL query: {bl[0]}, {query_time} sec, results: {res}")
         if res is not None:
             for r in res:
                 blacklist = bl[1].get(r.host, {})
@@ -207,14 +214,16 @@ class DNSBLResolver(NERDModule):
         revip = reverse_ip(ip)
 
         self.log.debug("Querying blacklists for {}".format(ekey))
-        
-        channel = pycares.Channel(servers=self.nameservers)
+
+        # Set ares channel to use given nameservers and set timeout to 2 seconds and max 2 tries
+        channel = pycares.Channel(servers=self.nameservers, timeout=2, tries=2)
         results = []        
         
         # Create queries to all blacklists
         for bl in self.blacklists.items():
+            start_time = time.time()
             channel.query(revip + '.' + bl[0], pycares.QUERY_TYPE_A,
-                _make_result_handler(bl, results)
+                _make_result_handler(bl, results, start_time, self.log)
             )
         # Send all queries and wait for results
         #(they are handled by self._process_result callback)
