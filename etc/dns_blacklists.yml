@@ -107,13 +107,6 @@ dnsbl:
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_noserver
       provider_link: http://www.sorbs.net/
 
-  db.wpbl.info:
-    127.0.0.2:
-      id: wpbl
-      name: WPBL SPAM
-      descr: WPBL is a private block list consisting of IP addresses<br>which connect to members' systems and deliver unsolicited<br>bulk mail (spam).
-      provider_link: http://www.wpbl.info/ 
-
   bl.spamcop.net:
     127.0.0.2:
       id: spamcop
