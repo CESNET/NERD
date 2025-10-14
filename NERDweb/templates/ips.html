@@ -461,7 +461,6 @@
               <a href="http://multirbl.valli.org/lookup/{{ ip._id }}.html" target="_blank"><img src="{{ url_for('static', filename='valli_icon.png') }}"> &nbsp; valli.org</a>
               <a href="#" onclick="$('#bl-check-form-ip').val('{{ip._id}}'); $('#bl-check-form').submit(); return false;"><img src="{{ url_for('static', filename='whatismyipaddress.png') }}"> &nbsp; whatismyipaddress.com</a>
               <a href="https://www.abuseipdb.com/check/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='abuse_ip_db_icon.png') }}"> &nbsp; AbuseIPDB</a>
-              <a href="https://www.threatcrowd.org/ip.php?ip={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='threat_crowd_icon.png') }}"> &nbsp; Threat Crowd</a>
               <a href="https://www.talosintelligence.com/reputation_center/lookup?search={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='talos_icon.png') }}"> &nbsp; Talos Intelligence Center</a>
               <a href="https://viz.greynoise.io/ip/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='greynoise-logo.png') }}"> &nbsp; Greynoise Visualizer</a>
               <a href="https://isc.sans.edu/ipinfo.html?ip={{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='dshield_icon.png') }}"> &nbsp; DShield</a>

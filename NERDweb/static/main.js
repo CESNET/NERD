@@ -52,7 +52,9 @@ $(function() {
     hide: false,
     position: {my: "left bottom", at: "left-7px top-2px", collision: "flipfit"},
     content: function() { return create_event_table(this.dataset) }, /*$(".tooltip_event_table", this).html(); },*/
-    tooltipClass: "events_tooltip"
+    classes: {
+      "ui-tooltip": "events_tooltip"
+    }
   });
   /* jQuery UI tooltip at "threat category" cell with info about each category */
   $( ".threat_category_tooltip" ).tooltip({

@@ -19,6 +19,9 @@ import signal
 import sys
 from datetime import datetime, timedelta
 import jsonpath_rw_ext
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -438,52 +441,117 @@ def stop(signal, frame):
     log.info("exiting")
 
 
+def parse_and_validate_timestamp(event, timestamp_name, t_now, max_age):
+    """
+    Check event timestamp validity.
+
+    Timestamps shouldn't be in the future or older than 'max_age'.
+    """
+    if timestamp_name in event:
+        t_event = parse_rfc_time(event[timestamp_name])
+        if t_now >= t_event >= t_now - max_age:
+            return t_event
+        else:
+            raise ValueError(f"{timestamp_name}: '{t_event}'")
+    else:
+        return None
+
+
 def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, categorization_config, warden_filter=None):
     # Infinite loop reading events as files in given directory
     # This loop stops on SIGINT
     log.info("Reading IDEA files from {}/incoming".format(filer_path))
     life_span = timedelta(days=inactive_ip_lifetime)
+    max_age = timedelta(days=int(config.get("max_event_reception_age", 7)))
 
     for (rawdata, event) in read_dir(filer_path, call_when_waiting=put_set_to_database):
-        # Store the event to EventDB
-        if eventdb is not None:
-            put_to_db_queue(event)
         try:
+            # Get name of the detector
+            node = event["Node"][-1]["Name"]
+
+            # Notify admin (via email) about previously unseen nodes
+            if node not in known_node_names:
+                known_node_names.append(node)
+                try:
+                    with open(warden_nodes_path, "a") as file:
+                        file.write(node + "\n")
+                except Exception as e:
+                    log.error(f"Cannot open file with known Warden nodes: {e}")
+
+                if not config.get('mail.recipients', []):
+                    log.error("No destination email address configured")
+                else:
+                    try:
+                        mail_user = config.get('mail.username', None)
+                        mail_password = config.get('mail.password', None)
+                        mail_sender = config.get('mail.sender', 'NERD <noreply@nerd.example.com>')
+                        mail_recipients = config.get('mail.recipients')
+
+                        with smtplib.SMTP(config.get('mail.server', 'localhost'), config.get('mail.port', 25)) as server:
+                            if config.get('mail.tls', False):
+                                server.starttls()
+                            if mail_user and mail_password:
+                                server.login(mail_user, mail_password)
+                            msg = MIMEMultipart("alternative")
+                            msg["Subject"] = f"[NERD] New Warden node detected ({node})"
+                            msg["From"] = mail_sender
+                            msg["To"] = ', '.join(mail_recipients)
+                            content = (f"<p>Warden receiver detected a previously unseen node name: <b>{node}</b></p>"
+                                       f"<p>Event {event['ID']} ({', '.join(event['Category'])})</p>")
+                            msg.attach(MIMEText(content, "html"))
+                            server.sendmail(mail_sender, mail_recipients, msg.as_string())
+                    except Exception as e:
+                        log.error(f"ERROR while sending email notification: {e}")
+
+            # Get event categories
+            cat = '+'.join(event["Category"]).replace('.', '')
+
+            # Parse and validate event timestamps
+            current_time = datetime.utcnow() + timedelta(minutes=5)  # Allow for small discrepancies
+            try:
+                detect_time = parse_and_validate_timestamp(event, "DetectTime", current_time, max_age)
+                event_time = parse_and_validate_timestamp(event, "EventTime", current_time, max_age)
+                winend_time = parse_and_validate_timestamp(event, "WinEndTime", current_time, max_age)
+                cease_time = parse_and_validate_timestamp(event, "CeaseTime", current_time, max_age)
+            except ValueError as e:
+                log.warning(f"event {event['ID']} from {node} ignored because of invalid timestamp ({e})")
+                continue
+
+            # Get date as a string
+            date = detect_time.strftime("%Y-%m-%d")
+
+            # Get end time of the event
+            if cease_time:
+                end_time = cease_time
+            elif winend_time:
+                end_time = winend_time
+            elif event_time:
+                end_time = event_time
+            else:
+                end_time = detect_time
+
+            # Get number of connections
+            if "ConnCount" in event:
+                conns = int(event["ConnCount"])
+            elif "FlowCount" in event:
+                conns = int(event["FlowCount"])
+            else:
+                conns = 1
+
+            # calculate the timestamp, to which the record should be kept
+            live_till = end_time + life_span
+
+            # Store the event to EventDB
+            if eventdb is not None:
+                put_to_db_queue(event)
+
             if warden_filter and not warden_filter.should_pass(event):
                 log.debug("event {} ignored".format(event["ID"]))
                 continue
             for src in event.get("Source", []):
                 for ipv4 in src.get("IP4", []):
                     # TODO check IP address validity
-
                     log.debug("Updating IPv4 record {}".format(ipv4))
-                    cat = '+'.join(event["Category"]).replace('.', '')
-                    # Parse and reformat detect time
-                    detect_time = parse_rfc_time(event["DetectTime"])  # Parse DetectTime
-                    date = detect_time.strftime("%Y-%m-%d")  # Get date as a string
-
-                    # Get end time of event
-                    if "CeaseTime" in event:
-                        end_time = parse_rfc_time(event["CeaseTime"])
-                    elif "WinEndTime" in event:
-                        end_time = parse_rfc_time(event["WinEndTime"])
-                    elif "EventTime" in event:
-                        end_time = parse_rfc_time(event["EventTime"])
-                    else:
-                        end_time = detect_time
-
-                    node = event["Node"][-1]["Name"]
-
-                    if "ConnCount" in event:
-                        conns = int(event["ConnCount"])
-                    elif "FlowCount" in event:
-                        conns = int(event["FlowCount"])
-                    else:
-                        conns = 1
-
-                    # calculate the timestamp, to which the record should be kept
-                    live_till = end_time + life_span
-
                     updates = [
                         ('array_upsert', 'events',
                          {'date': date, 'node': node, 'cat': cat},
@@ -548,6 +616,7 @@ if __name__ == "__main__":
 
     inactive_ip_lifetime = config.get('record_life_length.warden', 14)
     warden_filter_rules = config.get('warden_filter', None)
+    warden_nodes_path = config.get('warden_nodes_path', None)
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
     categorization_config = {
@@ -564,6 +633,15 @@ if __name__ == "__main__":
             sys.exit(1)
     else:
         warden_filter = None
+
+    # Read file with known node names (or create it if it doesn't exist)
+    try:
+        with open(warden_nodes_path, "a+") as file:
+            file.seek(0)
+            known_node_names = [line.strip() for line in file]
+    except Exception as e:
+        log.fatal("Cannot open file with known Warden nodes: " + str(e))
+        sys.exit(2)
 
     # Get number of processes from config
     num_processes = config.get('worker_processes')

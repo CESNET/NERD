@@ -356,6 +356,8 @@ def validator_optional(form, field):
 
 # Filter to strip whitespaces in string
 def strip_whitespace(s):
+    if s is None:
+        return ""
     if isinstance(s, str):
         s = s.strip()
     return s
@@ -690,8 +692,8 @@ def noaccount():
 
     request_sent = False
     if form.validate() and form.action.data == 'request_account':
-        # Check presence of config login.request-email
-        if not config.get('login.request-email', None):
+        # Check presence of config mail.recipients
+        if not config.get('mail.recipients', []):
             return make_response(
                 "ERROR: No destination email address configured. This is a server configuration error. Please, report this to NERD administrator if possible.")
         # Send email
@@ -700,7 +702,7 @@ def noaccount():
         email = form.email.data
         message = form.message.data
         msg = Message(subject="[NERD] New account request from {} ({})".format(name, id),
-                      recipients=[config.get('login.request-email')],
+                      recipients=config.get('mail.recipients'),
                       reply_to=email,
                       body="A user with the following ID has requested creation of a new account in NERD.\n\nid: {}\nname: {}\nemails: {}\nselected email: {}\n\nMessage:\n{}".format(
                           id, name, g.user.get('email', ''), email, message),
@@ -1335,8 +1337,9 @@ def ips_download():
                                         row_entry['event_nodes'], row_entry['event_categories_c'], row_entry['event_categories'],
                                         row_entry['rep'], row_entry['blacklists'], row_entry['tags'], row_entry['ts_added'], row_entry['ts_last_event']])
 
-            return flask.send_file(tmp_filename, mimetype="text/csv", attachment_filename="nerd_export.csv", as_attachment=True)
+            return flask.send_file(tmp_filename, mimetype="text/csv", download_name="nerd_export.csv", as_attachment=True)
         else:
+            print(f"_ips_download: Invalid form values! Errors: {form.errors}")
             return make_response("UNEXPECTED ERROR")
     else:
         flash("You are not authorized to download search results.")
@@ -1515,8 +1518,8 @@ def misp_event(event_id=None):
         return make_response('ERROR: Insufficient permissions', 403)
     if not misp_inst:
         return render_template("misp_event.html", error="Cannot connect to MISP instance")
-    if not event_id:
-        return render_template("misp_event.html", error="MISP event id not specified")
+    if not event_id or not event_id.isnumeric() or int(event_id) == 0: # ID must be positive integer
+        return make_response("ERROR: Missing or invalid MISP event ID", 404)
 
     event = misp_inst.search(controller="events", eventid=int(event_id))
 
@@ -2356,6 +2359,14 @@ def bulk_request():
         log_err.log('403_unauthorized')
         return API_RESPONSE_403
 
+    # Safety check - don't read full POST content into memory if it is too big (to avoid high memory consumption
+    # in case of some mistake or an attack).
+    # (as recommended in docs: https://flask.palletsprojects.com/en/3.0.x/api/#flask.Request.get_data)
+    if request.content_length > 4*1024*1024: # 4 MB
+        log_err.log('400_bad_request')
+        return Response(json.dumps({'err_n': 400, 'error': 'Request too large. No more than 4 MB can be sent in one request to this endpoint.'}), 400,
+                        mimetype='application/json')
+
     ips = request.get_data()
 
     f = request.headers.get("Content-Type", "")
@@ -2399,6 +2410,7 @@ def bulk_request():
         resp = bytearray()
         for x in ip_list:
             resp += struct.pack("d", results[x])
+        resp = bytes(resp) # Response() doesn't support bytearray, convert to bytes
         return Response(resp, 200, mimetype='application/octet-stream')
 
 

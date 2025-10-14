@@ -72,7 +72,12 @@ class Shodan(NERDModule):
 
         rate_limit_retry_counter = 0
         while True:
-            reply = requests.get(f"https://internetdb.shodan.io/{key}")
+            try:
+                reply = requests.get(f"https://internetdb.shodan.io/{key}")
+            except Exception as e:
+                self.log.error(f"Shodan request failed: {e}")
+                return None
+
             if reply.status_code == 404:
                 # Shodan does not have any data about this IP address
                 if 'shodan' in rec:

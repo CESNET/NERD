@@ -43,15 +43,15 @@ bl_all_types = {
 ###############################################################################
 
 def compile_regex(regex):
-    if "\\A" in regex:
+    if r"\\A" in regex:
         # replace "special" configuration character for IP address
-        regex = regex.replace("\\A", "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
-    if "\\CA" in regex:
+        regex = regex.replace(r"\\A", r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
+    if r"\\CA" in regex:
         # replace "special" configuration character for CIDR IP address (192.168.0.0/16)
-        regex = regex.replace("\\CA", "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}")
-    if "\\P" in regex:
+        regex = regex.replace(r"\\CA", r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}")
+    if r"\\P" in regex:
         # replace "special" configuration character for IP or CIDR
-        regex = regex.replace("\\P", "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(\/\d{1,2})?")
+        regex = regex.replace(r"\\P", r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(\/\d{1,2})?")
     return re.compile(regex)
 
 

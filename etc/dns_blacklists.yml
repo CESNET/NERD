@@ -24,7 +24,7 @@ dnsbl:
     127.0.0.9:
       id: spamhaus-drop
       name: Spamhaus DROP
-      descr: The Spamhaus DROP (Don't Route Or Peer) lists are advisory"drop all traffic" lists.<br>The DROP lists are a tiny subset<br>of the SBL, designed for use by firewalls<br>and routing equipment to filter out the malicious traffic from these netblocks.
+      descr: Spamhaus DROP (Don't Route Or Peer) list. Netblocks controlled by spammers or cyber criminals.<br>The DROP lists are a tiny subset<br>of the SBL, designed for use by firewalls<br>and routing equipment to filter out the malicious traffic from these netblocks.
       firehol_link: http://iplists.firehol.org/?ipset=spamhaus_drop
       provider_link: https://www.spamhaus.org/drop/ 
 

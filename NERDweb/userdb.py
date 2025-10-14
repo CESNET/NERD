@@ -1,5 +1,6 @@
 # NERDweb module for handling user database
 from __future__ import print_function
+from datetime import datetime
 import string
 import random
 import os.path
@@ -132,6 +133,10 @@ def get_user_info(session):
         ac = get_ac_func(set(user['selected_groups']))
     else:
         ac = get_ac_func(user['groups'])
+
+    # Update timestamp of the users last login
+    t_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute("UPDATE users SET t_last_login = %s WHERE id = %s", (t_now, user['fullid']))
     return user, ac
 
 
@@ -149,6 +154,10 @@ def authenticate_with_token(token):
     user.update(zip(col_names, row))
     user['groups'] = set(user['groups'])
     ac = get_ac_func(user['groups'])
+
+    # Update timestamp of the users last API call
+    t_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute("UPDATE users SET t_last_api_call = %s WHERE api_token = %s", (t_now, token))
     return user, ac
 
 def generate_unique_token(user):

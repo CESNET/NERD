@@ -14,7 +14,7 @@ redis:
   db: 0
 
 iplists:
-- - list_id  # unique list ID, should't contains spaces ' ' or colons ':'
+- - list_id  # unique list ID, shouldn't contain spaces ' ' or colons ':'
   - list_name
   - url
   - regex_or_empty # empty string or None ('~' in yaml)
@@ -34,7 +34,7 @@ Format of IP lists in Redis:
   bl:<id>:name -> human readable name of the blacklist (shown in web interface)
   bl:<id>:time -> time of last blacklist update (in ISO format)
   bl:<id>:list -> SET of IPs that are on the blacklist
-where <id> is unique name of the blacklist (should't contains spaces ' ' or colons ':')
+where <id> is unique name of the blacklist (shouldn't contain spaces ' ' or colons ':')
 
 Prefix IP lists are stored in the same way, using prefix "pbl" (prefix) instead of "bl".
 
@@ -50,6 +50,7 @@ import re
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.executors.pool import ThreadPoolExecutor
+import threading
 from datetime import datetime
 import time
 import signal
@@ -61,7 +62,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(
 parser = argparse.ArgumentParser(
     description="Download blacklists and put them into Redis to be used by NERD workers. Runs permanently and downloads blacklists at times specified in config file.")
 parser.add_argument("-c", metavar="FILE", dest='cfg_file', default="/etc/nerd/blacklists.yml",
-                    help="Path to configuration file (defualt: /etc/nerd/blacklists.yml)")
+                    help="Path to configuration file (default: /etc/nerd/blacklists.yml)")
 parser.add_argument("-f", "--force-refresh", action="store_true",
                     help="Force redownload of all blacklists upon start even if they already exist in Redis.")
 parser.add_argument("-o", "--one-shot", action="store_true",
@@ -80,15 +81,17 @@ bl_all_types = {
     'domain': {'db_prefix': "dbl:", 'singular': "domain", 'plural': "domains"}
 }
 
+print_lock = threading.Lock() # a Lock to avoid multiple threads printing to stdout at the same time
 
 def vprint(*_args, **kwargs):
     # Verbose print
     if not args.quiet:
-        print("[{}] ".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), end="")
-        print(*_args, **kwargs)
+        with print_lock:
+            print("[{}] ".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), end="")
+            print(*_args, **kwargs)
 
 
-def download_blacklist(blacklist_url, params={}):
+def download_blacklist(blacklist_url, params=None):
     """
     Downloads desired blacklist and returns it as string
     :param blacklist_url: URL of the blacklist
@@ -96,6 +99,8 @@ def download_blacklist(blacklist_url, params={}):
         headers' (HTTP headers), ...
     :return: Downloaded blacklist as string
     """
+    if params is None:
+        params = {}
     if blacklist_url.startswith("http://") or blacklist_url.startswith("https://"):
         data = None
         try:
@@ -210,7 +215,7 @@ def parse_blacklist(bl_data, bl_type, regex=None):
     :param bl_type: Type of blacklist (ip|prefixIP|domain)
     :param regex: Regular expression, which may be used for parsing records
     :return: List of individual blacklist records and length of blacklist (len of prefixIP blacklist needs to be
-        calculated before collapsing range)
+        calculated before collapsing ranges)
     """
     bl_records = []
     prefix_bl_length = 0
@@ -223,7 +228,7 @@ def parse_blacklist(bl_data, bl_type, regex=None):
     # if the blacklist was prefix blacklist, try to collapse ranges
     if bl_type == "prefixIP":
         prefix_bl_length = len(bl_records)
-        print("prefixbl length after collapsing: " + str(prefix_bl_length))
+        #vprint("IP range blacklist length before collapsing: " + str(prefix_bl_length))
         # remove overlaps from range IP blacklists
         bl_records = ipaddress.collapse_addresses(bl_records)
 
@@ -300,7 +305,7 @@ def get_blacklist(id, name, url, regex, bl_type, params):
     save_blacklist_to_redis(bl_records, id, name, bl_type, prefix_bl_length)
 
 
-# Signal handler to gracefully shutdown the program (on SIGINT or SIGTERM)
+# Signal handler to gracefully shut down the program (on SIGINT or SIGTERM)
 def stop_program(signum, frame):
     vprint("Signal received, going to exit")
     scheduler.shutdown()

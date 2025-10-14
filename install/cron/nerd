@@ -30,6 +30,10 @@
 # rsync Crowdsec blacklist 3 times a day
 42 01,09,17 * * * nerd rsync -zq logs.liberouter.org::crowdsec/crowdsec_blacklist.csv /data/blacklists/crowdsec.csv
 
+# Export Crowdsec community blacklist to CSV
+# (enable if you're using Crowdsec)
+#42 01,09,17 * * * nerd sqlite3 -csv /opt/crowdsec/data/crowdsec.db "SELECT value, scenario FROM decisions WHERE origin='CAPI';" > /data/blacklists/crowdsec.csv
+
 # Check Apache log for 5xx errors every hour. If grep produces output, it's sent to the email contact.
 # Run at the end of every hour and simply filter all log lines with the current hour (not perfect, but simple)
 #59 * * * * root egrep "$(date +\%d/\%b/\%Y:\%H).* 5[0-9][0-9] [0-9]+" /var/log/httpd/ssl_access_log
