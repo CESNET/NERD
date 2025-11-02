@@ -1,5 +1,3 @@
-# This is the recommended robots.txt. Put it in such a way it's accessible from the site's root, eg. directly into /var/www/html/.
-
 User-Agent: *
 Disallow: /nerd/login/
 Disallow: /nerd/_ips_count
@@ -7,3 +5,17 @@ Disallow: /nerd/api/
 Disallow: /nerd/ajax/
 Disallow: /nerd/pdns/
 Disallow: /nerd/misp_event/
+Disallow: /Shibboleth.sso
+
+# Disallow some bots that generate a lot of traffic and we think it is not useful
+
+# OpenAI bot crawling training data - it doesn't make sense to use NERDs dynamic data for training (bots for search and user actions are still allowed)
+User-Agent: GPTBot
+Disallow: /nerd/
+Disallow: /Shibboleth.sso
+
+# Moz.com crawler for their backlink checker - lot of traffic and useless to search backlinks in NERD data
+User-Agent: DotBot
+Disallow: /nerd/
+Disallow: /Shibboleth.sso
+
