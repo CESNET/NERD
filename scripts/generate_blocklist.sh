@@ -20,7 +20,7 @@ fi
 
 echo "# IP addresses in NERD database with reputation score over ${thr} (excluding whitelisted ones). Generated at $(date -u '+%Y-%m-%d %H:%M UTC')"
 
-mongosh nerd --quiet --eval '
+mongosh "$(cat /etc/nerd/mongodb_credentials)" --quiet --eval '
 function int2ip (ipInt) {
   return ( (ipInt>>>24) + "." + (ipInt>>16 & 255) + "." + (ipInt>>8 & 255) + "." + (ipInt & 255) );
 }

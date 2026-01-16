@@ -174,10 +174,18 @@ mongo_dbname = config.get('mongodb.dbname', 'nerd')
 mongo_host = config.get('mongodb.host', 'localhost:27017')
 if isinstance(mongo_host, list):
     mongo_host = ','.join(mongo_host)
-mongo_uri = "mongodb://{}/{}".format(mongo_host, mongo_dbname)
 mongo_rs = config.get('mongodb.rs', None)
+mongo_username = config.get('mongodb.username', None)
+mongo_password = config.get('mongodb.password', None)
+if mongo_username and mongo_password:
+    mongo_uri = f"mongodb://{mongo_username}:{mongo_password}@{mongo_host}/{mongo_dbname}?authSource={mongo_dbname}"
+else:
+    mongo_uri = f"mongodb://{mongo_host}/{mongo_dbname}"
 if mongo_rs:
-    mongo_uri += '?replicaSet='+mongo_rs
+    if '?' in mongo_uri:
+        mongo_uri += f"&replicaSet={mongo_rs}"
+    else:
+        mongo_uri += f"?replicaSet={mongo_rs}"
 app.config['MONGO_URI'] = mongo_uri
 print("MongoDB: Connecting to: {}".format(mongo_uri))
 

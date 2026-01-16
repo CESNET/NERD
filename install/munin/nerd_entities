@@ -15,7 +15,7 @@ END
 fi
 
 # grep is used because mongosh puts an empty line at the end that we don't want there
-mongosh nerd --quiet --eval "
+mongosh "$(cat /etc/nerd/mongodb_credentials)" --quiet --eval "
   print('ip.value', db.ip.estimatedDocumentCount());
   print('bgppref.value', db.bgppref.estimatedDocumentCount());
   print('ipblock.value', db.ipblock.estimatedDocumentCount());

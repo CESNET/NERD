@@ -1,9 +1,9 @@
 #MAILTO=someone@example.org
 
 # Update metainformation about numbers of IPs with particular event Category and Node
-*/30 * * * * nerd mongosh --quiet nerd /nerd/scripts/update_db_meta_info.js
+*/30 * * * * nerd mongosh "$(cat /etc/nerd/mongodb_credentials)" --quiet /nerd/scripts/update_db_meta_info.js
 # Compute reputation scores of BGP prefixes once an hour
-55 * * * * nerd mongosh --quiet nerd /nerd/scripts/set_prefix_repscore.js
+55 * * * * nerd mongosh "$(cat /etc/nerd/mongodb_credentials)" --quiet /nerd/scripts/set_prefix_repscore.js
 
 # Generate list of IPs and reputation scores every hour
 # (generate to a temp file and rename to avoid clients reading an incomplete file)

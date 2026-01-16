@@ -2,7 +2,7 @@
 
 if [[ "$1" == "config" ]]; then
   # Get list of nodes in the replica-set
-  nodes=$(mongosh nerd --quiet --eval 'rs.status().members.forEach((x)=>{print(x.name)})')
+  nodes=$(mongosh "$(cat /etc/nerd/mongodb_credentials)" --quiet --eval 'rs.status().members.forEach((x)=>{print(x.name)})')
   cat <<'END'
 graph_title MongoDB replica-set status
 graph_info Status of individual nodes of the MongoDB replica-set
@@ -24,4 +24,4 @@ fi
 
 # Get list of nodes in the replica-set and their status
 # Print directly in munin format: <node_name>.value <state>
-mongosh nerd --quiet --eval 'rs.status().members.forEach((x)=>{print(x.name.replace(/\./g, "_") + ".value " + x.state)})'
+mongosh "$(cat /etc/nerd/mongodb_credentials)" --quiet --eval 'rs.status().members.forEach((x)=>{print(x.name.replace(/\./g, "_") + ".value " + x.state)})'

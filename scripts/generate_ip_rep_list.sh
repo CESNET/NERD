@@ -7,7 +7,7 @@
 echo "# All IP addresses and their reputation scores in NERD database. Generated at $(date -u '+%Y-%m-%d %H:%M UTC')"
 
 # grep is used because mongosh puts an empty line at the end that we don't want there
-mongosh nerd --quiet --eval '
+mongosh "$(cat /etc/nerd/mongodb_credentials)" --quiet --eval '
 function int2ip (ipInt) {
   return ( (ipInt>>>24) + "." + (ipInt>>16 & 255) + "." + (ipInt>>8 & 255) + "." + (ipInt & 255) );
 }

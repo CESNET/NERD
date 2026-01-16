@@ -28,6 +28,8 @@ max_event_reception_age: 7
 
 # MongoDB settings
 mongodb:
+  username: nerd
+  password: nerd
   dbname: nerd
   # Standalone - just specify host:port
   host: localhost:27017
