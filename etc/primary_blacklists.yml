@@ -505,6 +505,17 @@ iplists:
   time:
     hour: "0,6,12,18"
     minute: 5
+
+# LightScope
+- id: lightscope
+  name: LightScope
+  descr: LightScope observes traffic sent to closed ports on production machines
+  provider_link: https://thelightscope.com/
+  url: https://thelightscope.com/blocklist/20250625_iuoxafljcsnherjfheocpjgzqaasjfqptdkvpfholhsoxhogevqhav/recommended
+  regex: "^(\\A)"
+  time:
+    hour: 11
+    minute: 30
   
 # AbuseIPDB blacklist is available to authorized users only, fill in the "Key" below with your API key and uncomment
 #- id: abuseipdb
