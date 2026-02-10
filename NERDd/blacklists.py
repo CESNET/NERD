@@ -238,7 +238,7 @@ if __name__ == "__main__":
     log.info("Loading config file {}".format(categorization_cfg_file))
     config.update(common.config.read_config(categorization_cfg_file))
     categorization_config = {
-        "categories": config.get('threat_categorization'),
+        "categories": config.get('threat_categories'),
         "malware_families": common.config.read_config(config.get('malpedia_family_list_path'))
     }
 

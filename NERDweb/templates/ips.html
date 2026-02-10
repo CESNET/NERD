@@ -319,8 +319,8 @@
   <th>Device type</th>-->
   <th title="Reputation score (first experimental algorithm - takes into account number of events and number of detectors per day, from last 14 days with linearly decreasing weight by age)">Rep.<sup><a href="https://github.com/CESNET/NERD/wiki/Reputation-score" title="More information about reputation score" target="_blank">(?)</a></sup></th>
   {% if ac('fmp') %}<th title="Future Maliciousness Probability score">FMP</th>{% endif %}
-  <th>Other properties</th>
   <th>Threat category</th>
+  <th>Other properties</th>
   <th>Time added</th>
   <th>Last activity</th>
   <th title="Links to external services">Links</th>
@@ -367,6 +367,23 @@
     {{ "%.3f"|format(ip.fmp.general) if fmp is defined else "---" }}
   </td>
   {% endif %}
+  <td>
+    <div class="threat_category_preview">
+      {% if ip._threat_category_data_for_tags %}
+        {% for tag in ip._threat_category_data_for_tags %}
+            <table class="threat_tag threat_category_tooltip" style="border-color: {{tag.role_color}}" title="{{ tag.tooltip }}">
+            <tr>
+              <td class="threat_tag_1" style="background-color: {{tag.role_color}}">{{ tag.role|safe }}</td>
+              <td class="threat_tag_2" style="background-color: {{tag.cat_color}}">{{ tag.cat|safe }}</td>
+              {% if tag.subcats -%}
+              <td class="threat_tag_3" style="background-color: {{tag.cat_color}}">{% for subcat in tag.subcats %}{{ subcat|safe }}<br>{% endfor %}</td>
+              {%- endif %}
+            </tr>
+            </table>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </td>
   <td class="other">
     {% if ip.bl -%}
       {% set bl_cnt = ip.bl|selectattr("v")|list|length -%}
@@ -393,7 +410,8 @@
     {% if ip.open_ntp %}<span class="tag amplifier ntp">Open NTP</span>{% endif %}
     {% if ip.open_snmp %}<span class="tag amplifier snmp">Open SNMP</span>{% endif %}
   #}
-  
+
+  {#
     {% if ip.tags %}
       {% for tag_id,tag_param in ip.tags.items() %}
         {% if tag_id in config_tags and "name" in config_tags[tag_id] %}
@@ -429,26 +447,11 @@
         {% endif %}
       {% endfor %}
     {% endif %}
-
+  #}
     {% if ip.shodan %}
       {% if ip.shodan.ports %}<span class="tag shodan" title="Ports opened on that IP according to Shodan's InternetDB:<br>{{ip.shodan.ports|join(', ')}}<br>Note, that this information may be more than a week old. Click on Shodan logo to see the latest information on the Shodan web."><a href="https://www.shodan.io/host/{{ ip._id }}" target="_blank"><img src="{{ url_for('static', filename='shodan_icon.png') }}" style="width: 0.9em; height: 0.9em"></a>&nbsp;{{ip.shodan.ports|join_max(5)}}</span>{% endif %}
       {% if ip.shodan.tags %}<span class="tag shodan" title="Tag(s) on Shodan's InternetDB">{{ip.shodan.tags|join(', ')}}</span>{% endif %}
     {% endif %}
-  </td>
-  <td>
-    <div class="threat_category_preview">
-      {% if ip._threat_category_table %}
-        <table>
-        {% for row in ip._threat_category_table %}
-            <tr class="threat_category_tooltip" title="{{ row[3] }}">
-            {% for col in row[:3] %}
-                <td>{{ col|safe }}</td>
-            {% endfor %}
-            </tr>
-        {% endfor %}
-        </table>
-      {% endif %}
-    </div>
   </td>
   <td class="time" {% if ip.ts_added %}data-time={{ ip.ts_added|date_to_int }}{% endif %}>{{ip.ts_added.strftime("%Y-%m-%d %H:%M:%S") if ip.ts_added else "--"}}</td>
   <td {% if ip.last_activity %}class="time" data-time={{ ip.last_activity|date_to_int }}{% endif %}>{{ip.last_activity.strftime("%Y-%m-%d %H:%M:%S") if ip.last_activity else "--"}}</td>

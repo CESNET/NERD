@@ -303,9 +303,11 @@ class UpdateManager:
         self.elog_op = g.ecl.get_group("rec_ops", True) # True = return DummyEventGroup if there's no configuration for given group name
         self.elog_by_src = g.ecl.get_group("tasks_by_src", True)
 
-        # This is here for performance debugging - measuring the time spent in each handler function
-#        self.t_handlers = Counter()
-#        self.logging_scheduler.register(self.log_t_handlers, second="*/60")
+        # Counter for performance debugging - measuring the time spent in each handler function
+        # A summary is printed every minute
+        if g.DEBUG_PERFORMANCE:
+            self.t_handlers = Counter()
+            g.scheduler.register(self.log_t_handlers, minute="*")
 
 
     def register_handler(self, func, etype, triggers, changes):
@@ -565,7 +567,8 @@ class UpdateManager:
         #     updates (2-tuples (key, new_value) or (event, param) which triggered the function.
         #   may_change - set of attributes that may be changed by planned function calls
 
-#        t1 = time.time()
+        if g.DEBUG_PERFORMANCE:
+            t1 = time.time()
 
         # Check whether a new record should not be created in case every operation is 'weak' (starts with '*')
         weak_op = True
@@ -603,9 +606,10 @@ class UpdateManager:
             return False
         
         requests_to_process = update_requests
-        
-#        t2 = time.time()
-#        t_handlers = {}
+
+        if g.DEBUG_PERFORMANCE:
+            t2 = time.time()
+            t_handlers = {}
         
         # *** Now we have the record, process the requested updates ***
         
@@ -699,7 +703,8 @@ class UpdateManager:
             # Call the event handler function.
             # Set of requested updates of the record should be returned
             #self.log.debug("Calling: {}(({}, {}), rec, {})".format(get_func_name(func), etype, eid, updates))
-#            t_handler1 = time.time()
+            if g.DEBUG_PERFORMANCE:
+                t_handler1 = time.time()
             try:
                 reqs = func((etype, eid), rec, updates)
             except Exception as e:
@@ -707,8 +712,10 @@ class UpdateManager:
                     .format(get_func_name(func), etype, eid, updates) )
                 g.ecl['errors'].log('error_in_module')
                 reqs = []
-#            t_handler2 = time.time()
-#            t_handlers[get_func_name(func)] = t_handler2 - t_handler1
+            if g.DEBUG_PERFORMANCE:
+                t_handler2 = time.time()
+                # Add time spent in this handler function to global counter
+                t_handlers[get_func_name(func)] = t_handler2 - t_handler1
 
             # Set requested updates to requests_to_process
             if reqs:
@@ -728,8 +735,9 @@ class UpdateManager:
         
         # Set ts_last_update
         rec['ts_last_update'] = datetime.utcnow()
-        
-#        t3 = time.time()
+
+        if g.DEBUG_PERFORMANCE:
+            t3 = time.time()
 
         # Remove or update processed database record
         if deletion:
@@ -740,13 +748,14 @@ class UpdateManager:
             self.db.put(etype, eid, rec)
             self.elog_op.log(etype+'_updated') # normal record update
 
-        
-#        t4 = time.time()
-#        #if t4 - t1 > 1.0:
-#        #    self.log.info("Entity ({}:{}): load: {:.3f}s, process: {:.3f}s, store: {:.3f}s".format(etype, eid, t2-t1, t3-t2, t4-t3))
-#        #    self.log.info("  handlers:" + ", ".join("{}: {:.3f}s".format(fname, t) for fname, t in t_handlers))
-#
-#        self.t_handlers.update(t_handlers)
+        if g.DEBUG_PERFORMANCE:
+            t4 = time.time()
+            # If this task took longer than 1.0 sec, print details
+            if t4 - t1 > 1.0:
+                self.log.warning("Task processing took too long: Entity ({}:{}): load: {:.3f}s, process: {:.3f}s, store: {:.3f}s\n".format(etype, eid, t2-t1, t3-t2, t4-t3) +
+                    "  handlers: " + ", ".join("{}: {:.3f}s".format(fname, t) for fname, t in t_handlers.items()))
+            # Add run-times of handler functions to the global counter
+            self.t_handlers.update(t_handlers)
         
         return new_rec_created
 
@@ -773,7 +782,7 @@ class UpdateManager:
         return s
 
     def log_t_handlers(self):
-        print("Handler function running times:")
+        print("Handler function running times (total times within last 60 seconds, top-10):")
         for name, t in self.t_handlers.most_common(10):
             print("{:50s} {:7.3f}".format(name, t))
         self.t_handlers = Counter()

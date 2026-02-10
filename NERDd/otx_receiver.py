@@ -87,7 +87,7 @@ categorization_cfg_file = os.path.join(config_base_path, 'threat_categorization.
 logger.info("Loading config file {}".format(categorization_cfg_file))
 config.update(read_config(categorization_cfg_file))
 categorization_config = {
-    "categories": config.get('threat_categorization'),
+    "categories": config.get('threat_categories'),
     "malware_families": read_config(config.get('malpedia_family_list_path'))
 }
 

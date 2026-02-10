@@ -47,13 +47,14 @@ class ClassifiableEvent:
         self.ip_info = source.get('Note', "")
         self.source_types = source.get('Type', [])
         target_ports = []
-        protocols = source.get('Proto', [])
+        protocols = []
+        for source in event.get('Source', []):
+            protocols += source.get('Proto', [])
         for target in event.get('Target', []):
             target_ports += target.get('Port', [])
             protocols += target.get('Proto', [])
         self.target_ports = [str(port) for port in set(target_ports)]
-        # Protocol list often contains 'tcp'/'udp', but we only want L7 protocol here -> remove the two
-        self.protocols = list(set(protocols) - {'tcp', 'udp'})
+        self.protocols = list(set(protocols) - {'tcp', 'udp'}) # don't include L4 protocols (TCP, UDP), keep just the application layer ones
 
     def init_otx_receiver(self, pulse):
         """

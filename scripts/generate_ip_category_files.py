@@ -32,7 +32,7 @@ args = parser.parse_args()
 
 # read categorization config
 config = read_config(args.cfg_file)
-categories = [cat for cat in config.get('threat_categorization')]
+categories = [cat for cat in config.get('threat_categories')]
 categories.remove("unknown")
 
 # bash script used to execute the DB query

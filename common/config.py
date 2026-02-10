@@ -21,15 +21,20 @@ def hierarchical_get(self, key, default=NoDefault):
     instead.
     """
     d = self
+    full_key = key
     try:
         while '.' in key:
             first_key, key = key.split('.', 1)
             d = d[first_key]
-        return d[key]
+        result = d[key]
+        if isinstance(result, dict):
+            return HierarchicalDict(result)
+        else:
+            return result
     except (KeyError, TypeError):
         pass # not found - continue below
     if default is NoDefault:
-        raise MissingConfigError("Mandatory configuration element is missing: " + key)
+        raise MissingConfigError("Mandatory configuration element is missing: " + full_key)
     else:
         return default
 

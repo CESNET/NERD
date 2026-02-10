@@ -2,6 +2,10 @@
 # Used for malware subcategory classification
 malpedia_family_list_path: "/data/malpedia/malware_families.yml"
 
+# Colors for roles (src/dst) used in tags in web UI
+role_colors:
+  src: "#ffaa66" # light orange
+  dst: "#ff595b" # light red
 
 # Threat categorization
 # Structure:
@@ -10,6 +14,7 @@ malpedia_family_list_path: "/data/malpedia/malware_families.yml"
 #   - role: IP role (src/dst) that will be assigned along with the main category
 #   - label: Displayed name of the category
 #   - description: General description of the category
+#   - color: Color of the category tag in web UI (any CSS-compatible format)
 #   - subcategories: List of required subcategories (port, protocol, malware_family)
 #           Supported subcategories:
 #           - port
@@ -41,16 +46,18 @@ malpedia_family_list_path: "/data/malpedia/malware_families.yml"
 #             - protocols: List of protocols used by the IP
 #             - target_ports: List of target ports used by the IP
 
-threat_categorization:
+threat_categories:
   unknown:
     role: src
-    description: The IP was reported as a source of malicious/unexpected/rouge packets, but without any further specification.
+    description: The IP was reported as a source of malicious/unexpected/rogue packets, but without any further specification.
     label: Unknown
+    color: "#cccccc"
 
   scan:
     role: src
-    description: The IP address performs a common network scanning, i.e. it tries to connect to various targets to search for open ports/services.
+    description: The IP address performs network scanning, i.e. it tries to connect to various targets to search for open ports/services.
     label: Scanning
+    color: "#aaffff"
     subcategories:
       - port
     triggers:
@@ -70,10 +77,11 @@ threat_categorization:
         event.ip_info == 'crowdsecurity/http-probing'
         event.ip_info == 'crowdsecurity/http-sensitive-files'
 
-  bruteforce:
+  login:
     role: src
-    description: The IP performs dictionary (or bruteforce) attacks on password-protected services. Usually accompanied with scanning - searching for the targeted service.
-    label: Bruteforce
+    description: The IP tries to access password-protected services without authorization (e.g. dictionary or bruteforce attacks, login attempts on honeypots).
+    label: Login attempts
+    color: "#55ddaa"
     subcategories:
       - protocol
       - port
@@ -113,6 +121,7 @@ threat_categorization:
     role: src
     description: The IP has been observed as a source of volumetric (D)DoS attacks.
     label: DDoS
+    color: "#c44a48"
     triggers:
       general: |-
         bool(re.findall(r'(?i)http.*flood', event.ip_info + event.description)) -> {'protocol': ['http']}
@@ -133,6 +142,7 @@ threat_categorization:
     role: dst
     description: The IP runs a service which can be (and often is) misused as an amplifier for DDoS attacks, e.g. open DNS resolvers, NTP servers, memcached, etc.
     label: DDoS amplifier
+    color: "#ff9769"
     subcategories:
       - protocol
     triggers:
@@ -153,6 +163,7 @@ threat_categorization:
     role: src
     description: The IP is sending spam.
     label: Spam
+    color: "#2255bb"
     triggers:
       general: |-
         bool(re.findall(r'(?i)send.*spam', event.ip_info + event.description))
@@ -170,8 +181,9 @@ threat_categorization:
 
   malware_distribution:
     role: dst
-    description: The IP is used to distribute a malware, e.g. hosts an HTTP URL from which a malware is being downloaded.
+    description: The IP is used to distribute malware (e.g. hosts an HTTP URL from which a malware is being downloaded).
     label: Malware distribution
+    color: "#dd77ff"
     subcategories:
       - malware_family
     triggers:
@@ -190,8 +202,9 @@ threat_categorization:
 
   cc:
     role: dst
-    description: The IP is used as Command&Control server for a botnet/malware.
+    description: The IP is used as a Command&Control server for a botnet/malware.
     label: Command and control
+    color: "#ff77dd"
     subcategories:
       - malware_family
     triggers:
@@ -218,6 +231,7 @@ threat_categorization:
     role: src
     description: The IP is acting as a bot/drone of a botnet.
     label: Botnet drone
+    color: "#d090d0"
     subcategories:
       - malware_family
     triggers:
@@ -236,6 +250,7 @@ threat_categorization:
     role: dst
     description: The IP is hosting a phishing website.
     label: Phishing site
+    color: "#dddd00"
     triggers:
       general: |-
         bool(re.findall(r'(?i)phishing.*site', event.ip_info + event.description))
@@ -251,6 +266,7 @@ threat_categorization:
     role: src
     description: The IP is attempting to exploit known vulnerabilities.
     label: Exploit
+    color: "#22ee88"
     subcategories:
       - protocol
     triggers:

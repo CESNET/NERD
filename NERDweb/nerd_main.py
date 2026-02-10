@@ -72,7 +72,7 @@ dnsbl_config = common.config.read_config(dnsbl_cfg_file)
 
 # Read threat categorization config
 categorization_cfg_file = os.path.join(cfg_dir, 'threat_categorization.yml')
-threat_categorization_config = common.config.read_config(categorization_cfg_file)["threat_categorization"]
+threat_cat_config = common.config.read_config(categorization_cfg_file)
 
 # Mapping of source IDs usind in DB (e.g. as ttl token) to user readable name
 # This list is used to generate:
@@ -906,7 +906,7 @@ class IPFilterForm(FlaskForm):
 
         # Load categorization config to get list of all categories
         self.tc_role.choices = [("src", "Source"), ("dst", "Destination")]
-        self.tc_category.choices = sorted([(cat_id, cat_data['label']) for cat_id, cat_data in threat_categorization_config.items()])
+        self.tc_category.choices = sorted([(cat_id, cat_data['label']) for cat_id, cat_data in threat_cat_config["threat_categories"].items()])
         self.tc_subcategory_key.choices = [("", "--"), ("port", "Port"), ("protocol", "Protocol"), ("malware_family", "Malware family")]
 
         # Number of occurrences for blacklists (list of blacklists is taken from configuration)
@@ -1167,7 +1167,7 @@ def ips():
 
             # Add info about threat category
             min_confidence = float(form.tc_confidence.data) if form.tc_confidence.data else 0
-            ip['_threat_category_table'] = create_threat_category_table(ip.get('_threat_category_summary', []), min_confidence, 9)
+            ip['_threat_category_data_for_tags'] = create_threat_category_data_for_tags(ip.get('_threat_category_summary', []), min_confidence, 9)
     else:
         results = None
         form.ip_list.data = ""
@@ -1177,6 +1177,7 @@ def ips():
     return render_template('ips.html', json=json, ctrydata=ctrydata, blacklist_info=blacklist_info, **locals())
 
 
+# TODO move near the "ip" endpoint
 def create_threat_category_table(category_records, min_confidence, max_subcategory_values):
     """Prepare data about threat category tags - for ips.html as well as the table in ip.html"""
     table_rows = []
@@ -1189,12 +1190,7 @@ def create_threat_category_table(category_records, min_confidence, max_subcatego
         #   'conf':float - confidence
         if rec['conf'] < min_confidence:
             continue
-
-        # Generate tooltip content (as html string)
-        # TODO: This should be done in Jinja template, not here
-        category_description = threat_categorization_config.get(rec['c'], {}).get('description', f"ERROR: missing configuration for category '{rec['c']}'")
-        sources_str = ''.join([f"<li>{SOURCE_NAMES[source]} ({n_reports})</li>" for source, n_reports in sorted(rec['src'].items())])
-        tooltip_content = f"<b>{category_description}</b><br/><br/>Confidence: {rec['conf']}<br/>Sources:<br/><ul>{sources_str}</ul>"
+        tooltip_content = get_threat_category_tooltip(rec)
 
         # Generate table rows
         # row = [role, category, subcategory, confidence, tooltip content]
@@ -1215,6 +1211,42 @@ def create_threat_category_table(category_records, min_confidence, max_subcatego
                 subcategory_content = f"{key}: {', '.join(values)}" if len(values) <= max_subcategory_values else f"{key}: <i>many</i>"
                 table_rows.append([rec['r'], rec['c'], subcategory_content, rec['conf'], tooltip_content])
     return table_rows
+
+def create_threat_category_data_for_tags(category_records, min_confidence, max_subcategory_values):
+    """Prepare data for threat category tags in search results and for table in IP datail page"""
+    TAG_DEFAULT_COLOR = '#777777' # if color is not defined in configuration
+    rows = []
+    for rec in category_records:
+        if rec['conf'] < min_confidence:
+            continue
+        subcategories = []
+        for key,values in rec['s'].items(): # subcategories
+            if len(values) <= max_subcategory_values:
+                # sort values (numerically if port numbers, lexicographically otherwise)
+                if key == 'port':
+                    values.sort(key=int)
+                else:
+                    values.sort()
+                subcategories.append(f"{key}: {', '.join(values)}")
+            else:
+                subcategories.append(f"{key}: <i>many</i>")
+        rows.append({
+            'role': rec['r'],
+            'role_color': threat_cat_config.get("role_colors", {}).get(rec['r'], TAG_DEFAULT_COLOR),
+            'cat': rec['c'] if rec['c'] != "unknown" else "&mdash;", # replace "unknown" with "—"
+            'cat_color': threat_cat_config.get(f"threat_categories.{rec['c']}.color", TAG_DEFAULT_COLOR),
+            'subcats': subcategories,
+            'conf': rec['conf'],
+            'tooltip': get_threat_category_tooltip(rec)
+        })
+    return rows
+
+def get_threat_category_tooltip(rec):
+    # TODO this should be generated in a Jinja2 template or JavaScript, not here
+    category_description = threat_cat_config.get(f"threat_categories.{rec['c']}.description", f"ERROR: missing configuration for category '{rec['c']}'")
+    sources_str = ''.join([f"<li>{SOURCE_NAMES[source]} ({n_reports})</li>" for source, n_reports in sorted(rec['src'].items())])
+    return f"Category \"{rec['c']}\":<br><b>{category_description}</b><br><br>Sources reporting the IP under this category (number of alerts/reports in last 14 days):<ul>{sources_str}</ul><br>Confidence: {rec['conf']}"
+
 
 
 @app.route('/_ips_count', methods=["POST"])
@@ -1400,7 +1432,8 @@ def ip(ipaddr=None):
                 ipinfo['asns'] = asn_list
 
                 # Create threat category table
-                threat_category_table = create_threat_category_table(ipinfo.get('_threat_category_summary', []), 0, 9)
+                #threat_category_table = create_threat_category_table(ipinfo.get('_threat_category_summary', []), 0, 9)
+                threat_category_data = create_threat_category_data_for_tags(ipinfo.get('_threat_category_summary', []), 0, 9)
 
                 # Pseudonymize node names if user is not allowed to see the original names
                 if not g.ac('nodenames'):
@@ -1747,7 +1780,7 @@ FILES = [
 ]
 
 # Add category blacklist files (created by /scripts/generate_category_blocklist.sh)
-BL_FILES = [f"bl_{cat}.txt" for cat in threat_categorization_config if cat != "unknown"]
+BL_FILES = [f"bl_{cat}.txt" for cat in threat_cat_config["threat_categories"] if cat != "unknown"]
 FILES += BL_FILES
 
 @app.route('/data/')
@@ -1986,9 +2019,9 @@ def get_basic_info_dic_short(val):
     for rec in val.get('_threat_category_summary', []):
         threat_category_l.append({
             'role': rec['r'],
-            'cat': rec['c'],
+            'category': rec['c'],
             'subcategory': rec['s'],
-            'conf': rec['conf']
+            'confidence': rec['conf'],
         })
 
     data = {
@@ -2140,9 +2173,10 @@ def get_full_info(ipaddr=None):
         'threat_category': [{
             'role': rec['r'],
             'category': rec['c'],
+            'subcategory': rec['s'],
             'confidence': rec['conf'],
             'sources': rec['src']
-        } for rec in val.get('_threat_category_summary', [])]
+        } for rec in val.get('_threat_category_summary', [])],
     }
 
     return Response(json.dumps(data), 200, mimetype='application/json')

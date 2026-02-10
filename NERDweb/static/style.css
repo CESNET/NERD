@@ -35,6 +35,9 @@ hr {
   padding: 0.25em 0.4em;
   max-width: 80em;
 }
+.ui-tooltip ul {
+  margin: 0;
+}
 
 p.error {
   color: #900;
@@ -489,6 +492,30 @@ td.country a {
   color: inherit;
 }
 
+.threat_tag {
+  display: inline-table;
+  font-size: 1em;
+  color: #000;
+  /* color will be rewritten by inline styles according to the threat category */
+  background: #fff;
+  border-radius: 5px 0 0 5px;
+  border: 0;
+  border-right: 3px solid;
+  border-collapse: collapse;
+  box-shadow: 1px 1px 1px 1px rgba(0,0,0,0.1);
+  margin: 0 0.2em;
+}
+.threat_tag td {
+  border: 0;
+  border-right: 1px solid #777;
+}
+.threat_tag td:nth-child(3) {
+  font-size: 0.8em;
+  border-right: 0;
+}
+
+
+/*
 .threat_category_preview table {
   text-align: left;
   border: hidden;
@@ -504,24 +531,30 @@ td.country a {
   padding: 0 0.5em;
   min-width: 9.5em;
 }
-
+*/
 .threat_category_detail table {
   text-align: left;
   border: solid #000;
   border-width: 1px 1px 1px 1px;
+  border-collapse: collapse;
 }
 .threat_category_detail table td,
 .threat_category_detail table th {
   border: solid #000;
-  border-width: 1px 1px 1px 1px;
+  border-width: 1px 0px 0px 0px;
   padding: 0.1em 0.4em;
-}
-.threat_category_detail table td {
-  text-align: left;
-}
-.threat_category_detail table th {
+  height: 2em;
   text-align: center;
 }
+.threat_category_detail table th {
+  border-width: 1px 1px 1px 1px;
+}
+.threat_category_detail table td:nth-child(n+3), /* 3rd and following cells */
+.threat_category_detail table th:nth-child(n+3)
+{
+  text-align: left;
+}
+
 
 td.events {
   text-align: right;

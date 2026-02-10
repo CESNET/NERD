@@ -620,7 +620,7 @@ if __name__ == "__main__":
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
     categorization_config = {
-        "categories": config.get('threat_categorization'),
+        "categories": config.get('threat_categories'),
         "malware_families": common.config.read_config(config.get('malpedia_family_list_path'))
     }
 

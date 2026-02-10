@@ -28,7 +28,7 @@ class ThreatCategorySummary(NERDModule):
 
     def __init__(self):
         categorization_config_file = os.path.join(g.config_base_path, g.config.get("threat_categorization_config"))
-        self.config = common.config.read_config(categorization_config_file).get("threat_categorization", {})
+        self.config = common.config.read_config(categorization_config_file)
 
         g.um.register_handler(
             self.create_summary,  # function (or bound method) to call
@@ -76,7 +76,7 @@ class ThreatCategorySummary(NERDModule):
         summary = []
 
         for cat, records in grouped_by_category.items():
-            role = self.config[cat]['role']
+            role = self.config.get(f'threat_categories.{cat}.role', '?')
             cat_summary = {
                 'r': role,
                 'c': cat,
