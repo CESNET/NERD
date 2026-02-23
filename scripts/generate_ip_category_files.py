@@ -39,7 +39,7 @@ categories.remove("unknown")
 script = """
     echo \"# generated at $(date -u '+%Y-%m-%d %H:%M UTC')\" > {out_file}.tmp &&
     echo \"# {header}\" >> {out_file}.tmp &&
-    mongosh nerd --quiet --eval '{query}' | grep -v \"^$\" | sort -n >> {out_file}.tmp &&
+    mongosh \"$(cat /etc/nerd/mongodb_credentials)\" --quiet --eval '{query}' | grep -v \"^$\" | sort -n >> {out_file}.tmp &&
     mv {out_file}{{.tmp,}}
 """
 
@@ -73,7 +73,7 @@ if args.verbose:
     print("Generating full IP list (table format)")
 
 out_file = f"{args.out_dir}/ip_category_table.csv"
-header = f"# ip,conf_{',conf_'.join(categories)}"
+header = f"ip,conf_{',conf_'.join(categories)}"
 query = '''
 function int2ip (ipInt) {
   return ( (ipInt>>>24) + "." + (ipInt>>16 & 255) + "." + (ipInt>>8 & 255) + "." + (ipInt & 255) );
@@ -106,7 +106,7 @@ if args.verbose:
 
 for category in categories:
     out_file = f"{args.out_dir}/bl_{category}.txt"
-    header = ""
+    header = f"All IP addresses in NERD with threat category '{category}' with confidence (threat level) > {args.conf_thr}"
     query = f'''
     function int2ip (ipInt) {{
       return ( (ipInt>>>24) + "." + (ipInt>>16 & 255) + "." + (ipInt>>8 & 255) + "." + (ipInt & 255) );

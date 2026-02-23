@@ -4,6 +4,7 @@
 <h1>Downloadable data</h1>
 
 <h2>Reputation score</h2>
+<p>Lists of IPs based on their overall <a href="https://github.com/CESNET/NERD/wiki/Reputation-score">reputation score</a>.
 <ul class="data-list">
 <li>List of all IPs in NERD database with their reputation scores:
 {% if file_sizes['ip_rep.csv'] is number %}<a href="{{ url_for("data_file", filename="ip_rep.csv") }}">ip_rep.csv</a> ({{file_sizes['ip_rep.csv']|filesizeformat}}){% else %}<span class="error">ERROR File not found</span>{% endif %}
@@ -20,6 +21,7 @@
 </ul>
 
 <h2>Threat categorization</h2>
+<p>Lists of IPs based on their threat-level/confidence in individual categories.</p>
 <ul class="data-list">
   <li>
     List of all IPs in NERD with their categories:
@@ -35,7 +37,7 @@
     </ul>
   </li>
   <li>
-    Collection of blacklists for each category (IPs with confidence greater than 0.5):
+    Lists of IPs for each category (IPs with confidence greater than 0.2):
     <ul>
       {% for bl_file in bl_files %}
       <li>
@@ -45,8 +47,9 @@
     </ul>
   </li>
 </ul>
-All files are updated once per hour. Please, <b>don't download the data more often than once per hour!</b><br> We recommend downloading it few minutes after a whole hour (i.e. between xx:01 and xx:05).
 
-<p>All files are updated once per hour.</p>
+<hr>
+
+<p>All files are updated once per hour. Please, <b>don't download the data more often than once per hour!</b><br> We recommend downloading it a few minutes after an whole hour (i.e. between xx:01 and xx:05).</p>
 
 {% endblock %}
