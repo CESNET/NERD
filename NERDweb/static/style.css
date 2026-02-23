@@ -14,6 +14,11 @@ h1 {
   margin-bottom: 0.25em;
 }
 
+h2 {
+  font-size: larger;
+  margin-top: 1.5em;
+}
+
 hr {
   border: 0;
   border-top: 2px solid #0061a2;
@@ -29,6 +34,9 @@ hr {
 .ui-tooltip {
   padding: 0.25em 0.4em;
   max-width: 80em;
+}
+.ui-tooltip ul {
+  margin: 0;
 }
 
 p.error {
@@ -483,6 +491,70 @@ td.country a {
   text-decoration: none;
   color: inherit;
 }
+
+.threat_tag {
+  display: inline-table;
+  font-size: 1em;
+  color: #000;
+  /* color will be rewritten by inline styles according to the threat category */
+  background: #fff;
+  border-radius: 5px 0 0 5px;
+  border: 0;
+  border-right: 3px solid;
+  border-collapse: collapse;
+  box-shadow: 1px 1px 1px 1px rgba(0,0,0,0.1);
+  margin: 0 0.2em;
+}
+.threat_tag td {
+  border: 0;
+  border-right: 1px solid #777;
+}
+.threat_tag td:nth-child(3) {
+  font-size: 0.8em;
+  border-right: 0;
+}
+
+
+/*
+.threat_category_preview table {
+  text-align: left;
+  border: hidden;
+}
+.threat_category_preview table td {
+  min-width: 1.5em;
+  padding: 0 0.2em;
+  border-width: 0px 0px 0px 0px;
+}
+.threat_category_preview table td + td {
+  color: #222;
+  border-left: 2px dotted #888;
+  padding: 0 0.5em;
+  min-width: 9.5em;
+}
+*/
+.threat_category_detail table {
+  text-align: left;
+  border: solid #000;
+  border-width: 1px 1px 1px 1px;
+  border-collapse: collapse;
+}
+.threat_category_detail table td,
+.threat_category_detail table th {
+  border: solid #000;
+  border-width: 1px 0px 0px 0px;
+  padding: 0.1em 0.4em;
+  height: 2em;
+  text-align: center;
+}
+.threat_category_detail table th {
+  border-width: 1px 1px 1px 1px;
+}
+.threat_category_detail table td:nth-child(n+3), /* 3rd and following cells */
+.threat_category_detail table th:nth-child(n+3)
+{
+  text-align: left;
+}
+
 
 td.events {
   text-align: right;
@@ -1007,6 +1079,10 @@ ul.data-list li ul li {
   color: #777;
 }
 
+.data-list+p {
+  margin-top: 2em;
+}
+
 
 /***********************************************/
 /* NERD status block */
@@ -1245,6 +1321,75 @@ ul.data-list li ul li {
     font-weight: bold;
   }
 
+  #threat_category
+  {
+    display: flex;
+    flex-direction: row;
+    width: 813px;
+    justify-content: space-between;
+    padding-bottom: 25px;
+  }
+
+  #threat_category p
+  {
+    font-weight: bold;
+    padding-right: 10px;
+  }
+
+  #tc_role_label
+  {
+    display: block;
+    padding-bottom: 3px;
+  }
+
+  #tc_role_wrap,
+  #tc_role_wrap button,
+  #tc_role_wrap .ms-options,
+  #tc_role_wrap .ms-options-wrap span
+  {
+    width: 115px;
+  }
+
+  #tc_category_label
+  {
+    display: block;
+    padding-bottom: 3px;
+  }
+
+  #tc_category_wrap,
+  #tc_category_wrap button,
+  #tc_category_wrap .ms-options,
+  #tc_category_wrap .ms-options-wrap span
+  {
+    width: 170px;
+  }
+
+  #tc_subcategory_label
+  {
+    display: block;
+    padding-bottom: 3px;
+  }
+
+  #tc_subcategory_wrap
+  {
+    width: 222px;
+  }
+
+  #tc_subcategory_wrap select
+  {
+    width: 115px;
+  }
+
+  #tc_confidence_label
+  {
+    display: block;
+    padding-bottom: 3px;
+  }
+
+  #tc_confidence_wrap
+  {
+    width: 90px
+  }
 
   #searchForm
   {
@@ -1311,7 +1456,7 @@ ul.data-list li ul li {
 
   #narrow .ms-options-wrap span
   {
-    width: 500px;
+    width: 180px;
   }
 
   .center-row

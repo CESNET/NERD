@@ -155,6 +155,27 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
   {% set dbl = ipinfo.pop('dbl') %}
 {% endif %}
 
+{# Threat category summary #}
+<p class="caption">Threat categories</p>
+<div class="threat_category_detail">
+<table>
+    <tr><th title="Threat level">TL</th><th>Role</th><th>Category</th><th>Details</th></tr>
+    {% if threat_category_data %}
+    {% for tag in threat_category_data %} {# items in "tag": role, role_color, cat, cat_color, subcats, conf, tooltip #}
+    <tr class="threat_category_tooltip" title="{{ tag['tooltip'] }}">
+      <td>{{ (tag.conf*100)|round|int }}</td>
+      <td style="background-color: {{tag.role_color}}">{{ tag.role|safe }}</td>
+      <td style="background-color: {{tag.cat_color}}">{{ tag.cat|safe }}</td>
+      <td style="background-color: {{tag.cat_color}}">{% for subcat in tag.subcats %}{{ subcat|safe }}<br>{% endfor %}</td>
+    </tr>
+    {% endfor %}
+    {% else %}
+    <tr><td colspan="4">No threat category tags assigned</td></tr>
+    {% endif %}
+</table>
+</div>
+<hr>
+
 {# Warden events #}
 {% if ipinfo.events %}
   <dt>Warden events ({{ipinfo.events_meta.total}})</dt>
@@ -180,6 +201,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 {% endif %}
 
 {# MISP events #}
+{# TODO: filter "showable" events in backend! #}
 {% if ipinfo.misp_events %}
   {% set misp_events = namespace(showable=0) -%}
   {% for misp_event in ipinfo.misp_events -%}
@@ -187,10 +209,10 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
           {% set misp_events.showable = misp_events.showable + 1 -%}
       {% endif -%}
   {% endfor -%}
-  {% if misp_events.showable %}
+  {% if misp_events.showable > 0 %}
       <dt> MISP events </dt>
       <dd{% if misp_events.showable > 1%} class="scrollable"{% endif %}>
-       {% for misp_event in val|sort(attribute='date', reverse=True) %}
+       {% for misp_event in ipinfo.misp_events|sort(attribute='date', reverse=True) %}
             {% if misp_event.tlp == "white" or (misp_event.tlp == "green" and ac('tlp-green')) %}
                <div><b>[<a href="{{ url_for('misp_event') + misp_event.event_id }}">{{ misp_event.event_id }}</a>] {{ misp_event.pop('date', 'no date') }} | {{ misp_event.pop('info', 'no info') }}</b>
                <table style="padding-left: 30px; padding-bottom: 10px">

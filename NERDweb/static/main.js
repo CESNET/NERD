@@ -2,7 +2,7 @@
 
 function create_event_table(data) { /* data are "dataset" field of a DOM node with "data-" attributes set */
   if (data.table == "") {
-     return "No events";
+     return "No Warden events";
   }
   var cats = data.cats.split(",");
   var dates = data.dates.split(",");
@@ -55,6 +55,15 @@ $(function() {
     classes: {
       "ui-tooltip": "events_tooltip"
     }
+  });
+  /* jQuery UI tooltip at "threat category" cell with info about each category */
+  $( ".threat_category_tooltip" ).tooltip({
+    items: ".threat_category_tooltip",
+    track: false,
+    show: false,
+    hide: false,
+    position: {my: "left bottom", at: "left-7px top-2px", collision: "flipfit"},
+    content: function() { return $(this).attr('title') },
   });
   /* jQuery UI tooltip at times with "timeago" */
   $( ".time" ).tooltip({

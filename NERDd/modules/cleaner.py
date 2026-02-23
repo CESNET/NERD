@@ -48,6 +48,13 @@ class Cleaner(NERDModule):
             tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
         )
         g.um.register_handler(
+            self.clear_threat_category,
+            'ip',
+            ('!every1d',),
+            tuple()
+            # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
+        )
+        g.um.register_handler(
             self.check_ip_expiration,
             'ip',
             ('!check_and_update_1d',),
@@ -167,6 +174,30 @@ class Cleaner(NERDModule):
 
         if actions:
             self.log.debug("Cleaning {}: Removing {} expired OTX pulses".format(key, len(actions)))
+
+        return actions
+
+    def clear_threat_category(self, ekey, rec, updates):
+        """
+        Handler function to clear old threat category data
+        Remove all items under threat_category with "date" older then current
+        day minus 'max_event_history' days.
+        """
+        etype, key = ekey
+        if etype != 'ip':
+            return None
+
+        today = datetime.utcnow().date()
+        cut_day = (today - self.max_event_history).strftime("%Y-%m-%d")
+
+        # Remove all threat category records with day before cut_day
+        actions = []
+        for category_record in rec.get('_threat_category', []):
+            if category_record['d'] < cut_day:  # Thanks to ISO format it's OK to compare dates as strings
+                actions.append(('array_remove', '_threat_category', {'d': category_record['d'], 'c': category_record['c']}))
+
+        if actions:
+            self.log.debug("Cleaning {}: Removing {} old threat category records".format(key, len(actions) - 1))
 
         return actions
 

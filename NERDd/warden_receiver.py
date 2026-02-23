@@ -26,6 +26,7 @@ from email.mime.multipart import MIMEMultipart
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 
+from common.threat_categorization import *
 from common.utils import parse_rfc_time
 import common.config
 import common.eventdb_psql
@@ -456,7 +457,7 @@ def parse_and_validate_timestamp(event, timestamp_name, t_now, max_age):
         return None
 
 
-def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter=None):
+def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, categorization_config, warden_filter=None):
     # Infinite loop reading events as files in given directory
     # This loop stops on SIGINT
     log.info("Reading IDEA files from {}/incoming".format(filer_path))
@@ -551,18 +552,31 @@ def receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime,
                 for ipv4 in src.get("IP4", []):
                     # TODO check IP address validity
                     log.debug("Updating IPv4 record {}".format(ipv4))
-                    task_queue_writer.put_task('ip', ipv4,
-                        [
-                            ('array_upsert', 'events',
-                             {'date': date, 'node': node, 'cat': cat},
-                             [('add', 'n', 1), ('add', 'conns', conns)]),
-                            ('add', 'events_meta.total', 1),
-                            ('setmax', 'last_activity', end_time),
-                            ('setmax', '_ttl.warden', live_till),
-                            ('setmax', 'last_warden_event', end_time),
-                        ],
-                        "warden_receiver"
-                    )
+                    updates = [
+                        ('array_upsert', 'events',
+                         {'date': date, 'node': node, 'cat': cat},
+                         [('add', 'n', 1), ('add', 'conns', conns)]),
+                        ('add', 'events_meta.total', 1),
+                        ('setmax', 'last_activity', end_time),
+                        ('setmax', '_ttl.warden', live_till),
+                        ('setmax', 'last_warden_event', end_time),
+                    ]
+
+                    # threat categorization updates
+                    for category_data in classify_ip(ipv4, "warden_receiver", log, categorization_config, event, src):
+                        subcategory_updates = []
+                        for subcategory, values in category_data['subcategories'].items():
+                            subcategory_updates.append(('extend_set', subcategory, values))
+                        updates.append((
+                            'array_upsert',
+                            '_threat_category',
+                            {'d': category_data['date'], 'c': category_data['id']},
+                            [('add', 'src.warden', 1), *subcategory_updates]
+                        ))
+
+                    # put task in queue
+                    task_queue_writer.put_task('ip', ipv4, updates, "warden_receiver")
+
                 for ipv6 in src.get("IP6", []):
                     log.debug(
                         "IPv6 address in Source found - skipping since IPv6 is not implemented yet.")  # The record follows:\n{}".format(str(event)), file=sys.stderr)
@@ -595,11 +609,21 @@ if __name__ == "__main__":
     log.info("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
 
+    # Read categorization config
+    categorization_cfg_file = os.path.join(config_base_path, 'threat_categorization.yml')
+    log.info("Loading config file {}".format(categorization_cfg_file))
+    config.update(common.config.read_config(categorization_cfg_file))
+
     inactive_ip_lifetime = config.get('record_life_length.warden', 14)
     warden_filter_rules = config.get('warden_filter', None)
     warden_nodes_path = config.get('warden_nodes_path', None)
     rabbit_config = config.get("rabbitmq")
     filer_path = config.get('warden_filer_path')
+    categorization_config = {
+        "categories": config.get('threat_categories'),
+        "malware_families": common.config.read_config(config.get('malpedia_family_list_path'))
+    }
+
 
     if warden_filter_rules:
         try:
@@ -633,4 +657,4 @@ if __name__ == "__main__":
     task_queue_writer.connect()
 
     signal.signal(signal.SIGINT, stop)
-    receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, warden_filter)
+    receive_events(filer_path, eventdb, task_queue_writer, inactive_ip_lifetime, categorization_config, warden_filter)

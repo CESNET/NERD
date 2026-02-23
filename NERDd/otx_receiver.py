@@ -33,6 +33,11 @@ import signal
 
 from OTXv2 import OTXv2
 
+# Add to path the "one directory above the current file location" to find modules from "common"
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
+
+from common.threat_categorization import *
+
 def parse_datetime(time_str):
     # Parse ISO-formatted string with optional fractional part (datetime.fromisoformat would do it from Py>=3.7, but we still use Py3.6)
     if '.' in time_str:
@@ -76,6 +81,15 @@ config_base_path = os.path.dirname(os.path.abspath(args.config))
 common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
 logger.info("Loading config file {}".format(common_cfg_file))
 config.update(read_config(common_cfg_file))
+
+# Read categorization config
+categorization_cfg_file = os.path.join(config_base_path, 'threat_categorization.yml')
+logger.info("Loading config file {}".format(categorization_cfg_file))
+config.update(read_config(categorization_cfg_file))
+categorization_config = {
+    "categories": config.get('threat_categories'),
+    "malware_families": read_config(config.get('malpedia_family_list_path'))
+}
 
 inactive_pulse_time = config.get('record_life_length.otx', 30)
 
@@ -137,11 +151,27 @@ def upsert_new_pulse(pulse, indicator):
         live_till = current_time + timedelta(days=inactive_pulse_time)
     else:
         live_till = parse_datetime(indicator['expiration']) + timedelta(days=inactive_pulse_time)
-    tq_writer.put_task('ip', ip_addr, [
+
+    updates = [
         ('array_upsert', 'otx_pulses', {'pulse_id': pulse['id']}, updates),
         ('setmax', '_ttl.otx', live_till),
         ('setmax', 'last_activity', current_time)
-    ], "otx_receiver")
+    ]
+
+    # threat categorization updates
+    for category_data in classify_ip(ip_addr, "otx_receiver", logger, categorization_config, new_pulse):
+        subcategory_updates = []
+        for subcategory, values in category_data['subcategories'].items():
+            subcategory_updates.append(('extend_set', subcategory, values))
+        updates.append((
+            'array_upsert',
+            '_threat_category',
+            {'d': category_data['date'], 'c': category_data['id']},
+            [('add', 'src.otx', 1), *subcategory_updates]
+        ))
+
+    # put task in queue
+    tq_writer.put_task('ip', ip_addr, updates, "otx_receiver")
 
 
 def write_time(current_time):

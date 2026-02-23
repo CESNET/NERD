@@ -7,6 +7,8 @@ function set_up_search_form() {
   $("select#country").multiselect({texts: {placeholder: "Any"}, search: true, selectAll: true});
   $("select#source").multiselect({texts: {placeholder: "Any"}, search: true});
   $("select#cat").multiselect({texts: {placeholder: "Any"}, search: true});
+  $("select#tc_role").multiselect({texts: {placeholder: "Any"}, search: true});
+  $("select#tc_category").multiselect({texts: {placeholder: "Any"}, search: true});
   $("select#node").multiselect({texts: {placeholder: "Any"}, search: true});
   $("select#blacklist").multiselect({texts: {placeholder: "Any"}, search: true});
   $("select#tag").multiselect({texts: {placeholder: "Any"}, search: true});
@@ -106,6 +108,7 @@ function set_up_search_form() {
 
     set_up_op_button("#source_op_button", "#source_op", "OR: At least one of the selected categories", "AND: All selected categories")
     set_up_op_button("#cat_op_button", "#cat_op", "OR: At least one of the selected categories", "AND: All selected categories")
+    set_up_op_button("#tc_category_op_button", "#tc_category_op", "OR: At least one of the selected categories", "AND: All selected categories")
     set_up_op_button("#node_op_button", "#node_op", "OR: At least one of the selected nodes", "AND: All selected nodes")
     set_up_op_button("#bl_op_button", "#bl_op", "OR: At least one of the selected blacklists", "AND: All selected blacklists")
     set_up_op_button("#tag_op_button", "#tag_op", "OR: At least one of the selected tags", "AND: All selected tags")

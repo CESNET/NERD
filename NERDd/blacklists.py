@@ -18,6 +18,7 @@ import ipaddress
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 
+from common.threat_categorization import *
 from common.utils import parse_rfc_time
 import common.config
 import common.task_queue
@@ -38,7 +39,6 @@ logging.getLogger('apscheduler.scheduler').setLevel('WARNING')
 bl_all_types = {
     'ip': {'singular': "IP", 'plural': "IPs"}
 }
-
 
 ###############################################################################
 
@@ -67,14 +67,16 @@ def parse_bl_with_regex(bl_data, cregex):
             record_end = ip_match.span()[1]
             try:
                 # classic IP address blacklist
-                bl_records.append(str(ipaddress.IPv4Address(bl_data[record_start:record_end])))
+                bl_records.append((str(ipaddress.IPv4Address(bl_data[record_start:record_end])), None))
             except ipaddress.AddressValueError:
                 continue
     else:
         for line in bl_data.split('\n'):
             match = cregex.search(line)
             if match:
-                bl_records.append(str(ipaddress.IPv4Address(match.group(1))))
+                ip = str(ipaddress.IPv4Address(match.group(1)))
+                ip_info = match.group(2) if cregex.groups > 1 else None
+                bl_records.append((ip, ip_info))
     return bl_records
 
 
@@ -89,7 +91,7 @@ def parse_bl_without_regex(bl_data):
             ipaddr = ipaddress.IPv4Address(record)
         except ipaddress.AddressValueError:
             continue
-        bl_records.append(str(ipaddr))
+        bl_records.append((str(ipaddr), None))
     return bl_records
 
 
@@ -137,7 +139,7 @@ def download_blacklist(blacklist_url, params=None):
         return ""
 
 
-def get_blacklist(id, name, url, regex, bl_type, life_length, params):
+def get_blacklist(id, name, url, regex, bl_type, life_length, params, categorization_config):
     """
     Download the blacklist, parse all its records, and create worker task for each IP in current blacklist.
     :param id: id of the blacklist
@@ -159,12 +161,27 @@ def get_blacklist(id, name, url, regex, bl_type, life_length, params):
 
     log.info("{} IPs found in '{}', sending tasks to NERD workers".format(len(bl_records), id))
 
-    for ip in bl_records:
-        task_queue_writer.put_task('ip', ip, [
+    for ip, ip_info in bl_records:
+        updates = [
             ('setmax', '_ttl.bl', now_plus_life_length),
             ('array_upsert', 'bl', {'n': id},
-                [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)])
-        ], "blacklists")
+                [('set', 'v', 1), ('set', 't', download_time), ('append', 'h', download_time)]),
+        ]
+
+        # threat categorization updates
+        for category_data in classify_ip(ip, "blacklists", log, categorization_config, id, ip_info, download_time):
+            subcategory_updates = []
+            for subcategory, values in category_data['subcategories'].items():
+                subcategory_updates.append(('extend_set', subcategory, values))
+            updates.append((
+                'array_upsert',
+                '_threat_category',
+                {'d': category_data['date'], 'c': category_data['id']},
+                [('add', 'src.bl', 1), *subcategory_updates]
+            ))
+
+        # put task in queue
+        task_queue_writer.put_task('ip', ip, updates, "blacklists")
 
 
 def stop(signal, frame):
@@ -216,6 +233,15 @@ if __name__ == "__main__":
     log.info("Loading config file {}".format(common_cfg_file))
     config.update(common.config.read_config(common_cfg_file))
 
+    # Read categorization config
+    categorization_cfg_file = os.path.join(config_base_path, 'threat_categorization.yml')
+    log.info("Loading config file {}".format(categorization_cfg_file))
+    config.update(common.config.read_config(categorization_cfg_file))
+    categorization_config = {
+        "categories": config.get('threat_categories'),
+        "malware_families": common.config.read_config(config.get('malpedia_family_list_path'))
+    }
+
     rabbit_config = config.get("rabbitmq")
 
     # Get number of processes from config
@@ -249,7 +275,7 @@ if __name__ == "__main__":
             assert isinstance(other_params, dict), "The additional parameter must be a dict (in config of {}.{})".format(
                 config_path, id)
             # Process the blacklist
-            get_blacklist(id, name, url, regex, bl_type, life_length, other_params)
+            get_blacklist(id, name, url, regex, bl_type, life_length, other_params, categorization_config)
 
     # Schedule periodic processing...
     if not args.one_shot:
@@ -266,7 +292,7 @@ if __name__ == "__main__":
             other_params = bl.get('params', {})
 
             trigger = CronTrigger(**refresh_time)
-            job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, life_length, other_params),
+            job = scheduler.add_job(get_blacklist, args=(id, name, url, regex, bl_type, life_length, other_params, categorization_config),
                                     trigger=trigger, coalesce=True, max_instances=1)
 
             log.info("{} blacklist '{}' scheduled to be downloaded at every: {}".format(

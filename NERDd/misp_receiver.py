@@ -27,6 +27,7 @@ import NERDd.core.mongodb as mongodb
 from common.config import read_config
 from common.task_queue import TaskQueueWriter
 from common.utils import int2ipstr
+from common.threat_categorization import *
 
 running_flag = True
 zmq_alive = False
@@ -60,6 +61,15 @@ config_base_path = os.path.dirname(os.path.abspath(args.config))
 common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
 logger.info("Loading config file {}".format(common_cfg_file))
 config.update(read_config(common_cfg_file))
+
+# Read categorization config
+categorization_cfg_file = os.path.join(config_base_path, 'threat_categorization.yml')
+logger.info("Loading config file {}".format(categorization_cfg_file))
+config.update(read_config(categorization_cfg_file))
+categorization_config = {
+    "categories": config.get('threat_categories'),
+    "malware_families": read_config(config.get('malpedia_family_list_path'))
+}
 
 inactive_ip_lifetime = config.get('record_life_length.misp', 180)
 
@@ -98,6 +108,9 @@ re_attrib_type_value_title = re.compile("\([0-9]+\): [\w| ]+/([\w|\-]+) (.*)")
 IP_MISP_TYPES = ["ip-src", "ip-dst", "ip-dst|port", "ip-src|port", "domain|ip"]
 THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
 
+
+##############################################################################
+# Main module code
 
 def is_single_ip(ip_to_check):
     try:
@@ -265,18 +278,38 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
     :param role: role of ip_address (src or|and dst)
     :return: None
     """
-    new_event = create_new_event(event, role if role is not None else get_role_of_ip(attrib['type']), sighting_list)
     ip_addr = get_ip_address(attrib)
-    # create update sets for NERD queue
-    updates = []
-    for k, v in new_event.items():
-        updates.append(('set', k, v))
+    ip_role = role if role is not None else get_role_of_ip(attrib['type'])
+    new_event = create_new_event(event, ip_role, sighting_list)
     live_till = new_event['date'] + timedelta(days=inactive_ip_lifetime)
-    tq_writer.put_task('ip', ip_addr, [
-        ('array_upsert', 'misp_events', {'misp_instance': misp_url, 'event_id': event['id']}, updates),
+
+    # create update sets for NERD queue
+    event_updates = []
+    for k, v in new_event.items():
+        event_updates.append(('set', k, v))
+    updates = [
+        ('array_upsert', 'misp_events', {'misp_instance': misp_url, 'event_id': event['id']}, event_updates),
         ('setmax', '_ttl.misp', live_till),
         ('setmax', 'last_activity', new_event['date'])
-    ], "misp_receiver")
+    ]
+
+    # threat categorization updates
+    for category_data in classify_ip(ip_addr, "misp_receiver", logger, categorization_config, new_event, attrib, ip_role):
+        subcategory_updates = []
+        for subcategory, values in category_data['subcategories'].items():
+            subcategory_updates.append(('extend_set', subcategory, values))
+        updates.append((
+            'array_upsert',
+            '_threat_category',
+            {'d': category_data['date'], 'c': category_data['id']},
+            [('add', 'src.misp', 1), *subcategory_updates]
+        ))
+
+    logger.debug(f"Updates for {ip_addr}:")
+    logger.debug(updates)
+
+    # put task in queue
+    tq_writer.put_task('ip', ip_addr, updates, "misp_receiver")
 
 
 def process_sighting_notification(sighting):
@@ -287,9 +320,10 @@ def process_sighting_notification(sighting):
     """
     try:
         # event which attribute was sighted
-        event = misp_inst.get(sighting['event_id'])['Event']
+        event = misp_inst.get_event(sighting['event_id'])['Event']
         # get sightings of attribute (rather set actual values of all sightings, than just add or remove 1 sighting)
-        sighting_list_response = misp_inst.sighting_list(int(sighting['attribute_id']))['response']
+        attr_id = int(sighting['attribute_id'])
+        sighting_list_response = misp_inst.search_sightings(context='attribute', context_id=attr_id)
         sighting_list = []
         for sighting_rec in sighting_list_response:
             sighting_list.append({'type': sighting_rec['Sighting']['type']})
@@ -409,9 +443,21 @@ def process_edit_of_attribute(json_message):
 def process_new_attribute(json_message):
     # change looks like: "to_ids () => (1), distribution () => (5), type () => (hostname)..."
     attrib = json_message['Log']['change']
-    attrib_type = re_attrib_type_change.search(attrib).group(1)
+    try:
+        attrib_type = re_attrib_type_change.search(attrib).group(1)
+    except AttributeError:
+        logger.error("Error", exc_info=True)
+        logger.error("Used regex: " + re_attrib_type_change.pattern)
+        logger.error("Searched text: " + attrib)
+        return
     if attrib_type in IP_MISP_TYPES:
-        event_id = re_event_id_change.search(json_message['Log']['change']).group(1)
+        try:
+            event_id = re_event_id_change.search(attrib).group(1)
+        except AttributeError:
+            logger.error("Error", exc_info=True)
+            logger.error("Used regex: " + re_attrib_type_change.pattern)
+            logger.error("Searched text: " + attrib)
+            return
         attrib_id = json_message['Log']['model_id']
         try:
             attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
@@ -491,7 +537,8 @@ def receive_events():
         #                            'xxx': "yyy",
         #                            ...... },
         #                   'action': "log"}
-        notification_prefix, _, notification = message.partition(" ")
+        notification_prefix, _, notification_str = message.partition(" ")
+        notification = json.loads(notification_str)
 
         # check message prefix, which defines actions
         if notification_prefix == "misp_json_audit":

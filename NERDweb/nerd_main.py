@@ -31,6 +31,7 @@ from event_count_logger import EventCountLogger, EventGroup, DummyEventGroup
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
 import common.config
 import common.task_queue
+import common.threat_categorization
 from common.utils import ipstr2int, int2ipstr, parse_rfc_time
 from shodan_rpc_client import ShodanRpcClient
 
@@ -68,6 +69,23 @@ dnsbl_cfg_file = os.path.join(cfg_dir, config.get('dnsbl')) # dnsbl blacklists (
 bl_config = common.config.read_config(bl_cfg_file)
 p_bl_config = common.config.read_config(p_bl_cfg_file)
 dnsbl_config = common.config.read_config(dnsbl_cfg_file)
+
+# Read threat categorization config
+categorization_cfg_file = os.path.join(cfg_dir, 'threat_categorization.yml')
+threat_cat_config = common.config.read_config(categorization_cfg_file)
+
+# Mapping of source IDs usind in DB (e.g. as ttl token) to user readable name
+# This list is used to generate:
+# - a drop-down menu in search form
+# - lists of sources in threat_category tooltips
+# (what is defined here appears on the web, in the same order)
+SOURCE_NAMES = {
+    "warden": "Warden",
+    "bl": "Blacklists",
+    "dshield": "DShield",
+    "otx": "OTX",
+    "misp": "MISP",
+}
 
 # Dict: blacklist_id -> parameters
 #  parameters should contain:
@@ -368,6 +386,11 @@ def nonempty_ip_list_validator(form, field):
     if len(field.data) == 0:
         raise validators.ValidationError("No IP address or CIDR string found")
 
+
+def to_lower(s):
+    if isinstance(s, str):
+        s = s.lower()
+    return s
 
 # ***** Auxiliary functions *****
 
@@ -841,7 +864,15 @@ class IPFilterForm(FlaskForm):
     source = SelectMultipleField('Source', [validators.Optional()])
     source_op = HiddenField('', default="or")
     cat = SelectMultipleField('Event category', [validators.Optional()]) # Choices are set up dynamically (see below)
+    tc_role = SelectMultipleField('Role', [validators.Optional()])
+    tc_category = SelectMultipleField('Category', [validators.Optional()])
+    tc_subcategory_key = SelectField('Subcategory key', [validators.Optional()])
+    tc_subcategory_value = StringField('Subcategory value', [validators.Optional()], filters=[strip_whitespace, to_lower])
+    tc_confidence = FloatField('Min category confidence',
+                          [validators.Optional(), validators.NumberRange(0, 1, 'Must be a number between 0 and 1')],
+                          default=0.5)
     cat_op = HiddenField('', default="or")
+    tc_category_op = HiddenField('', default="or")
     node = SelectMultipleField('', [validators.Optional()])
     node_op = HiddenField('', default="or")
     blacklist = SelectMultipleField('Blacklist', [validators.Optional()])
@@ -876,18 +907,15 @@ class IPFilterForm(FlaskForm):
         self.country.choices = [(i, '{} - {}'.format(i, ctrydata.names[i])) for i in ctrydata.names.keys()]
 
         # Load numbers of IPs per data source (also precomputed in DB)
-        #  (Numbers of IPs per source are computed from TTL tokens; list of sources to show is hard-coded here, since
+        #  (Numbers of IPs per source are computed from TTL tokens; list of sources to show is hard-coded, since
         #   we don't want to show all used TTL token IDs as data sources.)
-        # mapping of DB name (ttl token) -> user readable name (what is defined here appears on the web, in the same order)
-        source_names = {
-            "warden": "Warden",
-            "bl": "Blacklists",
-            "dshield": "DShield",
-            "otx": "OTX",
-            "misp": "MISP",
-        }
         cnt_by_source = {item["_id"]: item["n"] for item in mongo.db.n_ip_by_ttl.find()}
-        self.source.choices = [(src_id, '{} ({})'.format(src_name, int(cnt_by_source.get(src_id, 0)))) for src_id,src_name in source_names.items()]
+        self.source.choices = [(src_id, '{} ({})'.format(src_name, int(cnt_by_source.get(src_id, 0)))) for src_id,src_name in SOURCE_NAMES.items()]
+
+        # Load categorization config to get list of all categories
+        self.tc_role.choices = [("src", "Source"), ("dst", "Destination")]
+        self.tc_category.choices = sorted([(cat_id, cat_data['label']) for cat_id, cat_data in threat_cat_config["threat_categories"].items()])
+        self.tc_subcategory_key.choices = [("", "--"), ("port", "Port"), ("protocol", "Protocol"), ("malware_family", "Malware family")]
 
         # Number of occurrences for blacklists (list of blacklists is taken from configuration)
         bl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_bl.find()}
@@ -967,6 +995,20 @@ def create_query(form):
     if form.cat.data:
         op = '$and' if (form.cat_op.data == "and") else '$or'
         queries.append({op: [{'events.cat': cat} for cat in form.cat.data]})
+    if form.tc_role.data or form.tc_category.data or form.tc_subcategory_value.data:
+        elem_match = {}
+        if form.tc_confidence.data:
+            elem_match.update({"conf": {"$gte": float(form.tc_confidence.data)}})
+        if form.tc_role.data:
+            elem_match.update({'$or': [{"r": role} for role in form.tc_role.data]})
+        if form.tc_subcategory_key.data and form.tc_subcategory_value.data:
+            elem_match.update({f"s.{form.tc_subcategory_key.data}": form.tc_subcategory_value.data})
+        if form.tc_category.data:
+            cat_op = '$and' if (form.tc_category_op.data == "and") else '$or'
+            query = {cat_op: [{"_threat_category_summary": {"$elemMatch": {**elem_match, "c": cat}}} for cat in form.tc_category.data]}
+        else:
+            query = {"_threat_category_summary": {"$elemMatch": elem_match}}
+        queries.append(query)
     if form.node.data:
         op = '$and' if (form.node_op.data == "and") else '$or'
         queries.append({op: [{'events.node': node} for node in form.node.data]})
@@ -1131,6 +1173,9 @@ def ips():
                     showable_misp_events += 1
             ip['_showable_misp_events'] = showable_misp_events
 
+            # Add info about threat category
+            min_confidence = float(form.tc_confidence.data) if form.tc_confidence.data else 0
+            ip['_threat_category_data_for_tags'] = create_threat_category_data_for_tags(ip.get('_threat_category_summary', []), min_confidence, 9)
     else:
         results = None
         form.ip_list.data = ""
@@ -1138,6 +1183,78 @@ def ips():
             flash('Insufficient permissions to search/view IPs.', 'error')
     
     return render_template('ips.html', json=json, ctrydata=ctrydata, blacklist_info=blacklist_info, **locals())
+
+
+# TODO move near the "ip" endpoint
+def create_threat_category_table(category_records, min_confidence, max_subcategory_values):
+    """Prepare data about threat category tags - for ips.html as well as the table in ip.html"""
+    table_rows = []
+    for rec in category_records:
+        # rec is dict with the following fields:
+        #   'r':str - role (src/dst)
+        #   'c':str - category
+        #   'src':dist[str,int] - number of events per source
+        #   's':dict[str,Any] - subcategories/details (proto, port, malware_family)
+        #   'conf':float - confidence
+        if rec['conf'] < min_confidence:
+            continue
+        tooltip_content = get_threat_category_tooltip(rec)
+
+        # Generate table rows
+        # row = [role, category, subcategory, confidence, tooltip content]
+        subcategories = list(rec['s'].items())
+        # No subcategories -> create single line
+        if not subcategories:
+            table_rows.append([rec['r'], rec['c'], "", rec['conf'], tooltip_content])
+        # Subcategories
+        else:
+            # key, values = subcategories[0]
+            # subcategory_content = f"{key}: {', '.join(values)}" if len(values) <= max_subcategory_values else f"{key}: <i>many</i>"
+            # table_rows.append([rec['r'], rec['c'], subcategory_content, tooltip_content])
+            # for item in subcategories[1:]:
+            #     key, values = item
+            #     subcategory_content = f"{key}: {', '.join(values)}" if len(values) <= max_subcategory_values else f"{key}: <i>many</i>"
+            #     table_rows.append(["", "", subcategory_content, tooltip_content])
+            for key, values in subcategories[1:]:
+                subcategory_content = f"{key}: {', '.join(values)}" if len(values) <= max_subcategory_values else f"{key}: <i>many</i>"
+                table_rows.append([rec['r'], rec['c'], subcategory_content, rec['conf'], tooltip_content])
+    return table_rows
+
+def create_threat_category_data_for_tags(category_records, min_confidence, max_subcategory_values):
+    """Prepare data for threat category tags in search results and for table in IP datail page"""
+    TAG_DEFAULT_COLOR = '#777777' # if color is not defined in configuration
+    rows = []
+    for rec in category_records:
+        if rec['conf'] < min_confidence:
+            continue
+        subcategories = []
+        for key,values in rec['s'].items(): # subcategories
+            if len(values) <= max_subcategory_values:
+                # sort values (numerically if port numbers, lexicographically otherwise)
+                if key == 'port':
+                    values.sort(key=int)
+                else:
+                    values.sort()
+                subcategories.append(f"{key}: {', '.join(values)}")
+            else:
+                subcategories.append(f"{key}: <i>many</i>")
+        rows.append({
+            'role': rec['r'],
+            'role_color': threat_cat_config.get("role_colors", {}).get(rec['r'], TAG_DEFAULT_COLOR),
+            'cat': rec['c'] if rec['c'] != "unknown" else "&mdash;", # replace "unknown" with "—"
+            'cat_color': threat_cat_config.get(f"threat_categories.{rec['c']}.color", TAG_DEFAULT_COLOR),
+            'subcats': subcategories,
+            'conf': rec['conf'],
+            'tooltip': get_threat_category_tooltip(rec)
+        })
+    return rows
+
+def get_threat_category_tooltip(rec):
+    # TODO this should be generated in a Jinja2 template or JavaScript, not here
+    category_description = threat_cat_config.get(f"threat_categories.{rec['c']}.description", f"ERROR: missing configuration for category '{rec['c']}'")
+    sources_str = ''.join([f"<li>{SOURCE_NAMES[source]} ({n_reports})</li>" for source, n_reports in sorted(rec['src'].items())])
+    return f"Category \"{rec['c']}\":<br><b>{category_description}</b><br><br>Sources reporting the IP under this category (number of alerts/reports in last 14 days):<ul>{sources_str}</ul><br>Confidence: {rec['conf']}"
+
 
 
 @app.route('/_ips_count', methods=["POST"])
@@ -1321,6 +1438,10 @@ def ip(ipaddr=None):
                             # del asn['bgppref']
                             asn_list.append(asn)
                 ipinfo['asns'] = asn_list
+
+                # Create threat category table
+                #threat_category_table = create_threat_category_table(ipinfo.get('_threat_category_summary', []), 0, 9)
+                threat_category_data = create_threat_category_data_for_tags(ipinfo.get('_threat_category_summary', []), 0, 9)
 
                 # Pseudonymize node names if user is not allowed to see the original names
                 if not g.ac('nodenames'):
@@ -1662,7 +1783,13 @@ FILES = [
     "ip_rep.csv",
     "bad_ips.txt",
     "bad_ips_med_conf.txt",
+    "ip_category.csv",
+    "ip_category_table.csv",
 ]
+
+# Add category blacklist files (created by /scripts/generate_category_blocklist.sh)
+BL_FILES = [f"bl_{cat}.txt" for cat in threat_cat_config["threat_categories"] if cat != "unknown"]
+FILES += BL_FILES
 
 @app.route('/data/')
 def data_index():
@@ -1677,7 +1804,7 @@ def data_index():
             file_sizes[f] = os.stat(os.path.join(DATA_DIR, f)).st_size
         except OSError:
             file_sizes[f] = None
-    return render_template("data.html", title=title, file_sizes=file_sizes)
+    return render_template("data.html", title=title, file_sizes=file_sizes, bl_files=BL_FILES)
 
 @app.route('/data/<filename>')
 def data_file(filename):
@@ -1739,7 +1866,7 @@ def get_ip_info(ipaddr, full):
     else:
         ipinfo = mongo.db.ip.find_one({'_id': ipint},
                                       {'rep': 1, 'fmp': 1, 'hostname': 1, 'bgppref': 1, 'ipblock': 1, 'geo': 1, 'bl': 1,
-                                       'tags': 1})
+                                       'tags': 1, '_threat_category_summary': 1})
     if not ipinfo:
         log_err.log('404_api_ip_not_found')
         data['err_n'] = 404
@@ -1860,6 +1987,15 @@ def get_basic_info_dic(val):
 
         tags_l.append(d)
 
+    threat_category_l = []
+    for rec in val.get('_threat_category_summary', []):
+        threat_category_l.append({
+            'role': rec['r'],
+            'category': rec['c'],
+            'subcategory': rec['s'],
+            'confidence': rec['conf'],
+        })
+
     data = {
         'ip': val['_id'],
         'rep': val.get('rep', 0.0),
@@ -1870,14 +2006,15 @@ def get_basic_info_dic(val):
         'asn': val.get('asn', []),
         'geo': geo_d,
         'bl': bl_l,
-        'tags': tags_l
+        'tags': tags_l,
+        'threat_category': threat_category_l
     }
 
     return data
 
 
 def get_basic_info_dic_short(val):
-    # only 'rep' and 'tags' fields
+    # only 'rep', 'tags' and 'threat_category' fields
     tags_l = []
     for l in val.get('tags', []):
         d = {
@@ -1886,10 +2023,20 @@ def get_basic_info_dic_short(val):
         }
         tags_l.append(d)
 
+    threat_category_l = []
+    for rec in val.get('_threat_category_summary', []):
+        threat_category_l.append({
+            'role': rec['r'],
+            'category': rec['c'],
+            'subcategory': rec['s'],
+            'confidence': rec['conf'],
+        })
+
     data = {
         'ip': val['_id'],
         'rep': val.get('rep', 0.0),
-        'tags': tags_l
+        'tags': tags_l,
+        'threat_category': threat_category_l
     }
     return data
 
@@ -2031,6 +2178,13 @@ def get_full_info(ipaddr=None):
             'total7': val.get('events_meta', {}).get('total7', 0.0),
             'total30': val.get('events_meta', {}).get('total30', 0.0),
         },
+        'threat_category': [{
+            'role': rec['r'],
+            'category': rec['c'],
+            'subcategory': rec['s'],
+            'confidence': rec['conf'],
+            'sources': rec['src']
+        } for rec in val.get('_threat_category_summary', [])],
     }
 
     return Response(json.dumps(data), 200, mimetype='application/json')
