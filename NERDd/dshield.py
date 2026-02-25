@@ -1,9 +1,11 @@
+#!/usr/bin/env python3
+
 import sys
 import argparse
 import os
 import logging
 from datetime import datetime, timedelta
-import urllib.request
+import requests
 from apscheduler.schedulers.background import BlockingScheduler
 import signal
 
@@ -99,12 +101,12 @@ def process_feed(feed_data):
 
 def download_feed():
     logger.info("Downloading feed ...")
-    feed = urllib.request.urlopen(dshield_feed_url)
-    if feed.getcode() == 200:
-        feed_data = [line.decode() for line in feed.readlines() if not line.decode().startswith('#')]
+    res = requests.get(dshield_feed_url)
+    if res.status_code == 200:
+        feed_data = [line.decode() for line in res.iter_lines() if not line.startswith(b'#')]
     else:
-        logger.error("Cannot download feed. Response status code: {}".format(feed.getcode()))
-        sys.exit(1)
+        logger.error(f"Cannot download feed. Response status code: {res.status_code}\nError message: {res.text[:200]}")
+        return
     logger.info(f"Feed successfully downloaded. {len(feed_data)} records found.")
     process_feed(feed_data)
 
