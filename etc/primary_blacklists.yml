@@ -21,6 +21,223 @@
 #     headers - dict of key-value pairs specyfing additional HTTP headers
 #   Example of url_params and headers usage can be viewed below in Abuse IP DB blacklist specification.
 iplists:
+#Proxy servers
+#HTTP
+- id: proxy_ercin_http
+  name: ErcinDedeoglu's HTTP proxy servers list
+  descr: HTTP protocol, Number of IP adresses = 26782, Updates every ~10min
+  provider_link: https://github.com/ErcinDedeoglu/proxies
+  url: https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/http.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*"
+    minute: 0
+
+- id: proxy_vakhov_http
+  name: Vakhov's HTTP proxy servers list
+  descr: HTTP protocol, Number of IP adresses = 11353, Updates every ~15-30min
+  provider_link: https://github.com/vakhov/fresh-proxy-list
+  url: https://raw.githubusercontent.com/vakhov/fresh-proxy-list/master/http.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*"
+    minute: 0
+
+- id: proxy_speed_http
+  name: TheSpeedX's HTTP proxy servers list
+  descr: HTTP protocol, Number of IP adresses = 3321, Updates every 3h
+  provider_link: https://github.com/TheSpeedX/PROXY-List
+  url: https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*/3"
+    minute: 0
+
+- id: proxy_officialputuid_http
+  name: officialputuid's HTTP proxy servers list
+  descr: HTTP protocol, Number of IP adresses = 2440, Updates every 5h
+  provider_link: https://github.com/officialputuid/KangProxy
+  url: https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/http/http.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*/5"
+    minute: 0
+
+- id: proxy_vann_http
+  name: Vann-Dev's HTTP proxy servers list
+  descr: HTTP protocol, Number of IP adresses = 881, Updates every 3h
+  provider_link: https://github.com/Vann-Dev/proxy-list
+  url: https://raw.githubusercontent.com/Vann-Dev/proxy-list/main/proxies/http.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*/3"
+    minute: 0
+
+#HTTPS
+- id: proxy_ercin_https
+  name: ErcinDedeoglu's HTTPS proxy servers list
+  descr: HTTPS protocol, Number of IP adresses = 26782, Updates every ~10min
+  provider_link: https://github.com/ErcinDedeoglu/proxies
+  url: https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/http.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*"
+    minute: 0
+
+- id: proxy_officialputuid_https
+  name: officialputuid's HTTPS proxy servers list
+  descr: HTTPS protocol, Number of IP adresses = 3555, Updates every 5h
+  provider_link: https://github.com/officialputuid/KangProxy
+  url: https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/https/https.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*/5"
+    minute: 0
+
+- id: proxy_zaeem20_https
+  name: Zaeem20's HTTPS proxy servers list
+  descr: HTTPS protocol, Number of IP adresses = 3555, Updates every ~10min
+  provider_link: https://github.com/Zaeem20/FREE_PROXIES_LIST
+  url: https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/https.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*"
+    minute: 0
+
+#SOCKS4
+- id: proxy_ercin_socks4
+  name: ErcinDedeoglu's SOCKS4 proxy servers list
+  descr: SOCKS4 protocol, Number of IP adresses = 8529, Updates every ~10min
+  provider_link: https://github.com/ErcinDedeoglu/proxies
+  url: https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/socks4.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*"
+    minute: 0
+
+- id: proxy_speed_socks4
+  name: TheSpeedX's SOCKS4 proxy servers list
+  descr: SOCKS4 protocol, Number of IP adresses = 2832, Updates every 3hod
+  provider_link: https://github.com/TheSpeedX/PROXY-List
+  url: https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks4.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*/3"
+    minute: 0
+
+- id: proxy_officialputuid_socks4
+  name: officialputuid's SOCKS4 proxy servers list
+  descr: SOCKS4 protocol, Number of IP adresses = 6732, Updates every 5h
+  provider_link: https://github.com/officialputuid/KangProxy
+  url: https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/socks4/socks4.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*/5"
+    minute: 0
+
+#SOCKS5
+- id: proxy_ercin_socks5
+  name: ErcinDedeoglu's SOCKS5 proxy servers list
+  descr: SOCKS5 protocol, Number of IP adresses = 2345, Updates every ~10min
+  provider_link: https://github.com/ErcinDedeoglu/proxies
+  url: https://raw.githubusercontent.com/ErcinDedeoglu/proxies/main/proxies/socks5.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*"
+    minute: 0
+
+- id: proxy_speed_socks5
+  name: TheSpeedX's SOCKS5 proxy servers list
+  descr: SOCKS5 protocol, Number of IP adresses = 2486, Updates every 3hod
+  provider_link: https://github.com/TheSpeedX/PROXY-List
+  url: https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*/3"
+    minute: 0
+
+- id: proxy_officialputuid_socks5
+  name: officialputuid's SOCKS5 proxy servers list
+  descr: SOCKS5 protocol, Number of IP adresses = 3039, Updates every 5h
+  provider_link: https://github.com/officialputuid/KangProxy
+  url: https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/socks5/socks5.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*/5"
+    minute: 0
+
+#UNKNOWN
+- id: proxy_geonode
+  name: Geonode's proxy servers list
+  descr: Unknown protocols, Number of IP adresses = 7399, Updates every ?
+  provider_link: https://geonode.com/free-proxy-list
+  url: file:///data/blacklists/geonode_proxy_list.txt
+  regex: ""
+  time:
+    hour: "*"
+    minute: 0
+
+- id: proxy_proxyscrape
+  name: Proxyscrape's proxy servers list
+  descr: Unknown protocols, Number of IP adresses = 1135, Updates every ?
+  provider_link: https://proxyscrape.com/
+  url: https://api.proxyscrape.com/v3/free-proxy-list/get?request=getproxies&proxy_format=protocolipport&format=text
+  regex: "(\\A)"
+  time:
+    hour: "1"
+    minute: 0
+
+- id: proxy_fineproxy
+  name: Fineproxy's proxy servers list
+  descr: Unknown protocols, Number of IP adresses = 2837, Updates every 30min, The source URL may change
+  provider_link: https://fineproxy.org/free-proxy/
+  url: https://fineproxy.org/wp-admin/admin-ajax.php?action=proxylister_download&nonce=62a3af4c7b&format=txt&filter={}
+  regex: "^(\\A)"
+  time:
+    hour: "*"
+    minute: 0
+
+- id: proxy_yemixzy
+  name: Yemixzy's proxy servers list
+  descr: Unknown protocols, Number of IP adresses = 10902, Updates every 3hod, Contains 46% duplicates (size is without them)
+  provider_link: https://github.imc.re/yemixzy/proxy-list
+  url: https://raw.githubusercontent.com/yemixzy/proxy-list/main/proxies/unchecked.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*/3"
+    minute: 0
+
+#VPN Servers
+- id: vpn_X4BNet_datacenter
+  name: X4BNet's vpn datacenter servers list
+  descr: Number of IP adresses = 30082, Updates every day
+  provider_link: https://github.com/X4BNet/lists_vpn
+  url: https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/datacenter/ipv4.txt
+  regex: "^(\\A)"
+  time:
+    hour: "1"
+    minute: 0
+
+- id: vpn_X4BNet_vpn
+  name: X4BNet's vpn servers list
+  descr: Number of IP adresses = 3756, Updates every day
+  provider_link: https://github.com/X4BNet/lists_vpn
+  url: https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/vpn/ipv4.txt
+  regex: "^(\\A)"
+  time:
+    hour: "1"
+    minute: 0
+
+- id: vpn_az0
+  name: az0's vpn servers list
+  descr: Number of IP adresses = 20657, Updates every 12h, Contains 25% duplicates
+  provider_link: https://github.com/az0/vpn_ip
+  url: https://raw.githubusercontent.com/az0/vpn_ip/main/data/output/ip.txt
+  regex: "^(\\A)"
+  time:
+    hour: "*/12"
+    minute: 0
+
 - id: feodo
   name: Feodo tracker
   descr: Feodo Tracker is a project of abuse.ch. Shares botnet C&C<br>servers associated with the Feodo malware family(Dridex, Emotet/Heodo)<br>as well as TrickBot and QakBot (aka QuakBot / Qbot)
