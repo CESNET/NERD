@@ -73,6 +73,9 @@ dnsbl: dns_blacklists.yml
 # Configuration file for EventCountLogger
 event_logging_config: event_logging.yml
 
+# Reputation configuration file
+reputation_config: reputation.yml
+
 # Threat categorization configuration file
 threat_categorization_config: threat_categorization.yml
 

@@ -1,0 +1,59 @@
+# NERD config - reputation
+# used by the reputation module
+---
+
+# List of enabled source modules
+# The calculation will only include data from enabled modules
+rep_enabled_modules:
+  - warden
+  - dshield
+  - blacklists
+  - otx
+  - misp
+
+# Reputation parameters (per source module):
+#    triggers:      List of trigger attributes. Changes in any of these attributes will trigger reputation update (if the module is enabled).
+#    coef_events:   Base value for the number of events used in the non-linear transformation for computing partial reputation (optional, default=0.5).
+#    coef_detectors:  Base value for the number of detectors used in the non-linear transformation for computing partial reputation (optional, default=0.5).
+#    scale_events:  Scaling parameter for the number of events, e.g. Warden events or Dshield reports (optional, default=1).
+#    scale_detectors: Scaling parameter for the number of detectors, e.g. Warden nodes or Dshield targets (optional, default=1).
+#    history:
+#       date_range: Limit the number of days for which to compute daily reputation before averaging (optional, default is equal to 'max_events_history' from main config).
+#       time_decay: Can be either 'linear' (weights decrease linearly with age), 'half-life:n' (weights decrease by half each N days), or 'none' (no weights).
+rep_params:
+  warden:
+    triggers: ["events_meta.total"]
+    scale_events: 10
+    scale_detectors: 2
+    history:
+      date_range: 14
+      time_decay: "linear"
+
+  blacklists:
+    triggers: ["bl"]
+    scale_events: 3
+    history:
+      date_range: 1 # Only use today's data as blacklists usually already have some kind of retention policy
+      time_decay: "none"
+
+  dshield:
+    triggers: ["dshield"]
+    scale_events: 200
+    scale_detectors: 100
+    history:
+      date_range: 14
+      time_decay: "linear"
+
+  otx:
+    triggers: ["otx_pulses"]
+    scale_events: 1
+    history:
+      date_range: 30
+      time_decay: "linear"
+
+  misp:
+    triggers: ["misp_events"]
+    scale_events: 5
+    history:
+      date_range: 1 # Do not use history for MISP, all events are treated as if they were published today
+      time_decay: "none"
