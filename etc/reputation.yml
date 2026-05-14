@@ -12,14 +12,15 @@ rep_enabled_modules:
   - misp
 
 # Reputation parameters (per source module):
-#    triggers:      List of trigger attributes. Changes in any of these attributes will trigger reputation update (if the module is enabled).
-#    coef_events:   Base value for the number of events used in the non-linear transformation for computing partial reputation (optional, default=0.5).
-#    coef_detectors:  Base value for the number of detectors used in the non-linear transformation for computing partial reputation (optional, default=0.5).
-#    scale_events:  Scaling parameter for the number of events, e.g. Warden events or Dshield reports (optional, default=1).
-#    scale_detectors: Scaling parameter for the number of detectors, e.g. Warden nodes or Dshield targets (optional, default=1).
-#    history:
-#       date_range: Limit the number of days for which to compute daily reputation before averaging (optional, default is equal to 'max_events_history' from main config).
-#       time_decay: Can be either 'linear' (weights decrease linearly with age), 'half-life:n' (weights decrease by half each N days), or 'none' (no weights).
+#   triggers:        List of trigger attributes. Changes in any of these attributes will trigger reputation update (if the module is enabled).
+#   coef_events:     Base value for the number of events used in the non-linear transformation for computing partial reputation (optional, default=0.5).
+#   coef_detectors:  Base value for the number of detectors used in the non-linear transformation for computing partial reputation (optional, default=0.5).
+#   scale_events:    Scaling parameter for the number of events, e.g. Warden events or Dshield reports (optional, default=1).
+#   scale_detectors: Scaling parameter for the number of detectors, e.g. Warden nodes or Dshield targets (optional, default=1).
+#   trust_factor:    Determines how strongly the source contributes to the final reputation score (optional, default=1).
+#   history:
+#     date_range:   Limit the number of days for which to compute daily reputation before averaging (optional, default is equal to 'max_events_history' from main config).
+#     time_decay:   Can be either 'linear' (weights decrease linearly with age), 'half-life:n' (weights decrease by half each N days), or 'none' (no weights).
 rep_params:
   warden:
     triggers: ["events_meta.total"]
@@ -40,6 +41,7 @@ rep_params:
     triggers: ["dshield"]
     scale_events: 200
     scale_detectors: 100
+    trust_factor: 0.5
     history:
       date_range: 14
       time_decay: "linear"

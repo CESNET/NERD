@@ -80,8 +80,11 @@ class Reputation(NERDModule):
         etype, key = ekey
         if etype != "ip":
             return None
-        rep_total = 1 - math.prod([(1 - rec.get(f"_rep_{mod}", 0)) for mod in self.enabled_modules])
-        return [("set", "rep", rep_total)]
+        p = math.prod([
+            1 - (rec.get(f"_rep_{mod}", 0) * float(self.config[f"rep_params"][mod].get("trust_factor", 1)))
+            for mod in self.enabled_modules
+        ])
+        return [("set", "rep", 1 - p)]
 
     def partial_reputation(self, rec, module, coef_events, coef_detectors, scale_events, scale_detectors, date_range, time_decay, half_life=1):
         """
