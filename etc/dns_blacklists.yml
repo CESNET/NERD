@@ -1,5 +1,5 @@
 # NERD config - DNSBL blacklists
-# used by dnsbl.py, nerd_main.py and web templates (ips.html, ip.html) 
+# used by dnsbl.py, reputation.py, nerd_main.py and web templates (ips.html, ip.html)
 ---
 dnsbl:
   zen.spamhaus.org:
@@ -8,18 +8,21 @@ dnsbl:
       name: Spamhaus SBL
       descr: The Spamhaus Block List ("SBL") Advisory is a database<br>of IP addresses from which Spamhaus does not recommend<br>the acceptance of electronic mail.
       provider_link: https://www.spamhaus.org/sbl/
+      severity: 5
 
     127.0.0.3:
       id: spamhaus-sbl-css
       name: Spamhaus SBL CSS
       descr: The Spamhaus CSS is part of the SBL. CSS listings will have return<br>code 127.0.0.3 to differentiate from regular SBL listings,<br>which have return code 127.0.0.2.
       provider_link: https://www.spamhaus.org/sbl/
+      severity: 5
 
     127.0.0.4:
       id: spamhaus-xbl-cbl
       name: Spamhaus XBL CBL
       descr: The Spamhaus Exploits Block List (XBL) is a realtime database<br>of IP addresses of hijacked PCs infected by illegal 3rd party<br>exploits, including open proxies, worms/viruses with built-in<br>spam engines, and other types of trojan-horse exploits.
       provider_link: https://www.spamhaus.org/xbl/ 
+      severity: 5
 
     127.0.0.9:
       id: spamhaus-drop
@@ -27,18 +30,21 @@ dnsbl:
       descr: Spamhaus DROP (Don't Route Or Peer) list. Netblocks controlled by spammers or cyber criminals.<br>The DROP lists are a tiny subset<br>of the SBL, designed for use by firewalls<br>and routing equipment to filter out the malicious traffic from these netblocks.
       firehol_link: http://iplists.firehol.org/?ipset=spamhaus_drop
       provider_link: https://www.spamhaus.org/drop/ 
+      severity: 5
 
     127.0.0.10:
       id: spamhaus-pbl-isp
       name: Spamhaus PBL ISP
       descr: The Spamhaus PBL is a DNSBL database of end-user IP address<br>ranges which should not be delivering unauthenticated SMTP<br>email to any Internet mail server except those provided<br>for specifically by an ISP for that customer's use.
-      provider_link: https://www.spamhaus.org/pbl/ 
+      provider_link: https://www.spamhaus.org/pbl/
+      severity: 0
 
     127.0.0.11:
       id: spamhaus-pbl
       name: Spamhaus PBL
       descr: The Spamhaus PBL is a DNSBL database of end-user IP address<br>ranges which should not be delivering unauthenticated SMTP<br>email to any Internet mail server except those provided<br>for specifically by an ISP for that customer's use.
       provider_link: https://www.spamhaus.org/pbl/
+      severity: 0
   
   dnsbl.sorbs.net:
     127.0.0.2:
@@ -46,18 +52,21 @@ dnsbl:
       name: SORBS HTTP
       descr: The SORBS (Spam and Open Relay Blocking System) provides free access<br>to its DNS-based Block List (DNSBL) to effectively block email from<br>more than 12 million host servers known to disseminate spam,<br>phishing attacks and other forms of malicious email.
       provider_link: http://www.sorbs.net/
+      severity: 5
 
     127.0.0.3:
       id: sorbs-socks
       name: SORBS SOCKS
       descr: The SORBS (Spam and Open Relay Blocking System) provides free access<br>to its DNS-based Block List (DNSBL) to effectively block email from<br>more than 12 million host servers known to disseminate spam,<br>phishing attacks and other forms of malicious email.
-      provider_link: http://www.sorbs.net/ 
+      provider_link: http://www.sorbs.net/
+      severity: 5
 
     127.0.0.4:
       id: sorbs-misc
       name: SORBS misc
       descr: The SORBS (Spam and Open Relay Blocking System) provides free access<br>to its DNS-based Block List (DNSBL) to effectively block email from<br>more than 12 million host servers known to disseminate spam,<br>phishing attacks and other forms of malicious email.
       provider_link: http://www.sorbs.net/
+      severity: 5
 
     127.0.0.5:
       id: sorbs-smtp
@@ -65,6 +74,7 @@ dnsbl:
       descr: List of SMTP Open Relays.
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_smtp
       provider_link: http://www.sorbs.net/
+      severity: 5
 
     127.0.0.6:
       id: sorbs-spam
@@ -72,19 +82,22 @@ dnsbl:
       descr: List of hosts that have been noted as sending spam/UCE/UBE
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_recent_spam
       provider_link: http://www.sorbs.net/
+      severity: 5
 
     127.0.0.7:
       id: sorbs-web
       name: SORBS Web
       descr: List of IPs which have spammer abusable<br>vulnerabilities (e.g. FormMail scripts)
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_web
-      provider_link: http://www.sorbs.net/ 
+      provider_link: http://www.sorbs.net/
+      severity: 5
 
     127.0.0.8:
       id: sorbs-block
       name: SORBS Block
       descr: The SORBS (Spam and Open Relay Blocking System) provides free access<br>to its DNS-based Block List (DNSBL) to effectively block email from<br>more than 12 million host servers known to disseminate spam,<br>phishing attacks and other forms of malicious email.
       provider_link: http://www.sorbs.net/
+      severity: 5
 
     127.0.0.9:
       id: sorbs-zombie
@@ -92,6 +105,7 @@ dnsbl:
       descr: List of networks hijacked from their original owners,<br>some of which have already used for spamming.
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_zombie
       provider_link: http://www.sorbs.net/
+      severity: 5
 
     127.0.0.10:
       id: sorbs-dul
@@ -99,6 +113,7 @@ dnsbl:
       descr: Dynamic IP Addresses.
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_dul
       provider_link: http://www.sorbs.net/
+      severity: 5
 
     127.0.0.14:
       id: sorbs-noserver
@@ -106,6 +121,7 @@ dnsbl:
       descr: IP addresses and netblocks of where system administrators<br>and ISPs owning the network have indicated<br>that servers should not be present.
       firehol_link: http://iplists.firehol.org/?ipset=sorbs_noserver
       provider_link: http://www.sorbs.net/
+      severity: 5
 
   bl.spamcop.net:
     127.0.0.2:
@@ -113,5 +129,6 @@ dnsbl:
       name: SpamCop
       descr: The SpamCop Blocking List (SCBL) lists IP addresses which<br>have transmitted reported email to SpamCop users.
       provider_link: https://www.spamcop.net/
+      severity: 5
 
 

@@ -10,6 +10,8 @@ redis:
 # List specification:
 #   id (used as key in records),
 #   name (for humans),
+#   description,
+#   severity (used by reputation module to determine how strongly the blacklist contributes to reputation score),
 #   url (http(s):// or file://, if local file is used, it should be updated by external cron script)
 #   regex to parse the file (should match on IP address) or empty if there are only IP addresses, one per line (lines beginning with '#' are ignored),
 #       or just fill regex with searching for IP, IP prefix or domain without group, if the whole blacklist is on one line or has multiple records on on line
@@ -30,6 +32,7 @@ iplists:
 - id: andoniafMiners
   name: Andoniaf Miners
   descr: List of crypto mining pools (IP addresses).
+  severity: 5
   provider_link: https://github.com/andoniaf/mining-pools-list
   url: https://raw.githubusercontent.com/andoniaf/mining-pools-list/master/mining-pools_IP.lst
   regex: ""
@@ -39,6 +42,7 @@ iplists:
 - id: tor_project_org_ips
   name: TorProject
   descr: TorProject.org list of all current TOR exit points (TorDNSEL)
+  severity: 5
   firehol_link: https://iplists.firehol.org/?ipset=tor_exits_30d
   provider_link: https://check.torproject.org/
   url: https://check.torproject.org/torbulkexitlist
@@ -50,6 +54,7 @@ iplists:
 - id: dan_me_uk_ips
   name: dan.me.uk TOR Nodes
   descr: List of TOR node IPs by dan.me.uk.
+  severity: 5
   provider_link: https://www.dan.me.uk/tornodes
   url: https://www.dan.me.uk/torlist/
   regex: ""
@@ -62,6 +67,7 @@ iplists:
 - id: firehol_anonymous
   name: FireHOL anonymizers
   descr: List of anonymizing IPs, aggregated from multiple lists by FireHOL.
+  severity: 5
   firehol_link: https://iplists.firehol.org/?ipset=firehol_anonymous
   provider_link: https://iplists.firehol.org/
   url: https://iplists.firehol.org/files/firehol_anonymous.netset
@@ -78,6 +84,7 @@ prefixiplists:
 - id: botscout_7d
   name: BotScout
   descr: List of bots IPs by BotScout.com (IPs that appeared in last 7 days, as processed by FireHOL).
+  severity: 5
   firehol_link: https://iplists.firehol.org/?ipset=botscout_7d
   provider_link: http://botscout.com/
   url: https://iplists.firehol.org/files/botscout_7d.ipset
@@ -89,6 +96,7 @@ prefixiplists:
 - id: dshield
   name: DShield Block
   descr: Recommended Block List by DShield.org. It summarizes the top 20 attacking<br>class C (/24) subnets over the last three days.
+  severity: 5
   firehol_link: https://iplists.firehol.org/?ipset=dshield
   provider_link: https://www.dshield.org/
   url: https://www.dshield.org/block.txt
@@ -107,6 +115,7 @@ prefixiplists:
 #- id: spamhaus_drop
 #  name: Spamhaus DROP
 #  descr: Spamhaus DROP (Don't Route Or Peer) list. Netblocks controlled by spammers or cyber criminals. The DROP lists are a tiny subset of the SBL, designed for use by firewalls and routing equipment to filter out the malicious traffic from these netblocks.
+#  severity: 5
 #  firehol_link: https://iplists.firehol.org/?ipset=spamhaus_drop
 #  provider_link: https://www.spamhaus.org/
 #  url: https://www.spamhaus.org/drop/drop.txt
@@ -118,6 +127,7 @@ domainlists:
 - id: openphish
   name: OpenPhish
   descr: List of domains hosting phishing sites.
+  severity: 5
   provider_link: https://openphish.com/
   url: https://openphish.com/feed.txt
   regex: ""
@@ -127,6 +137,7 @@ domainlists:
 - id: booters
   name: Booters
   descr: List of Booter domains (websites that publicly offer DDoS attacks as a paid service).
+  severity: 5
   provider_link: https://github.com/jjsantanna/booters_ecosystem_analysis
   url: https://raw.githubusercontent.com/jjsantanna/booters_ecosystem_analysis/master/booterblacklist.csv
   regex: "^[0-9]*?,(.*?)$"

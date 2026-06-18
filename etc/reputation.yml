@@ -32,7 +32,7 @@ rep_params:
 
   blacklists:
     triggers: ["bl"]
-    scale_events: 3
+    scale_events: 20
     history:
       date_range: 1 # Only use today's data as blacklists usually already have some kind of retention policy
       time_decay: "none"

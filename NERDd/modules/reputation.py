@@ -50,6 +50,28 @@ class Reputation(NERDModule):
                 self.module_params[mod]["half_life"] = float(half_life)
             self.module_params[mod]["time_decay"] = time_decay
 
+        # Load blacklists config (blacklists, primary blacklists, dns blacklists) and prepare the severity of each blacklist
+        bl_cfg_files = [os.path.join(g.config_base_path, g.config.get(file)) for file in [
+            "p_bl_config",
+            "bl_config",
+            "dnsbl"
+        ]]
+        all_blacklists = []
+        for file in bl_cfg_files:
+            cfg = common.config.read_config(file)
+            if "iplists" in cfg:
+                all_blacklists.extend(cfg["iplists"])
+            elif "dnsbl" in cfg:
+                all_blacklists.extend(
+                    item
+                    for dnsbl in cfg["dnsbl"].values()
+                    for item in dnsbl.values()
+                )
+        self.blacklists_severity = {
+            bl_conf["id"]: bl_conf.get("severity", 0)
+            for bl_conf in all_blacklists
+        }
+
         # Register handler functions
         g.um.register_handler(
             self.rep_total,
@@ -156,7 +178,7 @@ class Reputation(NERDModule):
 
     def get_blacklists_data(self, rec, date_range, today):
         """
-        Get number of blacklists for each day of the date range
+        Blacklists reputation uses "evidence points" calculated as the sum of the "severity" parameter values from all blacklists on which the address is listed
         """
         if not (records := rec.get("bl")):
             return None
@@ -167,8 +189,12 @@ class Reputation(NERDModule):
                 if (age := (today - rec_date).days) >= date_range:
                     continue
                 blacklists[age].add(blrec["n"])
-        num_blacklists = [len(bl) for bl in blacklists]
-        return num_blacklists, None
+        evidence_points = [0] * len(blacklists)
+        for d in evidence_points:
+            for bl in blacklists[d]:
+                e = self.blacklists_severity.get(bl, 0)
+                evidence_points[d] += e
+        return evidence_points, None
 
     def get_otx_data(self, rec, date_range, today):
         """

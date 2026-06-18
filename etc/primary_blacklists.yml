@@ -5,6 +5,8 @@
 # List specification:
 #   id (used as key in records),
 #   name (for humans),
+#   description,
+#   severity (used by reputation module to determine how strongly the blacklist contributes to reputation score),
 #   url (http(s):// or file://, if local file is used, it should be updated by external cron script)
 #   regex to parse the file (should match on IP address) or empty if there are only IP addresses, one per line (lines beginning with '#' are ignored),
 #       or just fill regex with searching for IP, IP prefix or domain without group, if the whole blacklist is on one line or has multiple records on on line
@@ -24,6 +26,7 @@ iplists:
 - id: feodo
   name: Feodo tracker
   descr: Feodo Tracker is a project of abuse.ch. Shares botnet C&C<br>servers associated with the Feodo malware family(Dridex, Emotet/Heodo)<br>as well as TrickBot and QakBot (aka QuakBot / Qbot)
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=feodo
   provider_link: https://feodotracker.abuse.ch/
   url: https://feodotracker.abuse.ch/downloads/ipblocklist.txt
@@ -35,6 +38,7 @@ iplists:
 - id: bruteforceblocker
   name: BruteForceBlocker
   descr: Daniel Gerzo's BruteForceBlocker. The list is made by perl script,<br>that works along with pf - OpenBSD's firewall and it's main<br>purpose is to block SSH bruteforce attacks via firewall.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=bruteforceblocker
   provider_link: https://danger.rulez.sk/index.php/bruteforceblocker/
   url: http://danger.rulez.sk/projects/bruteforceblocker/blist.php
@@ -46,6 +50,7 @@ iplists:
 - id: ciarmy
   name: CI Army
   descr: Collective Intelligence Network Security is a Threat Intelligence<br>database that provides scores for IPs. Source of unspecified malicious attacks<br>most of them will be active attackers/scanners
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=ciarmy
   provider_link: https://cinsscore.com/#list
   url: http://cinsscore.com/list/ci-badguys.txt
@@ -58,6 +63,7 @@ iplists:
 - id: blocklist_de-ssh
   name: blocklist.de SSH
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing SSH attacks.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_ssh
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/ssh.txt
@@ -69,6 +75,7 @@ iplists:
 - id: blocklist_de-mail
   name: blocklist.de mail
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing Mail attacks.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_mail
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/mail.txt
@@ -80,6 +87,7 @@ iplists:
 - id: blocklist_de-apache
   name: blocklist.de Apache
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing attacks on the service<br>Apache, Apache-DDOS, RFI-Attacks.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_apache
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/apache.txt
@@ -91,6 +99,7 @@ iplists:
 - id: blocklist_de-imap
   name: blocklist.de IMAP
   descr: Blocklist.de feed is a free and voluntary service<br>provided by a Fraud/Abuse-specialist. IPs performing attacks<br>on the Service imap, sasl, pop3.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_imap
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/imap.txt
@@ -102,6 +111,7 @@ iplists:
 - id: blocklist_de-ftp
   name: blocklist.de FTP
   descr: Blocklist.de feed is a free and voluntary service<br>provided by a Fraud/Abuse-specialist. IPs performing attacks<br>on the Service FTP.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_ftp
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/ftp.txt
@@ -113,6 +123,7 @@ iplists:
 - id: blocklist_de-sip
   name: blocklist.de SIP
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IP addresses that tried to login in a SIP,<br>VOIP or Asterisk Server.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_sip
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/sip.txt
@@ -124,6 +135,7 @@ iplists:
 - id: blocklist_de-bots
   name: blocklist.de bots
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing attacks on the RFI-Attacks,<br>REG-Bots, IRC-Bots or BadBots.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_bots
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/bots.txt
@@ -135,6 +147,7 @@ iplists:
 - id: blocklist_de-strongips
   name: blocklist.de strong IPs
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs that are older then two month and have<br>more then 5.000 attacks.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_strongips
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/strongips.txt
@@ -145,7 +158,8 @@ iplists:
   
 - id: blocklist_de-ircbot
   name: blocklist.de IRC-bot
-  descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing attacks on the IRC-Bots. 
+  descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs performing attacks on the IRC-Bots.
+  severity: 5
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/ircbot.txt
   regex: ""
@@ -156,6 +170,7 @@ iplists:
 - id: blocklist_de-bruteforcelogin
   name: blocklist.de web-login
   descr: Blocklist.de feed is a free and voluntary service provided<br>by a Fraud/Abuse-specialist. IPs that attacks Joomla, Wordpress and<br>other Web-Logins with Brute-Force Logins.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_de_bruteforce
   provider_link: http://www.blocklist.de/en/index.html
   url: https://lists.blocklist.de/lists/bruteforcelogin.txt
@@ -167,6 +182,7 @@ iplists:
 - id: sblam_ips
   name: Sblam!
   descr: Sblam! is a service that effectively protects forms for<br>comments in blogs, forums and guestbooks from spam.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=sblam
   provider_link: https://sblam.com/
   url: https://sblam.com/blacklist.txt
@@ -179,6 +195,7 @@ iplists:
 - id: blocklist_net_ua_ips
   name: Blocklist.net.ua
   descr: BlockList contains IP addresses that perform attacks,<br>send spam or brute force passwords to the blocking list.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=blocklist_net_ua
   provider_link: https://blocklist.net.ua/about/
   url: https://blocklist.net.ua/blocklist.csv
@@ -191,6 +208,7 @@ iplists:
 - id: darklist_de_ips
   name: Darklist.de
   descr: Darklist.de is an IP blacklist that identifies<br>SSH brute force attacks and spam incidents.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=darklist_de
   provider_link: http://www.darklist.de/
   url: http://www.darklist.de/raw.php
@@ -203,6 +221,7 @@ iplists:
 - id: charles_the_haleys_ssh_dico_ips
   name: Haley SSH
   descr: IPs launching SSH dictionary attacks attacks against the server of Charles B. Haley.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=haley_ssh
   provider_link: http://charles.the-haleys.org/
   url: http://charles.the-haleys.org/ssh_dico_attack_with_timestamps.php?days=7
@@ -215,6 +234,7 @@ iplists:
 - id: charles_the_haleys_wp_attack_ips
   name: Haley WordPress
   descr: IPs launching attacks aginst WordPress running on the server of Charles B. Haley.
+  severity: 5
   provider_link: http://charles.the-haleys.org/
   url: http://charles.the-haleys.org/wp_attack_with_timestamps.php?days=7
   regex: "^(\\A)"
@@ -226,6 +246,7 @@ iplists:
 - id: charles_the_haleys_smtp_dico_ips
   name: Haley SMTP AUTH
   descr: IPs launching SMTP AUTH dictionary attacks aginst the server of Charles B. Haley.
+  severity: 5
   provider_link: http://charles.the-haleys.org/
   url: http://charles.the-haleys.org/smtp_dico_attack_with_timestamps.php?days=7
   regex: "^(\\A)"
@@ -237,6 +258,7 @@ iplists:
 - id: turris_greylist
   name: Turris greylist
   descr: Greylist is the output of the Turris research project by CZ.NIC,<br>which collects data of malicious IPs.
+  severity: 5
   provider_link: https://view.sentinel.turris.cz/
   url: https://view.sentinel.turris.cz/greylist-data/greylist-latest.csv
   regex: "^(\\A)"
@@ -248,6 +270,7 @@ iplists:
 - id: threat_sourcing_ips
   name: Threat Sourcing
   descr: "Threat Sourcing is a collaborative project to collect<br>and study threats as they present themselves on the Internet.<br>Note: The provider doesn't provide any details about how the data are collected or how to interpret them, e.g. the type of threat the IPs pose."
+  severity: 5
   provider_link: https://www.threatsourcing.com/
   url: https://www.threatsourcing.com/ipall.txt
   regex: ""
@@ -259,6 +282,7 @@ iplists:
 - id: mirai_tracker_ips
   name: Mirai tracker
   descr: IPs scanning the internet in a specific way known to be used by Mirai malware and its variants.
+  severity: 5
   provider_link: https://mirai.security.gives/index.php
   url: https://mirai.security.gives/data/ip_list.txt
   regex: ""
@@ -270,6 +294,7 @@ iplists:
 - id: threatfox_ips
   name: ThreatFox
   descr: ThreatFox is a free platform from abuse.ch with the goal of<br>sharing indicators of compromise (IOCs) associated with malware with the<br>infosec community, AV vendors and threat intelligence providers.
+  severity: 5
   provider_link: https://threatfox.abuse.ch/
   url: https://threatfox.abuse.ch/export/csv/ip-port/recent/
   regex: ".*?(\\A)"
@@ -281,6 +306,7 @@ iplists:
 - id: ssl_blacklist_ips
   name: SSL Blacklist
   descr: The SSL Blacklist is a project of abuse.ch with the goal of<br>detecting SSL certificates used by botnet C&C servers. NERD uses its list of C&C servers using such certificates.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=sslbl
   provider_link: https://sslbl.abuse.ch/
   url: https://sslbl.abuse.ch/blacklist/sslipblacklist.txt
@@ -293,6 +319,7 @@ iplists:
 - id: urlhaus_ips
   name: URLHaus
   descr: URLhaus is a project from abuse.ch with the goal of sharing<br>malicious URLs that are being used for malware distribution.<br>This list contains IPs that are part of the malicious ULRs.
+  severity: 5
   provider_link: https://urlhaus.abuse.ch/
   url: https://urlhaus.abuse.ch/downloads/text_online/
   regex: ".*?(\\A)"
@@ -304,6 +331,7 @@ iplists:
 - id: blacklists_co_ssh
   name: Blacklists.co SSH
   descr: Blacklists.co blocklist contains SSH Malicious Addresses.
+  severity: 5
   provider_link: http://blacklists.co/
   url: http://blacklists.co/download/ssh.txt
   regex: ""
@@ -315,6 +343,7 @@ iplists:
 - id: blacklists_co_www
   name: Blacklists.co WWW
   descr: Blacklists.co blocklist contains WWW Malicious Addresses.
+  severity: 5
   provider_link: http://blacklists.co/
   url: http://blacklists.co/download/www.txt
   regex: "" 
@@ -326,6 +355,7 @@ iplists:
 - id: blacklists_co_email
   name: Blacklists.co email
   descr: Blacklists.co blocklist contains EMAIL Malicious Addresses.
+  severity: 5
   provider_link: http://blacklists.co/
   url: http://blacklists.co/download/email.txt
   regex: ""
@@ -337,6 +367,7 @@ iplists:
 - id: blacklists_co_mssql
   name: Blacklists.co MSSQL
   descr: Blacklists.co blocklist contains MSSQL Malicious Addresses.
+  severity: 5
   provider_link: http://blacklists.co/
   url: http://blacklists.co/download/mssql.txt
   regex: ""
@@ -348,6 +379,7 @@ iplists:
 - id: blacklists_co_mysql
   name: Blacklists.co MYSQL
   descr: Blacklists.co blocklist contains MYSQL Malicious Addresses.
+  severity: 5
   provider_link: http://blacklists.co/
   url: http://blacklists.co/download/mysql.txt
   regex: "" 
@@ -359,6 +391,7 @@ iplists:
 - id: blacklists_co_rdp
   name: Blacklists.co RDP
   descr: Blacklists.co blocklist contains RDP Malicious Addresses.
+  severity: 5
   provider_link: http://blacklists.co/
   url: http://blacklists.co/download/rdp.txt
   regex: ""
@@ -370,6 +403,7 @@ iplists:
 - id: blacklists_co_sip
   name: Blacklists.co SIP
   descr: Blacklists.co blocklist contains SIP Malicious Addresses.
+  severity: 5
   provider_link: http://blacklists.co/
   url: http://blacklists.co/download/sip.txt
   regex: "" 
@@ -381,6 +415,7 @@ iplists:
 - id: dataplane_org_sshclient
   name: DataPlane SSH conn
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>has been seen initiating an unsolicited SSH connection to a remote host.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sshclient
   provider_link: https://dataplane.org/
   url: https://dataplane.org/sshclient.txt
@@ -393,6 +428,7 @@ iplists:
 - id: dataplane_org_sshpwauth
   name: DataPlane SSH login
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs trying<br>an unsolicited login to a host using SSH password authentication.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sshpwauth
   provider_link: https://dataplane.org/
   url: https://dataplane.org/sshpwauth.txt
@@ -405,6 +441,7 @@ iplists:
 - id: dataplane_org_vnc_rfb
   name: DataPlane VNC RFB
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs initiating<br>an unsolicited VNC remote frame buffer (RFB) session to a remote host.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_vncrfb
   provider_link: https://dataplane.org/
   url: https://dataplane.org/vncrfb.txt
@@ -417,6 +454,7 @@ iplists:
 - id: dataplane_org_telnet_login
   name: DataPlane TELNET login
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs trying<br>an unsolicited login via TELNET password authentication.
+  severity: 5
   provider_link: https://dataplane.org/
   url: https://dataplane.org/telnetlogin.txt
   regex: ".*?(\\A)"
@@ -428,6 +466,7 @@ iplists:
 - id: dataplane_org_smtp_greet
   name: DataPlane SMTP greeting
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IPs that are<br>identified as SMTP clients issuing unsolicited HELO or EHLO commands.
+  severity: 5
   provider_link: https://dataplane.org/
   url: https://dataplane.org/smtpgreet.txt
   regex: ".*?(\\A)"
@@ -439,6 +478,7 @@ iplists:
 - id: dataplane_org_smtp_data
   name: DataPlane SMTP data
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that <br>have been identified as SMTP clients sending unsolicited DATA commands.
+  severity: 5
   provider_link: https://dataplane.org/
   url: https://dataplane.org/smtpdata.txt
   regex: ".*?(\\A)"
@@ -450,6 +490,7 @@ iplists:
 - id: dataplane_org_proto41
   name: DataPlane proto-41
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>are identified as an open IPv4 protocol 41 relay (i.e. IPv6 over IPv4).
+  severity: 5
   provider_link: https://dataplane.org/
   url: https://dataplane.org/proto41.txt
   regex: ".*?(\\A)"
@@ -461,6 +502,7 @@ iplists:
 - id: dataplane_org_sipinvitation
   name: DataPlane SIP invitation
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>have been seen initiating an unsolicited SIP INVITE operation to a remote host.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipinvitation
   provider_link: https://dataplane.org/
   url: https://dataplane.org/sipinvitation.txt
@@ -473,6 +515,7 @@ iplists:
 - id: dataplane_org_sipquery
   name: DataPlane SIP query
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>has been seen initiating an unsolicited SIP OPTIONS query to a remote host.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipquery
   provider_link: https://dataplane.org/
   url: https://dataplane.org/sipquery.txt
@@ -485,6 +528,7 @@ iplists:
 - id: dataplane_org_sipregistration
   name: DataPlane SIP registration
   descr: DataPlane.org is a community-powered Internet data, feeds,<br>and measurement resource for operators, by operators. IP addresses that<br>have been seen initiating an unsolicited SIP REGISTER operation to a remote host.
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=dataplane_sipregistration
   provider_link: https://dataplane.org/
   url: https://dataplane.org/sipregistration.txt
@@ -498,6 +542,7 @@ iplists:
 - id: bambenek_c2
   name: Bambenek C&Cs
   descr: Bambenek Consulting master feed of known, active and non-sinkholed C&Cs IP addresses
+  severity: 5
   firehol_link: http://iplists.firehol.org/?ipset=bambenek_c2
   provider_link: https://osint.bambenekconsulting.com/feeds/
   url: https://iplists.firehol.org/files/bambenek_c2.ipset
@@ -510,6 +555,7 @@ iplists:
 - id: lightscope
   name: LightScope
   descr: LightScope observes traffic sent to closed ports on production machines
+  severity: 5
   provider_link: https://thelightscope.com/
   url: https://thelightscope.com/blocklist/20250625_iuoxafljcsnherjfheocpjgzqaasjfqptdkvpfholhsoxhogevqhav/recommended
   regex: "^(\\A)"
@@ -521,6 +567,7 @@ iplists:
 - id: echelon_admin_panel_hunt
   name: Echelon admin panel hunt
   descr: Scanning for administrative interfaces
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/admin-panel-hunt
   regex: ""
@@ -531,6 +578,7 @@ iplists:
 - id: echelon_cgi_script_hunt
   name: Echelon CGI script hunt
   descr: Scanning for vulnerable CGI scripts
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/cgi-script-hunt
   regex: ""
@@ -541,6 +589,7 @@ iplists:
 - id: echelon_cms_enumeration
   name: Echelon CMS enumeration
   descr: Content management system discovery and enumeration
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/cms-enumeration
   regex: ""
@@ -551,6 +600,7 @@ iplists:
 - id: echelon_cisco_ucm_exploit
   name: Echelon CISCO UCM exploit
   descr: CVE-2024-20253 Cisco Unified Communications Manager RCE
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/cisco-ucm-exploit
   regex: ""
@@ -561,6 +611,7 @@ iplists:
 - id: echelon_config_file_hunt
   name: Echelon config file hunt
   descr: Scanning for exposed configuration files
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/config-file-hunt
   regex: ""
@@ -571,6 +622,7 @@ iplists:
 - id: echelon_database_admin_hunt
   name: Echelon database admin hunt
   descr: Scanning for database admin interfaces (phpMyAdmin, etc.)
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/database-admin-hunt
   regex: ""
@@ -581,6 +633,7 @@ iplists:
 - id: echelon_directory_traversal_attempt
   name: Echelon directory traversal
   descr: Path traversal attack attempting to access restricted files
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/directory-traversal-attempt
   regex: ""
@@ -591,6 +644,7 @@ iplists:
 - id: echelon_enterprise_software_probe
   name: Echelon enterprise software probe
   descr: Probing for enterprise software (Confluence, Jenkins, etc.)
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/enterprise-software-probe
   regex: ""
@@ -601,6 +655,7 @@ iplists:
 - id: echelon_file_upload_attempt
   name: Echelon file upload
   descr: Attempting to upload potentially malicious files
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/file-upload-attempt
   regex: ""
@@ -611,6 +666,7 @@ iplists:
 - id: echelon_iot_default_credential_attempt
   name: Echelon IoT default credentials
   descr:
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/iot-default-credential-attempt
   regex: ""
@@ -621,6 +677,7 @@ iplists:
 - id: echelon_invanti_epmm_exploit
   name: Echelon Ivanti EPMM exploit
   descr: CVE-2026-1281/CVE-2026-1340 Ivanti Endpoint Manager Mobile pre-auth RCE
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/ivanti-epmm-exploit
   regex: ""
@@ -631,6 +688,7 @@ iplists:
 - id: echelon_mirai_credential_spray
   name: Echelon Mirai credential spray
   descr: Mirai-specific IoT default credentials detected in telnet payload
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/mirai-default-credential-spray
   regex: ""
@@ -641,6 +699,7 @@ iplists:
 - id: echelon_mirai_scanner
   name: Echelon Mirai scanner
   descr: Mirai-style port 23/2323 dual scanning pattern detected
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/mirai-scanner
   regex: ""
@@ -651,6 +710,7 @@ iplists:
 - id: echelon_path_traversal_attempt
   name: Echelon path traversal
   descr: Path traversal via encoded sequences
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/path-traversal-attempt
   regex: ""
@@ -661,6 +721,7 @@ iplists:
 - id: echelon_port_scan
   name: Echelon port scan
   descr: Scanning 5+ ports on target host
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/port-scan
   regex: ""
@@ -671,6 +732,7 @@ iplists:
 - id: echelon_router_exploit
   name: Echelon router exploit
   descr: Attempting router firmware exploits (Netgear, D-Link, etc.)
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/router-exploit
   regex: ""
@@ -681,6 +743,7 @@ iplists:
 - id: echelon_sip_register_scanner
   name: Echelon SIP register scanner
   descr: SIP VoIP registration scanning on port 5060
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/sip-register-scanner
   regex: ""
@@ -691,6 +754,7 @@ iplists:
 - id: echelon_sql_injection_attempt
   name: Echelon SQL injection
   descr:
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/sql-injection-attempt
   regex: ""
@@ -701,6 +765,7 @@ iplists:
 - id: echelon_ssh_bruteforcer
   name: Echelon SSH bruteforce
   descr: Multiple SSH authentication attempts detected
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/ssh-bruteforcer
   regex: ""
@@ -711,6 +776,7 @@ iplists:
 - id: echelon_ssh_connection_attempt
   name: Echelon SSH connection attempt
   descr: SSH connection attempt detected on port 22 or 2222
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/ssh-connection-attempt
   regex: ""
@@ -721,6 +787,7 @@ iplists:
 - id: echelon_sharepoint_active_exploitation
   name: Echelon SharePoint active exploitation
   descr: Active exploitation of SharePoint vulnerabilities
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/sharepoint-active-exploitation
   regex: ""
@@ -731,6 +798,7 @@ iplists:
 - id: echelon_sharepoint_toolshell_exploit
   name: Echelon SharePoint toolshell exploit
   descr: SharePoint toolshell exploitation attempt
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/sharepoint-toolshell-exploit
   regex: ""
@@ -741,6 +809,7 @@ iplists:
 - id: echelon_sharepoint_wehshell_scanning
   name: Echelon SharePoint webshell scanning
   descr: Scanning for SharePoint web shells
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/sharepoints-webshell-scanning
   regex: ""
@@ -751,6 +820,7 @@ iplists:
 - id: echelon_solarwinds_probe
   name: Echelon SolarWinds probe
   descr: Probing for SolarWinds Orion endpoints
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/solarwinds-probe
   regex: ""
@@ -761,6 +831,7 @@ iplists:
 - id: echelon_tls_ssl_crawler
   name: Echelon TLS/SSL crawler
   descr: TLS/SSL connection fingerprinting detected via Suricata
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/tls%2Fssl-crawler
   regex: ""
@@ -771,6 +842,7 @@ iplists:
 - id: echelon_telnet_bruteforcer
   name: Echelon telnet bruteforce
   descr: Multiple telnet authentication attempts detected
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/telnet-bruteforcer
   regex: ""
@@ -781,6 +853,7 @@ iplists:
 - id: echelon_uri_parsing_exploit
   name: Echelon URI parsing exploit
   descr: Exploiting URI parsing vulnerabilities
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/uri-parsing-exploit
   regex: ""
@@ -791,6 +864,7 @@ iplists:
 - id: echelon_vnc_login_attempt
   name: Echelon VNC login
   descr: VNC remote desktop login attempt on port 5900/5901
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/vnc-login-attempt
   regex: ""
@@ -801,6 +875,7 @@ iplists:
 - id: echelon_web_command_injection
   name: Echelon web command injection
   descr: Attempting OS command injection via web parameters
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/web-commad-injection
   regex: ""
@@ -811,6 +886,7 @@ iplists:
 - id: echelon_web_crawler
   name: Echelon web crawler
   descr: HTTP web crawling activity detected on web honeypots
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/web-crawler
   regex: ""
@@ -821,6 +897,7 @@ iplists:
 - id: echelon_web_shell_hunt
   name: Echelon web shell hunt
   descr: Scanning for web shells (WSO, c99, r57, etc.)
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/web-shell-hunt
   regex: ""
@@ -831,6 +908,7 @@ iplists:
 - id: echelon_web_vulnerability_exploit
   name: Echelon web vulnerability exploit
   descr: Generic web application vulnerability exploit
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/web-vulnerability-exploit
   regex: ""
@@ -841,6 +919,7 @@ iplists:
 - id: echelon_wordpress_auth_bypass
   name: Echelon WordPress auth bypass
   descr: WordPress authentication bypass attempt
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/wordpress-auth-bypass
   regex: ""
@@ -851,6 +930,7 @@ iplists:
 - id: echelon_wordpress_enumeration
   name: Echelon WordPress enumeration
   descr: WordPress user and plugin enumeration
+  severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/wordpress-enumeration
   regex: ""
@@ -862,6 +942,7 @@ iplists:
 #- id: abuseipdb
 #  name: AbuseIPDB
 #  descr: AbuseIPDB is a project managed by Marathon Studios Inc.<br>Lists IPs performing a malicious activity (DDoS, spam, phishing...)
+#  severity: 5
 #  provider_link: https://www.abuseipdb.com/
 #  url: https://api.abuseipdb.com/api/v2/blacklist
 #  regex: ""
@@ -880,6 +961,7 @@ iplists:
 #- id: uceprotect
 #  name: UCEPROTECT L1
 #  descr: UCEPROTECT-NETWORK list of spam IPs.
+#  severity: 5
 #  provider_link: http://www.uceprotect.net/en/index.php
 #  url: file:///data/blacklists/uceprotect-level1
 #  regex: "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
@@ -890,6 +972,7 @@ iplists:
 #- id: psbl
 #  name: PSBL
 #  descr: The Passive Spam Block List uses the Spamikaze software to detect spam IPs.
+#  severity: 5
 #  provider_link: https://psbl.org/about/
 #  url: file:///data/blacklists/psbl.txt
 #  regex: "^([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*)$"
@@ -902,6 +985,7 @@ iplists:
 #- id: crowdsec
 #  name: Crowdsec
 #  descr: Crowdsec community blacklist of malicious IPs.
+#  severity: 5
 #  provider_link: https://docs.crowdsec.net/
 #  url: file:///data/blacklists/crowdsec.csv
 #  regex: "^(\\A)"
