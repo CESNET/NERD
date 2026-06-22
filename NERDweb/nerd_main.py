@@ -2467,6 +2467,26 @@ def bulk_request():
         resp = bytes(resp) # Response() doesn't support bytearray, convert to bytes
         return Response(resp, 200, mimetype='application/octet-stream')
 
+#endpoint for mapping tag ids with their full name, used by the NERD IP search extension for Google Chrome
+@app.route('/api/v1/tag_info')
+def get_tag_info():
+    log_ep.log('/api/v1/tag_info')
+
+    tags = get_tags()
+
+    return Response(json.dumps(tags), 200, mimetype='application/json')
+
+#endpoint for mapping blacklist ids with their full name, used by the NERD IP search extension for Google Chrome
+@app.route('/api/v1/blacklist_info')
+def get_blacklist_info():
+    log_ep.log('/api/v1/blacklist_info')
+
+    ip_lists = [(id, info['name']) for id, info in blacklist_info.items()]
+    ip_lists.sort()
+
+    return Response(json.dumps(ip_lists), 200, mimetype='application/json')
+
+
 
 # Custom error 404 handler for API
 @app.errorhandler(404)
