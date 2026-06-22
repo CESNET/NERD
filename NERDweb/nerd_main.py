@@ -2471,8 +2471,9 @@ def bulk_request():
 @app.route('/api/v1/tag_info')
 def get_tag_info():
     log_ep.log('/api/v1/tag_info')
-
-    tags = get_tags()
+    tags = {}
+    for tag_id, tag_param in config_tags.get('tags', {}).items():
+        tags[tag_id]= tag_param.get('name', tag_id)
 
     return Response(json.dumps(tags), 200, mimetype='application/json')
 
@@ -2480,10 +2481,10 @@ def get_tag_info():
 @app.route('/api/v1/blacklist_info')
 def get_blacklist_info():
     log_ep.log('/api/v1/blacklist_info')
-
-    ip_lists = [(id, info['name']) for id, info in blacklist_info.items()]
-    ip_lists.sort()
-
+    ip_lists = {}
+    for id, info in blacklist_info.items():
+        ip_lists[id] = info['name']    
+    
     return Response(json.dumps(ip_lists), 200, mimetype='application/json')
 
 
