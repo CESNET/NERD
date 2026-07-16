@@ -147,6 +147,7 @@ def main(cfg_file, process_index):
         modules.event_type_counter.EventTypeCounter(),
         modules.tags.Tags(),
         modules.passive_dns.PassiveDNSResolver(),
+        modules.layer3intel.Layer3Intel(),
         modules.intervals_between_events.IntervalsBetweenEvents(),
         modules.reserved_ip.ReservedIPTags(),
         modules.ttl_updater.TTLUpdater(),

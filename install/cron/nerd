@@ -30,6 +30,9 @@
 # rsync Crowdsec blacklist 3 times a day
 42 01,09,17 * * * nerd rsync -zq logs.liberouter.org::crowdsec/crowdsec_blacklist.csv /data/blacklists/crowdsec.csv
 
+# Download Layer3 Intel's residential proxy feed once per day
+0 12 * * * nerd python3 /nerd/scripts/download_layer3intel_data.py --insecure --workdir /data/layer3intel
+
 # Export Crowdsec community blacklist to CSV
 # (enable if you're using Crowdsec)
 #42 01,09,17 * * * nerd sqlite3 -csv /opt/crowdsec/data/crowdsec.db "SELECT value, scenario FROM decisions WHERE origin='CAPI';" > /data/blacklists/crowdsec.csv

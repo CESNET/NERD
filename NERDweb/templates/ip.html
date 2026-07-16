@@ -100,6 +100,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 <span>Tags: </span>
 {% for tag_id,tag_param in ipinfo.pop('tags', {}).items() %}
   {% if tag_id in config_tags and "description" in config_tags[tag_id] and "name" in config_tags[tag_id] %}
+    {% if not config_tags[tag_id].get("hidden", False) %}
       {% if tag_id == "misp_tlp_green" %}
           {% if ac('tlp-green') %}
               {% set tlp_green_tag = namespace(showed=0) %}
@@ -124,7 +125,8 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
           <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="<b>{{config_tags[tag_id].description}}</b><br /><br />{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
           {{config_tags[tag_id].name}}
       {% endif %}
-     </span>
+      </span>
+    {% endif %}
   {%- else -%}
      <span class="tag" title="<b>ERROR:</b> Missing mandatory config for tag {{tag_id}}">
       {{tag_id}}
@@ -289,7 +291,12 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
   <dd><b>Open ports:</b> {{ val.ports|join(', ') if val.ports else '–' }}</dd>
   <dd><b>Tags:</b> {{ val.tags|join(', ') if val.tags else '–' }}</dd>
   <dd><b>CPEs:</b> {{ val.cpes|join(', ') if val.cpes else '–' }}</dd>
-
+ {% elif attr == "l3i" %}
+  <dt>Layer3 Intel<span class="help" title="Layer3 Intel detects residential proxies and anonymization infrastructure using TCP/IP fingerprinting and real-time IP intelligence. For more information, see https://layer3intel.com."></span></dt>
+  <dd><b>Last seen:</b> {{ val.last_seen if val.last_seen else '–' }}</dd>
+  <dd><b>Percent days seen:</b> {{ val.percent_days_seen if val.percent_days_seen else '–' }}</dd>
+  <dd><b>Networks:</b> {{ val.networks if val.networks else '–' }}</dd>
+  <dd><b>Details:</b> <a href="https://layer3intel.com/context/{{ ip }}">https://layer3info/context/{{ ip }}</a></dd>
  {% elif attr == "asns" %}
   <dt>Origin AS</dt>
   {% for asinfo in val %}

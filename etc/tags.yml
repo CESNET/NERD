@@ -13,6 +13,7 @@
 #   - name: displayed name of tag (*)
 #   - description: general description of tag
 #   - tag_color: background color of tag on web (default color from css style is used if parameter not present)
+#   - hidden: if set to True, the tag will not be shown in the web UI (default = False)
 #   - condition: IP is tagged if condition is evaluated as True or nonzero number or is not None  (*)
 #                Condition also serves for confidence calculation - if evaluated condition is not number, condition is
 #                0 if evaluated condition is False or None otherwise confidence is 1
@@ -45,16 +46,19 @@
 
 ---
 tags:
+  # Tags based on event types
 #  abusive:
 #    name: Abusive
 #    description: Abusive events (Harrasment, Sexual, Violence) from host has been reported
 #    tag_color: "#ba0596"
+#    hidden: True
 #    condition: "'Abusive' in events_meta.types or 'AbusiveSpam' in events_meta.types or 'AbusiveHarassment' in events_meta.types or 'AbusiveChild' in events_meta.types or 'AbusiveSexual' in events_meta.types or 'AbusiveViolence' in events_meta.types"
   malware:
     name: Malware
     description: Malware has been detected on host
     info: 'Prevalent event categories: {events_meta.types}'
     tag_color: "#933744"
+    hidden: True
     condition: "'Malware' in events_meta.types or 'MalwareVirus' in events_meta.types or 'MalwareWorm'
       in events_meta.types or 'MalwareTrojan' in events_meta.types or 'MalwareSpyware' in events_meta.types
       or 'MalwareDialer' in events_meta.types or 'MalwareRootkit' in events_meta.types"
@@ -63,38 +67,43 @@ tags:
     description: Host scans other hosts to gather information and discover weak points
     info: 'Prevalent event categories: {events_meta.types}'
     tag_color: "#aaffff"
+    hidden: True
     condition: "'ReconScanning' in events_meta.types"
   attemptexploit:
     name: Exploit attempts
     description: Host attempts to compromise a system by exploiting vulnerabilities
     info: 'Prevalent event categories: {events_meta.types}'
     tag_color: "#A1C83D"
+    hidden: True
     condition: "'AttemptExploit' in events_meta.types or 'AttemptNewSignature' in events_meta.types"
   attemptlogin:
     name: Login attempts
     description: Host performs automated login attempts
     info: 'Prevalent event categories: {events_meta.types}'
     tag_color: "#6fd92e"
+    hidden: True
     condition: "'AttemptLogin' in events_meta.types"
 #  intrusion:
 #    name: Intrusion
 #    description: Host performed successful compromise of a system or application
 #    tag_color: "#633c89"
+#    hidden: True
 #    condition: "'Intrusion' in events_meta.types or 'IntrusionAdminCompromise' in events_meta.types or 'Intrusion.UserCompromise' in events_meta.types or 'AppCompromise' in events_meta.types or 'IntrusionBotnet' in events_meta.types"
   availabilitydos:
     name: "(D)DoS attacks"
     description: Host performs (or is part of) (D)DoS attacks
     info: 'Prevalent event categories: {events_meta.types}'
     tag_color: "#a90000"
+    hidden: True
     condition: "'AvailabilityDoS' in events_meta.types or 'AvailabilityDDoS' in events_meta.types"
 #  fraud:
 #    name: Fraud Attempts
 #    description: Host performs fraud (phishing, scams, masquerade, ...)
 #    tag_color: "#ada31a"
+#    hidden: True
 #    condition: "'Fraud' in events_meta.types or 'FraudUnauthorizedUsage' in events_meta.types or 'FraudCopyright' in events_meta.types or 'FraudMasquerade' in events_meta.types or 'FraudPhishing' in events_meta.types or 'FraudScam' in events_meta.types"
 
   # Tags primarily based on hostname
-
   researchscanners:
     name: Research scanner
     description: Well known (legitimate) internet scanning service or project, usually
@@ -133,24 +142,29 @@ tags:
       in hostname_class)*0.05"
   ip_in_hostname:
     name: IP in hostname
-    description: The hostname includes partial or whole IP adress
+    description: The hostname includes partial or whole IP address
     tag_color: "#68b267"
     condition: ('ip_in_hostname' in hostname_class)
 
   # Tags based on blacklists
-
   tor:
     name: TOR exit node
     description: Host serves as a TOR exit node
     tag_color: "#333333"
     condition: bl.tor
-
   spam:
     name: SPAM sender
     description: Host sends spams
     tag_color: "#47669b"
     condition: bl.psbl*0.14 + bl.spamcop*0.14 + bl.blocklist_de-trigger-spam*0.14 + bl.sorbs-spam*0.14 + bl.spamhaus-sbl*0.14 + bl.uceprotect*0.15 + bl.wpbl*0.15
 
+  # Other tags
+  residential_proxy:
+    name: Residential proxy
+    description: Host serves as a residential proxy
+    info: 'Networks: {l3i.networks}'
+    tag_color: "#333333"
+    condition: l3i.last_seen
 #  test:
 #    name: Test
 #    description: This is test tag
@@ -158,25 +172,21 @@ tags:
 #    condition: "caida_as_class.v == 'access' and 'ReconScanning' in events_meta.types "
 #    confidence: "caida_as_class.c*0.5 + hostname*0.5"
 #    info: "this ip with hostname {hostname} has been classified as {caida_as_class.v} type"
-
   reserved_ip:
     name: Reserved IP
     description: "Host IP is reserved IP address"
     tag_color: "#C0C0C0"
     condition: "reserved_range"
-
   misp_tlp_white:
     name: MISP (tlp:white)
     description: "IP is in MISP event(s) (with TLP white)"
     tag_color: "#2FA1DB"
     condition: "'white' in `$.misp_events[*].tlp`"
-
   misp_tlp_green:
     name: MISP (tlp:green)
     description: "IP is in MISP event(s) (with TLP green)"
     tag_color: "#2FA1DB"
     condition: "'green' in `$.misp_events[*].tlp`"
-
   whitelist:
     name: Whitelisted
     description: "IP is manually whitelisted"

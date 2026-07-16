@@ -126,6 +126,12 @@ pdns:
   url: https://passivedns.cesnet.cz/api/v1/
   token: ""
 
+# (Optional) Layer3 Intel residential proxy feed
+layer3intel:
+  base_url: "https://data.layer3intel.com:45190"
+  username: ""
+  password: ""
+
 # Parameters for sending emails
 # Available params: server, port, tls (true/false), username, password, sender, recipients (list<str>)
 mail:
