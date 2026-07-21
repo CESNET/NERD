@@ -2550,6 +2550,22 @@ def get_shodan_response(ipaddr=None):
     return render_template('shodan_response.html', data=data)
 
 
+# ***** GRIP gateway *****
+@app.route('/api/grip-info/<ipaddr>', methods=['GET'])
+def get_grip_response(ipaddr=None):
+    log_ep.log('/api/grip-info')
+    if not g.ac('grip'):
+        log_err.log('403_unauthorized')
+        return API_RESPONSE_403
+
+    try:
+        data = requests.get(f'http://grip2.liberouter.org:8080/related_ips/{ipaddr}').json()
+        return render_template('grip_response.html', data=data)
+    except Exception as e:
+        print(str(e), file=sys.stderr)
+        return Response(json.dumps({'status': 502, 'error': 'Bad Gateway - cannot get information from PDNS server'}), 502, mimetype='application/json')
+
+
 # **********
 
 if __name__ == "__main__":

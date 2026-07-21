@@ -87,6 +87,26 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 });</script>
 {% endif %}
 
+{% if ac('grip') %}
+<div id="grip-box" class="float-box grip">
+  <div class="title">GRIP<span class="help"></span></div>
+  <div id="grip-info" class="content">
+    {#  this is filled by javascript  #}
+    <div class="loading"><img class="load-spinner-small" src="{{ url_for('static', filename='spin.gif') }}"></div>
+  </div>
+</div>
+<script>$(function() {
+  $("#grip-box .help").tooltip({
+    "items": "*",
+    "show": false,
+    "hide": false,
+    "track": false,
+    "position": {"my": "right top", "at": "left top", "collision": "none"},
+    "content": function() {return "<div style=\"max-width: 310px\"><b>Data from CESNET's GRIP system</b><br>TODO better description.</div>";}
+  });
+});</script>
+{% endif %}
+
 {% if not ipinfo %}
 <p class="notfound">Record not found in database</p>
 <p class="notfound2">No malicious activity related to the IP address has been reported recently.</p>
@@ -391,7 +411,7 @@ $("#events").load("{{ url_for('ajax_ip_events', ipaddr=ip) }}", function( respon
 {% endif %}{# if ipinfo #}
 
 <script>
-// Load passive DNS and Shodan data
+// Load data from Passive DNS, Shodan and GRIP
 $(document).ready(function () {
 {% if ac('pdns') and config.get('pdns.url', False) and config.get('pdns.token', False) %}
   var url = "{{ url_for('pdns_ip', ipaddr=ip) }}";
@@ -428,6 +448,12 @@ $(document).ready(function () {
   $.get(url, function (data) {
       $("#shodan-info").html(data);
   }).fail( function( jqXHR, textStatus, errorThrown) { $("#shodan-info").text("ERROR: " + jqXHR.responseText); } );
+{% endif %}
+{% if ac('grip') %}
+  url = "{{ url_for('get_grip_response', ipaddr=ip) }}";
+  $.get(url, function (data) {
+      $("#grip-info").html(data);
+  }).fail( function( jqXHR, textStatus, errorThrown) { $("#grip-info").text("ERROR: " + jqXHR.responseText); } );
 {% endif %}
 });
 

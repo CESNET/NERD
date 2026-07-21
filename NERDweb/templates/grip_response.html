@@ -1,0 +1,23 @@
+{% if not data.error -%}
+    {% if data.found -%}
+        <div>
+            <b>Group ID:</b> {{ data.group_id }}
+        </div>
+        <div style="margin-top: 1em">
+            <b>First active:</b> {{ data.first_active_at }}<br>
+            <b>Last active:</b> {{ data.last_active_at }}
+        </div>
+        <div style="margin-top: 1em">
+            <b>Related IPs:</b>
+            <table style="text-align: left;">
+                {% for ip in data.related_ips -%}
+                    <tr><td><a href="{{ url_for('ip') + ip|string }}">{{ ip }}</a></td></tr>
+                {% endfor%}
+            </table>
+        </div>
+    {%- elif not data.found -%}
+        <div style="text-align: center">-- no information available --</div>
+    {% endif -%}
+{%- else -%}
+    Error while requesting GRIP API: {{ data.error }}
+{%- endif %}

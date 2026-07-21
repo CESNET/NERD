@@ -15,6 +15,7 @@ data            *
 
 pdns            *
 shodan          *
+grip            *
 export          *
 
 unlimited_export trusted,admin
