@@ -161,9 +161,9 @@ tags:
   # Other tags
   residential_proxy:
     name: Residential proxy
-    description: Host serves as a residential proxy
+    description: The host is part of a residential proxy network (or was in the last 30 days). [Data provided by layer3intel.com]
     info: 'Networks: {l3i.networks}'
-    tag_color: "#333333"
+    tag_color: "#2bf4f1"
     condition: l3i.last_seen
 #  test:
 #    name: Test

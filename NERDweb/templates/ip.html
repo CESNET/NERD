@@ -270,6 +270,16 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
   </dd>
 {% set pulses = ipinfo.pop('otx_pulses') %}
 {% endif %}
+
+{% if ipinfo.l3i %}
+<dt>Residential proxy info <span style="font-weight: normal">(data provided by <a href="https://layer3intel.com/">Layer3 Intel</a>)</span><span class="help" title="Layer3 Intel detects residential proxies and anonymization infrastructure using TCP/IP fingerprinting and real-time IP intelligence. Data in NERD are updated only once a day. For current data, go to layer3intel.com."></span></dt>
+  <dd><b>Last seen:</b> {% if ipinfo.l3i.last_seen %}<span class="time" data-time="{{ipinfo.l3i.last_seen|date_to_int}}">{{ ipinfo.l3i.last_seen }}{% else %}'–'{% endif %}}</dd>
+  <dd><b>Percent days seen:</b> {{ (ipinfo.l3i.percent_days_seen|string + " %") if ipinfo.l3i.percent_days_seen else '–' }}<span class="help" title="Percentage of days the IP has been observed active in proxy networks over the last 30 days."></span></dd>
+  <dd><b>Networks:</b> {{ ipinfo.l3i.networks if ipinfo.l3i.networks else '–' }}</dd>
+  <dd><b>Details:</b> <a href="https://layer3intel.com/context/{{ ip }}">https://layer3info/context/{{ ip }}</a></dd>
+{% set l3i = ipinfo.pop('l3i') %}
+{% endif %}
+
 </dl>
 
 {# All other attributes #}
@@ -291,12 +301,6 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
   <dd><b>Open ports:</b> {{ val.ports|join(', ') if val.ports else '–' }}</dd>
   <dd><b>Tags:</b> {{ val.tags|join(', ') if val.tags else '–' }}</dd>
   <dd><b>CPEs:</b> {{ val.cpes|join(', ') if val.cpes else '–' }}</dd>
- {% elif attr == "l3i" %}
-  <dt>Layer3 Intel<span class="help" title="Layer3 Intel detects residential proxies and anonymization infrastructure using TCP/IP fingerprinting and real-time IP intelligence. For more information, see https://layer3intel.com."></span></dt>
-  <dd><b>Last seen:</b> {{ val.last_seen if val.last_seen else '–' }}</dd>
-  <dd><b>Percent days seen:</b> {{ val.percent_days_seen if val.percent_days_seen else '–' }}</dd>
-  <dd><b>Networks:</b> {{ val.networks if val.networks else '–' }}</dd>
-  <dd><b>Details:</b> <a href="https://layer3intel.com/context/{{ ip }}">https://layer3info/context/{{ ip }}</a></dd>
  {% elif attr == "asns" %}
   <dt>Origin AS</dt>
   {% for asinfo in val %}
