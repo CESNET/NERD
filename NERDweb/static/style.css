@@ -1024,6 +1024,9 @@ div.idea.test .others .source,
 div.idea.test .others .target {
   border-right-color: #ccc;
 }
+div.idea.tlp-amber {
+  border-color: #ff7f27;
+}
 
 
 /* misc */

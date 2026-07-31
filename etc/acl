@@ -25,6 +25,7 @@ warden_alerts   trusted
 eml_rank        trusted
 mispevent       *
 tlp-green       trusted
+tlp-amber       admin
 mentat          mentat
 
 # Admin tools
