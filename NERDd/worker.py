@@ -120,6 +120,7 @@ def main(cfg_file, process_index):
     import modules.reputation
     import modules.whois
     import modules.passive_dns
+    import modules.layer3intel
     import modules.intervals_between_events
     import modules.reserved_ip
     import modules.ttl_updater
