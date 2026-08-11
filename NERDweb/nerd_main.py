@@ -1520,6 +1520,7 @@ def ajax_ip_events(ipaddr):
         return make_response('ERROR')
 
     events = []
+    events_raw = []
     error = None
 
     # Get only data from last 14 days
@@ -1528,19 +1529,19 @@ def ajax_ip_events(ipaddr):
 
     # PSQL database
     if EVENTDB_TYPE == 'psql':
-        events = eventdb.get('ip', ipaddr, limit=100, dt_from=from_date)
+        events_raw = eventdb.get('ip', ipaddr, limit=100, dt_from=from_date)
     # Mentat
     elif EVENTDB_TYPE == 'mentat':
         try:
-            events = eventdb.get('ip', ipaddr, limit=100, dt_from=from_date)
+            events_raw = eventdb.get('ip', ipaddr, limit=100, dt_from=from_date)
         except (common.eventdb_mentat.NotConfigured, common.eventdb_mentat.GatewayError) as e:
             error = 'ERROR: ' + str(e)
     # no database to read events from
     else:
         error = 'Event database disabled'
 
-    # Compute "duration" for each event
-    for event in events:
+    for event in events_raw:
+        # Compute event "duration"
         start = end = None
         try:
             if event.get("EventTime") and event.get("CeaseTime"):
@@ -1553,6 +1554,11 @@ def ajax_ip_events(ipaddr):
             pass  # Invalid format of some time specification
         if start and end:
             event["_duration"] = (end - start).total_seconds()
+
+        # Filter TLP:AMBER events (only shown to admin users)
+        if event.get('TLP', '').lower() == "amber" and not g.ac('tlp-amber'):
+            continue
+        events.append(event)
 
     num_events = str(len(events))
     if len(events) >= 100:
