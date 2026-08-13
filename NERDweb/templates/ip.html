@@ -276,7 +276,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
   <dd><b>Last seen:</b> {% if ipinfo.l3i.last_seen %}<span class="time" data-time="{{ipinfo.l3i.last_seen|date_to_int}}">{{ ipinfo.l3i.last_seen }}{% else %}'–'{% endif %}}</dd>
   <dd><b>Percent days seen:</b> {{ (ipinfo.l3i.percent_days_seen|string + " %") if ipinfo.l3i.percent_days_seen else '–' }}<span class="help" title="Percentage of days the IP has been observed active in proxy networks over the last 30 days."></span></dd>
   <dd><b>Networks:</b> {{ ipinfo.l3i.networks if ipinfo.l3i.networks else '–' }}</dd>
-  <dd><b>Details:</b> <a href="https://layer3intel.com/context/{{ ip }}">https://layer3info/context/{{ ip }}</a></dd>
+  <dd><b>Details:</b> <a href="https://layer3intel.com/context/{{ ip }}">https://layer3intel.com/context/{{ ip }}</a></dd>
 {% set l3i = ipinfo.pop('l3i') %}
 {% endif %}
 
