@@ -1,3 +1,4 @@
+import logging
 import sys
 import csv
 import json
@@ -927,7 +928,7 @@ class IPFilterForm(FlaskForm):
         # Load categorization config to get list of all categories
         self.tc_role.choices = [("src", "Source"), ("dst", "Destination")]
         self.tc_category.choices = sorted([(cat_id, cat_data['label']) for cat_id, cat_data in threat_cat_config["threat_categories"].items()])
-        self.tc_subcategory_key.choices = [("", "--"), ("port", "Port"), ("protocol", "Protocol"), ("malware_family", "Malware family")]
+        self.tc_subcategory_key.choices = [(None, "--"), ("port", "Port"), ("protocol", "Protocol"), ("malware_family", "Malware family")]
 
         # Number of occurrences for blacklists (list of blacklists is taken from configuration)
         bl_name2num = {item['_id']: int(item['n']) for item in mongo.db.n_ip_by_bl.find()}
@@ -1276,13 +1277,16 @@ def ips_count():
     form_values = json.loads(request.data.decode('utf-8'))
 
     form = IPFilterForm(obj=form_values)
-    if g.ac('ipsearch') and form.validate():
-        query = create_query(form)
-        if query is None: # count all
-            return make_response(str(mongo.db.ip.count_documents({})))
-        return make_response(str(mongo.db.ip.count_documents(query)))
-    else:
+    if not g.ac('ipsearch'):
         return make_response("ERROR")
+    elif not form.validate():
+        print("ERROR in _ips_count, form validation errors:", form.errors)
+        return make_response("ERROR")
+
+    query = create_query(form)
+    if query is None: # count all
+        return make_response(str(mongo.db.ip.count_documents({})))
+    return make_response(str(mongo.db.ip.count_documents(query)))
 
 def _strip_str_for_list(string):
     string = string.lstrip('[').rstrip(']')
