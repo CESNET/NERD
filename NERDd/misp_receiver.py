@@ -4,7 +4,6 @@ NERD standalone script for receiving MISP instance changes of events, attributes
 All the changes are then projected to NERD.
 """
 import ipaddress
-
 import zmq
 import time
 import json
@@ -13,12 +12,10 @@ import signal
 import logging
 import argparse
 import os
-import re
-from datetime import timedelta, datetime
 import threading
-
-
-from pymisp import ExpandedPyMISP
+import queue
+from datetime import timedelta, datetime
+from pymisp import PyMISP
 
 # Add to path the "one directory above the current file location" to find modules from "common"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')))
@@ -29,42 +26,34 @@ from common.task_queue import TaskQueueWriter
 from common.utils import int2ipstr
 from common.threat_categorization import *
 
-running_flag = True
-zmq_alive = False
+
+##############################################################################
+# Initialization
 
 LOGFORMAT = "%(asctime)-15s,%(name)s [%(levelname)s] %(message)s"
 LOGDATEFORMAT = "%Y-%m-%dT%H:%M:%S"
 logging.basicConfig(level=logging.INFO, format=LOGFORMAT, datefmt=LOGDATEFORMAT)
-
 logger = logging.getLogger('MispReceiver')
 
-# parse arguments
-parser = argparse.ArgumentParser(
-    prog="MISP_receiver.py",
-    description="NERD standalone script for receiving MISP instance changes of events, attributes or sightings."
-)
-parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml',
-                    help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
-parser.add_argument("-v", dest="verbose", action="store_true",
-                    help="Verbose mode")
-
+# Parse arguments.
+parser = argparse.ArgumentParser(prog="misp_receiver.py", description="NERD standalone script for receiving MISP instance changes of events, attributes or sightings.")
+parser.add_argument('-c', '--config', metavar='FILENAME', default='/etc/nerd/nerdd.yml', help='Path to configuration file (default: /etc/nerd/nerdd.yml)')
+parser.add_argument('-v', '--verbose', action='count', default=0, help="Verbose mode")
 args = parser.parse_args()
-
 if args.verbose:
     logger.setLevel("DEBUG")
 
-# config - load nerdd.yml
-logger.info("Loading config file {}".format(args.config))
+# Load configuration.
+logger.info(f"Loading config file {args.config}")
 config = read_config(args.config)
-# update config variable (nerdd.yml) with nerd.yml
 config_base_path = os.path.dirname(os.path.abspath(args.config))
 common_cfg_file = os.path.join(config_base_path, config.get('common_config'))
-logger.info("Loading config file {}".format(common_cfg_file))
+logger.info(f"Loading config file {common_cfg_file}")
 config.update(read_config(common_cfg_file))
 
 # Read categorization config
 categorization_cfg_file = os.path.join(config_base_path, 'threat_categorization.yml')
-logger.info("Loading config file {}".format(categorization_cfg_file))
+logger.info(f"Loading config file {categorization_cfg_file}")
 config.update(read_config(categorization_cfg_file))
 categorization_config = {
     "categories": config.get('threat_categories'),
@@ -73,222 +62,235 @@ categorization_config = {
 
 inactive_ip_lifetime = config.get('record_life_length.misp', 180)
 
-rabbit_config = config.get("rabbitmq")
+# Connect to NERD DB
 db = mongodb.MongoEntityDatabase(config)
 
-# rabbitMQ
+# Connect to NERD task queue
+rabbit_config = config.get("rabbitmq")
 num_processes = config.get('worker_processes')
 tq_writer = TaskQueueWriter(num_processes, rabbit_config)
 tq_writer.connect()
 
-# load MISP instance configuration
+# Connect to MISP
 misp_key = config.get('misp.key', None)
 misp_url = config.get('misp.url', None)
 misp_zmq_url = config.get('misp.zmq', None)
 if not (misp_key and misp_url and misp_zmq_url):
     logger.error("Missing configuration of MISP instance in the configuration file!")
     sys.exit(1)
-misp_verify_cert = config.get('misp.verify_cert', True)  # path to CA bundle to check the server cert, or False to
-                                                         # disable cert verification, or True to use default CA bundle
-                                                         # (passed to "requests" as "verify" parameter)
-
-misp_inst = ExpandedPyMISP(misp_url, misp_key, misp_verify_cert)
-
-# get attribute's type from str like: "distribution () => (5), type () => (hostname), category () => (Network activity)"
-re_attrib_type_change = re.compile("type \(\) => \(([\w|\-]+)\)")
-# get attribute's event_id from str like: "event_id () => (6916), distribution () => (5), type () => (hostname)"
-re_event_id_change = re.compile("event_id \(\) => \(([0-9]+)\)")
-# get event_id from str like: "Attribute (562857) from Event (5822): Network activity/url bit.ly\/2m0x8IH"
-re_event_id_title = re.compile("Event \(([0-9]+)\)")
-# get attribute id from str like: "Attribute (562857) from Event (5822): Network activity/url bit.ly\/2m0x8IH"
-re_attrib_id_title = re.compile("Attribute \(([0-9]+)\)")
-# get attribute's type and attribute's value from str like: "Event (6921): Network activity/ip-src 24.25.34.2"
-re_attrib_type_value_title = re.compile("\([0-9]+\): [\w| ]+/([\w|\-]+) (.*)")
+misp_verify_cert = config.get('misp.verify_cert', True)
+misp_inst = PyMISP(misp_url, misp_key, misp_verify_cert)
 
 IP_MISP_TYPES = ["ip-src", "ip-dst", "ip-dst|port", "ip-src|port", "domain|ip"]
 THREAT_LEVEL_DICT = {'1': "High", '2': "Medium", '3': "Low", '4': "Undefined"}
+ZMQ_HEALTHCHECK_TIMEOUT = 15
+
+notification_queue = queue.Queue()
+healthcheck_flag = threading.Event()
+running_flag = threading.Event()
+running_flag.set()
 
 
 ##############################################################################
-# Main module code
+# Signal handling
 
-def is_single_ip(ip_to_check):
+def stop(signum, frame):
+    """
+    Stop the module by clearing running_flag (so that all threads exit their loops).
+    """
+    logger.info(f"Signal {signum} received, the module will be stopped.")
+    running_flag.clear()
+    healthcheck_flag.set()  # wake healthcheck thread if it's waiting
+
+
+##############################################################################
+# MISP helpers
+
+def get_event(event_id):
+    """
+    Fetch an event via MISP API
+    """
     try:
-        _ = ipaddress.IPv4Address(ip_to_check)
-        return True
-    except ipaddress.AddressValueError:
-        return False
+        api_response = misp_inst.get_event(int(event_id))
+        return api_response['Event']
+    except Exception as e:
+        logger.error(f"Failed to fetch event from MISP (event_id={event_id}): {type(e).__name__}: {e}")
+    return None
 
 
-def stop(signal, frame):
+def get_sightings(attr_id):
     """
-    Stops receiving MISP events by setting running flag to false
+    Fetch attribute sightings via MISP API
     """
-    global running_flag
-    running_flag = False
-    logger.info("exiting")
+    try:
+        api_response = misp_inst.search_sightings(context='attribute', context_id=attr_id)
+        return [item['Sighting'] for item in api_response]
+    except Exception as e:
+        logger.error(f"Failed to fetch sightings from MISP (attr_id={attr_id}): {type(e).__name__}: {e}")
+    return None
 
 
 def get_sightings_for_nerd(sighting_list):
     """
-    Generate 'sightings' attribute used for 'misp_events' in NERD
-    :param sighting_list: list full of sightings retrieved from MISP
-    :return: 'sightings' attribute for NERD
+    Generate 'sightings' attribute used for 'misp_events' in NERD.
+
+    MISP sighting types:
+      0 = positive
+      1 = false positive
+      2 = expired attribute
     """
+    if not sighting_list:
+        return {'positive': 0, 'false positive': 0, 'expired attribute': 0}
     counted_sightings = {'0': 0, '1': 0, '2': 0}
     for sighting in sighting_list:
-        counted_sightings[sighting['type']] += 1
-    return {'positive': counted_sightings['0'],
-            'false positive': counted_sightings['1'],
-            'expired attribute': counted_sightings['2']}
+        if (type := str(sighting.get('type'))) not in counted_sightings:
+            logger.warning(f"Unknown sighting type '{type}'")
+            continue
+        counted_sightings[type] += 1
+    return {
+        'positive': counted_sightings['0'],
+        'false positive': counted_sightings['1'],
+        'expired attribute': counted_sightings['2']
+    }
 
 
-def check_src_and_dst_one(attrib_list, ip_addr):
+def is_single_ip(ip_to_check):
     """
-    Check if IP address is as src and dst at the same time in this event
-    :param attrib_list: list of attributes of the event
-    :param ip_addr: searched IP address
-    :return: True if IP address is src and dst at the same time and False if not
+    Return True if ip_to_check is a valid IPv4 address.
     """
-    src, dst = False, False
-    for attrib in attrib_list:
-        if "ip" in attrib['type']:
-            if attrib['value'] == ip_addr:
-                if "src" in attrib['type']:
-                    src = True
-                else:
-                    dst = True
-    return True if src and dst else False
+    try:
+        _ = ipaddress.IPv4Address(ip_to_check)
+        return True
+    except (ipaddress.AddressValueError, ValueError, TypeError):
+        return False
 
 
-def check_src_and_dst_list(insert_ip_list):
+def create_new_event(event, role, sightings):
     """
-    Check if IP addresses in the event are src and dst at the same time and return them as list
-    :param insert_ip_list: dict with misp_event, attribute with IP address and its sightings
-    :return: list of src and dst IP addresses
-    """
-    ip_src = []
-    ip_dst = []
-    for ip_ev in insert_ip_list:
-        if "src" in ip_ev['attrib']['type']:
-            ip_src.append(get_ip_address(ip_ev['attrib']))
-        else:
-            ip_dst.append(get_ip_address(ip_ev['attrib']))
-
-    return list(set(ip_src) & set(ip_dst))
-
-
-def create_new_event(event, role, sighting_list=None):
-    """
-    Creates dictionary containing information about MISP event used in NERD as 'misp_events'
-    :param event: the MISP event
-    :param role: src|dst IP address
-    :param sighting_list: list of sightings of ip_address attribute, which called event creation
-    :return: event dictionary ('misp_event')
+    Create the dictionary containing MISP event information used by NERD.
     """
     new_event = {
         'misp_instance': misp_url,
-        'event_id': event['id'],
+        'event_id': str(event['id']),
         'org_created': event['Orgc']['name'],
         'tlp': "green",
         'tag_list': [],
         'role': role,
         'info': event['info'],
-        'sightings': {'positive': 0, 'false positive': 0, 'expired attribute': 0},
+        'sightings': sightings,
         'date': datetime.strptime(event['date'], "%Y-%m-%d"),
-        'threat_level': THREAT_LEVEL_DICT[event['threat_level_id']],
-        'last_change': datetime.fromtimestamp(int(event['timestamp']))
+        'threat_level': THREAT_LEVEL_DICT[str(event['threat_level_id'])],
+        'last_change': datetime.utcfromtimestamp(int(event['timestamp']))
     }
 
-    # get sighting count
-    if sighting_list:
-        new_event['sightings'] = get_sightings_for_nerd(sighting_list)
-
-    # get name and colour Tags on event level
     for tag in event.get('Tag', []):
-        if not tag['name'].startswith("tlp"):
-            new_event['tag_list'].append({'name': tag['name'], 'colour': tag['colour']})
+        tag_name = tag.get('name', '')
+        if not tag_name.lower().startswith("tlp:"):
+            new_event['tag_list'].append({
+                'name': tag_name,
+                'colour': tag.get('colour')
+            })
         else:
-            # tlp:white
-            new_event['tlp'] = tag['name'][4:]
+            new_event['tlp'] = tag_name[4:]
 
     return new_event
 
 
-def get_role_of_ip(attrib_type):
-    """
-    Get role (src|dst) of ip address based on attribute type
-    :param attrib_type: attribute type ("ip-src", "ip-dst", ...)
-    :return: "src"|"dst"
-    """
-    return "src" if "src" in attrib_type else "dst"
-
-
 def get_ip_address(attrib):
     """
-    Get ip address value based on attribute type
-    :param attrib: attribute containing ip address
-    :return: actual ip address
+    Extract the IP address from an attribute.
+
+    Supported attribute types:
+      ip-src / ip-dst
+      ip-src|port / ip-dst|port
+      domain|ip
     """
-    if "ip-src" == attrib['type'] or "ip-dst" == attrib['type']:
-        return attrib['value']
-    elif "ip-src|port" == attrib['type'] or "ip-dst|port" == attrib['type']:
-        split_attrib = attrib['value'].split('|')
-        if len(split_attrib) == 1:
-            split_attrib = attrib['value'].split(':')
-        return split_attrib[0]
-    else:
-        # type == domain|ip
-        return attrib['value'].split("|")[1]
+    attrib_type = attrib.get('type', '')
+    value = attrib.get('value', '')
+    if attrib_type in ("ip-src", "ip-dst"):
+        return value
+    if attrib_type in ("ip-src|port", "ip-dst|port"):
+        return value.split('|', 1)[0].split(':', 1)[0]
+    if attrib_type == "domain|ip":
+        parts = value.split('|', 1)
+        return parts[1] if len(parts) == 2 else ''
 
 
-def get_attribute_from_event(event, attrib_id):
+def iter_event_ip_attributes(event):
     """
-    Find the right attribute based on attribute's id, if the attribute is not deleted
-    :param event: event, that should contain searched attribute
-    :param attrib_id: id of searched attribute
-    :return: None
+    Yield all non-deleted, IPv4-bearing attributes from an event, including attributes inside objects.
     """
-    try:
-        for attrib in event['Attribute']:
-            if attrib['id'] == attrib_id and not attrib['deleted']:
-                return attrib
-    except KeyError:
-        return None
+    for attrib in event.get('Attribute', []):
+        if attrib.get('type') in IP_MISP_TYPES and not attrib.get('deleted'):
+            ip_addr = get_ip_address(attrib)
+            if is_single_ip(ip_addr):
+                yield attrib
 
+    for event_obj in event.get('Object', []):
+        if event_obj.get('deleted'):
+            continue
+        for attrib in event_obj.get('Attribute', []):
+            if attrib.get('type') in IP_MISP_TYPES and not attrib.get('deleted'):
+                ip_addr = get_ip_address(attrib)
+                if is_single_ip(ip_addr):
+                    yield attrib
+
+
+def get_ip_attributes(event):
+    """
+    Return a mapping of IP address to its MISP attribute and role.
+
+    If the same IP occurs multiple times in an event with different roles, its role is combined to "src and dst at the same time".
+    """
+    ip_attributes = {}
+    for attrib in iter_event_ip_attributes(event):
+        ip_addr = get_ip_address(attrib)
+        ip_role = "src" if "src" in attrib['type'] else "dst"
+        if ip_addr in ip_attributes and ip_role != ip_attributes[ip_addr][0]:
+            ip_role = 'src and dst at the same time'
+        ip_attributes[ip_addr] = (ip_role, attrib)
+    return ip_attributes
+
+
+##############################################################################
+# NERD helpers
 
 def remove_misp_event(ip_addr, event_id):
     """
-    Removes one specific 'misp_event' from NERD
-    :param ip_addr: ip address to which does the 'misp_event' belong to
-    :param event_id: event_id of the 'misp_event'
-    :return: None
+    Remove one MISP event from the NERD 'misp_events' array.
     """
-    # remove the event from 'misp_events' array
-    tq_writer.put_task("ip", ip_addr, [('array_remove', 'misp_events',
-                                           {'misp_instance': misp_url, 'event_id': event_id})], "misp_receiver")
+    logger.debug(f"Deleting event {event_id} from the record of {ip_addr}")
+    tq_writer.put_task(
+        "ip",
+        ip_addr,
+        [('array_remove', 'misp_events', {
+            'misp_instance': misp_url,
+            'event_id': str(event_id)
+        })],
+        "misp_receiver"
+    )
 
 
-def upsert_new_event(event, attrib, sighting_list, role=None):
+def upsert_new_event(event, attrib, ip_addr, ip_role):
     """
-    Creates new 'misp_event' dict and send it to NERD as upsert to already inserted 'misp_events' or creates new list
-    :param event: MISP event from which are the information taken
-    :param attrib: received attribute
-    :param sighting_list: list of sightings of the IP address
-    :param role: role of ip_address (src or|and dst)
-    :return: None
+    Create/update a NERD misp_event for an IP-bearing attribute.
     """
-    ip_addr = get_ip_address(attrib)
-    ip_role = role if role is not None else get_role_of_ip(attrib['type'])
-    new_event = create_new_event(event, ip_role, sighting_list)
+    new_event = create_new_event(event, ip_role, get_sightings_for_nerd(attrib.get('Sighting')))
     live_till = new_event['date'] + timedelta(days=inactive_ip_lifetime)
 
-    # create update sets for NERD queue
-    event_updates = []
-    for k, v in new_event.items():
-        event_updates.append(('set', k, v))
+    # misp event updates
     updates = [
-        ('array_upsert', 'misp_events', {'misp_instance': misp_url, 'event_id': event['id']}, event_updates),
+        (
+            'array_upsert',
+            'misp_events',
+            {
+                'misp_instance': misp_url,
+                'event_id': str(event['id'])
+            },
+            [
+                ('set', key, value) for key, value in new_event.items()
+            ]
+        ),
         ('setmax', '_ttl.misp', live_till),
         ('setmax', 'last_activity', new_event['date'])
     ]
@@ -305,277 +307,276 @@ def upsert_new_event(event, attrib, sighting_list, role=None):
             [('add', 'src.misp', 1), *subcategory_updates]
         ))
 
-    logger.debug(f"Updates for {ip_addr}:")
-    logger.debug(updates)
+    logger.debug(f"Updates for {ip_addr}:\n{updates}")
+    tq_writer.put_task(
+        "ip",
+        ip_addr,
+        updates,
+        "misp_receiver"
+    )
 
-    # put task in queue
-    tq_writer.put_task('ip', ip_addr, updates, "misp_receiver")
 
-
-def process_sighting_notification(sighting):
+def get_db_records_with_event(event_id):
     """
-    Called when sighting notification is received through ZMQ. Processes the notification
-    :param sighting: the notification
-    :return: None
+    Fetch IP records that currently contain the given event.
     """
-    try:
-        # event which attribute was sighted
-        event = misp_inst.get_event(sighting['event_id'])['Event']
-        # get sightings of attribute (rather set actual values of all sightings, than just add or remove 1 sighting)
-        attr_id = int(sighting['attribute_id'])
-        sighting_list_response = misp_inst.search_sightings(context='attribute', context_id=attr_id)
-        sighting_list = []
-        for sighting_rec in sighting_list_response:
-            sighting_list.append({'type': sighting_rec['Sighting']['type']})
+    return db.aggregate(
+        'ip',
+        {
+            '$match': {
+                'misp_events': {
+                    '$elemMatch': {
+                        'misp_instance': misp_url,
+                        'event_id': str(event_id)
+                    }
+                }
+            }
+        }
+    )
 
-        ip_addr = get_ip_address(sighting['Attribute'])
-        rec = db.get("ip", ip_addr)
-        # find correct 'misp_event' and rewrite sightings via update request
-        if rec:
-            just_update = False
-            for ev in rec['misp_events']:
-                if misp_url == ev['misp_instance'] and sighting['event_id'] == ev['event_id']:
-                    # correct 'misp_event' found, rewrite sightings is enough
-                    just_update = True
-            if just_update:
-                # ip record found, just rewrite sightings
-                tq_writer.put_task("ip", ip_addr, [('array_upsert', 'misp_events', {'misp_instance': misp_url,
-                                                    'event_id': sighting['event_id']}, [('set', 'sightings',
-                                                    get_sightings_for_nerd(sighting_list))])], "misp_receiver")
-                return
-        # ip address not even in NERD or not found correct 'misp_event', create new 'misp_event'
-        # find correct attribute to pass it to event creation
-        attributes = misp_inst.search(controller='attributes', values=ip_addr)['response']['Attribute']
-        for attrib_dict in attributes:
-            if attrib_dict['event_id'] == sighting['event_id']:
-                attrib = attrib_dict
-                break
-        else:
+
+##############################################################################
+# ZMQ notification processing
+
+def process_misp_json_notification(notification):
+    """
+    Process misp_json notifications (sent when an event is published).
+
+    The messages contain the MISP event data along with all its component children.
+    """
+
+    if not (event := notification.get('Event')):
+        logger.warning("Received 'misp_json' notification with no event")
+        return
+
+    event_id = str(event['id'])
+    logger.debug(f"Event {event_id} published")
+
+    # Extract the complete list of IPs from the newly published event
+    ip_attributes = get_ip_attributes(event)
+
+    # Find IPs that currently contain this event in NERD
+    old_ips = {int2ipstr(rec['_id']) for rec in get_db_records_with_event(event_id)}
+
+    # Add/update the DB record for all IPs present in the new event
+    for ip_addr, (ip_role, attrib) in ip_attributes.items():
+        upsert_new_event(event, attrib, ip_addr, ip_role)
+
+    # Remove the event from IPs that are no longer present
+    for ip_addr in old_ips - set(ip_attributes):
+        remove_misp_event(ip_addr, event_id)
+
+
+def process_misp_json_event_notification(notification):
+    """
+    Process misp_json_event notifications (sent when an event is added, edited, or deleted).
+
+    We only care about deletion here as add/edit is handled when the event is published.
+    """
+
+    if not (event := notification.get('Event')):
+        logger.warning("Received 'misp_json_event' notification with no event")
+        return
+
+    if notification.get('action') == 'delete':
+        event_id = str(event['id'])
+        logger.debug(f"Event {event_id} deleted")
+        for rec in get_db_records_with_event(event_id):
+            ip_addr = int2ipstr(rec['_id'])
+            remove_misp_event(ip_addr, event_id)
+
+
+def process_misp_json_sighting_notification(notification):
+    """
+    Process sighting notifications.
+
+    If the IP and the corresponding event exists in NERD, just update the sightings dict with the current values,
+    otherwise fetch the whole event via MISP API and create a new event record.
+    """
+
+    if not (sighting := notification.get('Sighting')):
+        logger.warning("Received 'misp_json_sighting' notification with no sighting")
+        return
+
+    event_id = str(sighting['event_id'])
+    attrib = sighting['Attribute']
+    if attrib['type'] not in IP_MISP_TYPES:
+        return
+
+    ip_addr = get_ip_address(attrib)
+    if not is_single_ip(ip_addr):
+        return
+    logger.debug(f"New sighting for {ip_addr}")
+
+    # IP and event are in NERD DB already -> just update sightings (query MISP API to get the current values)
+    if rec := db.get("ip", ip_addr):
+        for evtrec in rec.get('misp_events', []):
+            if misp_url == evtrec['misp_instance'] and event_id == evtrec['event_id']:
+                if sighting_list := get_sightings(attrib['id']):
+                    tq_writer.put_task(
+                        "ip",
+                        ip_addr,
+                        [(
+                            'array_upsert',
+                            'misp_events',
+                            {'misp_instance': misp_url, 'event_id': str(event_id)},
+                            [('set', 'sightings', get_sightings_for_nerd(sighting_list))]
+                        )],
+                        "misp_receiver"
+                    )
+                    return
+
+    # IP or event is not in NERD DB yet -> create new event record
+    if event := get_event(event_id):
+        if ip_addr not in (ip_attributes := get_ip_attributes(event)):
+            logger.warning(f"IP {ip_addr} from sighting {sighting['id']} was not found in event {event_id}")
             return
-        upsert_new_event(event, attrib, sighting_list)
-    except ConnectionError as e:
-        logger.error("Cannot connect to MISP instance: " + str(e))
+        ip_role, event_attrib = ip_attributes[ip_addr]
+        upsert_new_event(event, event_attrib, ip_addr, ip_role)
 
 
-def attrib_add_or_edit(ip_addr, event_id, attrib_id):
+def processing_loop():
     """
-    In case of attribute add, find corresponding event and fill it into NERD, in case of edit, remove old record before
-    inserting
-    :param ip_addr: value of attribute (has to be IP address)
-    :param event_id: id of event the attribute belongs to
-    :param attrib_id: id of attribute
-    :return: None
+    Process notifications in the queue.
     """
-    # get event from MISP, to which the attribute corresponds
-    try:
-        event = misp_inst.get_event(int(event_id))['Event']
-    except ConnectionError as e:
-        logger.error("Cannot connect to MISP instance: " + str(e))
-        return
-    attrib = get_attribute_from_event(event, attrib_id)
-    if attrib is None:
-        return
+    logger.info(f"Processing started")
 
-    if check_src_and_dst_one(event['Attribute'], ip_addr):
-        role = "src and dst at the same time"
-    else:
-        role = get_role_of_ip(attrib['type'])
-    # create new updated event and insert it to NERD
-    upsert_new_event(event, attrib, attrib.get('Sighting'), role)
-
-
-def process_publish_of_event(json_message):
-    event_id = json_message['Log']['model_id']
-    try:
-        event = misp_inst.get_event(event_id)['Event']
-    except ConnectionError as e:
-        logger.error("Cannot connect to MISP instance: " + str(e))
-        return
-
-    insert_ip_list = []
-    # find all ip attributes and save their metadata
-    for attrib in event['Attribute']:
-        if attrib['type'] in IP_MISP_TYPES and not attrib['deleted'] and is_single_ip(attrib['value']):
-            insert_ip_list.append({'event': event, 'attrib': attrib, 'sighting': attrib.get('Sighting')})
-    # same with attributes in event's objects
-    for event_obj in event.get('Object', []):
-        for attrib in event_obj['Attribute']:
-            if attrib['type'] in IP_MISP_TYPES and is_single_ip(attrib['value']):
-                insert_ip_list.append(
-                    {'event': event, 'attrib': attrib, 'sighting': attrib.get('Sighting')})
-
-    # get list of ip addresses, which are both of type source and destination
-    ip_src_and_dst = check_src_and_dst_list(insert_ip_list)
-    # insert new ip addresses
-    for ip_ev in insert_ip_list:
-        if ip_ev['attrib']['value'] in ip_src_and_dst:
-            upsert_new_event(event, ip_ev['attrib'], ip_ev['sighting'], role="src and dst at the same time")
-        else:
-            upsert_new_event(event, ip_ev['attrib'], ip_ev['sighting'])
-
-
-def process_deletion_of_attribute(json_message):
-    attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
-    if attrib_type in IP_MISP_TYPES:
-        attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
-        if is_single_ip(attrib_value):
-            event_id = re_event_id_title.search(json_message['Log']['title']).group(1)
-            # remove the event from 'misp_events' array
-            remove_misp_event(attrib_value, event_id)
-
-
-def process_edit_of_attribute(json_message):
-    try:
-        attrib_type = re_attrib_type_value_title.search(json_message['Log']['title']).group(1)
-    except AttributeError:
-        logger.error("Error", exc_info=True)
-        logger.error("Used regex: " + re_attrib_type_value_title.pattern)
-        logger.error("Searched text: " + json_message['Log']['title'])
-        return
-    if attrib_type in IP_MISP_TYPES:
-        event_id = re_event_id_title.search(json_message['Log']['title']).group(1)
-        attrib_id = re_attrib_id_title.search(json_message['Log']['title']).group(1)
-        attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
-        if is_single_ip(attrib_value):
-            attrib_add_or_edit(attrib_value, event_id, attrib_id)
-
-
-def process_new_attribute(json_message):
-    # change looks like: "to_ids () => (1), distribution () => (5), type () => (hostname)..."
-    attrib = json_message['Log']['change']
-    try:
-        attrib_type = re_attrib_type_change.search(attrib).group(1)
-    except AttributeError:
-        logger.error("Error", exc_info=True)
-        logger.error("Used regex: " + re_attrib_type_change.pattern)
-        logger.error("Searched text: " + attrib)
-        return
-    if attrib_type in IP_MISP_TYPES:
+    while running_flag.is_set():
         try:
-            event_id = re_event_id_change.search(attrib).group(1)
-        except AttributeError:
-            logger.error("Error", exc_info=True)
-            logger.error("Used regex: " + re_attrib_type_change.pattern)
-            logger.error("Searched text: " + attrib)
-            return
-        attrib_id = json_message['Log']['model_id']
-        try:
-            attrib_value = re_attrib_type_value_title.search(json_message['Log']['title']).group(2)
-        except AttributeError:
-            logger.error("Error", exc_info=True)
-            logger.error("Used regex: " + re_attrib_type_value_title.pattern)
-            logger.error("Searched text: " + json_message['Log']['title'])
-            return
-        if is_single_ip(attrib_value):
-            attrib_add_or_edit(attrib_value, event_id, attrib_id)
-
-
-def check_zmq_connection(init: bool = False, error_logged: bool = False) -> None:
-    """
-    Every 15 seconds the Timer is set to check if some notification from ZMQ channel was received, because every
-    10 seconds should arrive at least one keep-alive message. If it does not arrive, something is wrong, so
-    log an error (or exit the program if the first connection does not work).
-    :param init: set to True, when the Timer and ZMQ channel is initialized, to exit program when connection is not
-                 successful
-    :param error_logged: flag indicating, whether connection error has been logged into log file or not to prevent
-                         flooding of the log
-    :return: None
-    """
-    global zmq_alive
-    if init:
-        if not zmq_alive:
-            logger.error("Cannot connect to MISP's ZMQ notification channel! The module will be stopped!")
-            sys.exit(2)
-        else:
-            logger.info("Connection to MISP's ZMQ notification channel works!")
-    else:
-        if not zmq_alive and not error_logged:
-            logger.error("Cannot connect to MISP's ZMQ notification channel!")
-            error_logged = True
-        elif zmq_alive and error_logged:
-            logger.error("Connection to MISP's ZMQ notification channel works!")
-            error_logged = False
-    # and set health check Timer again
-    zmq_alive = False
-    zmq_availability_timer = threading.Timer(15, check_zmq_connection, (False, error_logged))
-    zmq_availability_timer.start()
-
-
-def receive_events():
-    """
-    Connect to MISP's ZeroMQ and listen for MISP's changes and react on them
-    :return: None
-    """
-    context = zmq.Context()
-    socket = context.socket(zmq.SUB)
-
-    logger.info("Connecting to: " + misp_zmq_url)
-    socket.connect(misp_zmq_url)
-    socket.setsockopt(zmq.SUBSCRIBE, b'')
-
-    # init periodical connection health check
-    zmq_availability_timer = threading.Timer(15, check_zmq_connection, (True, ))
-    zmq_availability_timer.start()
-    global zmq_alive
-
-    while running_flag:
-        try:
-            message = socket.recv()
-            zmq_alive = True
-        except zmq.ZMQError:
-            time.sleep(2)
+            topic, notification, message = notification_queue.get(timeout=1)
+        except queue.Empty:
             continue
 
-        message = message.decode("utf-8")
-        logger.debug("Message received:\n" + message)
-        # message starts with its category (misp_json_audit, misp_json_event ...) followed by dictionary of message data
-        # whole message looks like:
-        # "misp_json_audit {'Log': { 'model_id': "5822",
-        #                            'action': "edit",
-        #                            'change': "publish_timestamp (1529233674) => (1533713571), user_id (1) => (2)",
-        #                            'title': "Event (5822): Advanced Persistent Threat Activity ...",
-        #                            'xxx': "yyy",
-        #                            ...... },
-        #                   'action': "log"}
-        notification_prefix, _, notification_str = message.partition(" ")
-        notification = json.loads(notification_str)
+        try:
+            if handler := globals().get(f"process_{topic}_notification"):
+                handler(notification)
+            else:
+                logger.debug(f"Notification ignored (no handler for topic '{topic}')")
+        except Exception as e:
+            logger.exception(f"Failed to process {topic} notification: {type(e).__name__}: {e}")
+            running_flag.clear()
+        finally:
+            notification_queue.task_done()
 
-        # check message prefix, which defines actions
-        if notification_prefix == "misp_json_audit":
-            if notification['Log']['model'] == "Event" and notification['Log']['action'] == "publish" and \
-                    notification['Log']['change'] == "":
-                process_publish_of_event(notification)
+    logger.info(f"Processing stopped")
 
-            elif notification['Log']['model'] == "Attribute" and notification['Log']['action'] == "delete":
-                process_deletion_of_attribute(notification)
 
-            elif notification['Log']['model'] == "Attribute" and notification['Log']['action'] == "edit":
-                # edit of attribute
-                process_edit_of_attribute(notification)
+##############################################################################
+# ZMQ notification receiver
 
-            elif notification['Log']['model'] == "Attribute" and notification['Log']['action'] == "add":
-                # new attribute
-                process_new_attribute(notification)
+def receiver_loop():
+    """
+    Connect to MISP's ZeroMQ, listen for notifications and store them in the processing queue.
+    """
+    logger.info(f"Receiver started")
 
-        elif notification_prefix == "misp_json_sighting":
-            # sighting edit
-            sighting = notification['Sighting']
-            # was it sighting of an ip address?
-            if sighting['Attribute']['type'] in IP_MISP_TYPES:
-                process_sighting_notification(sighting)
+    context = zmq.Context()
+    socket = context.socket(zmq.SUB)
+    socket.setsockopt(zmq.RCVTIMEO, 2000)
 
-        elif notification_prefix == "misp_json_event":
-            if notification['action'] == "delete":
-                # deletion of MISP event
-                # find all ip records, which contains deleted MISP event
-                outdated_records = db.aggregate('ip', {'$match': {"misp_events.event_id": notification['Event']['id']}})
-                for ip_record in outdated_records:
-                    # from every ip record delete outdated misp record
-                    # first id of ip record has to be converted to string IP address
-                    ip_address = int2ipstr(ip_record['_id'])
-                    remove_misp_event(ip_address, notification['Event']['id'])
+    logger.info(f"Connecting to ZMQ at {misp_zmq_url}")
+    socket.connect(misp_zmq_url)
 
+    # Subscribe to all MISP topics
+    # The topic is the first token in the received message, followed by a JSON object
+    socket.setsockopt(zmq.SUBSCRIBE, b'')
+
+    while running_flag.is_set():
+        try:
+            message = socket.recv()
+            healthcheck_flag.set()  # wake healthcheck
+        except zmq.Again:
+            continue
+        except zmq.ZMQError as e:
+            if running_flag.is_set():
+                logger.error(f"ZMQ receive error: {e}")
+                time.sleep(2)
+            continue
+
+        try:
+            message = message.decode("utf-8")
+            topic, _, notification_str = message.partition(" ")
+            notification = json.loads(notification_str)
+        except (UnicodeDecodeError, json.JSONDecodeError) as e:
+            logger.error(f"Invalid ZMQ message: {type(e).__name__}: {e}")
+            continue
+
+        if args.verbose > 1:
+            logger.debug(f"Received new message (topic={topic}):\n{message}")
+
+        # Keep-alive messages are logged for debugging, other notifications are put in the processing queue
+        if topic == "misp_json_self":
+            logger.debug(f"Keep-alive: {notification.get('status')} (uptime={notification.get('uptime')})")
+        else:
+            notification_queue.put((topic, notification, message))
+
+    # Close ZMQ connection
+    socket.close(linger=0)
+    context.term()
+    logger.info(f"Receiver stopped")
+
+
+##############################################################################
+# ZMQ healthcheck
+
+def wait_for_message():
+    """
+    Return True if a message is received (healthcheck flag is set) during the waiting interval, otherwise return False.
+    """
+    message_received = healthcheck_flag.wait(timeout=ZMQ_HEALTHCHECK_TIMEOUT)
+    if not message_received:
+        return False
+    healthcheck_flag.clear()
+    return True
+
+
+def healthcheck_loop():
+    """
+    Check that ZMQ messages are being received (keep-alive messages should be sent every 10 seconds).
+    """
+    logger.info(f"Healthcheck started")
+
+    # If the connection cannot be verified on startup, stop the module
+    if not wait_for_message():
+        logger.error(f"Cannot verify connection to ZMQ (no message received within {ZMQ_HEALTHCHECK_TIMEOUT}s). The module will be stopped.")
+        running_flag.clear()
+        return
+    logger.info("ZMQ connection OK")
+
+    zmq_alive = True
+    while running_flag.is_set():
+        if wait_for_message():
+            if not zmq_alive:
+                logger.info("ZMQ connection OK")
+                zmq_alive = True
+        elif zmq_alive:
+            logger.error(f"ZMQ connection lost (no message received for {ZMQ_HEALTHCHECK_TIMEOUT}s)")
+            zmq_alive = False
+
+    logger.info(f"Healthcheck stopped")
+
+
+##############################################################################
+# Main
 
 if __name__ == "__main__":
+    # Register signal handlers
     signal.signal(signal.SIGINT, stop)
-    receive_events()
+    signal.signal(signal.SIGTERM, stop)
+
+    # Start processing thread
+    processing_thread = threading.Thread(target=processing_loop)
+    processing_thread.daemon = True
+    processing_thread.start()
+
+    # Start healthcheck thread
+    healthcheck_thread = threading.Thread(target=healthcheck_loop)
+    healthcheck_thread.daemon = True
+    healthcheck_thread.start()
+
+    # Receive ZMQ messages until stopped
+    receiver_loop()
+
+    # Cleanup
+    processing_thread.join()
+    healthcheck_thread.join()

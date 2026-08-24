@@ -15,7 +15,7 @@
         <div id="misp-related-events" class="content">
             {% if event.RelatedEvent %}
             {% for rel_event in event.RelatedEvent %}
-                <b><a href="{{ url_for('misp_event') + rel_event.Event.id }}" title="Show event details">{{ rel_event.Event.info }}</a></b>
+                <b><a href="{{ url_for('misp_event') + rel_event.Event.id|string }}" title="Show event details">{{ rel_event.Event.info }}</a></b>
                 <br>
                 {{ rel_event.Event.date}}
                 <br>
