@@ -270,7 +270,7 @@ def join_max(input_list, limit, sep=", ", end=", ..."):
 
 
 def misp_threat_level_id_to_str(threat_level_id):
-    return MISP_THREAT_LEVEL_DICT[threat_level_id]
+    return MISP_THREAT_LEVEL_DICT[str(threat_level_id)]
 
 
 def misp_analysis_id_to_str(analysis_id):
