@@ -275,6 +275,17 @@ def upsert_new_event(event, attrib, ip_addr, ip_role):
     """
     Create/update a NERD misp_event for an IP-bearing attribute.
     """
+
+    # Check distribution level
+    #    0 -> Your organization only
+    #    1 -> This community only
+    #    2 -> Connected communities
+    #    3 -> All communities
+    #    4 -> Sharing group
+    #    5 -> Inherit event's distribution (only for attributes)
+    if event.get('distribution') not in (2, 3) or attrib.get('distribution') not in (2, 3, 5):
+        return
+
     new_event = create_new_event(event, ip_role, get_sightings_for_nerd(attrib.get('Sighting')))
     live_till = new_event['date'] + timedelta(days=inactive_ip_lifetime)
 
