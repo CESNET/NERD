@@ -59,7 +59,7 @@ channel = connection.channel()
 channel.queue_declare(queue='shodan_rpc_queue', arguments={'x-message-ttl' : 30000}) # set ttl of messages to 30 sec
 
 # dictionary in format: { 'ipaddr': {ttl: time, data: data}}
-cache = TTLCache(maxsize=128, ttl=3600)
+cache = TTLCache(maxsize=10000, ttl=3600)
 
 
 def get_shodan_data(ip):
@@ -68,21 +68,33 @@ def get_shodan_data(ip):
         data = cache[ip]
     else:
         url = 'https://api.shodan.io/shodan/host/{ip}?key={api_key}'.format(ip=ip, api_key=api_key)
+        # Send request to Shodan API
+        # expected result is a JSON with many keys containing details about the IP
+        # (of 404 if there are no data for given IP)
         resp = requests.get(url)
-        if resp.status_code == 200:
-            data = resp.content
-        else:
-            if resp.status_code != 404:
-                logger.error("Error response for url: {}\n{}".format(url, resp.content))
-            try:
-                response_dict = json.loads(resp.text)
-            except Exception:
-                return json.dumps({"error": "Shodan returned invalid response"})
-            data = json.dumps({"error": response_dict["error"] if "error" in response_dict else "Unknown error"})
-        
-        if resp.status_code == 200 or resp.status_code == 404:
-            # store returned data (or info that there's no data) to cache
-            cache[ip] = data
+        logger.debug(f"Shodan response status code: {resp.status_code}")
+        if resp.status_code == 429:
+            return json.dumps({"error": "Shodan API rate-limit exceeded"})
+        if resp.status_code not in (200, 404):
+            logger.error(f"Shodan returned unexpected response ({resp.status_code}): {resp.content[:1000]}")
+            return json.dumps({"error": f"Shodan returned unexpected response ({resp.status_code})"})
+
+        try:
+            response_dict = json.loads(resp.text)
+        except ValueError:
+            logger.error("Error response for url: {}\n{}".format(url, resp.content))
+            return json.dumps({"error": "Shodan returned invalid response"})
+
+        # Only extract fields that are actually used in NERD
+        # (some responses can be so large they hit a default message size limit in RabbitMQ. It could be increased,
+        #  but we don't need most of the data anyway)
+        keys_used = {'ports', 'os', 'tags', 'error'}
+        response_dict2 = {k: response_dict[k] for k in (response_dict.keys() & keys_used)}
+
+        data = json.dumps(response_dict2)
+
+        # store returned data (or info that there's no data) to cache
+        cache[ip] = data
 
     return data
 
