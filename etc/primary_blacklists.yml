@@ -566,7 +566,7 @@ iplists:
 # Echelon blacklists
 - id: echelon_admin_panel_hunt
   name: Echelon admin panel hunt
-  descr: Scanning for administrative interfaces
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Scanning for administrative interfaces"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/admin-panel-hunt
@@ -577,7 +577,7 @@ iplists:
 
 - id: echelon_cgi_script_hunt
   name: Echelon CGI script hunt
-  descr: Scanning for vulnerable CGI scripts
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Scanning for vulnerable CGI scripts"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/cgi-script-hunt
@@ -588,7 +588,7 @@ iplists:
 
 - id: echelon_cms_enumeration
   name: Echelon CMS enumeration
-  descr: Content management system discovery and enumeration
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Content management system discovery and enumeration"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/cms-enumeration
@@ -599,7 +599,7 @@ iplists:
 
 - id: echelon_cisco_ucm_exploit
   name: Echelon CISCO UCM exploit
-  descr: CVE-2024-20253 Cisco Unified Communications Manager RCE
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: CVE-2024-20253 Cisco Unified Communications Manager RCE"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/cisco-ucm-exploit
@@ -610,7 +610,7 @@ iplists:
 
 - id: echelon_config_file_hunt
   name: Echelon config file hunt
-  descr: Scanning for exposed configuration files
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Scanning for exposed configuration files"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/config-file-hunt
@@ -621,7 +621,7 @@ iplists:
 
 - id: echelon_database_admin_hunt
   name: Echelon database admin hunt
-  descr: Scanning for database admin interfaces (phpMyAdmin, etc.)
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Scanning for database admin interfaces (phpMyAdmin, etc.)"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/database-admin-hunt
@@ -632,7 +632,7 @@ iplists:
 
 - id: echelon_directory_traversal_attempt
   name: Echelon directory traversal
-  descr: Path traversal attack attempting to access restricted files
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Path traversal attack attempting to access restricted files"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/directory-traversal-attempt
@@ -643,7 +643,7 @@ iplists:
 
 - id: echelon_enterprise_software_probe
   name: Echelon enterprise software probe
-  descr: Probing for enterprise software (Confluence, Jenkins, etc.)
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Probing for enterprise software (Confluence, Jenkins, etc.)"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/enterprise-software-probe
@@ -654,7 +654,7 @@ iplists:
 
 - id: echelon_file_upload_attempt
   name: Echelon file upload
-  descr: Attempting to upload potentially malicious files
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Attempting to upload potentially malicious files"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/file-upload-attempt
@@ -665,7 +665,7 @@ iplists:
 
 - id: echelon_iot_default_credential_attempt
   name: Echelon IoT default credentials
-  descr:
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Default credential stuffing attempt on telnet"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/iot-default-credential-attempt
@@ -676,7 +676,7 @@ iplists:
 
 - id: echelon_invanti_epmm_exploit
   name: Echelon Ivanti EPMM exploit
-  descr: CVE-2026-1281/CVE-2026-1340 Ivanti Endpoint Manager Mobile pre-auth RCE
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: CVE-2026-1281/CVE-2026-1340 Ivanti Endpoint Manager Mobile pre-auth RCE"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/ivanti-epmm-exploit
@@ -687,7 +687,7 @@ iplists:
 
 - id: echelon_mirai_credential_spray
   name: Echelon Mirai credential spray
-  descr: Mirai-specific IoT default credentials detected in telnet payload
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Mirai-specific IoT default credentials detected in telnet payload"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/mirai-default-credential-spray
@@ -698,7 +698,7 @@ iplists:
 
 - id: echelon_mirai_scanner
   name: Echelon Mirai scanner
-  descr: Mirai-style port 23/2323 dual scanning pattern detected
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Mirai-style port 23/2323 dual scanning pattern detected"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/mirai-scanner
@@ -709,7 +709,7 @@ iplists:
 
 - id: echelon_path_traversal_attempt
   name: Echelon path traversal
-  descr: Path traversal via encoded sequences
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Path traversal via encoded sequences"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/path-traversal-attempt
@@ -720,7 +720,7 @@ iplists:
 
 - id: echelon_port_scan
   name: Echelon port scan
-  descr: Scanning 5+ ports on target host
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Scanning 5+ ports on target host"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/port-scan
@@ -731,7 +731,7 @@ iplists:
 
 - id: echelon_router_exploit
   name: Echelon router exploit
-  descr: Attempting router firmware exploits (Netgear, D-Link, etc.)
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Attempting router firmware exploits (Netgear, D-Link, etc.)"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/router-exploit
@@ -742,7 +742,7 @@ iplists:
 
 - id: echelon_sip_register_scanner
   name: Echelon SIP register scanner
-  descr: SIP VoIP registration scanning on port 5060
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: SIP VoIP registration scanning on port 5060"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/sip-register-scanner
@@ -753,7 +753,7 @@ iplists:
 
 - id: echelon_sql_injection_attempt
   name: Echelon SQL injection
-  descr:
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: SQL injection attack detected in request"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/sql-injection-attempt
@@ -764,7 +764,7 @@ iplists:
 
 - id: echelon_ssh_bruteforcer
   name: Echelon SSH bruteforce
-  descr: Multiple SSH authentication attempts detected
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Multiple SSH authentication attempts detected"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/ssh-bruteforcer
@@ -775,7 +775,7 @@ iplists:
 
 - id: echelon_ssh_connection_attempt
   name: Echelon SSH connection attempt
-  descr: SSH connection attempt detected on port 22 or 2222
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: SSH connection attempt detected on port 22 or 2222"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/ssh-connection-attempt
@@ -786,7 +786,7 @@ iplists:
 
 - id: echelon_sharepoint_active_exploitation
   name: Echelon SharePoint active exploitation
-  descr: Active exploitation of SharePoint vulnerabilities
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Active exploitation of SharePoint vulnerabilities"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/sharepoint-active-exploitation
@@ -797,7 +797,7 @@ iplists:
 
 - id: echelon_sharepoint_toolshell_exploit
   name: Echelon SharePoint toolshell exploit
-  descr: SharePoint toolshell exploitation attempt
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: SharePoint toolshell exploitation attempt"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/sharepoint-toolshell-exploit
@@ -808,7 +808,7 @@ iplists:
 
 - id: echelon_sharepoint_wehshell_scanning
   name: Echelon SharePoint webshell scanning
-  descr: Scanning for SharePoint web shells
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Scanning for SharePoint web shells"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/sharepoints-webshell-scanning
@@ -819,7 +819,7 @@ iplists:
 
 - id: echelon_solarwinds_probe
   name: Echelon SolarWinds probe
-  descr: Probing for SolarWinds Orion endpoints
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Probing for SolarWinds Orion endpoints"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/solarwinds-probe
@@ -830,7 +830,7 @@ iplists:
 
 - id: echelon_tls_ssl_crawler
   name: Echelon TLS/SSL crawler
-  descr: TLS/SSL connection fingerprinting detected via Suricata
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: TLS/SSL connection fingerprinting detected via Suricata"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/tls%2Fssl-crawler
@@ -841,7 +841,7 @@ iplists:
 
 - id: echelon_telnet_bruteforcer
   name: Echelon telnet bruteforce
-  descr: Multiple telnet authentication attempts detected
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Multiple telnet authentication attempts detected"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/telnet-bruteforcer
@@ -852,7 +852,7 @@ iplists:
 
 - id: echelon_uri_parsing_exploit
   name: Echelon URI parsing exploit
-  descr: Exploiting URI parsing vulnerabilities
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Exploiting URI parsing vulnerabilities"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/uri-parsing-exploit
@@ -863,7 +863,7 @@ iplists:
 
 - id: echelon_vnc_login_attempt
   name: Echelon VNC login
-  descr: VNC remote desktop login attempt on port 5900/5901
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: VNC remote desktop login attempt on port 5900/5901"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/vnc-login-attempt
@@ -874,7 +874,7 @@ iplists:
 
 - id: echelon_web_command_injection
   name: Echelon web command injection
-  descr: Attempting OS command injection via web parameters
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Attempting OS command injection via web parameters"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/web-commad-injection
@@ -885,7 +885,7 @@ iplists:
 
 - id: echelon_web_crawler
   name: Echelon web crawler
-  descr: HTTP web crawling activity detected on web honeypots
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: HTTP web crawling activity detected on web honeypots"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/web-crawler
@@ -896,7 +896,7 @@ iplists:
 
 - id: echelon_web_shell_hunt
   name: Echelon web shell hunt
-  descr: Scanning for web shells (WSO, c99, r57, etc.)
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Scanning for web shells (WSO, c99, r57, etc.)"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/web-shell-hunt
@@ -907,7 +907,7 @@ iplists:
 
 - id: echelon_web_vulnerability_exploit
   name: Echelon web vulnerability exploit
-  descr: Generic web application vulnerability exploit
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: Generic web application vulnerability exploit"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/web-vulnerability-exploit
@@ -918,7 +918,7 @@ iplists:
 
 - id: echelon_wordpress_auth_bypass
   name: Echelon WordPress auth bypass
-  descr: WordPress authentication bypass attempt
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: WordPress authentication bypass attempt"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/wordpress-auth-bypass
@@ -929,7 +929,7 @@ iplists:
 
 - id: echelon_wordpress_enumeration
   name: Echelon WordPress enumeration
-  descr: WordPress user and plugin enumeration
+  descr: "IPs detected by Echelon sensors (honeypots) as performing this activity: WordPress user and plugin enumeration"
   severity: 5
   provider_link: https://echelonlabs.co/
   url: https://echelonlabs.co/api/tag/block/wordpress-enumeration

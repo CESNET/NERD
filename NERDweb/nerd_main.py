@@ -111,7 +111,7 @@ for feed_info in bl_config.get('domainlists', []):
 for zone, replies in dnsbl_config.get('dnsbl', {}).items():
     for reply, feed_info in replies.items():
         feed_info["feed_type"] = "secondary (DNSBL)"
-        feed_info['descr'] = feed_info['descr'].replace("<br>", " ")
+        feed_info['descr'] = feed_info.get('descr', "").replace("<br>", " ")
         feed_info["zone"] = zone
         feed_info["reply"] = reply
         blacklist_info[feed_info['id']] = feed_info
@@ -1409,7 +1409,7 @@ def feed(feedname=None):
         return flask.abort(404)
 
     name = feed['name']
-    description = feed['descr'].replace("<br>", " ")
+    description = feed.get('descr', "").replace("<br>", " ")
     firehol_link = feed.get('firehol_link', None)
     provider_link = feed['provider_link']
     feed_type = feed['feed_type']
