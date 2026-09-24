@@ -36,6 +36,12 @@ class Cleaner(NERDModule):
             tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
         )
         g.um.register_handler(
+            self.clear_bl,
+            'ip',
+            ('!every1d',),
+            tuple() # No key is changed; some are removed, but there's no way to specify list of keys to delete in advance; anyway it shouldn't be a problem in this case.
+        )
+        g.um.register_handler(
             self.clear_bl_hist,
             'ip',
             ('!every1d',),
@@ -114,6 +120,27 @@ class Cleaner(NERDModule):
             self.log.debug("Cleaning {}: Removing {} old dshield records".format(key, len(actions)))
         return actions
 
+    def clear_bl(self, ekey, rec, updates):
+        """
+        Handler function to clear old blacklist data.
+
+        Set bl[].v to 0 for all blacklists where the IP was last seen more than one day ago.
+        """
+        etype, key = ekey
+        if etype != 'ip':
+            return None
+
+        cut_time = datetime.utcnow() - timedelta(days=1)
+        actions = []
+
+        for blrec in rec.get('bl', []):
+            if blrec['t'] < cut_time and blrec['v'] == 1:
+                actions.append(('array_update', 'bl', {'n': blrec['n']}, [('set', 'v', 0)]))
+
+        if actions:
+            self.log.debug("Cleaning {}: Updating blacklists".format(key))
+        return actions
+
     def clear_bl_hist(self, ekey, rec, updates):
         """
         Handler function to clear old blacklist data.
@@ -151,10 +178,10 @@ class Cleaner(NERDModule):
                 actions.append( ('array_update', 'dbl', {'n': blrec['n'], 'd': blrec['d']}, [('set', 'h', newlist)]) )
 
         if actions:
-            self.log.debug("Cleaning {}: Updating blacklists".format(key))
+            self.log.debug("Cleaning {}: Updating blacklist history".format(key))
 
         return actions
-    
+
     def clear_otx_pulses(self, ekey, rec, updates):
         """
         Handler function to clear old otx pulses data
