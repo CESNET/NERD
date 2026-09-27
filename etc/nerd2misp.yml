@@ -1,0 +1,64 @@
+# Configuration for client-scripts/nerd2misp.py
+#
+# Pushes NERD's most active malicious IPs (categories 'scan' and 'login',
+# high confidence) into a single, continuously-updated MISP event.
+
+nerd:
+  # Base URL of the NERD API (the script queries <api_url>/search/ip/)
+  api_url: "https://nerd.example.com/nerd/api/v1"
+  # NERD API token (the account needs access to the IP search endpoint)
+  api_key: "NERD-API-KEY"
+  # Path to a custom CA bundle to verify the server cert, or 'false' to
+  # disable certificate verification, or 'true' (default) for the system CA bundle
+  verify_cert: true
+  # Timeout of each API request in seconds (searching by category can be slow)
+  #timeout: 300
+
+  # Only IPs with these threat categories are considered (must be category IDs
+  # known to NERD, see etc/threat_categorization.yml - the API rejects others).
+  categories:
+    - scan
+    - login
+
+  # Only IPs with confidence STRICTLY GREATER than this value (for at least
+  # one of the categories above) are sent to MISP.
+  confidence_threshold: 0.5
+
+misp:
+  # Target MISP instance
+  url: "https://misp.example.com"
+  # MISP API auth key
+  key: "MISP-API-KEY"
+  # Path to a custom CA bundle to verify the server cert, or 'false' to
+  # disable certificate verification, or 'true' (default) for the system CA bundle
+  verify_cert: true
+
+  # Name of the (single) MISP event that is kept in sync with the current data.
+  # Used to find the event again on subsequent runs - keep it stable.
+  event_info: "[NERD] Most active malicious IPs (scans, login attempts)"
+  # Tags always kept present on the event (added if missing, never removed).
+  # The RSIT tag for each category in 'nerd.categories' above (e.g.
+  # rsit:information-gathering="scanner") is added to the event automatically
+  # on top of these, no need to list it here.
+  event_tags:
+    - "tlp:clear"
+    - "source:NERD"
+
+  # Number of concurrent requests to MISP while syncing attributes.
+  max_workers: 10
+
+  # New attributes are created in bulk, this many per API call (instead of
+  # one call per attribute).
+  batch_size: 100
+
+  # MISP distribution level used when the event is first created:
+  # 0=your org only, 1=this community, 2=connected communities, 3=all communities
+  distribution: 0
+  # Threat level used when the event is first created: 1=High, 2=Medium, 3=Low, 4=Undefined
+  threat_level_id: 2
+  # Analysis level used when the event is first created: 0=Initial, 1=Ongoing, 2=Completed
+  analysis: 2
+
+  # Whether new ip-src attributes should have the IDS flag set (i.e. be
+  # exported for detection/blocking by MISP-fed systems, not just informational)
+  to_ids: true
