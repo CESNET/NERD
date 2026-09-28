@@ -493,8 +493,8 @@ def main():
         prog="nerd2misp.py",
         description="Synchronize a MISP event with the most active malicious IPs from NERD (scan/login categories)."
     )
-    parser.add_argument('-c', '--config', metavar='CONFIG_FILE', default='/etc/nerd/nerd2misp.yml',
-                         help='Path to configuration file (default: /etc/nerd/nerd2misp.yml)')
+    parser.add_argument('-c', '--config', metavar='CONFIG_FILE', default='nerd2misp.yml',
+                         help='Path to configuration file (default: nerd2misp.yml)')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
     parser.add_argument('-n', '--dry-run', action='store_true',
                          help="Download/parse data and show what would change, but don't modify MISP "

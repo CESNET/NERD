@@ -42,7 +42,7 @@ misp:
   # on top of these, no need to list it here.
   event_tags:
     - "tlp:clear"
-    - "source:NERD"
+    - "CESNET:NERD"
 
   # Number of concurrent requests to MISP while syncing attributes.
   max_workers: 10
@@ -53,9 +53,9 @@ misp:
 
   # MISP distribution level used when the event is first created:
   # 0=your org only, 1=this community, 2=connected communities, 3=all communities
-  distribution: 0
+  distribution: 3
   # Threat level used when the event is first created: 1=High, 2=Medium, 3=Low, 4=Undefined
-  threat_level_id: 2
+  threat_level_id: 3
   # Analysis level used when the event is first created: 0=Initial, 1=Ongoing, 2=Completed
   analysis: 2
 
