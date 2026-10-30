@@ -7,7 +7,7 @@
 
 {% if error %}
     <p class="msg error">{{ error }}</p>
-{% elif tlp == "green" and not ac('tlp-green') %}
+{% elif (tlp == "green" and not ac('tlp-green')) or (tlp == "amber" and not ac('tlp-amber')) %}
     <h1>Insufficient permission to access this event</h1>
 {% else %}
     <div class="float-box" {% if ac('statusbox') %} style="margin-top: 65px" {% else %} style="margin-top: 15px" {% endif %}>

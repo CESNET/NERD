@@ -426,13 +426,22 @@
                         {% endif %}
                     {% endfor %}
                 {% endif %}
-            {% elif tag_id == "misp_tlp_white" %}
-                {% set tlp_white_tag = namespace(showed=0) %}
+            {% elif tag_id == "misp_tlp_amber" %}
+                {% set tlp_amber_tag = namespace(showed=0) %}
                 {% for misp_event in ip.misp_events %}
-                    {% if misp_event.tlp == "white" and not tlp_white_tag.showed %}
+                    {% if misp_event.tlp == "amber" and not tlp_amber_tag.showed %}
                         <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="{% if "description" in config_tags[tag_id] %}<b>{{config_tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
                         {{config_tags[tag_id].name}}
-                        {% set tlp_white_tag.showed = tlp_white_tag.showed + 1 %}
+                        {% set tlp_amber_tag.showed = tlp_amber_tag.showed + 1 %}
+                    {% endif %}
+                {% endfor %}
+            {% elif tag_id == "misp_tlp_clear" %}
+                {% set tlp_clear_tag = namespace(showed=0) %}
+                {% for misp_event in ip.misp_events %}
+                    {% if misp_event.tlp == "clear" and not tlp_clear_tag.showed %}
+                        <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="{% if "description" in config_tags[tag_id] %}<b>{{config_tags[tag_id].description}}</b><br /><br />{% endif %}{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+                        {{config_tags[tag_id].name}}
+                        {% set tlp_clear_tag.showed = tlp_clear_tag.showed + 1 %}
                     {% endif %}
                 {% endfor %}
             {% else %}

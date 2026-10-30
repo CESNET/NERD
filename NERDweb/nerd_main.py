@@ -1058,9 +1058,11 @@ def ips():
     
     cfg_max_event_history = config.get('max_event_history', '?')
 
-    # Disallow to see/search by 'misp_tlp_green' tag if the user doesn't have the 'tlp-green' permission
+    # Disallow to see/search by 'misp_tlp_green' or 'misp_tlp_amber' tag if the user doesn't have permission
     if not g.ac('tlp-green'):
         form.tag.choices = [(tag_id, tag_name) for tag_id, tag_name in form.tag.choices if tag_id != 'misp_tlp_green']
+    if not g.ac('tlp-amber'):
+        form.tag.choices = [(tag_id, tag_name) for tag_id, tag_name in form.tag.choices if tag_id != 'misp_tlp_amber']
 
     if g.ac('ipsearch') and form.validate():
         tz_utc = pytz.utc
@@ -1182,7 +1184,7 @@ def ips():
             showable_misp_events = 0
             for misp_event in ip.get('misp_events', []):
                 tlp = misp_event.get('tlp')
-                if tlp == "white" or (tlp == "green" and g.ac('tlp-green')):
+                if tlp == "clear" or (tlp == "green" and g.ac('tlp-green')) or (tlp == "amber" and g.ac('tlp-amber')):
                     showable_misp_events += 1
             ip['_showable_misp_events'] = showable_misp_events
 
@@ -1381,6 +1383,8 @@ def ips_download():
                     if 'tags' in result:
                         if 'misp_tlp_green' in result['tags'] and not g.ac('tlp-green'):
                             del result['tags']['misp_tlp_green']
+                        if 'misp_tlp_amber' in result['tags'] and not g.ac('tlp-amber'):
+                            del result['tags']['misp_tlp_amber']
                         row_entry['tags'] = '|'.join(result['tags'].keys())
 
                     if 'ts_added' in result:
@@ -1594,8 +1598,11 @@ def misp_event(event_id=None):
         # find tlp tag, if tlp tag is not used, set green as default
         tlp = "green"
         for tag in event.get('Tag', []):
-            if "tlp" in tag['name']:
-                tlp = tag['name'][4:]
+            tag_name = tag['name'].lower()
+            if "tlp" in tag_name:
+                tlp = tag_name[4:]
+                if tlp == "white":
+                    tlp = "clear"  # TLP:WHITE was renamed to TLP:CLEAR in TLP 2.0
                 break
 
         return render_template('misp_event.html', title=title, event=event, tlp=tlp)

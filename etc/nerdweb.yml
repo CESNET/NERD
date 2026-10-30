@@ -84,7 +84,7 @@ mentat_url: https://mentat-hub.cesnet.cz/mentat/events/search?source_addrs=$IP&s
 
 # (Optional) Message to show on the top of the MISP event page to explain where
 # the data comes from.
-#misp_message: "The MISP events shown in NERD are taken from [TODO]. Only messages with TLP=white (i.e. public information) are shown, unless you have an account with higher privileges."
+#misp_message: "The MISP events shown in NERD are taken from [TODO]. Only messages with TLP:clear (i.e. public information) are shown, unless you have an account with higher privileges."
 
 # (Optional) Link to Munin graphs
 # Shown in "status box" (visible to administrators only)

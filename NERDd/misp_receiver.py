@@ -191,7 +191,10 @@ def create_new_event(event, role, sightings):
                 'colour': tag.get('colour')
             })
         else:
-            new_event['tlp'] = tag_name[4:]
+            tlp = tag_name[4:].lower()
+            if tlp == "white":
+                tlp = "clear"  # TLP:WHITE was renamed to TLP:CLEAR in TLP 2.0
+            new_event['tlp'] = tlp
 
     return new_event
 

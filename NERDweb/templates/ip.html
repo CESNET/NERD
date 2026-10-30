@@ -112,13 +112,24 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
                   {% endif %}
               {% endfor %}
           {% endif %}
-      {% elif tag_id == "misp_tlp_white" %}
-          {% set tlp_white_tag = namespace(showed=0) %}
+      {% elif tag_id == "misp_tlp_amber" %}
+          {% if ac('tlp-amber') %}
+              {% set tlp_amber_tag = namespace(showed=0) %}
+              {% for misp_event in ipinfo.misp_events %}
+                  {% if misp_event.tlp == "amber" and not tlp_amber_tag.showed%}
+                    <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="<b>{{config_tags[tag_id].description}}</b><br /><br />{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
+                    {{config_tags[tag_id].name}}
+                    {% set tlp_amber_tag.showed = tlp_amber_tag.showed + 1 %}
+                  {% endif %}
+              {% endfor %}
+          {% endif %}
+      {% elif tag_id == "misp_tlp_clear" %}
+          {% set tlp_clear_tag = namespace(showed=0) %}
           {% for misp_event in ipinfo.misp_events %}
-              {% if misp_event.tlp == "white" and not tlp_white_tag.showed %}
+              {% if misp_event.tlp == "clear" and not tlp_clear_tag.showed %}
                   <span class="tag" style="{{ tag_color_style(config_tags[tag_id].tag_color, tag_param.confidence) }}" title="<b>{{config_tags[tag_id].description}}</b><br /><br />{% if "info" in tag_param %}{{tag_param.info}}<br /><br />{% endif %}Confidence: <i>{{tag_param.confidence}}</i><br />Time added: <i>{{tag_param.time_added|datetime}}</i><br />Time modified: <i>{{tag_param.time_modified|datetime}}</i>">
                   {{config_tags[tag_id].name}}
-                  {% set tlp_white_tag.showed = tlp_white_tag.showed + 1 %}
+                  {% set tlp_clear_tag.showed = tlp_clear_tag.showed + 1 %}
               {% endif %}
           {% endfor %}
       {% else %}
@@ -207,7 +218,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
 {% if ipinfo.misp_events %}
   {% set misp_events = namespace(showable=0) -%}
   {% for misp_event in ipinfo.misp_events -%}
-      {% if misp_event.tlp == "white" or (misp_event.tlp == "green" and ac('tlp-green')) -%}
+      {% if misp_event.tlp == "clear" or (misp_event.tlp == "green" and ac('tlp-green')) or (misp_event.tlp == "amber" and ac('tlp-amber')) -%}
           {% set misp_events.showable = misp_events.showable + 1 -%}
       {% endif -%}
   {% endfor -%}
@@ -215,7 +226,7 @@ Search at other sites: <a href="https://www.shodan.io/host/{{ ip }}" title="Sear
       <dt> MISP events </dt>
       <dd{% if misp_events.showable > 1%} class="scrollable"{% endif %}>
        {% for misp_event in ipinfo.misp_events|sort(attribute='date', reverse=True) %}
-            {% if misp_event.tlp == "white" or (misp_event.tlp == "green" and ac('tlp-green')) %}
+            {% if misp_event.tlp == "clear" or (misp_event.tlp == "green" and ac('tlp-green')) or (misp_event.tlp == "amber" and ac('tlp-amber')) %}
                <div><b>[<a href="{{ url_for('misp_event') + misp_event.event_id }}">{{ misp_event.event_id }}</a>] {{ misp_event.pop('date', 'no date') }} | {{ misp_event.pop('info', 'no info') }}</b>
                <table style="padding-left: 30px; padding-bottom: 10px">
                 {#<tr> <td> event_url </td> <td> <a href="{{ misp_event.misp_instance }}/events/view/{{ misp_event.event_id }}">link</a>  </td> </tr>#}

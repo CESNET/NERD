@@ -177,16 +177,21 @@ tags:
     description: "Host IP is reserved IP address"
     tag_color: "#C0C0C0"
     condition: "reserved_range"
-  misp_tlp_white:
-    name: MISP (tlp:white)
-    description: "IP is in MISP event(s) (with TLP white)"
+  misp_tlp_clear:
+    name: MISP (tlp:clear)
+    description: "IP is in MISP event(s) (with TLP clear)"
     tag_color: "#2FA1DB"
-    condition: "'white' in `$.misp_events[*].tlp`"
+    condition: "'clear' in `$.misp_events[*].tlp`"
   misp_tlp_green:
     name: MISP (tlp:green)
     description: "IP is in MISP event(s) (with TLP green)"
     tag_color: "#2FA1DB"
     condition: "'green' in `$.misp_events[*].tlp`"
+  misp_tlp_amber:
+    name: MISP (tlp:amber)
+    description: "IP is in MISP event(s) (with TLP amber)"
+    tag_color: "#2FA1DB"
+    condition: "'amber' in `$.misp_events[*].tlp`"
   whitelist:
     name: Whitelisted
     description: "IP is manually whitelisted"
