@@ -1588,7 +1588,10 @@ def misp_event(event_id=None):
     if not event_id or not event_id.isnumeric() or int(event_id) == 0: # ID must be positive integer
         return make_response("ERROR: Missing or invalid MISP event ID", 404)
 
-    event = misp_inst.search(controller="events", eventid=int(event_id))
+    try:
+        event = misp_inst.search(controller="events", eventid=int(event_id))
+    except Exception:
+        return render_template('misp_event.html', error="Failed to fetch event from MISP instance")
 
     if not event:
         return render_template('misp_event.html', error="Event does not exist in MISP instance")
